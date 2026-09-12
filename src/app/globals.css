@@ -1,0 +1,175 @@
+@import "tailwindcss";
+
+/* AgriZed brand tokens, taken from the logo: forest green, olive leaf, gold, cream paper. */
+@theme {
+  --color-paper: #f7f5ee;
+  --color-surface: #ffffff;
+  --color-ink: #1b2a1f;
+  --color-muted: #5a685c;
+  --color-line: #e3e0d4;
+  --color-line-strong: #cfcab8;
+
+  --color-forest: #1f4a2c;
+  --color-forest-700: #163821;
+  --color-forest-600: #2a5c38;
+  --color-leaf: #6e8e3a;
+  --color-leaf-soft: #e8eed9;
+
+  --color-gold: #a87c22;
+  --color-gold-bright: #d6b04a;
+  --color-gold-soft: #f4e8c9;
+
+  --color-danger: #a33b2c;
+  --color-danger-soft: #f7e3de;
+  --color-success: #2d6e45;
+  --color-success-soft: #deeee2;
+}
+
+@theme inline {
+  --font-sans: var(--font-plex-arabic), "Segoe UI", Tahoma, sans-serif;
+  --font-display: var(--font-markazi), var(--font-plex-arabic), "Times New Roman", serif;
+}
+
+:root {
+  color-scheme: light;
+}
+
+html {
+  background: var(--color-paper);
+}
+
+body {
+  background: var(--color-paper);
+  color: var(--color-ink);
+  font-family: var(--font-sans);
+}
+
+:focus-visible {
+  outline: 2px solid var(--color-gold-bright);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+@layer components {
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    min-height: 3rem;
+    padding-inline: 1.25rem;
+    border-radius: 0.75rem;
+    font-weight: 600;
+    font-size: 1rem;
+    line-height: 1.2;
+    text-align: center;
+    text-decoration: none;
+    transition: background-color 150ms, border-color 150ms, color 150ms;
+    cursor: pointer;
+  }
+  .btn-primary {
+    background: var(--color-forest);
+    color: #fff;
+  }
+  .btn-primary:hover {
+    background: var(--color-forest-600);
+  }
+  .btn-secondary {
+    background: var(--color-surface);
+    color: var(--color-forest);
+    border: 1.5px solid var(--color-line-strong);
+  }
+  .btn-secondary:hover {
+    border-color: var(--color-forest);
+  }
+  .btn-ghost {
+    color: var(--color-forest);
+    padding-inline: 0.75rem;
+  }
+  .btn-ghost:hover {
+    background: var(--color-leaf-soft);
+  }
+  .btn:disabled,
+  .btn[aria-disabled="true"] {
+    opacity: 0.55;
+    cursor: not-allowed;
+  }
+
+  .field {
+    width: 100%;
+    min-height: 3rem;
+    border-radius: 0.75rem;
+    border: 1.5px solid var(--color-line-strong);
+    background: var(--color-surface);
+    padding: 0.625rem 0.875rem;
+    font-size: 1rem; /* 16px avoids zoom on iOS */
+    color: var(--color-ink);
+  }
+  .field:focus {
+    outline: none;
+    border-color: var(--color-forest);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-forest) 18%, transparent);
+  }
+  .field[aria-invalid="true"] {
+    border-color: var(--color-danger);
+  }
+  .field::placeholder {
+    color: #9aa39b;
+  }
+
+  .label {
+    display: block;
+    font-weight: 600;
+    font-size: 0.95rem;
+    margin-bottom: 0.375rem;
+  }
+  .hint {
+    font-size: 0.85rem;
+    color: var(--color-muted);
+  }
+  .error-text {
+    font-size: 0.875rem;
+    color: var(--color-danger);
+    margin-top: 0.375rem;
+  }
+
+  /* Radio / checkbox rendered as a large tappable card */
+  .choice {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    min-height: 3.25rem;
+    padding: 0.75rem 1rem;
+    border: 1.5px solid var(--color-line-strong);
+    border-radius: 0.875rem;
+    background: var(--color-surface);
+    cursor: pointer;
+    transition: border-color 150ms, background-color 150ms;
+  }
+  .choice:hover {
+    border-color: var(--color-leaf);
+  }
+  .choice:has(input:checked) {
+    border-color: var(--color-forest);
+    background: var(--color-leaf-soft);
+  }
+  .choice:has(input:focus-visible) {
+    outline: 2px solid var(--color-gold-bright);
+    outline-offset: 2px;
+  }
+  .choice input {
+    accent-color: var(--color-forest);
+    width: 1.125rem;
+    height: 1.125rem;
+    flex: none;
+  }
+}

@@ -1,0 +1,50 @@
+import type { Metadata } from "next";
+
+import { ComingSoon, PreviewBanner } from "@/components/site/module-gate";
+import { getPublicConfig, optionsFor, settingBool, settingText } from "@/lib/config";
+import { moduleAccess } from "@/lib/modules";
+
+import { RegisterWizard } from "./register-wizard";
+
+export const metadata: Metadata = {
+  title: "سجّل اهتمامك",
+  description: "سجّل اهتمامك بالاستثمار في الزيتون حسب قدرتك. التسجيل مجاني ولا يمثل التزاماً بالشراء.",
+};
+
+export default async function RegisterPage({ searchParams }: PageProps<"/register">) {
+  const config = await getPublicConfig();
+  const access = await moduleAccess(config, "interest_form");
+  if (access === "closed") {
+    return <ComingSoon title="سجّل اهتمامك" />;
+  }
+
+  const downPayments = optionsFor(config, "down_payment");
+  const installments = optionsFor(config, "monthly_installment");
+
+  // The simulator links here with the values the visitor already picked (SIM-03).
+  const params = await searchParams;
+  const pick = (list: { id: string }[], value: string | string[] | undefined) =>
+    typeof value === "string" && list.some((option) => option.id === value) ? value : undefined;
+
+  return (
+    <>
+      {access === "preview" ? <PreviewBanner /> : null}
+      <RegisterWizard
+        governorates={config.governorates}
+        scenarios={config.scenarios}
+        desiredAreas={optionsFor(config, "desired_area")}
+        priorities={optionsFor(config, "priority")}
+        goals={optionsFor(config, "goal")}
+        downPayments={downPayments}
+        installments={installments}
+        contactTimes={optionsFor(config, "contact_time")}
+        allowMultipleScenarios={settingBool(config, "lead.project_types_multi", true)}
+        allowInternationalPhone={settingBool(config, "lead.allow_international_phone")}
+        notice={settingText(config, "site.free_interest_notice")}
+        consentText={settingText(config, "legal.consent_text")}
+        initialDownPaymentId={pick(downPayments, params.down)}
+        initialInstallmentId={pick(installments, params.installment)}
+      />
+    </>
+  );
+}
