@@ -1563,6 +1563,8 @@ export type Database = {
         Row: {
           alt_ar: string | null
           aspect: string
+          credit_text: string | null
+          credit_url: string | null
           description_ar: string | null
           group_key: string
           label_ar: string
@@ -1575,6 +1577,8 @@ export type Database = {
         Insert: {
           alt_ar?: string | null
           aspect?: string
+          credit_text?: string | null
+          credit_url?: string | null
           description_ar?: string | null
           group_key?: string
           label_ar: string
@@ -1587,6 +1591,8 @@ export type Database = {
         Update: {
           alt_ar?: string | null
           aspect?: string
+          credit_text?: string | null
+          credit_url?: string | null
           description_ar?: string | null
           group_key?: string
           label_ar?: string

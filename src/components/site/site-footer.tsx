@@ -9,9 +9,11 @@ type SiteFooterProps = {
   phone: string;
   whatsapp: string;
   email: string;
+  /** Authors of the CC BY photographs on the site; the licence requires naming them. */
+  credits?: { text: string; url: string | null }[];
 };
 
-export function SiteFooter({ legalNotice, taglineFr, phone, whatsapp, email }: SiteFooterProps) {
+export function SiteFooter({ legalNotice, taglineFr, phone, whatsapp, email, credits = [] }: SiteFooterProps) {
   const hasContact = Boolean(phone || whatsapp || email);
 
   return (
@@ -58,6 +60,23 @@ export function SiteFooter({ legalNotice, taglineFr, phone, whatsapp, email }: S
                 ) : null}
               </ul>
             </>
+          ) : null}
+          {credits.length > 0 ? (
+            <p className="text-xs leading-5 text-muted">
+              الصور:{" "}
+              {credits.map((credit, index) => (
+                <span key={credit.text}>
+                  {index > 0 ? " · " : null}
+                  {credit.url ? (
+                    <a href={credit.url} dir="ltr" rel="noopener" className="underline-offset-2 hover:underline">
+                      {credit.text}
+                    </a>
+                  ) : (
+                    <span dir="ltr">{credit.text}</span>
+                  )}
+                </span>
+              ))}
+            </p>
           ) : null}
           <p className="pt-2 text-xs text-muted">
             © AgriZed ·{" "}

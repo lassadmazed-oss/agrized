@@ -2,7 +2,7 @@ import { SiteFooter } from "@/components/site/site-footer";
 import { SiteHeader } from "@/components/site/site-header";
 import { SourceCapture } from "@/components/site/source-capture";
 import { StickyCta } from "@/components/site/sticky-cta";
-import { flagState, getPublicConfig, settingText } from "@/lib/config";
+import { flagState, getPublicConfig, mediaCredits, settingText } from "@/lib/config";
 
 export default async function PublicLayout({ children }: LayoutProps<"/">) {
   const config = await getPublicConfig();
@@ -24,6 +24,7 @@ export default async function PublicLayout({ children }: LayoutProps<"/">) {
         phone={settingText(config, "site.contact_phone")}
         whatsapp={settingText(config, "site.contact_whatsapp")}
         email={settingText(config, "site.contact_email")}
+        credits={mediaCredits(config)}
       />
       {interestOpen ? (
         <>

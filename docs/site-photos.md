@@ -58,6 +58,26 @@ simple wire fence, dry grass, a hint of a farm track. No people, no text, no log
 tones, long shadows, calm and monumental. Room in the frame for a title over it. No people, no text,
 no logos. Photorealistic, 16:9.
 
+## What is in the slots today (2026-09-12)
+
+Real photographs found through the Openverse API, all usable commercially. CC BY authors are
+printed in the site footer automatically from `site_media.credit_text` / `credit_url`.
+
+| Slot | Picture | Licence |
+|---|---|---|
+| `home.hero` | Lone olive tree in a field at Testour (Béja, Tunisia) — Smailtn, Wikimedia | CC0 |
+| `home.journey` | Old trunks in the Amari valley grove — Miguel Virkkunen Carvalho, Flickr | CC BY 2.0 |
+| `home.parcel_a` | Mature olive trees on bare soil, Illescas — MAMM Miguel Angel, Flickr | CC BY 2.0 |
+| `home.parcel_b` | Intensive rows on a slope in autumn — maesejose, Flickr | CC BY 2.0 |
+| `home.parcel_c` | Ancient dense grove, Corfu — Gareth1953, Flickr | CC BY 2.0 |
+| `home.coverage` | Light over the olive plains of Sierra Mágina, Jaén — Flickr | CC0 |
+| `home.land` | Olive trees behind a fence, hills behind — Monica Arellano-Ongpin, Flickr | CC BY 2.0 |
+| `home.closing` | Young olive tree on golden grass under a storm sky — Aries Tottle, Flickr | CC BY 2.0 |
+
+Only the hero is Tunisian; the rest are Mediterranean groves that read the same. Replace them with
+AgriZed's own photographs of its groves as soon as those exist — clearing the credit with the picture.
+The Flickr files are 1024 px wide: fine for cards, soft for a full-width band on a large screen.
+
 ## Alternative to generating them
 
 Free photographs that can be used commercially: Unsplash, Pexels, Wikimedia Commons (check each

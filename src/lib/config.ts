@@ -55,7 +55,7 @@ const loadPublicConfig = unstable_cache(
           .select("id, list_key, code, label_ar, min_millimes, max_millimes, min_number, max_number, time_from, time_to")
           .eq("is_active", true)
           .order("sort_order"),
-        supabase.from("site_media").select("slot, url, alt_ar, aspect"),
+        supabase.from("site_media").select("slot, url, alt_ar, aspect, credit_text, credit_url"),
       ]);
 
       for (const result of [settings, flags, governorates, delegations, projectTypes, scenarios, options, media]) {
@@ -73,7 +73,7 @@ const loadPublicConfig = unstable_cache(
         media: Object.fromEntries((media.data ?? []).map((row) => [row.slot, row])),
       };
     }),
-  ["public-config-v3"],
+  ["public-config-v4"],
   { tags: [PUBLIC_CONFIG_TAG], revalidate: 300 },
 );
 
@@ -117,6 +117,13 @@ export function optionsFor(config: PublicConfig, listKey: string): OptionItem[] 
 export function mediaFor(config: PublicConfig, slot: string): MediaSlot | undefined {
   const row = config.media[slot];
   return row?.url ? row : undefined;
+}
+
+/** Photo credits the licences require us to print (CC BY). Own and CC0 pictures carry none. */
+export function mediaCredits(config: PublicConfig): { text: string; url: string | null }[] {
+  return Object.values(config.media)
+    .filter((row) => row.url && row.credit_text)
+    .map((row) => ({ text: row.credit_text as string, url: row.credit_url }));
 }
 
 export function flagState(config: PublicConfig, key: string): FlagState {
