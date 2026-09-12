@@ -6,6 +6,7 @@ import { useEffect, useRef, useState, useTransition, type ReactNode } from "reac
 import { GrowthIcon } from "@/components/site/growth-icon";
 import { readVisitSource } from "@/components/site/source-capture";
 import { toWesternDigits } from "@/lib/digits";
+import { formatCount } from "@/lib/format";
 
 import { submitInterest } from "./actions";
 
@@ -37,6 +38,10 @@ type RegisterWizardProps = {
   initialInstallmentId?: string;
   /** Chosen on the home page, in «قدّاش زيتونة تحب تبدا بيهم؟» (MIL-01). */
   initialTreeCountId?: string;
+  /** Typed on /start instead of picking a card (MIL-01); the page already checked the limits. */
+  initialTreeCountCustom?: number;
+  customTreesMin: number;
+  customTreesMax: number;
   initialScenarioId?: string;
 };
 
@@ -53,6 +58,7 @@ type FormState = {
   investGovernorateIds: number[];
   scenarioIds: string[];
   treeCountOptionId: string | null;
+  treeCountCustom: number | null;
   desiredAreaOptionId: string | null;
   priorityOptionId: string | null;
   goalOptionId: string | null;
@@ -105,6 +111,7 @@ function emptyForm(props: RegisterWizardProps): FormState {
     investGovernorateIds: [],
     scenarioIds: props.initialScenarioId ? [props.initialScenarioId] : [],
     treeCountOptionId: props.initialTreeCountId ?? null,
+    treeCountCustom: props.initialTreeCountId ? null : (props.initialTreeCountCustom ?? null),
     desiredAreaOptionId: null,
     priorityOptionId: null,
     goalOptionId: null,
@@ -121,12 +128,15 @@ function sanitize(form: FormState, props: RegisterWizardProps): FormState {
   const has = (list: { id: string }[], id: string | null) => (id && list.some((o) => o.id === id) ? id : null);
   const governorateIds = new Set(props.governorates.map((g) => g.id));
   const scenarioIds = new Set(props.scenarios.map((s) => s.id));
+  const treeCountOptionId = has(props.treeCounts, form.treeCountOptionId);
   return {
     ...form,
     governorateId: form.governorateId && governorateIds.has(form.governorateId) ? form.governorateId : null,
     investGovernorateIds: form.investGovernorateIds.filter((id) => governorateIds.has(id)),
     scenarioIds: form.scenarioIds.filter((id) => scenarioIds.has(id)),
-    treeCountOptionId: has(props.treeCounts, form.treeCountOptionId),
+    treeCountOptionId,
+    // A listed option and a typed number never coexist; the option wins.
+    treeCountCustom: treeCountOptionId === null && isCustomTreesInRange(form.treeCountCustom, props) ? form.treeCountCustom : null,
     desiredAreaOptionId: has(props.desiredAreas, form.desiredAreaOptionId),
     priorityOptionId: has(props.priorities, form.priorityOptionId),
     goalOptionId: has(props.goals, form.goalOptionId),
@@ -135,6 +145,14 @@ function sanitize(form: FormState, props: RegisterWizardProps): FormState {
     contactTimeOptionId: has(props.contactTimes, form.contactTimeOptionId),
     consent: false,
   };
+}
+
+function isCustomTreesInRange(value: unknown, props: RegisterWizardProps): value is number {
+  return typeof value === "number" && Number.isInteger(value) && value >= props.customTreesMin && value <= props.customTreesMax;
+}
+
+function customTreesHint(props: RegisterWizardProps): string {
+  return `اكتب عدداً بين ${formatCount(props.customTreesMin)} و${formatCount(props.customTreesMax)}.`;
 }
 
 function phoneError(value: string, allowInternational: boolean): string | null {
@@ -170,7 +188,9 @@ function validateStep(step: number, form: FormState, props: RegisterWizardProps)
     errors.scenarioIds = "اختر شنوّة تحب تملك.";
   }
   if (step === 4) {
-    if (props.treeCounts.length > 0 && !form.treeCountOptionId) {
+    if (form.treeCountCustom !== null && !isCustomTreesInRange(form.treeCountCustom, props)) {
+      errors.treeCountOptionId = customTreesHint(props);
+    } else if (props.treeCounts.length > 0 && !form.treeCountOptionId && form.treeCountCustom === null) {
       errors.treeCountOptionId = "اختر عدد الزيتونات، أو «اقترحولي».";
     }
     if (props.desiredAreas.length > 0 && !form.desiredAreaOptionId) {
@@ -215,10 +235,15 @@ export function RegisterWizard(props: RegisterWizardProps) {
       const raw = localStorage.getItem(DRAFT_KEY);
       if (raw) {
         const draft = JSON.parse(raw) as Partial<FormState>;
-        // What the visitor just picked on the home page wins over an older draft (MIL-01).
+        // What the visitor just picked on the home page or /start wins over an older draft (MIL-01).
         const fromHome: Partial<FormState> = {
-          ...(props.initialTreeCountId ? { treeCountOptionId: props.initialTreeCountId } : {}),
+          ...(props.initialTreeCountId ? { treeCountOptionId: props.initialTreeCountId, treeCountCustom: null } : {}),
+          ...(!props.initialTreeCountId && props.initialTreeCountCustom !== undefined
+            ? { treeCountOptionId: null, treeCountCustom: props.initialTreeCountCustom }
+            : {}),
           ...(props.initialScenarioId ? { scenarioIds: [props.initialScenarioId] } : {}),
+          ...(props.initialDownPaymentId ? { downPaymentOptionId: props.initialDownPaymentId } : {}),
+          ...(props.initialInstallmentId ? { installmentOptionId: props.initialInstallmentId } : {}),
         };
         // eslint-disable-next-line react-hooks/set-state-in-effect -- restoring browser-only state after hydration
         setForm((current) => sanitize({ ...current, ...draft, ...fromHome }, props));
@@ -296,6 +321,7 @@ export function RegisterWizard(props: RegisterWizardProps) {
           investGovernorateIds: form.investGovernorateIds,
           scenarioIds: form.scenarioIds,
           treeCountOptionId: form.treeCountOptionId,
+          treeCountCustom: form.treeCountCustom,
           desiredAreaOptionId: form.desiredAreaOptionId,
           priorityOptionId: form.priorityOptionId,
           goalOptionId: form.goalOptionId ?? "",
@@ -374,13 +400,19 @@ export function RegisterWizard(props: RegisterWizardProps) {
               <div>
                 <p className="label">قدّاش زيتونة تحب تبدا بيهم؟</p>
                 <p className="hint mb-3">هذا هو العدد اللي يدخل في عدّاد مشروع المليون زيتونة.</p>
-                <SingleChoice
-                  name="treeCount"
-                  options={props.treeCounts}
-                  value={form.treeCountOptionId}
-                  onChange={(id) => update("treeCountOptionId", id)}
-                  error={errors.treeCountOptionId}
-                />
+                <div className="space-y-2">
+                  <SingleChoice
+                    name="treeCount"
+                    options={props.treeCounts}
+                    value={form.treeCountOptionId}
+                    onChange={(id) => {
+                      update("treeCountOptionId", id);
+                      update("treeCountCustom", null);
+                    }}
+                  />
+                  <CustomTreesRow form={form} errors={errors} update={update} {...props} />
+                </div>
+                <GroupError message={errors.treeCountOptionId} />
               </div>
               <div>
                 <p className="label">والمساحة؟</p>
@@ -640,6 +672,61 @@ function ScenarioStep({
   );
 }
 
+/** MIL-01: the visitor may type a number instead of picking a card; it is never derived from a surface (PARC-02). */
+function CustomTreesRow({ form, errors, update, ...props }: StepProps & RegisterWizardProps) {
+  const inputRef = useRef<HTMLInputElement>(null);
+  // Picking the row before typing still shows it as the chosen answer, until a card is picked instead.
+  const [picked, setPicked] = useState(false);
+  const selected = form.treeCountCustom !== null || (picked && form.treeCountOptionId === null);
+
+  function setCustom(raw: string) {
+    // Arabic keyboards type ٠-٩; keep digits only and cap the length so Number() stays exact.
+    const digits = toWesternDigits(raw).replace(/\D/g, "").slice(0, 9);
+    setPicked(true);
+    update("treeCountOptionId", null);
+    update("treeCountCustom", digits ? Number(digits) : null);
+  }
+
+  return (
+    <div>
+      {/* Two controls, two labels: the radio names the row, the text field carries its own name and hint. */}
+      <div className="choice">
+        <label className="flex flex-1 cursor-pointer items-center gap-3">
+          <input
+            type="radio"
+            name="treeCount"
+            checked={selected}
+            onChange={() => {
+              setPicked(true);
+              update("treeCountOptionId", null);
+              inputRef.current?.focus();
+            }}
+          />
+          <span className="font-semibold">عدد مخصّص</span>
+        </label>
+        <input
+          ref={inputRef}
+          type="text"
+          // `.choice input` sizes radios (1.125rem); these utilities restore a text field inside the row.
+          className="field h-auto min-h-10 w-full max-w-40 py-1.5 text-center tabular-nums"
+          inputMode="numeric"
+          dir="ltr"
+          placeholder="أدخل العدد"
+          aria-label="عدد الزيتونات المخصّص"
+          aria-describedby="custom-trees-hint"
+          autoComplete="off"
+          value={form.treeCountCustom ?? ""}
+          onChange={(event) => setCustom(event.target.value)}
+          aria-invalid={selected && Boolean(errors.treeCountOptionId)}
+        />
+      </div>
+      <p id="custom-trees-hint" className="hint mt-1.5">
+        {customTreesHint(props)}
+      </p>
+    </div>
+  );
+}
+
 function CapacityStep({ form, errors, update, downPayments, installments }: StepProps & RegisterWizardProps) {
   return (
     <div className="space-y-8">
@@ -760,8 +847,14 @@ function ReviewStep({
       label: "شنوّة تحب تملك",
       value: scenarios.filter((s) => form.scenarioIds.includes(s.id)).map((s) => s.label_ar).join("، ") || "—",
     },
-    ...(treeCounts.length > 0
-      ? [{ step: 4, label: "عدد الزيتونات", value: label(treeCounts, form.treeCountOptionId) }]
+    ...(treeCounts.length > 0 || form.treeCountCustom !== null
+      ? [
+          {
+            step: 4,
+            label: "عدد الزيتونات",
+            value: form.treeCountCustom !== null ? `${formatCount(form.treeCountCustom)} زيتونة` : label(treeCounts, form.treeCountOptionId),
+          },
+        ]
       : []),
     ...(desiredAreas.length > 0 ? [{ step: 4, label: "المساحة", value: label(desiredAreas, form.desiredAreaOptionId) }] : []),
     { step: 5, label: "الهدف", value: label(goals, form.goalOptionId) },

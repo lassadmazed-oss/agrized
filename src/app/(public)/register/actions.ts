@@ -23,6 +23,8 @@ const interestSchema = z.object({
   scenarioIds: z.array(z.uuid()).min(1).max(10),
   // MIL-01: how many olive trees, asked before anything else. Independent of the surface (PARC-02).
   treeCountOptionId: z.uuid().nullable(),
+  // /start also lets the visitor type a number; the database enforces the limits (invalid_tree_custom).
+  treeCountCustom: z.number().int().positive().nullable(),
   desiredAreaOptionId: z.uuid().nullable(),
   priorityOptionId: z.uuid().nullable(),
   goalOptionId: z.uuid(),
@@ -33,6 +35,9 @@ const interestSchema = z.object({
   consent: z.literal(true),
   website: z.string().max(200), // honeypot: real visitors never fill it
   source: z.record(z.string(), z.string().max(300)),
+}).refine((data) => data.treeCountOptionId === null || data.treeCountCustom === null, {
+  path: ["treeCountCustom"],
+  message: "tree_count_option_id and tree_count_custom are mutually exclusive",
 });
 
 export type InterestInput = z.input<typeof interestSchema>;
@@ -53,6 +58,7 @@ const ERROR_STEP: Record<string, number> = {
   single_scenario_only: 3,
   invalid_project_type: 3,
   invalid_tree_choice: 4,
+  invalid_tree_custom: 4,
   invalid_desired_area: 4,
   invalid_goal: 5,
   invalid_priority: 6,
@@ -114,6 +120,7 @@ export async function submitInterest(input: InterestInput): Promise<SubmitIntere
       invest_governorate_ids: data.investAnywhere ? [] : data.investGovernorateIds,
       scenario_ids: data.scenarioIds,
       tree_count_option_id: data.treeCountOptionId,
+      tree_count_custom: data.treeCountCustom === null ? null : String(data.treeCountCustom),
       desired_area_option_id: data.desiredAreaOptionId,
       priority_option_id: data.priorityOptionId,
       goal_option_id: data.goalOptionId,

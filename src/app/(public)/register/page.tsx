@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 
 import { ComingSoon, PreviewBanner } from "@/components/site/module-gate";
-import { getPublicConfig, optionsFor, settingBool, settingText } from "@/lib/config";
+import { getPublicConfig, optionsFor, settingBool, settingInt, settingText } from "@/lib/config";
 import { moduleAccess } from "@/lib/modules";
 
 import { RegisterWizard } from "./register-wizard";
@@ -28,6 +28,16 @@ export default async function RegisterPage({ searchParams }: PageProps<"/registe
   const pick = (list: { id: string }[], value: string | string[] | undefined) =>
     typeof value === "string" && list.some((option) => option.id === value) ? value : undefined;
 
+  // /start also lets the visitor type their own number (MIL-01); a listed option wins when both arrive.
+  const customTreesMin = settingInt(config, "million.custom_trees_min", 1);
+  const customTreesMax = settingInt(config, "million.custom_trees_max", 5000);
+  const initialTreeCountId = pick(treeCounts, params.trees);
+  const pickCustomTrees = (value: string | string[] | undefined) => {
+    if (initialTreeCountId || typeof value !== "string" || !/^\d{1,9}$/.test(value)) return undefined;
+    const count = Number(value);
+    return count >= customTreesMin && count <= customTreesMax ? count : undefined;
+  };
+
   return (
     <>
       {access === "preview" ? <PreviewBanner /> : null}
@@ -47,7 +57,10 @@ export default async function RegisterPage({ searchParams }: PageProps<"/registe
         consentText={settingText(config, "legal.consent_text")}
         initialDownPaymentId={pick(downPayments, params.down)}
         initialInstallmentId={pick(installments, params.installment)}
-        initialTreeCountId={pick(treeCounts, params.trees)}
+        initialTreeCountId={initialTreeCountId}
+        initialTreeCountCustom={pickCustomTrees(params.trees_custom)}
+        customTreesMin={customTreesMin}
+        customTreesMax={customTreesMax}
         initialScenarioId={pick(config.scenarios, params.scenario)}
       />
     </>

@@ -109,13 +109,13 @@ export default async function HomePage() {
         </div>
       </section>
 
-      {/* 04 · The two questions that open a request */}
+      {/* 04 · The tree question; a card click opens /start with that tier chosen (MIL-01) */}
       {interestOpen && treeCounts.length > 0 ? (
         <MillionStart
           treeCounts={treeCounts}
-          scenarios={config.scenarios}
           treesQuestion={settingText(config, "site.trees_question", "قدّاش زيتونة تحب تبدا بيهم؟")}
-          styleQuestion={settingText(config, "site.style_question", "كيفاش تحب مشروعك يكون؟")}
+          taglines={settingJson(config, "start.tier_taglines", {})}
+          otherLink={settingText(config, "site.trees_other_link")}
         />
       ) : null}
 

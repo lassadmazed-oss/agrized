@@ -16,6 +16,7 @@ const MESSAGES: Record<string, string> = {
   invalid_scenario: "أحد الاختيارات لم يعد متاحاً. أعد الاختيار.",
   single_scenario_only: "اختر خياراً واحداً فقط.",
   invalid_tree_choice: "اختر عدد الزيتونات من القائمة.",
+  invalid_tree_custom: "اكتب عدد الزيتونات بالأرقام، ضمن الحدود المسموح بها.",
   invalid_desired_area: "اختر المساحة من القائمة.",
   invalid_priority: "اختر الأهم بالنسبة إليك من القائمة.",
   project_type_required: "اختر نوع مشروع واحداً على الأقل، أو «لا أعرف».",

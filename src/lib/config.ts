@@ -47,12 +47,12 @@ const loadPublicConfig = unstable_cache(
           .order("sort_order"),
         supabase
           .from("ownership_scenarios")
-          .select("id, code, label_ar, description_ar, project_type_id, plantation_system, production_status, is_any")
+          .select("id, code, label_ar, label_fr, description_ar, project_type_id, plantation_system, production_status, is_any")
           .eq("is_active", true)
           .order("sort_order"),
         supabase
           .from("option_items")
-          .select("id, list_key, code, label_ar, min_millimes, max_millimes, min_number, max_number, time_from, time_to")
+          .select("id, list_key, code, label_ar, label_fr, min_millimes, max_millimes, min_number, max_number, time_from, time_to")
           .eq("is_active", true)
           .order("sort_order"),
         supabase.from("site_media").select("slot, url, alt_ar, aspect, credit_text, credit_url"),
@@ -73,7 +73,7 @@ const loadPublicConfig = unstable_cache(
         media: Object.fromEntries((media.data ?? []).map((row) => [row.slot, row])),
       };
     }),
-  ["public-config-v4"],
+  ["public-config-v5"],
   { tags: [PUBLIC_CONFIG_TAG], revalidate: 300 },
 );
 
