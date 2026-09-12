@@ -1,0 +1,9 @@
+# Local secrets: the deployment reads its values from the Vercel project settings.
+.env
+.env.*
+
+# Local-only tooling and build output
+.git
+.claude
+node_modules
+.next
