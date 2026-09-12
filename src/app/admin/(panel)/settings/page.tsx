@@ -19,6 +19,11 @@ const GROUPS: { key: string; title: string; note?: string }[] = [
   },
   { key: "lead", title: "التسجيل والملفات" },
   { key: "simulator", title: "المحاكي" },
+  {
+    key: "projects",
+    title: "المشاريع والقطع",
+    note: "نصوص وحدود صفحات المشاريع العمومية. ممنوع أي رقم أو كلمة توحي بمردود أو ربح.",
+  },
   { key: "antispam", title: "الحماية والملفات المرفقة" },
 ];
 

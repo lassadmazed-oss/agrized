@@ -17,11 +17,14 @@ const REQUIRED_TEXT = new Set([
   "legal.consent_text",
   "legal.land_offer_notice",
   "legal.parcel_card_note",
+  "legal.plan_notice",
   "request_no.prefix",
   "land_offer_no.prefix",
 ]);
 
 const INTEGER_RANGES: Record<string, [number, number]> = {
+  "projects.installment_examples": [1, 5],
+  "projects.listing_limit": [20, 1000],
   "antispam.max_requests_per_ip_per_hour": [1, 1000],
   "antispam.max_requests_per_phone_per_day": [1, 100],
   "antispam.max_land_offers_per_ip_per_day": [1, 100],

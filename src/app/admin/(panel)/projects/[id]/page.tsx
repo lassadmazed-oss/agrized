@@ -60,6 +60,13 @@ export default async function ProjectDetailPage({ params }: PageProps<"/admin/pr
   if (project.tree_count !== null && parcelTrees > project.tree_count) {
     warnings.push(`مجموع زيتونات القطع (${formatCount(parcelTrees)}) أكبر من عدد أشجار المشروع.`);
   }
+  // An available parcel priced at 0 is shown on the site as «السعر يُعلن لاحقاً», never as «0 د.ت».
+  const unpriced = rows.filter((parcel) => parcel.status === "available" && !parcel.cash_price_millimes).length;
+  if (unpriced > 0) {
+    warnings.push(`فيه قطع متاحة بلا سعر (${formatCount(unpriced)}). لن تُعرض بسعر على الموقع.`);
+  }
+  // Pages under /projects show internal, published, sold-out and operating projects only.
+  const visibleOnSite = ["internal", "published", "sold_out", "operating"].includes(project.status);
 
   return (
     <div className="space-y-6">
@@ -74,6 +81,15 @@ export default async function ProjectDetailPage({ params }: PageProps<"/admin/pr
             <span className={`rounded-full px-2.5 py-1 text-xs font-semibold ring-1 ring-inset ${PROJECT_STATUS_TONES[project.status as ProjectStatus]}`}>
               {PROJECT_STATUS_LABELS[project.status as ProjectStatus]}
             </span>
+            {visibleOnSite ? (
+              <Link
+                href={`/projects/${encodeURIComponent(project.code)}`}
+                target="_blank"
+                className="text-sm font-semibold text-forest underline-offset-4 hover:underline"
+              >
+                معاينة في الموقع ↗
+              </Link>
+            ) : null}
           </div>
           <p dir="ltr" className="text-end text-sm text-muted sm:text-start">
             {project.code} · {governorate}

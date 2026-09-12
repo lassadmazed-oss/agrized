@@ -26,13 +26,7 @@ export default async function PublicLayout({ children }: LayoutProps<"/">) {
         email={settingText(config, "site.contact_email")}
         credits={mediaCredits(config)}
       />
-      {interestOpen ? (
-        <>
-          {/* Room for the fixed bar, so it never covers the end of the footer on a phone. */}
-          <div aria-hidden="true" className="h-24 md:hidden" />
-          <StickyCta note={settingText(config, "site.final_cta_note")} />
-        </>
-      ) : null}
+      {interestOpen ? <StickyCta note={settingText(config, "site.final_cta_note")} /> : null}
     </div>
   );
 }

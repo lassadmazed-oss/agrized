@@ -232,6 +232,18 @@ export type Database = {
           invest_anywhere: boolean
           invest_governorate_ids: number[]
           is_duplicate: boolean
+          parcel_area_m2: number | null
+          parcel_captured_at: string | null
+          parcel_cash_price_millimes: number | null
+          parcel_code: string | null
+          parcel_id: string | null
+          parcel_olive_tree_count: number | null
+          parcel_plan_last_millimes: number | null
+          parcel_plan_months: number | null
+          parcel_plan_total_millimes: number | null
+          parcel_plantation_system: string | null
+          parcel_production_status: string | null
+          parcel_property_type: string | null
           person_id: string
           phone_e164: string
           plantation_systems: string[]
@@ -239,6 +251,9 @@ export type Database = {
           priority_label_ar: string | null
           priority_option_id: string | null
           production_statuses: string[]
+          project_code: string | null
+          project_id: string | null
+          project_name: string | null
           project_type_ids: string[]
           project_type_unsure: boolean
           request_no: string
@@ -281,6 +296,18 @@ export type Database = {
           invest_anywhere?: boolean
           invest_governorate_ids?: number[]
           is_duplicate?: boolean
+          parcel_area_m2?: number | null
+          parcel_captured_at?: string | null
+          parcel_cash_price_millimes?: number | null
+          parcel_code?: string | null
+          parcel_id?: string | null
+          parcel_olive_tree_count?: number | null
+          parcel_plan_last_millimes?: number | null
+          parcel_plan_months?: number | null
+          parcel_plan_total_millimes?: number | null
+          parcel_plantation_system?: string | null
+          parcel_production_status?: string | null
+          parcel_property_type?: string | null
           person_id: string
           phone_e164: string
           plantation_systems?: string[]
@@ -288,6 +315,9 @@ export type Database = {
           priority_label_ar?: string | null
           priority_option_id?: string | null
           production_statuses?: string[]
+          project_code?: string | null
+          project_id?: string | null
+          project_name?: string | null
           project_type_ids?: string[]
           project_type_unsure?: boolean
           request_no: string
@@ -330,6 +360,18 @@ export type Database = {
           invest_anywhere?: boolean
           invest_governorate_ids?: number[]
           is_duplicate?: boolean
+          parcel_area_m2?: number | null
+          parcel_captured_at?: string | null
+          parcel_cash_price_millimes?: number | null
+          parcel_code?: string | null
+          parcel_id?: string | null
+          parcel_olive_tree_count?: number | null
+          parcel_plan_last_millimes?: number | null
+          parcel_plan_months?: number | null
+          parcel_plan_total_millimes?: number | null
+          parcel_plantation_system?: string | null
+          parcel_production_status?: string | null
+          parcel_property_type?: string | null
           person_id?: string
           phone_e164?: string
           plantation_systems?: string[]
@@ -337,6 +379,9 @@ export type Database = {
           priority_label_ar?: string | null
           priority_option_id?: string | null
           production_statuses?: string[]
+          project_code?: string | null
+          project_id?: string | null
+          project_name?: string | null
           project_type_ids?: string[]
           project_type_unsure?: boolean
           request_no?: string
@@ -389,6 +434,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "interest_requests_parcel_id_fkey"
+            columns: ["parcel_id"]
+            isOneToOne: false
+            referencedRelation: "parcels"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "interest_requests_person_id_fkey"
             columns: ["person_id"]
             isOneToOne: false
@@ -400,6 +452,13 @@ export type Database = {
             columns: ["priority_option_id"]
             isOneToOne: false
             referencedRelation: "option_items"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "interest_requests_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
             referencedColumns: ["id"]
           },
           {
@@ -1895,6 +1954,82 @@ export type Database = {
         }[]
       }
       million_progress: { Args: never; Returns: Json }
+      public_coverage: {
+        Args: never
+        Returns: {
+          governorate_id: number
+          parcels_offered: number
+          parcels_total: number
+          projects_count: number
+        }[]
+      }
+      public_parcel_offer: {
+        Args: {
+          p_down_option?: string
+          p_installment_option?: string
+          p_parcel: string
+        }
+        Returns: Json
+      }
+      public_parcels: {
+        Args: never
+        Returns: {
+          annual_costs_millimes: number
+          area_m2: number
+          cash_price_millimes: number
+          code: string
+          delegation_id: number
+          governorate_id: number
+          id: string
+          irrigation: Database["public"]["Enums"]["irrigation_type"]
+          offered: boolean
+          olive_tree_count: number
+          photo_alt_ar: string
+          photo_aspect: string
+          photo_url: string
+          plantation_system: string
+          production_status: string
+          project_code: string
+          project_id: string
+          project_name: string
+          project_status: Database["public"]["Enums"]["project_status"]
+          project_type_id: string
+          property_type: string
+          sort_order: number
+          status: Database["public"]["Enums"]["parcel_status"]
+          tree_age_years: number
+        }[]
+      }
+      public_projects: {
+        Args: never
+        Returns: {
+          code: string
+          cover_alt_ar: string
+          cover_aspect: string
+          cover_url: string
+          delegation_id: number
+          governorate_id: number
+          id: string
+          irrigation: Database["public"]["Enums"]["irrigation_type"]
+          location_description: string
+          max_area_m2: number
+          min_area_m2: number
+          min_cash_price_millimes: number
+          name: string
+          offered: boolean
+          olive_variety: string
+          parcel_trees: number
+          parcels_offered: number
+          parcels_total: number
+          plantation_system: string
+          production_status: string
+          project_type_id: string
+          status: Database["public"]["Enums"]["project_status"]
+          total_area_m2: number
+          tree_age_years: number
+          tree_count: number
+        }[]
+      }
       review_land_offer: {
         Args: {
           p_next_status?: Database["public"]["Enums"]["land_offer_status"]
@@ -1904,6 +2039,14 @@ export type Database = {
           p_stage: Database["public"]["Enums"]["land_offer_status"]
         }
         Returns: undefined
+      }
+      staff_parcel_offer: {
+        Args: {
+          p_down_option?: string
+          p_installment_option?: string
+          p_parcel: string
+        }
+        Returns: Json
       }
       submit_interest_request: { Args: { p: Json }; Returns: Json }
       submit_land_offer: { Args: { p: Json }; Returns: Json }

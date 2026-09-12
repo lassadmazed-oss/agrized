@@ -42,6 +42,25 @@ export const PARCEL_STATUS_TONES: Record<ParcelStatus, string> = {
   withdrawn: "bg-danger-soft text-danger ring-danger/30",
 };
 
+const UNKNOWN_TONE = "bg-stone-100 text-stone-700 ring-stone-200";
+
+/** Label for any parcel status, including ones a later migration adds (v2 adds «owned»). */
+export function parcelStatusLabel(status: string): string {
+  return (PARCEL_STATUS_LABELS as Record<string, string>)[status] ?? status;
+}
+
+export function parcelStatusTone(status: string): string {
+  return (PARCEL_STATUS_TONES as Record<string, string>)[status] ?? UNKNOWN_TONE;
+}
+
+export function projectStatusLabel(status: string): string {
+  return (PROJECT_STATUS_LABELS as Record<string, string>)[status] ?? status;
+}
+
+export function projectStatusTone(status: string): string {
+  return (PROJECT_STATUS_TONES as Record<string, string>)[status] ?? UNKNOWN_TONE;
+}
+
 export const PROPERTY_TYPE_LABELS: Record<string, string> = {
   bare_land: "أرض بيضاء",
   planted: "زيتون موجود",
@@ -64,6 +83,52 @@ export type InstallmentPlan =
       markup_pct?: number;
     }
   | { ok: false; reason: string; min_installment_millimes?: number; min_down_millimes?: number; months?: number; max_months?: number };
+
+/** One option of the down-payment or monthly-installment lists, as returned by the offer RPC. */
+export type PlanOption = { id: string; code: string | null; label_ar: string; min_millimes: number };
+
+/** A plan computed in Postgres. The pricing formula itself never leaves the database (PRJ-03). */
+export type OfferPlan = {
+  ok: boolean;
+  reason?: string;
+  months?: number;
+  total_millimes?: number;
+  financed_millimes?: number;
+  last_installment_millimes?: number;
+  min_installment_millimes?: number;
+  min_down_millimes?: number;
+  down_option_id: string;
+  installment_option_id: string;
+  down_millimes: number;
+  installment_millimes: number;
+  nearest_installment_option_id?: string | null;
+  nearest_down_option_id?: string | null;
+};
+
+/** Payload of public_parcel_offer() / staff_parcel_offer() (migration 0020). */
+export type ParcelOffer = {
+  parcel_id: string;
+  project_id: string;
+  project_code: string;
+  project_name: string;
+  parcel_code: string;
+  parcel_status: string;
+  project_status: string;
+  offered: boolean;
+  priced: boolean;
+  cash_price_millimes: number | null;
+  annual_costs_millimes: number | null;
+  down_from_millimes: number | null;
+  down_options: PlanOption[];
+  installment_options: PlanOption[];
+  plans: OfferPlan[];
+  examples: OfferPlan[];
+  examples_max: number;
+  entry: OfferPlan | null;
+  chosen: OfferPlan | null;
+  suggested_tree_count_option_id: string | null;
+  suggested_scenario_id: string | null;
+};
 
 export const PLAN_REASON_LABELS: Record<string, string> = {
   installment_too_low: "القسط غير كافٍ لهذه القطعة.",

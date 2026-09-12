@@ -4,17 +4,18 @@ import { notFound } from "next/navigation";
 
 import { ActionForm } from "@/components/admin/action-form";
 import { hasRole, requireStaff, type StaffRole } from "@/lib/auth";
-import { getPublicConfig, optionsFor, settingText } from "@/lib/config";
+import { getPublicConfig, settingText } from "@/lib/config";
 import { PLANTATION_LABELS, PRODUCTION_LABELS } from "@/lib/crm";
 import { formatCount, formatDateTime, formatMillimes } from "@/lib/format";
+import { IRRIGATION_LABELS } from "@/lib/land";
 import { formatPhone } from "@/lib/phone";
 import {
-  PARCEL_STATUS_LABELS,
-  PARCEL_STATUS_TONES,
   PLAN_REASON_LABELS,
   PROPERTY_TYPE_LABELS,
-  type InstallmentPlan,
-  type ParcelStatus,
+  parcelStatusLabel,
+  parcelStatusTone,
+  type ParcelOffer,
+  type PlanOption,
 } from "@/lib/projects";
 import { createClient } from "@/lib/supabase/server";
 
@@ -56,41 +57,28 @@ export default async function ParcelPage({ params, searchParams }: PageProps<"/a
   const supabase = await createClient();
   const config = await getPublicConfig();
 
-  const { data: parcel } = await supabase.from("parcels").select("*, project:projects(id, code, name, pricing)").eq("id", parcelId).maybeSingle();
+  const { data: parcel } = await supabase.from("parcels").select("*, project:projects(id, code, name)").eq("id", parcelId).maybeSingle();
   if (!parcel || parcel.project_id !== id) notFound();
 
-  const downOptions = optionsFor(config, "down_payment").filter((option) => option.min_millimes !== null);
-  const installmentOptions = optionsFor(config, "monthly_installment").filter((option) => option.min_millimes !== null);
-
-  // The entry point of the offer: the smallest down payment and installment that produce a valid plan.
+  // One call builds the card in Postgres with the formula the public page uses (0020), whatever the
+  // parcel's status, so staff always see the numbers a visitor would. Choices are option ids only.
   const query = await searchParams;
-  const chosenDown = typeof query.down === "string" ? Number(query.down) : null;
-  const chosenInstallment = typeof query.installment === "string" ? Number(query.installment) : null;
+  const pick = (value: string | string[] | undefined) => (typeof value === "string" && UUID.test(value) ? value : undefined);
+  const chosenDown = pick(query.down);
+  const chosenInstallment = pick(query.installment);
+  const choice = chosenDown && chosenInstallment ? { p_down_option: chosenDown, p_installment_option: chosenInstallment } : {};
 
-  const plans = await Promise.all(
-    installmentOptions.map(async (option) => {
-      const { data } = await supabase.rpc("compute_installment_plan", {
-        p_cash_millimes: parcel.cash_price_millimes,
-        p_down_millimes: downOptions[0]?.min_millimes ?? 0,
-        p_installment_millimes: option.min_millimes ?? 0,
-        p_pricing: (parcel.pricing ?? parcel.project?.pricing ?? {}) as never,
-      });
-      return { option, plan: data as unknown as InstallmentPlan };
-    }),
-  );
-  const entry = plans.find((item) => item.plan?.ok);
-
-  const selectedPlanResult =
-    chosenDown && chosenInstallment
-      ? ((
-          await supabase.rpc("compute_installment_plan", {
-            p_cash_millimes: parcel.cash_price_millimes,
-            p_down_millimes: chosenDown,
-            p_installment_millimes: chosenInstallment,
-            p_pricing: (parcel.pricing ?? parcel.project?.pricing ?? {}) as never,
-          })
-        ).data as unknown as InstallmentPlan)
-      : null;
+  let { data: offerData, error: offerError } = await supabase.rpc("staff_parcel_offer", { p_parcel: parcelId, ...choice });
+  if (offerError && Object.keys(choice).length > 0) {
+    // An option retired since the link was made: show the card without the choice.
+    ({ data: offerData, error: offerError } = await supabase.rpc("staff_parcel_offer", { p_parcel: parcelId }));
+  }
+  const offer = (offerData ?? null) as unknown as ParcelOffer | null;
+  const entry = offer?.entry ?? null;
+  const chosen = offer?.chosen ?? null;
+  const downOptions = offer?.down_options ?? [];
+  const installmentOptions = offer?.installment_options ?? [];
+  const labelOf = (list: PlanOption[], optionId: string | null | undefined) => list.find((option) => option.id === optionId)?.label_ar;
 
   const { data: matches, error: matchError } = await supabase.rpc("match_requests_for_parcel", { p_parcel: parcelId, p_limit: 25 });
   const matchRows = (matches ?? []) as unknown as MatchRow[];
@@ -108,8 +96,8 @@ export default async function ParcelPage({ params, searchParams }: PageProps<"/a
           <div className="rounded-2xl border border-line bg-surface p-5">
             <div className="flex items-center justify-between gap-3">
               <p className="font-display text-2xl font-bold text-forest">القطعة {parcel.code}</p>
-              <span className={`rounded-full px-2.5 py-1 text-xs font-semibold ring-1 ring-inset ${PARCEL_STATUS_TONES[parcel.status as ParcelStatus]}`}>
-                {PARCEL_STATUS_LABELS[parcel.status as ParcelStatus]}
+              <span className={`rounded-full px-2.5 py-1 text-xs font-semibold ring-1 ring-inset ${parcelStatusTone(parcel.status)}`}>
+                {parcelStatusLabel(parcel.status)}
               </span>
             </div>
             <dl className="mt-4 divide-y divide-line text-sm">
@@ -120,15 +108,17 @@ export default async function ParcelPage({ params, searchParams }: PageProps<"/a
               </Row>
               <Row label="عدد الزيتونات">{parcel.olive_tree_count ?? "—"}</Row>
               <Row label="عمر الزيتونات">{parcel.tree_age_years ? `${parcel.tree_age_years} سنوات` : "—"}</Row>
-              <Row label="الحالة">
+              <Row label="حالة الإنتاج">
                 {parcel.production_status ? (PRODUCTION_LABELS[parcel.production_status] ?? parcel.production_status) : "—"}
               </Row>
-              <Row label="الري">{parcel.irrigation === "irrigated" ? "مروي" : parcel.irrigation === "rainfed" ? "بعلي" : "—"}</Row>
-              <Row label="السعر حاضر">{formatMillimes(parcel.cash_price_millimes)}</Row>
-              <Row label="التسبقة">{downOptions[0]?.min_millimes ? `من ${formatMillimes(downOptions[0].min_millimes)}` : "—"}</Row>
+              <Row label="الري">{parcel.irrigation ? (IRRIGATION_LABELS as Record<string, string>)[parcel.irrigation] : "—"}</Row>
+              <Row label="السعر حاضر">
+                {parcel.cash_price_millimes > 0 ? formatMillimes(parcel.cash_price_millimes) : settingText(config, "projects.price_pending", "السعر يُعلن لاحقاً.")}
+              </Row>
+              <Row label="التسبقة">{offer?.down_from_millimes ? `من ${formatMillimes(offer.down_from_millimes)}` : "—"}</Row>
               <Row label="القسط">
-                {entry?.option.min_millimes
-                  ? `من ${formatMillimes(entry.option.min_millimes)} في الشهر · ${formatCount((entry.plan as { months: number }).months)} شهراً`
+                {entry?.ok && entry.months
+                  ? `من ${formatMillimes(entry.installment_millimes)} في الشهر · ${formatCount(entry.months)} شهراً`
                   : "غير متاح بالقيم الحالية"}
               </Row>
               <Row label="المصاريف السنوية التقديرية">
@@ -140,19 +130,22 @@ export default async function ParcelPage({ params, searchParams }: PageProps<"/a
             </p>
             <p className="mt-2 text-xs leading-6 text-muted">{settingText(config, "legal.no_guarantee_notice")}</p>
           </div>
+          {offerError ? (
+            <p className="rounded-xl bg-danger-soft px-4 py-3 text-sm text-danger">تعذّر حساب العرض: {offerError.message}</p>
+          ) : null}
         </aside>
 
         <div className="space-y-6">
           {/* Installment simulator, using the same server function as contracts will (SIM-06) */}
           <section className="rounded-2xl border border-line bg-surface p-5">
             <h2 className="font-semibold">محاكي التقسيط</h2>
-            <p className="mt-1 text-sm text-muted">نفس دالة الحساب المستعملة في الحجز والعقود وجدول الأقساط.</p>
+            <p className="mt-1 text-sm text-muted">نفس دالة الحساب المستعملة في الموقع والحجز والعقود وجدول الأقساط.</p>
             <form method="get" className="mt-4 flex flex-wrap items-end gap-3">
               <label className="block space-y-1">
                 <span className="block text-xs text-muted">التسبقة</span>
-                <select name="down" defaultValue={chosenDown ?? downOptions[0]?.min_millimes ?? ""} className="field min-h-11">
+                <select name="down" defaultValue={chosen?.down_option_id ?? downOptions[0]?.id ?? ""} className="field min-h-11">
                   {downOptions.map((option) => (
-                    <option key={option.id} value={option.min_millimes ?? ""}>
+                    <option key={option.id} value={option.id}>
                       {option.label_ar}
                     </option>
                   ))}
@@ -160,9 +153,13 @@ export default async function ParcelPage({ params, searchParams }: PageProps<"/a
               </label>
               <label className="block space-y-1">
                 <span className="block text-xs text-muted">القسط الشهري</span>
-                <select name="installment" defaultValue={chosenInstallment ?? entry?.option.min_millimes ?? ""} className="field min-h-11">
+                <select
+                  name="installment"
+                  defaultValue={chosen?.installment_option_id ?? entry?.installment_option_id ?? installmentOptions[0]?.id ?? ""}
+                  className="field min-h-11"
+                >
                   {installmentOptions.map((option) => (
-                    <option key={option.id} value={option.min_millimes ?? ""}>
+                    <option key={option.id} value={option.id}>
                       {option.label_ar}
                     </option>
                   ))}
@@ -173,21 +170,25 @@ export default async function ParcelPage({ params, searchParams }: PageProps<"/a
               </button>
             </form>
 
-            {selectedPlanResult ? (
-              selectedPlanResult.ok ? (
+            {chosen ? (
+              chosen.ok && chosen.months ? (
                 <dl className="mt-4 grid grid-cols-2 gap-4 sm:grid-cols-4">
-                  <Fact label="عدد الأشهر">{formatCount(selectedPlanResult.months)}</Fact>
-                  <Fact label="السعر الجملي">{formatMillimes(selectedPlanResult.total_millimes)}</Fact>
-                  <Fact label="آخر قسط">{formatMillimes(selectedPlanResult.last_installment_millimes)}</Fact>
-                  <Fact label="الفارق عن الحاضر">{formatMillimes(selectedPlanResult.total_millimes - parcel.cash_price_millimes)}</Fact>
+                  <Fact label="عدد الأشهر">{formatCount(chosen.months)}</Fact>
+                  <Fact label="السعر الجملي">{formatMillimes(chosen.total_millimes ?? 0)}</Fact>
+                  <Fact label="آخر قسط">{formatMillimes(chosen.last_installment_millimes ?? 0)}</Fact>
+                  <Fact label="الفارق عن الحاضر">{formatMillimes((chosen.total_millimes ?? 0) - parcel.cash_price_millimes)}</Fact>
                 </dl>
               ) : (
                 <p className="mt-4 rounded-xl bg-gold-soft px-4 py-3 text-sm text-forest-700">
-                  {PLAN_REASON_LABELS[selectedPlanResult.reason] ?? "لا يمكن حساب خطة بهذه القيم."}
-                  {selectedPlanResult.min_installment_millimes
-                    ? ` أقل قسط ممكن: ${formatMillimes(selectedPlanResult.min_installment_millimes)}.`
+                  {(chosen.reason && PLAN_REASON_LABELS[chosen.reason]) ?? "لا يمكن حساب خطة بهذه القيم."}
+                  {chosen.min_installment_millimes ? ` أقل قسط ممكن: ${formatMillimes(chosen.min_installment_millimes)}.` : ""}
+                  {chosen.min_down_millimes ? ` أقل تسبقة ممكنة: ${formatMillimes(chosen.min_down_millimes)}.` : ""}
+                  {labelOf(installmentOptions, chosen.nearest_installment_option_id)
+                    ? ` أقرب قسط ممكن بهذه التسبقة: ${labelOf(installmentOptions, chosen.nearest_installment_option_id)}.`
                     : ""}
-                  {selectedPlanResult.min_down_millimes ? ` أقل تسبقة ممكنة: ${formatMillimes(selectedPlanResult.min_down_millimes)}.` : ""}
+                  {labelOf(downOptions, chosen.nearest_down_option_id)
+                    ? ` أقرب تسبقة ممكنة بهذا القسط: ${labelOf(downOptions, chosen.nearest_down_option_id)}.`
+                    : ""}
                 </p>
               )
             ) : null}

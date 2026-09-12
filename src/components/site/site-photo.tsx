@@ -46,11 +46,32 @@ export function SitePhoto({ config, slot, aspect, fill, sizes = "100vw", priorit
   );
 }
 
+/** A picture that belongs to a record (project, parcel) rather than to a site slot. */
+export function RemotePhoto({
+  url,
+  alt,
+  seed,
+  sizes = "100vw",
+  className = "",
+}: {
+  url: string | null;
+  alt: string | null;
+  seed: string;
+  sizes?: string;
+  className?: string;
+}) {
+  return (
+    <div className={`relative overflow-hidden bg-leaf-soft ${className}`}>
+      {url ? <Image src={url} alt={alt ?? ""} fill sizes={sizes} className="object-cover" /> : <GrovePlaceholder seed={seed} />}
+    </div>
+  );
+}
+
 /**
  * An olive grove drawn in the brand colours. Deterministic per slot, so two placeholders on the
  * same page do not look like the same missing image.
  */
-function GrovePlaceholder({ seed }: { seed: string }) {
+export function GrovePlaceholder({ seed }: { seed: string }) {
   let hash = 0;
   for (const char of seed) hash = (hash * 31 + char.charCodeAt(0)) % 997;
 

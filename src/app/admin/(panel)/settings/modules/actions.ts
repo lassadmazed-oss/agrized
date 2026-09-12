@@ -7,6 +7,7 @@ import type { ActionResult } from "@/components/admin/action-form";
 import { ADMIN_ROLES, requireStaff } from "@/lib/auth";
 import { PUBLIC_CONFIG_TAG } from "@/lib/config";
 import { FLAG_STATE_LABELS, isImplementedModule } from "@/lib/modules-catalog";
+import { PUBLIC_PROJECTS_TAG } from "@/lib/public-projects";
 import { createClient } from "@/lib/supabase/server";
 
 /** FLAG-03: takes effect immediately, no deployment; the change is recorded by the audit trigger. */
@@ -26,6 +27,11 @@ export async function setModuleState(key: string, _previous: ActionResult, formD
   }
 
   updateTag(PUBLIC_CONFIG_TAG);
+  // The projects RPCs gate on the flag in SQL, but their cached rows would outlive a flip for a minute.
+  if (key === "projects") {
+    updateTag(PUBLIC_PROJECTS_TAG);
+    revalidatePath("/projects", "layout");
+  }
   revalidatePath("/admin/settings/modules");
   return { ok: true, message: `تم الحفظ: ${FLAG_STATE_LABELS[state.data]}.` };
 }

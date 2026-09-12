@@ -1,10 +1,11 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
+import { revalidatePath, updateTag } from "next/cache";
 import { z } from "zod";
 
 import type { ActionResult } from "@/components/admin/action-form";
 import { requireStaff, type StaffRole } from "@/lib/auth";
+import { PUBLIC_PROJECTS_TAG } from "@/lib/public-projects";
 import type { Json } from "@/lib/supabase/database.types";
 import { createClient } from "@/lib/supabase/server";
 
@@ -27,6 +28,12 @@ function optionalNumber(formData: FormData, name: string): number | null | undef
 function dinarsToMillimes(value: number | null | undefined): number | null | undefined {
   if (value === null || value === undefined) return value;
   return Math.round(value * 1000);
+}
+
+/** The public projects pages cache their rows; any change to a project or parcel expires them. */
+function expirePublicProjects() {
+  updateTag(PUBLIC_PROJECTS_TAG);
+  revalidatePath("/projects", "layout");
 }
 
 const PLANTATION = ["", "traditional", "intensive", "other"] as const;
@@ -113,7 +120,8 @@ export async function saveProject(projectId: string | null, _previous: ActionRes
     name,
     project_type_id: text(formData, "project_type_id", 40) || null,
     governorate_id: governorateId,
-    delegation_id: Number(formData.get("delegation_id")) || null,
+    // Written only when the form carries the field, so editing a project never erases its delegation.
+    ...(formData.has("delegation_id") ? { delegation_id: Number(formData.get("delegation_id")) || null } : {}),
     location_description: text(formData, "location_description", 1000) || null,
     total_area_m2: totalArea,
     olive_variety: text(formData, "olive_variety", 120) || null,
@@ -133,6 +141,7 @@ export async function saveProject(projectId: string | null, _previous: ActionRes
     if (error || !data?.length) return FAILED;
     revalidatePath(`/admin/projects/${projectId}`);
     revalidatePath("/admin/projects");
+    expirePublicProjects();
     return { ok: true, message: "تم حفظ المشروع." };
   }
 
@@ -145,6 +154,7 @@ export async function saveProject(projectId: string | null, _previous: ActionRes
   const { error } = await supabase.from("projects").insert({ ...row, code: code.data });
   if (error) return error.code === "23505" ? { ok: false, message: "هذا الرمز مستعمل." } : FAILED;
   revalidatePath("/admin/projects");
+  expirePublicProjects();
   return { ok: true, message: `تم إنشاء المشروع ${code.data}.` };
 }
 
@@ -212,6 +222,7 @@ export async function saveParcel(
     if (error || !data?.length) return FAILED;
     revalidatePath(`/admin/projects/${projectId}`);
     revalidatePath(`/admin/projects/${projectId}/parcels/${parcelId}`);
+    expirePublicProjects();
     return { ok: true, message: `تم حفظ القطعة ${code}.` };
   }
 
@@ -220,9 +231,11 @@ export async function saveParcel(
     return error.code === "23505" ? { ok: false, message: "رمز القطعة مستعمل في هذا المشروع." } : FAILED;
   }
   revalidatePath(`/admin/projects/${projectId}`);
+  expirePublicProjects();
   return { ok: true, message: `تمت إضافة القطعة ${code}.` };
 }
 
+// Internal costs never reach the public pages (PRJ-03), so this action leaves their cache alone.
 export async function addProjectCost(projectId: string, _previous: ActionResult, formData: FormData): Promise<ActionResult> {
   await requireStaff(WRITE_ROLES);
   const label = text(formData, "label", 160);

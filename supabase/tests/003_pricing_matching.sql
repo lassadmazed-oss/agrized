@@ -71,8 +71,9 @@ declare
   v_p1 public.parcels;
   v_p2 public.parcels;
 begin
-  select * into v_p1 from public.parcels where code = 'P01';
-  select * into v_p2 from public.parcels where code = 'P02';
+  -- Scoped to this test's project: the live catalog may hold other parcels coded P01/P02.
+  select * into v_p1 from public.parcels where code = 'P01' and project_id = (select id from public.projects where code = 'TEST-P1');
+  select * into v_p2 from public.parcels where code = 'P02' and project_id = (select id from public.projects where code = 'TEST-P1');
 
   -- PARC-01: same area, different tree count, plantation system and price
   assert v_p1.area_m2 = v_p2.area_m2, 'both parcels share the same area';
@@ -118,7 +119,7 @@ select public.submit_interest_request(jsonb_build_object(
   'consent_text', 'أوافق'
 ));
 
-select set_config('test.parcel', (select id::text from public.parcels where code = 'P01'), true);
+select set_config('test.parcel', (select id::text from public.parcels where code = 'P01' and project_id = (select id from public.projects where code = 'TEST-P1')), true);
 
 -- ---------------------------------------------------------------------------
 -- Matching as an admin
@@ -169,7 +170,7 @@ set local request.jwt.claims = '{"sub": "00000000-0000-0000-0000-0000000000d2", 
 do $$
 begin
   assert (select count(*) from public.project_costs) = 0, 'a commercial cannot read internal project costs';
-  assert (select count(*) from public.parcels) = 2, 'a commercial can read parcels';
+  assert (select count(*) from public.parcels where project_id = (select id from public.projects where code = 'TEST-P1')) = 2, 'a commercial can read parcels';
 end $$;
 
 reset role;
