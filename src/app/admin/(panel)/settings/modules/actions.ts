@@ -19,6 +19,14 @@ export async function setModuleState(key: string, _previous: ActionResult, formD
   if (!isImplementedModule(key) && state.data !== "disabled") {
     return { ok: false, message: "هذا الموديول لم يُبنَ بعد في هذه النسخة، ولا يمكن تفعيله." };
   }
+  // Until v2's per-offer pricing matrix exists, the projects pages price with the interim formula,
+  // so they may be previewed by staff but never published (cahier v2 §13, WP-27).
+  if (key === "projects" && state.data === "public") {
+    return {
+      ok: false,
+      message: "المشاريع تبقى «داخلي فقط» حتى تُضبط جداول الأسعار الخاصة بكل عرض. يمكن معاينتها من الفريق فقط.",
+    };
+  }
 
   const supabase = await createClient();
   const { data, error } = await supabase.from("feature_flags").update({ state: state.data }).eq("key", key).select("key");
