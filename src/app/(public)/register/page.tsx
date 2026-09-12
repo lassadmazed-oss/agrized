@@ -20,8 +20,10 @@ export default async function RegisterPage({ searchParams }: PageProps<"/registe
 
   const downPayments = optionsFor(config, "down_payment");
   const installments = optionsFor(config, "monthly_installment");
+  const treeCounts = optionsFor(config, "tree_count");
 
-  // The simulator links here with the values the visitor already picked (SIM-03).
+  // The simulator and the home page chooser link here with what the visitor already picked
+  // (SIM-03, MIL-01), so nobody answers the same question twice.
   const params = await searchParams;
   const pick = (list: { id: string }[], value: string | string[] | undefined) =>
     typeof value === "string" && list.some((option) => option.id === value) ? value : undefined;
@@ -32,6 +34,7 @@ export default async function RegisterPage({ searchParams }: PageProps<"/registe
       <RegisterWizard
         governorates={config.governorates}
         scenarios={config.scenarios}
+        treeCounts={treeCounts}
         desiredAreas={optionsFor(config, "desired_area")}
         priorities={optionsFor(config, "priority")}
         goals={optionsFor(config, "goal")}
@@ -44,6 +47,8 @@ export default async function RegisterPage({ searchParams }: PageProps<"/registe
         consentText={settingText(config, "legal.consent_text")}
         initialDownPaymentId={pick(downPayments, params.down)}
         initialInstallmentId={pick(installments, params.installment)}
+        initialTreeCountId={pick(treeCounts, params.trees)}
+        initialScenarioId={pick(config.scenarios, params.scenario)}
       />
     </>
   );

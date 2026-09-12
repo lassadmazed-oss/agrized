@@ -247,6 +247,11 @@ export type Database = {
           scenario_ids: string[]
           scenario_labels: string[]
           source: Json
+          tree_count_code: string | null
+          tree_count_label_ar: string | null
+          tree_count_max: number | null
+          tree_count_min: number | null
+          tree_count_option_id: string | null
           whatsapp_e164: string | null
         }
         Insert: {
@@ -291,6 +296,11 @@ export type Database = {
           scenario_ids?: string[]
           scenario_labels?: string[]
           source?: Json
+          tree_count_code?: string | null
+          tree_count_label_ar?: string | null
+          tree_count_max?: number | null
+          tree_count_min?: number | null
+          tree_count_option_id?: string | null
           whatsapp_e164?: string | null
         }
         Update: {
@@ -335,6 +345,11 @@ export type Database = {
           scenario_ids?: string[]
           scenario_labels?: string[]
           source?: Json
+          tree_count_code?: string | null
+          tree_count_label_ar?: string | null
+          tree_count_max?: number | null
+          tree_count_min?: number | null
+          tree_count_option_id?: string | null
           whatsapp_e164?: string | null
         }
         Relationships: [
@@ -399,6 +414,13 @@ export type Database = {
             columns: ["residence_governorate_id"]
             isOneToOne: false
             referencedRelation: "governorates"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "interest_requests_tree_count_option_id_fkey"
+            columns: ["tree_count_option_id"]
+            isOneToOne: false
+            referencedRelation: "option_items"
             referencedColumns: ["id"]
           },
         ]
@@ -1671,6 +1693,11 @@ export type Database = {
           stage: Database["public"]["Enums"]["lead_stage"] | null
           status_id: string | null
           status_label_ar: string | null
+          tree_count_code: string | null
+          tree_count_label_ar: string | null
+          tree_count_max: number | null
+          tree_count_min: number | null
+          tree_count_option_id: string | null
           whatsapp_e164: string | null
         }
         Relationships: [
@@ -1735,6 +1762,13 @@ export type Database = {
             columns: ["residence_governorate_id"]
             isOneToOne: false
             referencedRelation: "governorates"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "interest_requests_tree_count_option_id_fkey"
+            columns: ["tree_count_option_id"]
+            isOneToOne: false
+            referencedRelation: "option_items"
             referencedColumns: ["id"]
           },
           {
@@ -1823,6 +1857,10 @@ export type Database = {
           status_id: string
           status_label_ar: string
           total_count: number
+          tree_count_code: string
+          tree_count_label_ar: string
+          tree_count_max: number
+          tree_count_min: number
         }[]
       }
       demand_indicator: { Args: { p_governorate: number }; Returns: Json }
@@ -1850,6 +1888,7 @@ export type Database = {
           score: number
         }[]
       }
+      million_progress: { Args: never; Returns: Json }
       review_land_offer: {
         Args: {
           p_next_status?: Database["public"]["Enums"]["land_offer_status"]

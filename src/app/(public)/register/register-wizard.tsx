@@ -22,6 +22,7 @@ type Scenario = {
 type RegisterWizardProps = {
   governorates: { id: number; name_ar: string }[];
   scenarios: Scenario[];
+  treeCounts: Option[];
   desiredAreas: Option[];
   priorities: Option[];
   goals: Option[];
@@ -34,6 +35,9 @@ type RegisterWizardProps = {
   consentText: string;
   initialDownPaymentId?: string;
   initialInstallmentId?: string;
+  /** Chosen on the home page, in «قدّاش زيتونة تحب تبدا بيهم؟» (MIL-01). */
+  initialTreeCountId?: string;
+  initialScenarioId?: string;
 };
 
 type ContactChannel = "phone" | "whatsapp" | "both";
@@ -48,6 +52,7 @@ type FormState = {
   investAnywhere: boolean;
   investGovernorateIds: number[];
   scenarioIds: string[];
+  treeCountOptionId: string | null;
   desiredAreaOptionId: string | null;
   priorityOptionId: string | null;
   goalOptionId: string | null;
@@ -64,7 +69,7 @@ const STEPS = [
   "بياناتك",
   "أين ترغب في الاستثمار؟",
   "شنوّة تحب تملك؟",
-  "المساحة اللي تهمّك",
+  "قدّاش زيتونة؟",
   "ما هو هدفك؟",
   "شنوّة الأهم بالنسبة ليك؟",
   "قدرتك المالية",
@@ -98,7 +103,8 @@ function emptyForm(props: RegisterWizardProps): FormState {
     governorateId: null,
     investAnywhere: false,
     investGovernorateIds: [],
-    scenarioIds: [],
+    scenarioIds: props.initialScenarioId ? [props.initialScenarioId] : [],
+    treeCountOptionId: props.initialTreeCountId ?? null,
     desiredAreaOptionId: null,
     priorityOptionId: null,
     goalOptionId: null,
@@ -120,6 +126,7 @@ function sanitize(form: FormState, props: RegisterWizardProps): FormState {
     governorateId: form.governorateId && governorateIds.has(form.governorateId) ? form.governorateId : null,
     investGovernorateIds: form.investGovernorateIds.filter((id) => governorateIds.has(id)),
     scenarioIds: form.scenarioIds.filter((id) => scenarioIds.has(id)),
+    treeCountOptionId: has(props.treeCounts, form.treeCountOptionId),
     desiredAreaOptionId: has(props.desiredAreas, form.desiredAreaOptionId),
     priorityOptionId: has(props.priorities, form.priorityOptionId),
     goalOptionId: has(props.goals, form.goalOptionId),
@@ -162,8 +169,13 @@ function validateStep(step: number, form: FormState, props: RegisterWizardProps)
   if (step === 3 && form.scenarioIds.length === 0) {
     errors.scenarioIds = "اختر شنوّة تحب تملك.";
   }
-  if (step === 4 && props.desiredAreas.length > 0 && !form.desiredAreaOptionId) {
-    errors.desiredAreaOptionId = "اختر المساحة، أو «ما عنديش تفضيل».";
+  if (step === 4) {
+    if (props.treeCounts.length > 0 && !form.treeCountOptionId) {
+      errors.treeCountOptionId = "اختر عدد الزيتونات، أو «اقترحولي».";
+    }
+    if (props.desiredAreas.length > 0 && !form.desiredAreaOptionId) {
+      errors.desiredAreaOptionId = "اختر المساحة، أو «ما عنديش تفضيل».";
+    }
   }
   if (step === 5 && !form.goalOptionId) errors.goalOptionId = "اختر هدفك.";
   if (step === 6 && props.priorities.length > 0 && !form.priorityOptionId) {
@@ -203,8 +215,13 @@ export function RegisterWizard(props: RegisterWizardProps) {
       const raw = localStorage.getItem(DRAFT_KEY);
       if (raw) {
         const draft = JSON.parse(raw) as Partial<FormState>;
+        // What the visitor just picked on the home page wins over an older draft (MIL-01).
+        const fromHome: Partial<FormState> = {
+          ...(props.initialTreeCountId ? { treeCountOptionId: props.initialTreeCountId } : {}),
+          ...(props.initialScenarioId ? { scenarioIds: [props.initialScenarioId] } : {}),
+        };
         // eslint-disable-next-line react-hooks/set-state-in-effect -- restoring browser-only state after hydration
-        setForm((current) => sanitize({ ...current, ...draft }, props));
+        setForm((current) => sanitize({ ...current, ...draft, ...fromHome }, props));
       }
     } catch {
       // Ignore unreadable drafts.
@@ -278,6 +295,7 @@ export function RegisterWizard(props: RegisterWizardProps) {
           investAnywhere: form.investAnywhere,
           investGovernorateIds: form.investGovernorateIds,
           scenarioIds: form.scenarioIds,
+          treeCountOptionId: form.treeCountOptionId,
           desiredAreaOptionId: form.desiredAreaOptionId,
           priorityOptionId: form.priorityOptionId,
           goalOptionId: form.goalOptionId ?? "",
@@ -352,15 +370,32 @@ export function RegisterWizard(props: RegisterWizardProps) {
             />
           ) : null}
           {step === 4 ? (
-            <div>
-              <p className="hint mb-3">المساحة تختلف من مشروع لآخر، وعدد الزيتونات ما يتحسبش من المساحة.</p>
-              <SingleChoice
-                name="desiredArea"
-                options={props.desiredAreas}
-                value={form.desiredAreaOptionId}
-                onChange={(id) => update("desiredAreaOptionId", id)}
-                error={errors.desiredAreaOptionId}
-              />
+            <div className="space-y-7">
+              <div>
+                <p className="label">قدّاش زيتونة تحب تبدا بيهم؟</p>
+                <p className="hint mb-3">هذا هو العدد اللي يدخل في عدّاد مشروع المليون زيتونة.</p>
+                <SingleChoice
+                  name="treeCount"
+                  options={props.treeCounts}
+                  value={form.treeCountOptionId}
+                  onChange={(id) => update("treeCountOptionId", id)}
+                  error={errors.treeCountOptionId}
+                />
+              </div>
+              <div>
+                <p className="label">والمساحة؟</p>
+                {/* PARC-02: two separate questions on purpose; neither answer fills in the other. */}
+                <p className="hint mb-3">
+                  المساحة تختلف من مشروع لآخر: عدد الزيتونات ما يتحسبش من المساحة، والعكس صحيح.
+                </p>
+                <SingleChoice
+                  name="desiredArea"
+                  options={props.desiredAreas}
+                  value={form.desiredAreaOptionId}
+                  onChange={(id) => update("desiredAreaOptionId", id)}
+                  error={errors.desiredAreaOptionId}
+                />
+              </div>
             </div>
           ) : null}
           {step === 5 ? (
@@ -695,6 +730,7 @@ function ReviewStep({
   setStep,
   governorates,
   scenarios,
+  treeCounts,
   desiredAreas,
   priorities,
   goals,
@@ -724,6 +760,9 @@ function ReviewStep({
       label: "شنوّة تحب تملك",
       value: scenarios.filter((s) => form.scenarioIds.includes(s.id)).map((s) => s.label_ar).join("، ") || "—",
     },
+    ...(treeCounts.length > 0
+      ? [{ step: 4, label: "عدد الزيتونات", value: label(treeCounts, form.treeCountOptionId) }]
+      : []),
     ...(desiredAreas.length > 0 ? [{ step: 4, label: "المساحة", value: label(desiredAreas, form.desiredAreaOptionId) }] : []),
     { step: 5, label: "الهدف", value: label(goals, form.goalOptionId) },
     ...(priorities.length > 0 ? [{ step: 6, label: "الأهم بالنسبة ليك", value: label(priorities, form.priorityOptionId) }] : []),

@@ -67,6 +67,9 @@ scripts/                 Migration, test, type generation and admin bootstrap sc
 - **Schema changes go through numbered migrations** in `supabase/migrations`; never edit production by hand.
 - **Important operations are written to `audit_logs`**, which is append-only.
 - **Requests keep a snapshot** of the option values chosen at submission time.
+- **The public counter shows real rows only (MIL-01).** «مشروع المليون زيتونة» sums the lower bound of
+  the tree counts people actually chose, ignores duplicate requests, and adds nothing for "اقترحولي".
+  The goal lives in the `million.goal` setting.
 - **No picture path in code (MED-01).** Every photo of the public site is a row in `site_media`; the Back
   Office (`/admin/settings/media`) uploads it to the public `site-media` bucket and alternative text is
   required. An empty slot renders a branded drawing, never a broken frame.

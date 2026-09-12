@@ -2,16 +2,22 @@ import Link from "next/link";
 
 import { Wordmark } from "@/components/brand/wordmark";
 import { GrowthIcon } from "@/components/site/growth-icon";
+import { MillionCounter } from "@/components/site/million-counter";
+import { MillionStart } from "@/components/site/million-start";
 import { SitePhoto } from "@/components/site/site-photo";
-import { flagState, getPublicConfig, optionsFor, settingJson, settingText, type PublicConfig } from "@/lib/config";
+import { flagState, getPublicConfig, optionsFor, settingJson, settingText } from "@/lib/config";
+import { getMillionProgress } from "@/lib/million";
 
 type Step = { title: string; text: string };
 type Faq = { q: string; a: string };
 type Fact = { value: string; label: string };
 type ParcelExample = { title: string; area: string; trees: string; system: string; status: string };
 
+// The counter moves as requests arrive, so the page is rebuilt at most once a minute (MIL-01).
+export const revalidate = 60;
+
 export default async function HomePage() {
-  const config = await getPublicConfig();
+  const [config, progress] = await Promise.all([getPublicConfig(), getMillionProgress()]);
 
   const interestOpen = flagState(config, "interest_form") === "public";
   const simulatorOpen = flagState(config, "simulator_basic") === "public";
@@ -22,119 +28,117 @@ export default async function HomePage() {
   const facts = settingJson<Fact[]>(config, "site.facts", []);
   const parcels = settingJson<ParcelExample[]>(config, "site.parcel_examples", []);
   const notice = settingText(config, "site.free_interest_notice");
+  const treeCounts = optionsFor(config, "tree_count");
 
   return (
     <>
-      {/* 01 · Hero: the idea in one screen, with the register button and the free-of-charge notice (HOME-01) */}
-      <section className="relative overflow-hidden">
-        <div
-          aria-hidden="true"
-          className="pointer-events-none absolute -top-48 -end-40 size-[30rem] rounded-full bg-[radial-gradient(circle,var(--color-gold-soft)_0%,transparent_68%)]"
-        />
-        <div className="relative mx-auto grid max-w-6xl gap-10 px-4 pb-14 pt-8 sm:px-6 md:grid-cols-[1.05fr_0.95fr] md:items-center md:pb-16 md:pt-14">
-          <div>
-            {settingText(config, "site.hero_eyebrow") ? (
-              <p className="mb-4 inline-flex items-center gap-2 rounded-full bg-leaf-soft px-3.5 py-1.5 text-sm font-semibold text-forest">
-                <span aria-hidden="true" className="size-1.5 rounded-full bg-leaf" />
-                {settingText(config, "site.hero_eyebrow")}
+      {/* 01 · One wide, quiet olive grove, the name of the project, and one thing to do (HOME-01) */}
+      <section className="relative isolate grid min-h-[30rem] items-center overflow-hidden sm:min-h-[34rem]">
+        <SitePhoto config={config} slot="home.hero" fill priority sizes="100vw" />
+        <div className="absolute inset-0 bg-linear-to-t from-forest-700/85 via-forest-700/60 to-forest-700/35" />
+        <div className="relative">
+          <div className="mx-auto w-full max-w-6xl px-4 py-16 sm:px-6">
+            <div className="max-w-2xl text-paper">
+              {settingText(config, "site.hero_eyebrow") ? (
+                <p className="mb-3 inline-flex items-center gap-2 rounded-full bg-paper/15 px-3.5 py-1.5 text-sm font-semibold backdrop-blur-sm">
+                  <span aria-hidden="true" className="size-1.5 rounded-full bg-gold-bright" />
+                  {settingText(config, "site.hero_eyebrow")}
+                </p>
+              ) : null}
+
+              <h1 className="font-display text-[2.75rem] font-bold leading-[1.1] text-balance sm:text-7xl">
+                {settingText(config, "site.home_headline")}
+              </h1>
+              <p className="mt-4 max-w-xl text-lg leading-8 text-paper/90 sm:text-xl">
+                {settingText(config, "site.home_subheadline")}
               </p>
-            ) : null}
 
-            <h1 className="font-display text-[2.5rem] font-bold leading-[1.15] text-balance text-forest sm:text-6xl">
-              {settingText(config, "site.home_headline")}
-            </h1>
-            <p className="mt-4 max-w-xl text-base leading-7 text-muted sm:text-lg sm:leading-8">
-              {settingText(config, "site.home_subheadline")}
-            </p>
-
-            {interestOpen ? (
-              <div className="mt-7">
-                <Link href="/register" className="btn btn-primary min-h-14 w-full px-8 text-lg sm:w-auto">
-                  سجّل اهتمامك
-                </Link>
-                {notice ? (
-                  <p className="mt-3 flex items-center gap-2 text-sm font-medium text-forest">
-                    <CheckIcon />
-                    {notice}
-                  </p>
+              <div className="mt-8 flex flex-wrap items-center gap-3">
+                {interestOpen ? (
+                  <Link
+                    href="/register"
+                    className="btn min-h-14 bg-gold-bright px-8 text-lg text-forest-700 hover:bg-gold-soft"
+                  >
+                    سجّل مطلبك
+                  </Link>
                 ) : null}
+                <Link
+                  href="/#how"
+                  className="btn min-h-14 border-2 border-paper/40 px-6 text-paper hover:border-paper hover:bg-paper/10"
+                >
+                  اكتشف كيفاش تخدم AgriZed
+                </Link>
               </div>
-            ) : null}
 
-            <div className="mt-5 flex flex-wrap gap-2">
-              {simulatorOpen ? (
-                <Link href="/simulator" className="btn btn-secondary flex-auto whitespace-nowrap sm:flex-none">
-                  احسب قدرتك
-                </Link>
-              ) : null}
-              {landOpen ? (
-                <Link href="/land" className="btn btn-secondary flex-auto whitespace-nowrap sm:flex-none">
-                  عندك أرض أو ضيعة؟
-                </Link>
-              ) : null}
-            </div>
-          </div>
-
-          {/* The photo carries the page; the sample request floats over it, as in the design board. */}
-          <div className="relative">
-            <SitePhoto
-              config={config}
-              slot="home.hero"
-              priority
-              sizes="(min-width: 768px) 46vw, 100vw"
-              className="shadow-[0_28px_60px_-34px_rgba(31,74,44,0.55)] sm:rounded-3xl"
-            />
-            <div className="mt-4 lg:absolute lg:-bottom-10 lg:-start-10 lg:mt-0 lg:w-[17rem] xl:-start-14 xl:w-[19rem]">
-              <SampleRequest config={config} />
+              {notice ? <p className="mt-4 text-sm font-medium text-paper/85">{notice}</p> : null}
             </div>
           </div>
         </div>
       </section>
 
-      {facts.length > 0 ? (
-        <section className="border-y border-line bg-surface">
-          <ul className="mx-auto grid max-w-6xl gap-6 px-4 py-8 sm:grid-cols-3 sm:px-6">
-            {facts.map((fact) => (
-              <li key={fact.label} className="flex items-baseline gap-3 sm:flex-col sm:gap-1">
-                <p className="font-display text-4xl font-bold leading-none text-forest">{fact.value}</p>
-                <p className="text-sm leading-6 text-muted">{fact.label}</p>
-              </li>
-            ))}
-          </ul>
-        </section>
+      {/* 02 · Where the project stands. Counts of real rows only. */}
+      {progress ? (
+        <MillionCounter
+          progress={progress}
+          title={settingText(config, "site.progress_title", "وين وصلنا؟")}
+          note={settingText(config, "site.progress_note")}
+        />
       ) : null}
 
-      {/* 02 · How it works */}
+      {/* 03 · The million starts with one olive tree */}
+      <section className="mx-auto max-w-6xl px-4 py-16 sm:px-6">
+        <div className="grid gap-10 lg:grid-cols-[1fr_0.8fr] lg:items-center">
+          <div>
+            <h2 className="font-display text-3xl font-bold text-forest sm:text-4xl">
+              {settingText(config, "site.start_title", "المليون تبدأ بزيتونة")}
+            </h2>
+            <p className="mt-3 max-w-xl text-lg leading-8 text-muted">{settingText(config, "site.start_text")}</p>
+
+            {facts.length > 0 ? (
+              <ul className="mt-7 grid gap-4 sm:grid-cols-3">
+                {facts.map((fact) => (
+                  <li key={fact.label}>
+                    <p className="font-display text-3xl font-bold leading-none text-forest">{fact.value}</p>
+                    <p className="mt-1 text-sm leading-6 text-muted">{fact.label}</p>
+                  </li>
+                ))}
+              </ul>
+            ) : null}
+          </div>
+          <SitePhoto config={config} slot="home.journey" sizes="(min-width: 1024px) 36vw, 100vw" />
+        </div>
+      </section>
+
+      {/* 04 · The two questions that open a request */}
+      {interestOpen && treeCounts.length > 0 ? (
+        <MillionStart
+          treeCounts={treeCounts}
+          scenarios={config.scenarios}
+          treesQuestion={settingText(config, "site.trees_question", "قدّاش زيتونة تحب تبدا بيهم؟")}
+          styleQuestion={settingText(config, "site.style_question", "كيفاش تحب مشروعك يكون؟")}
+        />
+      ) : null}
+
+      {/* 05 · How it works */}
       {steps.length > 0 ? (
         <section id="how" className="mx-auto max-w-6xl scroll-mt-20 px-4 py-16 sm:px-6">
-          <div className="grid gap-10 lg:grid-cols-[0.85fr_1.15fr] lg:items-start">
-            <div className="lg:sticky lg:top-8">
-              <h2 className="font-display text-3xl font-bold text-forest sm:text-4xl">كيف تعمل AgriZed؟</h2>
-              <p className="mt-3 leading-7 text-muted">مسار واضح، خطوة بخطوة، بدون أي دفع في البداية.</p>
-              <SitePhoto
-                config={config}
-                slot="home.journey"
-                sizes="(min-width: 1024px) 34vw, 100vw"
-                className="mt-6 hidden lg:block"
-              />
-            </div>
-
-            <ol className="grid gap-3 sm:grid-cols-2">
-              {steps.map((step, index) => (
-                <li key={step.title} className="rounded-2xl border border-line bg-surface p-5">
-                  <span className="grid size-10 place-items-center rounded-full bg-gold-soft font-display text-xl font-bold text-gold tabular-nums">
-                    {index + 1}
-                  </span>
-                  <h3 className="mt-4 font-semibold text-ink">{step.title}</h3>
-                  <p className="mt-1 text-sm leading-6 text-muted">{step.text}</p>
-                </li>
-              ))}
-            </ol>
-          </div>
+          <h2 className="font-display text-3xl font-bold text-forest sm:text-4xl">كيفاش تخدم AgriZed؟</h2>
+          <p className="mt-3 max-w-2xl leading-7 text-muted">مسار واضح، خطوة بخطوة، بدون أي دفع في البداية.</p>
+          <ol className="mt-8 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            {steps.map((step, index) => (
+              <li key={step.title} className="rounded-2xl border border-line bg-surface p-5">
+                <span className="grid size-10 place-items-center rounded-full bg-gold-soft font-display text-xl font-bold text-gold tabular-nums">
+                  {index + 1}
+                </span>
+                <h3 className="mt-4 font-semibold text-ink">{step.title}</h3>
+                <p className="mt-1 text-sm leading-6 text-muted">{step.text}</p>
+              </li>
+            ))}
+          </ol>
         </section>
       ) : null}
 
-      {/* 03 · What a parcel is. PARC-01/02: area, tree count, system and status are independent. */}
+      {/* 06 · What a parcel is. PARC-01/02: area, tree count, system and status are independent. */}
       {parcels.length > 0 ? (
         <section id="parcels" className="scroll-mt-20 border-y border-line bg-surface">
           <div className="mx-auto max-w-6xl px-4 py-16 sm:px-6">
@@ -181,7 +185,7 @@ export default async function HomePage() {
         </section>
       ) : null}
 
-      {/* 04 · Where. Every governorate is open for registration; demand decides where AgriZed searches. */}
+      {/* 07 · Where. Every governorate is open; demand decides where AgriZed searches next. */}
       <section id="where" className="mx-auto max-w-6xl scroll-mt-20 px-4 py-16 sm:px-6">
         <div className="grid gap-10 lg:grid-cols-[1fr_0.8fr] lg:items-center">
           <div>
@@ -204,7 +208,7 @@ export default async function HomePage() {
         </div>
       </section>
 
-      {/* 05 · Plantation types */}
+      {/* 08 · Plantation types */}
       <section className="border-y border-line bg-surface">
         <div className="mx-auto max-w-6xl px-4 py-16 sm:px-6">
           <h2 className="font-display text-3xl font-bold text-forest sm:text-4xl">من أين تبدأ؟</h2>
@@ -236,7 +240,7 @@ export default async function HomePage() {
         </div>
       </section>
 
-      {/* 06 · Simulator */}
+      {/* 09 · Simulator */}
       {simulatorOpen ? (
         <section className="mx-auto max-w-6xl px-4 py-16 sm:px-6">
           <div className="grid gap-6 rounded-3xl bg-forest px-6 py-10 text-paper sm:px-10 md:grid-cols-[1fr_auto] md:items-center">
@@ -253,7 +257,7 @@ export default async function HomePage() {
         </section>
       ) : null}
 
-      {/* 07 · Landowners */}
+      {/* 10 · Landowners */}
       {landOpen ? (
         <section className="mx-auto max-w-6xl px-4 pb-16 sm:px-6">
           <div className="grid items-center gap-8 rounded-3xl border border-gold/25 bg-gold-soft/50 p-6 sm:p-10 lg:grid-cols-[1fr_0.9fr]">
@@ -292,15 +296,32 @@ export default async function HomePage() {
         </section>
       ) : null}
 
+      {/* 11 · Ask once more, plainly */}
+      {interestOpen ? (
+        <section className="mx-auto max-w-6xl px-4 pb-16 sm:px-6">
+          <div className="rounded-3xl border border-line bg-surface px-6 py-12 text-center sm:px-10">
+            <h2 className="font-display text-3xl font-bold text-balance text-forest sm:text-4xl">
+              {settingText(config, "site.final_cta_title", "سجّل مطلبك في مشروع المليون زيتونة")}
+            </h2>
+            <Link href="/register" className="btn btn-primary mt-7 min-h-14 px-10 text-lg">
+              سجّل مطلبك
+            </Link>
+            <p className="mt-3 text-sm text-muted">{settingText(config, "site.final_cta_note")}</p>
+          </div>
+        </section>
+      ) : null}
+
       {/* Closing band */}
-      <section className="relative isolate overflow-hidden">
+      <section className="relative isolate grid min-h-[22rem] place-items-center overflow-hidden sm:min-h-[26rem]">
         <SitePhoto
           config={config}
           slot="home.closing"
+          fill
           sizes="100vw"
-          className="rounded-none [&_img]:brightness-[0.45] [&_svg]:brightness-[0.55] sm:max-h-[26rem]"
+          className="[&_img]:brightness-[0.45] [&_svg]:brightness-[0.55]"
         />
-        <div className="absolute inset-0 grid place-items-center bg-forest-700/45 px-4 text-center">
+        <div className="absolute inset-0 bg-forest-700/45" />
+        <div className="relative px-4 py-16 text-center">
           <div>
             <Wordmark onDark className="text-4xl sm:text-6xl" />
             <p className="mt-4 font-display text-3xl font-bold text-paper sm:text-5xl">
@@ -325,51 +346,5 @@ function ParcelRow({ label, value }: { label: string; value: string }) {
       <dt className="text-muted">{label}</dt>
       <dd className="font-semibold text-ink">{value}</dd>
     </div>
-  );
-}
-
-/** Shows what a request looks like, using the real option lists so values match the form. */
-function SampleRequest({ config }: { config: PublicConfig }) {
-  const rows = [
-    ["المنطقة", config.governorates.find((g) => g.id === 34)?.name_ar ?? config.governorates[0]?.name_ar],
-    [
-      "نوع المشروع",
-      config.projectTypes.find((t) => t.code === "productive")?.label_ar ?? config.projectTypes[0]?.label_ar,
-    ],
-    ["التسبقة", optionsFor(config, "down_payment")[1]?.label_ar],
-    ["القسط الشهري", optionsFor(config, "monthly_installment")[3]?.label_ar],
-  ].filter((row): row is [string, string] => Boolean(row[1]));
-
-  return (
-    <aside className="rounded-2xl border border-line bg-surface p-5 shadow-[0_1px_0_var(--color-line),0_18px_40px_-24px_rgba(31,74,44,0.35)]">
-      <div className="flex items-center justify-between gap-3">
-        <h2 className="font-semibold text-ink">شكل الطلب</h2>
-        <span className="rounded-full bg-leaf-soft px-2.5 py-1 text-xs font-semibold text-forest">مثال</span>
-      </div>
-      <dl className="mt-3 divide-y divide-line">
-        {rows.map(([label, value]) => (
-          <div key={label} className="flex items-center justify-between gap-4 py-2.5">
-            <dt className="text-sm text-muted">{label}</dt>
-            <dd className="text-sm font-semibold text-ink">{value}</dd>
-          </div>
-        ))}
-      </dl>
-    </aside>
-  );
-}
-
-function CheckIcon() {
-  return (
-    <svg
-      viewBox="0 0 20 20"
-      className="size-5 flex-none text-leaf"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth={2}
-      aria-hidden="true"
-    >
-      <circle cx="10" cy="10" r="8" />
-      <path d="M6.5 10.2l2.3 2.3 4.7-4.9" strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
   );
 }

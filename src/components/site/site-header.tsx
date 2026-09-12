@@ -5,17 +5,17 @@ import { Wordmark } from "@/components/brand/wordmark";
 type SiteHeaderProps = {
   tagline: string;
   showInterestCta: boolean;
-  showSimulator: boolean;
-  showLand: boolean;
+  /** Modules that are open to the public; a link is never shown for a page that is not there yet. */
+  showProjects: boolean;
+  showZitounti: boolean;
 };
 
-export function SiteHeader({ tagline, showInterestCta, showSimulator, showLand }: SiteHeaderProps) {
+export function SiteHeader({ tagline, showInterestCta, showProjects, showZitounti }: SiteHeaderProps) {
   const links = [
-    { href: "/#how", label: "كيف تعمل" },
-    { href: "/#parcels", label: "القطعة" },
-    { href: "/#where", label: "الولايات" },
-    ...(showSimulator ? [{ href: "/simulator", label: "المحاكي" }] : []),
-    ...(showLand ? [{ href: "/land", label: "عندك أرض؟" }] : []),
+    { href: "/#million", label: "مشروع المليون زيتونة" },
+    { href: "/#how", label: "كيفاش تخدم" },
+    ...(showProjects ? [{ href: "/projects", label: "المشاريع" }] : []),
+    ...(showZitounti ? [{ href: "/zitounti", label: "زيتونتي" }] : []),
   ];
 
   return (
@@ -41,9 +41,10 @@ export function SiteHeader({ tagline, showInterestCta, showSimulator, showLand }
           </ul>
         </nav>
 
+        {/* Always reachable while scrolling; on a phone the fixed bar at the bottom takes over. */}
         {showInterestCta ? (
-          <Link href="/register" className="btn btn-primary ms-auto min-h-11 px-4 text-[0.95rem] md:ms-0">
-            سجّل اهتمامك
+          <Link href="/register" className="btn btn-primary ms-auto hidden min-h-11 px-4 text-[0.95rem] md:ms-0 md:inline-flex">
+            سجّل مطلبك
           </Link>
         ) : null}
       </div>

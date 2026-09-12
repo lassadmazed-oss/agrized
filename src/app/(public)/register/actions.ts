@@ -21,6 +21,8 @@ const interestSchema = z.object({
   investGovernorateIds: z.array(z.number().int().positive()).max(30),
   // Clause 25: what the citizen wants to own; the scenario decides the project type.
   scenarioIds: z.array(z.uuid()).min(1).max(10),
+  // MIL-01: how many olive trees, asked before anything else. Independent of the surface (PARC-02).
+  treeCountOptionId: z.uuid().nullable(),
   desiredAreaOptionId: z.uuid().nullable(),
   priorityOptionId: z.uuid().nullable(),
   goalOptionId: z.uuid(),
@@ -50,6 +52,7 @@ const ERROR_STEP: Record<string, number> = {
   invalid_scenario: 3,
   single_scenario_only: 3,
   invalid_project_type: 3,
+  invalid_tree_choice: 4,
   invalid_desired_area: 4,
   invalid_goal: 5,
   invalid_priority: 6,
@@ -110,6 +113,7 @@ export async function submitInterest(input: InterestInput): Promise<SubmitIntere
       invest_anywhere: data.investAnywhere,
       invest_governorate_ids: data.investAnywhere ? [] : data.investGovernorateIds,
       scenario_ids: data.scenarioIds,
+      tree_count_option_id: data.treeCountOptionId,
       desired_area_option_id: data.desiredAreaOptionId,
       priority_option_id: data.priorityOptionId,
       goal_option_id: data.goalOptionId,

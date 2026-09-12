@@ -6,8 +6,10 @@ type SitePhotoProps = {
   config: PublicConfig;
   /** Slot key from `site_media`, e.g. "home.hero" (MED-01). */
   slot: string;
-  /** Overrides the crop stored on the slot. */
+  /** Overrides the crop stored on the slot. Ignored when `fill` is set. */
   aspect?: string;
+  /** Cover the parent instead of reserving a ratio, for a band whose text sets the height. */
+  fill?: boolean;
   /** Passed to next/image so a wide hero does not download a phone-sized file. */
   sizes?: string;
   priority?: boolean;
@@ -19,14 +21,14 @@ type SitePhotoProps = {
  * While AgriZed has not uploaded a photo, a branded drawing keeps the layout intact instead of a
  * broken frame, so the page is presentable from the first day.
  */
-export function SitePhoto({ config, slot, aspect, sizes = "100vw", priority, className = "" }: SitePhotoProps) {
+export function SitePhoto({ config, slot, aspect, fill, sizes = "100vw", priority, className = "" }: SitePhotoProps) {
   const media = mediaFor(config, slot);
   const ratio = (aspect ?? media?.aspect ?? "4/3").replace("/", " / ");
 
   return (
     <div
-      style={{ aspectRatio: ratio }}
-      className={`relative overflow-hidden rounded-2xl bg-leaf-soft ${className}`}
+      style={fill ? undefined : { aspectRatio: ratio }}
+      className={`overflow-hidden bg-leaf-soft ${fill ? "absolute inset-0" : "relative rounded-2xl"} ${className}`}
     >
       {media ? (
         <Image
