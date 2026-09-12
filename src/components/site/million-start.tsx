@@ -15,6 +15,32 @@ type MillionStartProps = {
   styleQuestion: string;
 };
 
+/**
+ * An olive tree that grows with the number on the card, so the row reads as a scale at a glance.
+ * Decorative: the number beside it already says everything.
+ */
+function OliveMark({ trees }: { trees: number }) {
+  const size = trees >= 500 ? 46 : trees >= 250 ? 40 : trees >= 100 ? 34 : trees >= 50 ? 28 : 24;
+  return (
+    <svg
+      viewBox="0 0 32 32"
+      style={{ width: size, height: size }}
+      className="text-paper/70"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={1.6}
+      strokeLinecap="round"
+      aria-hidden="true"
+    >
+      <path d="M16 28v-9" />
+      <path d="M16 22l-4-3M16 19l4-3" />
+      <circle cx="16" cy="11" r="6" />
+      <circle cx="9.5" cy="15" r="3.6" />
+      <circle cx="22.5" cy="15" r="3.2" />
+    </svg>
+  );
+}
+
 /** Growth stage icon per seeded scenario; unknown codes fall back to the generic leaf. */
 const SCENARIO_ICONS: Record<string, string> = {
   big_productive: "productive",
@@ -47,7 +73,7 @@ export function MillionStart({ treeCounts, scenarios, treesQuestion, styleQuesti
           <legend className="font-display text-3xl font-bold sm:text-4xl">{treesQuestion}</legend>
           <p className="mt-2 text-paper/75">اختيارك يمشي معك للخطوة الموالية. تنجم تبدّلو وقت اللي تحب.</p>
 
-          <ul className="mt-7 grid gap-3 sm:grid-cols-3 lg:grid-cols-6">
+          <ul className="mt-7 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-7">
             {treeCounts.map((option) => (
               <li key={option.id}>
                 <label
@@ -65,6 +91,7 @@ export function MillionStart({ treeCounts, scenarios, treesQuestion, styleQuesti
                     onChange={() => setTrees(option.id)}
                     className="sr-only"
                   />
+                  {option.min_number ? <OliveMark trees={option.min_number} /> : null}
                   {/* The label already carries the number and the unit, exactly as the Back Office wrote it. */}
                   <span
                     className={`font-display font-bold leading-tight ${

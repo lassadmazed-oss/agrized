@@ -70,16 +70,29 @@ begin
     'an open choice adds no invented trees, got ' || (v_after->>'trees_requested');
   assert (v_after->>'participants')::bigint = v_people0 + 2, 'but the person is a participant';
 
-  -- 5 · "أكثر من 250" counts its lower bound only, never more than was said
+  -- 5 · "أكثر من 500" counts its lower bound only, never more than was said
   perform public.submit_interest_request(pg_temp.payload(jsonb_build_object(
     'phone_e164', '+21697111444',
-    'tree_count_option_id', (select id from public.option_items where list_key = 'tree_count' and code = 'trees_250p')
+    'tree_count_option_id', (select id from public.option_items where list_key = 'tree_count' and code = 'trees_500p')
   )));
   v_after := public.million_progress();
-  assert (v_after->>'trees_requested')::bigint = v_trees0 + 350,
+  assert (v_after->>'trees_requested')::bigint = v_trees0 + 600,
     'an open-ended range counts its lower bound, got ' || (v_after->>'trees_requested');
 
-  -- 6 · The tree count is a wrong value like any other
+  -- 6 · A choice AgriZed retired from the list is refused, even though the row still exists (LEAD-01)
+  begin
+    perform public.submit_interest_request(pg_temp.payload(jsonb_build_object(
+      'phone_e164', '+21697111777',
+      'tree_count_option_id', (select id from public.option_items where list_key = 'tree_count' and code = 'trees_250p')
+    )));
+    raise exception 'expected a retired option to be refused but the call succeeded';
+  exception when others then
+    if sqlerrm <> 'invalid_tree_choice' then
+      raise exception 'expected invalid_tree_choice for a retired option but got "%"', sqlerrm;
+    end if;
+  end;
+
+  -- 7 · The tree count is a wrong value like any other
   begin
     perform public.submit_interest_request(pg_temp.payload(jsonb_build_object(
       'phone_e164', '+21697111555',
@@ -92,7 +105,7 @@ begin
     end if;
   end;
 
-  -- 7 · The tree count is missing when it was not asked, and that is allowed
+  -- 8 · The tree count is missing when it was not asked, and that is allowed
   perform public.submit_interest_request(pg_temp.payload(jsonb_build_object(
     'phone_e164', '+21697111666',
     'tree_count_option_id', null
@@ -101,7 +114,7 @@ begin
   assert v_req.tree_count_option_id is null, 'a request without a tree count is accepted';
 end $$;
 
--- 8 · The Back Office can search by tree count, independently of the surface (PARC-02)
+-- 9 · The Back Office can search by tree count, independently of the surface (PARC-02)
 do $$
 declare
   v_admin uuid := gen_random_uuid();
