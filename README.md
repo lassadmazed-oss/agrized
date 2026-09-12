@@ -40,6 +40,7 @@ created from the Back Office (Users).
 | `npm run db:types` | Regenerates `src/lib/supabase/database.types.ts` |
 | `npm run admin:create` | Creates the first Super Admin |
 | `npm run admin:password` | Sets a new password for an existing staff account |
+| `npm run demo:projects` | Seeds 15 `DEMO-` projects with parcels, all `internal` (staff preview only); `-- --purge` removes them |
 
 ## Project structure
 

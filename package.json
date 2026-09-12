@@ -12,7 +12,8 @@
     "admin:password": "node --env-file=.env scripts/reset-admin-password.mjs",
     "db:migrate": "node --env-file=.env scripts/db-migrate.mjs",
     "db:types": "node --env-file=.env scripts/db-types.mjs",
-    "db:test": "node --env-file=.env scripts/db-test.mjs"
+    "db:test": "node --env-file=.env scripts/db-test.mjs",
+    "demo:projects": "node --env-file=.env scripts/seed-demo-projects.mjs"
   },
   "dependencies": {
     "@supabase/ssr": "^0.12.7",
