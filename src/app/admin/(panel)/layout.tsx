@@ -28,6 +28,7 @@ function navFor(session: StaffSession): NavGroup[] {
         { href: "/admin/settings/modules", label: "الموديولات" },
         { href: "/admin/settings", label: "الإعدادات والنصوص" },
         { href: "/admin/settings/lists", label: "القوائم" },
+        { href: "/admin/settings/media", label: "صور الموقع" },
         { href: "/admin/users", label: "المستخدمون" },
         { href: "/admin/audit", label: "سجل العمليات" },
       ],

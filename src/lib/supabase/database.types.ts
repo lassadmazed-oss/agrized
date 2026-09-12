@@ -1323,6 +1323,8 @@ export type Database = {
           created_at: string
           description_ar: string | null
           id: string
+          image_alt_ar: string | null
+          image_url: string | null
           is_active: boolean
           label_ar: string
           label_fr: string | null
@@ -1335,6 +1337,8 @@ export type Database = {
           created_at?: string
           description_ar?: string | null
           id?: string
+          image_alt_ar?: string | null
+          image_url?: string | null
           is_active?: boolean
           label_ar: string
           label_fr?: string | null
@@ -1347,6 +1351,8 @@ export type Database = {
           created_at?: string
           description_ar?: string | null
           id?: string
+          image_alt_ar?: string | null
+          image_url?: string | null
           is_active?: boolean
           label_ar?: string
           label_fr?: string | null
@@ -1524,6 +1530,53 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "settings_updated_by_fkey"
+            columns: ["updated_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      site_media: {
+        Row: {
+          alt_ar: string | null
+          aspect: string
+          description_ar: string | null
+          group_key: string
+          label_ar: string
+          slot: string
+          sort_order: number
+          updated_at: string
+          updated_by: string | null
+          url: string | null
+        }
+        Insert: {
+          alt_ar?: string | null
+          aspect?: string
+          description_ar?: string | null
+          group_key?: string
+          label_ar: string
+          slot: string
+          sort_order?: number
+          updated_at?: string
+          updated_by?: string | null
+          url?: string | null
+        }
+        Update: {
+          alt_ar?: string | null
+          aspect?: string
+          description_ar?: string | null
+          group_key?: string
+          label_ar?: string
+          slot?: string
+          sort_order?: number
+          updated_at?: string
+          updated_by?: string | null
+          url?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "site_media_updated_by_fkey"
             columns: ["updated_by"]
             isOneToOne: false
             referencedRelation: "profiles"

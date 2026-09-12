@@ -15,7 +15,7 @@ export function SiteFooter({ legalNotice, taglineFr, phone, whatsapp, email }: S
   const hasContact = Boolean(phone || whatsapp || email);
 
   return (
-    <footer className="mt-20 border-t border-line bg-surface">
+    <footer className="border-t border-line bg-surface">
       <div className="mx-auto grid max-w-6xl gap-8 px-4 py-10 sm:px-6 md:grid-cols-[1.2fr_1fr]">
         <div className="space-y-3">
           <Wordmark className="text-2xl" />

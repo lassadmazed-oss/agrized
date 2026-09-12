@@ -12,6 +12,8 @@ export default async function PublicLayout({ children }: LayoutProps<"/">) {
       <SiteHeader
         tagline={settingText(config, "brand.tagline_ar")}
         showInterestCta={flagState(config, "interest_form") === "public"}
+        showSimulator={flagState(config, "simulator_basic") === "public"}
+        showLand={flagState(config, "land_offers") === "public"}
       />
       <main className="flex-1">{children}</main>
       <SiteFooter

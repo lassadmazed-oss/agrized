@@ -67,6 +67,9 @@ scripts/                 Migration, test, type generation and admin bootstrap sc
 - **Schema changes go through numbered migrations** in `supabase/migrations`; never edit production by hand.
 - **Important operations are written to `audit_logs`**, which is append-only.
 - **Requests keep a snapshot** of the option values chosen at submission time.
+- **No picture path in code (MED-01).** Every photo of the public site is a row in `site_media`; the Back
+  Office (`/admin/settings/media`) uploads it to the public `site-media` bucket and alternative text is
+  required. An empty slot renders a branded drawing, never a broken frame.
 
 ## Not done yet
 

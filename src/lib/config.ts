@@ -13,7 +13,7 @@ export const PUBLIC_CONFIG_TAG = "public-config";
 const loadPublicConfig = unstable_cache(
   async () => {
     const supabase = createPublicClient();
-    const [settings, flags, governorates, delegations, projectTypes, scenarios, options] = await Promise.all([
+    const [settings, flags, governorates, delegations, projectTypes, scenarios, options, media] = await Promise.all([
       supabase.from("settings").select("key, value").eq("is_public", true),
       supabase.from("feature_flags").select("key, state"),
       supabase.from("governorates").select("id, name_ar, name_fr").eq("is_active", true).order("sort_order"),
@@ -24,7 +24,7 @@ const loadPublicConfig = unstable_cache(
         .order("sort_order"),
       supabase
         .from("project_types")
-        .select("id, code, label_ar, description_ar")
+        .select("id, code, label_ar, description_ar, image_url, image_alt_ar")
         .eq("is_active", true)
         .order("sort_order"),
       supabase
@@ -37,9 +37,10 @@ const loadPublicConfig = unstable_cache(
         .select("id, list_key, code, label_ar, min_millimes, max_millimes, min_number, max_number, time_from, time_to")
         .eq("is_active", true)
         .order("sort_order"),
+      supabase.from("site_media").select("slot, url, alt_ar, aspect"),
     ]);
 
-    for (const result of [settings, flags, governorates, delegations, projectTypes, scenarios, options]) {
+    for (const result of [settings, flags, governorates, delegations, projectTypes, scenarios, options, media]) {
       if (result.error) throw new Error(`Could not load public configuration: ${result.error.message}`);
     }
 
@@ -51,9 +52,10 @@ const loadPublicConfig = unstable_cache(
       projectTypes: projectTypes.data ?? [],
       scenarios: scenarios.data ?? [],
       options: options.data ?? [],
+      media: Object.fromEntries((media.data ?? []).map((row) => [row.slot, row])),
     };
   },
-  ["public-config-v2"],
+  ["public-config-v3"],
   { tags: [PUBLIC_CONFIG_TAG], revalidate: 300 },
 );
 
@@ -63,6 +65,7 @@ export type Governorate = PublicConfig["governorates"][number];
 export type Delegation = PublicConfig["delegations"][number];
 export type ProjectType = PublicConfig["projectTypes"][number];
 export type OwnershipScenario = PublicConfig["scenarios"][number];
+export type MediaSlot = PublicConfig["media"][string];
 
 export function getPublicConfig(): Promise<PublicConfig> {
   return loadPublicConfig();
@@ -90,6 +93,12 @@ export function settingJson<T>(config: PublicConfig, key: string, fallback: T): 
 
 export function optionsFor(config: PublicConfig, listKey: string): OptionItem[] {
   return config.options.filter((option) => option.list_key === listKey);
+}
+
+/** A picture slot (MED-01). Returns undefined when AgriZed has not uploaded one yet. */
+export function mediaFor(config: PublicConfig, slot: string): MediaSlot | undefined {
+  const row = config.media[slot];
+  return row?.url ? row : undefined;
 }
 
 export function flagState(config: PublicConfig, key: string): FlagState {
