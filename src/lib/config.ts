@@ -10,51 +10,69 @@ export type FlagState = Database["public"]["Enums"]["flag_state"];
 /** Tag to expire after the Back Office changes settings, lists or feature flags. */
 export const PUBLIC_CONFIG_TAG = "public-config";
 
-const loadPublicConfig = unstable_cache(
-  async () => {
-    const supabase = createPublicClient();
-    const [settings, flags, governorates, delegations, projectTypes, scenarios, options, media] = await Promise.all([
-      supabase.from("settings").select("key, value").eq("is_public", true),
-      supabase.from("feature_flags").select("key, state"),
-      supabase.from("governorates").select("id, name_ar, name_fr").eq("is_active", true).order("sort_order"),
-      supabase
-        .from("delegations")
-        .select("id, governorate_id, name_ar, name_fr")
-        .eq("is_active", true)
-        .order("sort_order"),
-      supabase
-        .from("project_types")
-        .select("id, code, label_ar, description_ar, image_url, image_alt_ar")
-        .eq("is_active", true)
-        .order("sort_order"),
-      supabase
-        .from("ownership_scenarios")
-        .select("id, code, label_ar, description_ar, project_type_id, plantation_system, production_status, is_any")
-        .eq("is_active", true)
-        .order("sort_order"),
-      supabase
-        .from("option_items")
-        .select("id, list_key, code, label_ar, min_millimes, max_millimes, min_number, max_number, time_from, time_to")
-        .eq("is_active", true)
-        .order("sort_order"),
-      supabase.from("site_media").select("slot, url, alt_ar, aspect"),
-    ]);
-
-    for (const result of [settings, flags, governorates, delegations, projectTypes, scenarios, options, media]) {
-      if (result.error) throw new Error(`Could not load public configuration: ${result.error.message}`);
+/**
+ * The home page is prerendered at build time, so a momentary Supabase hiccup would fail the whole
+ * deploy. A couple of short retries turn that into a pause instead of a broken build.
+ */
+async function withRetry<T>(load: () => Promise<T>, attempts = 3): Promise<T> {
+  let lastError: unknown;
+  for (let attempt = 1; attempt <= attempts; attempt += 1) {
+    try {
+      return await load();
+    } catch (error) {
+      lastError = error;
+      if (attempt < attempts) await new Promise((resolve) => setTimeout(resolve, attempt * 800));
     }
+  }
+  throw lastError;
+}
 
-    return {
-      settings: Object.fromEntries((settings.data ?? []).map((row) => [row.key, row.value])),
-      flags: Object.fromEntries((flags.data ?? []).map((row) => [row.key, row.state])) as Record<string, FlagState>,
-      governorates: governorates.data ?? [],
-      delegations: delegations.data ?? [],
-      projectTypes: projectTypes.data ?? [],
-      scenarios: scenarios.data ?? [],
-      options: options.data ?? [],
-      media: Object.fromEntries((media.data ?? []).map((row) => [row.slot, row])),
-    };
-  },
+const loadPublicConfig = unstable_cache(
+  () =>
+    withRetry(async () => {
+      const supabase = createPublicClient();
+      const [settings, flags, governorates, delegations, projectTypes, scenarios, options, media] = await Promise.all([
+        supabase.from("settings").select("key, value").eq("is_public", true),
+        supabase.from("feature_flags").select("key, state"),
+        supabase.from("governorates").select("id, name_ar, name_fr").eq("is_active", true).order("sort_order"),
+        supabase
+          .from("delegations")
+          .select("id, governorate_id, name_ar, name_fr")
+          .eq("is_active", true)
+          .order("sort_order"),
+        supabase
+          .from("project_types")
+          .select("id, code, label_ar, description_ar, image_url, image_alt_ar")
+          .eq("is_active", true)
+          .order("sort_order"),
+        supabase
+          .from("ownership_scenarios")
+          .select("id, code, label_ar, description_ar, project_type_id, plantation_system, production_status, is_any")
+          .eq("is_active", true)
+          .order("sort_order"),
+        supabase
+          .from("option_items")
+          .select("id, list_key, code, label_ar, min_millimes, max_millimes, min_number, max_number, time_from, time_to")
+          .eq("is_active", true)
+          .order("sort_order"),
+        supabase.from("site_media").select("slot, url, alt_ar, aspect"),
+      ]);
+
+      for (const result of [settings, flags, governorates, delegations, projectTypes, scenarios, options, media]) {
+        if (result.error) throw new Error(`Could not load public configuration: ${result.error.message}`);
+      }
+
+      return {
+        settings: Object.fromEntries((settings.data ?? []).map((row) => [row.key, row.value])),
+        flags: Object.fromEntries((flags.data ?? []).map((row) => [row.key, row.state])) as Record<string, FlagState>,
+        governorates: governorates.data ?? [],
+        delegations: delegations.data ?? [],
+        projectTypes: projectTypes.data ?? [],
+        scenarios: scenarios.data ?? [],
+        options: options.data ?? [],
+        media: Object.fromEntries((media.data ?? []).map((row) => [row.slot, row])),
+      };
+    }),
   ["public-config-v3"],
   { tags: [PUBLIC_CONFIG_TAG], revalidate: 300 },
 );
