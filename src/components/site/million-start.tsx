@@ -1,3 +1,4 @@
+import { ArrowLeft } from "lucide-react";
 import Link from "next/link";
 
 import { TreeCardBody, treeCardClass } from "@/components/site/tree-card";
@@ -19,20 +20,22 @@ type MillionStartProps = {
  */
 export function MillionStart({ treeCounts, treesQuestion, taglines, otherLink }: MillionStartProps) {
   return (
-    <section id="start" className="scroll-mt-20 bg-forest text-paper">
-      <div className="mx-auto max-w-6xl px-4 py-16 sm:px-6">
-        <h2 className="font-display text-3xl font-bold sm:text-4xl">{treesQuestion}</h2>
-        <p className="mt-2 text-paper/75">اختيارك يمشي معك للخطوة الموالية. تنجم تبدّلو وقت اللي تحب.</p>
+    <section id="start" className="scroll-mt-24 border-y border-line bg-cream">
+      <div className="mx-auto max-w-7xl px-4 py-16 sm:px-6 sm:py-20 lg:px-8">
+        <div className="max-w-2xl">
+          <h2 className="section-title">{treesQuestion}</h2>
+          <p className="section-lead mt-3">اختيارك يمشي معك للخطوة الموالية. تنجم تبدّلو وقت اللي تحب.</p>
+        </div>
 
-        <ul className="mt-7 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-7">
+        <ul className="mt-9 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-7">
           {treeCounts.map((option) => (
             <li key={option.id}>
-              <Link href={`/start?trees=${option.id}`} className={treeCardClass(false, "dark")}>
+              <Link href={`/start?trees=${option.id}`} className={treeCardClass(false, "light")}>
                 <TreeCardBody
                   labelAr={option.label_ar}
                   trees={option.min_number}
                   taglineAr={option.code ? taglines[option.code]?.ar : undefined}
-                  tone="dark"
+                  tone="light"
                 />
               </Link>
             </li>
@@ -42,9 +45,10 @@ export function MillionStart({ treeCounts, treesQuestion, taglines, otherLink }:
         {otherLink ? (
           <Link
             href="/start#custom"
-            className="mt-6 inline-block font-semibold text-gold-bright underline-offset-4 hover:underline"
+            className="mt-7 inline-flex items-center gap-2 font-semibold text-forest underline-offset-4 hover:underline"
           >
             {otherLink}
+            <ArrowLeft aria-hidden="true" className="size-4" />
           </Link>
         ) : null}
       </div>

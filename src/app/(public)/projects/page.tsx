@@ -1,3 +1,4 @@
+import { MapPin } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
 
@@ -42,13 +43,11 @@ export default async function ProjectsPage({ searchParams }: PageProps<"/project
     <>
       {access === "preview" ? <PreviewBanner /> : null}
 
-      <section className="mx-auto max-w-6xl px-4 pb-8 pt-10 sm:px-6 sm:pt-14">
-        <div className="flex flex-wrap items-end justify-between gap-4">
+      <section className="border-b border-line bg-cream">
+        <div className="mx-auto flex max-w-7xl flex-wrap items-end justify-between gap-6 px-4 pb-10 pt-10 sm:px-6 sm:pt-14 lg:px-8">
           <div className="max-w-2xl">
-            <h1 className="font-display text-4xl font-bold text-forest sm:text-5xl">
-              {settingText(config, "projects.title", "المشاريع المتوفّرة")}
-            </h1>
-            <p className="mt-3 leading-7 text-muted">
+            <h1 className="section-title text-4xl sm:text-5xl">{settingText(config, "projects.title", "المشاريع المتوفّرة")}</h1>
+            <p className="section-lead mt-3">
               {settingText(
                 config,
                 "projects.intro",
@@ -56,18 +55,17 @@ export default async function ProjectsPage({ searchParams }: PageProps<"/project
               )}
             </p>
           </div>
-          <Link href="/projects/map" className="btn btn-secondary">
+          <Link href="/projects/map" className="btn btn-secondary shadow-card">
+            <MapPin aria-hidden="true" className="size-4.5" />
             شوف الولايات
           </Link>
         </div>
       </section>
 
       {open.length > 0 ? (
-        <section className="mx-auto max-w-6xl px-4 pb-10 sm:px-6">
-          <h2 className="text-lg font-semibold text-ink">
-            {settingText(config, "projects.open_title", "المشاريع المفتوحة")}
-          </h2>
-          <ul className="mt-4 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+        <section className="mx-auto max-w-7xl px-4 py-12 sm:px-6 lg:px-8">
+          <h2 className="text-xl font-bold text-ink">{settingText(config, "projects.open_title", "المشاريع المفتوحة")}</h2>
+          <ul className="mt-5 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
             {open.map((project) => (
               <ProjectCard key={project.id} project={project} href={projectHref(project.code)} place={place(project.governorate_id)} />
             ))}
@@ -76,11 +74,11 @@ export default async function ProjectsPage({ searchParams }: PageProps<"/project
       ) : null}
 
       <section className="border-y border-line bg-surface">
-        <div className="mx-auto max-w-6xl px-4 py-10 sm:px-6">
+        <div className="mx-auto max-w-7xl px-4 py-12 sm:px-6 lg:px-8">
           <FilterForm filters={filters} config={config} />
 
           {shown.length === 0 ? (
-            <div className="mt-8 rounded-2xl border border-dashed border-line-strong bg-paper px-6 py-12 text-center">
+            <div className="mt-8 rounded-2xl border border-dashed border-line-strong bg-cream px-6 py-12 text-center">
               <p className="leading-7 text-muted">
                 {settingText(
                   config,
@@ -111,9 +109,9 @@ export default async function ProjectsPage({ searchParams }: PageProps<"/project
       </section>
 
       {closed.length > 0 ? (
-        <section className="mx-auto max-w-6xl px-4 py-10 sm:px-6">
-          <h2 className="text-lg font-semibold text-ink">{settingText(config, "projects.closed_title", "مشاريع مكتملة")}</h2>
-          <ul className="mt-4 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+        <section className="mx-auto max-w-7xl px-4 py-12 sm:px-6 lg:px-8">
+          <h2 className="text-xl font-bold text-ink">{settingText(config, "projects.closed_title", "مشاريع مكتملة")}</h2>
+          <ul className="mt-5 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
             {closed.map((project) => (
               <ProjectCard key={project.id} project={project} href={projectHref(project.code)} place={place(project.governorate_id)} />
             ))}
@@ -156,7 +154,11 @@ function matches(parcel: PublicParcel, filters: Filters, config: PublicConfig): 
 
 function FilterForm({ filters, config }: { filters: Filters; config: PublicConfig }) {
   return (
-    <form method="get" action="/projects" className="grid gap-3 sm:grid-cols-2 lg:grid-cols-[repeat(4,minmax(0,1fr))_auto] lg:items-end">
+    <form
+      method="get"
+      action="/projects"
+      className="card grid gap-3 p-5 sm:grid-cols-2 sm:p-6 lg:grid-cols-[repeat(4,minmax(0,1fr))_auto] lg:items-end"
+    >
       <p className="text-sm leading-6 text-muted sm:col-span-2 lg:col-span-5">
         {settingText(
           config,
@@ -223,7 +225,7 @@ function FilterForm({ filters, config }: { filters: Filters; config: PublicConfi
 export function LegalNotes({ config }: { config: PublicConfig }) {
   return (
     <div className="mt-8 max-w-3xl space-y-2 text-sm leading-6">
-      <p className="rounded-xl bg-gold-soft/50 px-4 py-3 text-ink/80">{settingText(config, "legal.parcel_card_note")}</p>
+      <p className="rounded-xl bg-gold-soft/60 px-4 py-3 text-ink/80">{settingText(config, "legal.parcel_card_note")}</p>
       <p className="text-muted">{settingText(config, "legal.no_guarantee_notice")}</p>
     </div>
   );

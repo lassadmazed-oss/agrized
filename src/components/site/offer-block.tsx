@@ -12,14 +12,14 @@ import type { OfferPlan, ParcelOffer, PlanOption } from "@/lib/projects";
 export function OfferBlock({ offer, config }: { offer: ParcelOffer; config: PublicConfig }) {
   const notes = (
     <div className="mt-5 space-y-2 text-xs leading-6 text-muted">
-      <p className="rounded-xl bg-paper px-4 py-3">{settingText(config, "legal.parcel_card_note")}</p>
+      <p className="rounded-xl bg-cream px-4 py-3">{settingText(config, "legal.parcel_card_note")}</p>
       <p>{settingText(config, "legal.no_guarantee_notice")}</p>
     </div>
   );
 
   if (!offer.offered) {
     return (
-      <section className="rounded-2xl border border-line bg-surface p-5 sm:p-6">
+      <section className="card p-5 sm:p-6">
         <p className="leading-7 text-ink/80">
           {settingText(
             config,
@@ -34,7 +34,7 @@ export function OfferBlock({ offer, config }: { offer: ParcelOffer; config: Publ
 
   if (!offer.priced || !offer.cash_price_millimes) {
     return (
-      <section className="rounded-2xl border border-line bg-surface p-5 sm:p-6">
+      <section className="card p-5 sm:p-6">
         <p className="font-semibold text-forest">{settingText(config, "projects.price_pending", "السعر يُعلن لاحقاً.")}</p>
         {notes}
       </section>
@@ -45,10 +45,10 @@ export function OfferBlock({ offer, config }: { offer: ParcelOffer; config: Publ
   const entry = offer.entry;
 
   return (
-    <section className="rounded-2xl border border-line bg-surface p-5 sm:p-6">
+    <section className="card p-5 sm:p-6">
       <dl className="divide-y divide-line text-sm">
         <Row label="السعر حاضر">
-          <span className="font-display text-3xl font-bold text-forest">{formatMillimes(cash)}</span>
+          <span className="text-3xl font-bold text-forest">{formatMillimes(cash)}</span>
         </Row>
         {offer.down_from_millimes ? <Row label="التسبقة">من {formatMillimes(offer.down_from_millimes)}</Row> : null}
         <Row label="القسط">
@@ -63,9 +63,7 @@ export function OfferBlock({ offer, config }: { offer: ParcelOffer; config: Publ
 
       {offer.examples.length > 0 ? (
         <div className="mt-6">
-          <h3 className="font-semibold text-ink">
-            {settingText(config, "projects.examples_title", "أمثلة على الدفع بالتقسيط")}
-          </h3>
+          <h3 className="font-bold text-ink">{settingText(config, "projects.examples_title", "أمثلة على الدفع بالتقسيط")}</h3>
           <ul className="mt-3 grid gap-3 sm:grid-cols-3">
             {offer.examples.map((plan) => (
               <Example key={`${plan.down_option_id}-${plan.installment_option_id}`} plan={plan} offer={offer} cash={cash} />
@@ -91,9 +89,11 @@ function Example({ plan, offer, cash }: { plan: OfferPlan; offer: ParcelOffer; c
   const total = plan.total_millimes ?? cash;
 
   return (
-    <li className="rounded-xl border border-line bg-paper p-4">
-      <p className="text-xs font-semibold text-gold">مثال</p>
-      <p className="mt-1 text-sm text-ink">
+    <li className="rounded-xl border border-line bg-cream p-4">
+      <p>
+        <span className="pill pill-butter">مثال</span>
+      </p>
+      <p className="mt-2 text-sm text-ink">
         تسبقة {label(offer.down_options, plan.down_option_id, plan.down_millimes)} + قسط{" "}
         {label(offer.installment_options, plan.installment_option_id, plan.installment_millimes)} في الشهر
       </p>
@@ -109,7 +109,7 @@ function Example({ plan, offer, cash }: { plan: OfferPlan; offer: ParcelOffer; c
 
 function Row({ label, children }: { label: string; children: ReactNode }) {
   return (
-    <div className="flex items-center justify-between gap-4 py-2.5">
+    <div className="flex items-center justify-between gap-4 py-3">
       <dt className="text-muted">{label}</dt>
       <dd className="text-end font-semibold text-ink tabular-nums">{children}</dd>
     </div>

@@ -1,3 +1,4 @@
+import { MapPin } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -41,6 +42,7 @@ export default async function ProjectPage({ params }: PageProps<"/projects/[code
   const own = parcels.filter((parcel) => parcel.project_id === project.id);
   const governorate = config.governorates.find((g) => g.id === project.governorate_id)?.name_ar;
   const delegation = config.delegations.find((d) => d.id === project.delegation_id)?.name_ar;
+  const place = [governorate, delegation].filter(Boolean).join(" · ");
   const irrigation = project.irrigation ? (IRRIGATION_LABELS as Record<string, string>)[project.irrigation] : null;
   const hasTaken = own.some((parcel) => !parcel.offered);
 
@@ -48,18 +50,18 @@ export default async function ProjectPage({ params }: PageProps<"/projects/[code
     <>
       {access === "preview" ? <PreviewBanner /> : null}
 
-      <section className="mx-auto max-w-6xl px-4 pb-10 pt-8 sm:px-6 sm:pt-12">
+      <section className="mx-auto max-w-7xl px-4 pb-12 pt-8 sm:px-6 sm:pt-12 lg:px-8">
         <Link href="/projects" className="text-sm font-semibold text-forest underline-offset-4 hover:underline">
           → كل المشاريع
         </Link>
 
-        <div className="mt-5 grid gap-8 lg:grid-cols-[1.1fr_0.9fr] lg:items-start">
+        <div className="mt-6 grid gap-8 lg:grid-cols-[1.1fr_0.9fr] lg:items-start">
           <RemotePhoto
             url={project.cover_url}
             alt={project.cover_alt_ar}
             seed={project.id}
             sizes="(min-width: 1024px) 55vw, 100vw"
-            className="aspect-3/2 rounded-3xl"
+            className="aspect-3/2 rounded-3xl shadow-float"
           />
 
           <div>
@@ -73,11 +75,16 @@ export default async function ProjectPage({ params }: PageProps<"/projects/[code
                 </span>
               ) : null}
             </div>
-            <h1 className="mt-2 font-display text-4xl font-bold text-forest text-balance sm:text-5xl">{project.name}</h1>
-            <p className="mt-2 text-muted">{[governorate, delegation].filter(Boolean).join(" · ")}</p>
+            <h1 className="section-title mt-2 text-4xl sm:text-5xl">{project.name}</h1>
+            {place ? (
+              <p className="mt-2 flex items-center gap-1.5 text-muted">
+                <MapPin aria-hidden="true" className="size-4 text-forest" />
+                {place}
+              </p>
+            ) : null}
             {project.location_description ? <p className="mt-4 leading-7 text-ink/80">{project.location_description}</p> : null}
 
-            <dl className="mt-6 space-y-2.5 rounded-2xl border border-line bg-surface p-5 text-sm">
+            <dl className="card mt-6 space-y-2.5 p-5 text-sm">
               {project.total_area_m2 ? <ParcelRow label="المساحة الجملية">{formatCount(project.total_area_m2)} م²</ParcelRow> : null}
               {project.olive_variety ? <ParcelRow label="الصنف">{project.olive_variety}</ParcelRow> : null}
               {project.tree_count ? <ParcelRow label="عدد الأشجار">{formatCount(project.tree_count)}</ParcelRow> : null}
@@ -98,10 +105,8 @@ export default async function ProjectPage({ params }: PageProps<"/projects/[code
       </section>
 
       <section className="border-y border-line bg-surface">
-        <div className="mx-auto max-w-6xl px-4 py-10 sm:px-6">
-          <h2 className="font-display text-3xl font-bold text-forest">
-            {settingText(config, "projects.detail_parcels_title", "القطع في هذا المشروع")}
-          </h2>
+        <div className="mx-auto max-w-7xl px-4 py-12 sm:px-6 lg:px-8">
+          <h2 className="section-title">{settingText(config, "projects.detail_parcels_title", "القطع في هذا المشروع")}</h2>
           {hasTaken ? (
             <p className="mt-2 text-sm text-muted">
               {settingText(config, "projects.taken_hint", "القطع المحجوزة أو المتعاقد عليها تظهر للمعلومة فقط، بلا سعر.")}
@@ -109,7 +114,7 @@ export default async function ProjectPage({ params }: PageProps<"/projects/[code
           ) : null}
 
           {own.length === 0 ? (
-            <p className="mt-6 rounded-2xl border border-dashed border-line-strong bg-paper px-6 py-10 text-center text-muted">
+            <p className="mt-6 rounded-2xl border border-dashed border-line-strong bg-cream px-6 py-10 text-center text-muted">
               {settingText(config, "projects.empty_text", "ما فماش قطع متاحة توّا.")}
             </p>
           ) : (

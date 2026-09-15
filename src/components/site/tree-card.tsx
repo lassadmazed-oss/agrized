@@ -28,19 +28,19 @@ export function OliveMark({ trees, className = "text-paper/70" }: { trees: numbe
   );
 }
 
-/** Wrapper classes of a tree-count card: a link on the dark home band, a radio label on /start. */
+/** Wrapper classes of a tree-count card: a link on the home page, a radio label on /start. */
 export function treeCardClass(selected: boolean, tone: TreeCardTone): string {
   // On /start the radio inside the card is visually hidden, so the card itself shows keyboard focus.
   const base =
-    "flex h-full min-h-52 cursor-pointer flex-col items-center justify-center gap-1 rounded-2xl border-2 px-3 py-6 text-center transition-colors has-[.sr-only:focus-visible]:outline-2 has-[.sr-only:focus-visible]:outline-offset-2 has-[.sr-only:focus-visible]:outline-gold-bright";
+    "flex h-full min-h-52 cursor-pointer flex-col items-center justify-center gap-1 rounded-2xl border px-3 py-6 text-center transition has-[.sr-only:focus-visible]:outline-2 has-[.sr-only:focus-visible]:outline-offset-2 has-[.sr-only:focus-visible]:outline-gold-bright";
   const state =
     tone === "dark"
       ? selected
-        ? "border-gold-bright bg-paper/12"
+        ? "border-gold-bright bg-paper/12 ring-1 ring-gold-bright"
         : "border-paper/20 hover:border-paper/45 hover:bg-paper/6"
       : selected
-        ? "border-forest bg-leaf-soft"
-        : "border-line-strong bg-surface hover:border-leaf";
+        ? "border-forest bg-leaf-soft shadow-[inset_0_0_0_1px_var(--color-forest)]"
+        : "border-line bg-surface shadow-card hover:-translate-y-0.5 hover:border-forest/40 hover:shadow-float";
   return `${base} ${state}`;
 }
 
@@ -61,11 +61,11 @@ export function TreeCardBody({ labelAr, labelFr, trees, taglineAr, taglineFr, to
     <>
       {trees ? <OliveMark trees={trees} className={dark ? "text-paper/70" : "text-leaf"} /> : null}
       <span
-        className={`font-display font-bold leading-tight ${trees ? "text-3xl" : "text-2xl"} ${
-          dark ? "text-gold-bright" : "text-forest"
+        className={`font-display font-bold leading-tight ${trees ? "text-2xl" : "text-xl"} ${
+          dark ? "text-gold-bright" : "text-ink"
         }`}
       >
-        <Bi ar={labelAr} fr={labelFr} frClassName={`text-[0.78em] ${dark ? "text-paper/75" : "text-muted"}`} />
+        <Bi ar={labelAr} fr={labelFr} frClassName={`text-[0.72em] font-medium ${dark ? "text-paper/75" : "text-muted"}`} />
       </span>
       {taglineAr ? (
         <>

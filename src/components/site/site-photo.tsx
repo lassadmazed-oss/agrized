@@ -14,14 +14,19 @@ type SitePhotoProps = {
   sizes?: string;
   priority?: boolean;
   className?: string;
+  /**
+   * A picture shipped with the site design, shown while the slot is empty instead of the drawn grove.
+   * Decorative backgrounds only, so its alternative text is empty.
+   */
+  fallback?: { src: string };
 };
 
 /**
  * One picture slot of the public site.
- * While AgriZed has not uploaded a photo, a branded drawing keeps the layout intact instead of a
- * broken frame, so the page is presentable from the first day.
+ * While AgriZed has not uploaded a photo, a branded drawing (or the design's own picture) keeps the
+ * layout intact instead of a broken frame, so the page is presentable from the first day.
  */
-export function SitePhoto({ config, slot, aspect, fill, sizes = "100vw", priority, className = "" }: SitePhotoProps) {
+export function SitePhoto({ config, slot, aspect, fill, sizes = "100vw", priority, className = "", fallback }: SitePhotoProps) {
   const media = mediaFor(config, slot);
   const ratio = (aspect ?? media?.aspect ?? "4/3").replace("/", " / ");
 
@@ -39,6 +44,8 @@ export function SitePhoto({ config, slot, aspect, fill, sizes = "100vw", priorit
           priority={priority}
           className="object-cover"
         />
+      ) : fallback ? (
+        <Image src={fallback.src} alt="" fill sizes={sizes} priority={priority} className="object-cover" />
       ) : (
         <GrovePlaceholder seed={slot} />
       )}

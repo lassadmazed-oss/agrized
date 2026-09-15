@@ -69,26 +69,26 @@ export default async function ParcelPage({ params, searchParams }: PageProps<"/p
     <>
       {access === "preview" ? <PreviewBanner /> : null}
 
-      <section className="mx-auto max-w-6xl px-4 pb-16 pt-8 sm:px-6 sm:pt-12">
+      <section className="mx-auto max-w-7xl px-4 pb-16 pt-8 sm:px-6 sm:pt-12 lg:px-8">
         <Link href={projectHref(project.code)} className="text-sm font-semibold text-forest underline-offset-4 hover:underline">
           → {project.name}
         </Link>
 
-        <div className="mt-5 grid gap-8 lg:grid-cols-[0.95fr_1.05fr] lg:items-start">
+        <div className="mt-6 grid gap-8 lg:grid-cols-[0.95fr_1.05fr] lg:items-start">
           <div className="space-y-5">
             <RemotePhoto
               url={parcel.photo_url}
               alt={parcel.photo_alt_ar}
               seed={parcel.id}
               sizes="(min-width: 1024px) 45vw, 100vw"
-              className="aspect-4/3 rounded-3xl"
+              className="aspect-4/3 rounded-3xl shadow-float"
             />
 
             {/* The offer card in the order of clause 25.6 */}
-            <div className="rounded-2xl border border-line bg-surface p-5">
+            <div className="card p-5 sm:p-6">
               <div className="flex items-start justify-between gap-3">
                 <div>
-                  <h1 className="font-display text-3xl font-bold text-forest">القطعة {parcel.code}</h1>
+                  <h1 className="text-3xl font-bold text-ink">القطعة {parcel.code}</h1>
                   <p className="mt-1 text-sm text-muted">{[project.name, governorate].filter(Boolean).join(" · ")}</p>
                 </div>
                 <span className={`shrink-0 rounded-full px-2.5 py-1 text-xs font-semibold ring-1 ring-inset ${parcelStatusTone(parcel.status)}`}>

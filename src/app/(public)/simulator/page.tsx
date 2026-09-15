@@ -35,6 +35,7 @@ export default async function SimulatorPage() {
         durations={durations}
         legalNotice={settingText(config, "legal.no_guarantee_notice")}
         interestFormOpen={flagState(config, "interest_form") === "public"}
+        scriptLine={settingText(config, "site.home_subheadline")}
       />
     </>
   );

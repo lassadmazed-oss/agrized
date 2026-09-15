@@ -1,5 +1,7 @@
+import { LandPlot, TreeDeciduous } from "lucide-react";
 import Link from "next/link";
 
+import { FactTile } from "@/components/site/fact-tile";
 import { ParcelRow } from "@/components/site/parcel-row";
 import { RemotePhoto } from "@/components/site/site-photo";
 import { PLANTATION_LABELS, PRODUCTION_LABELS } from "@/lib/crm";
@@ -23,7 +25,7 @@ export function ParcelCard({ parcel, href, place, pricePending }: ParcelCardProp
   const trees = parcel.property_type === "bare_land" ? PROPERTY_TYPE_LABELS.bare_land : formatCount(parcel.olive_tree_count ?? 0);
 
   return (
-    <li className="overflow-hidden rounded-2xl border border-line bg-surface transition-shadow hover:shadow-[0_18px_40px_-28px_rgba(31,74,44,0.45)]">
+    <li className="overflow-hidden rounded-2xl border border-line bg-surface shadow-card transition duration-300 hover:-translate-y-1 hover:shadow-float">
       <Link href={href} className="block h-full focus-visible:outline-offset-[-2px]">
         <RemotePhoto
           url={parcel.photo_url}
@@ -35,7 +37,7 @@ export function ParcelCard({ parcel, href, place, pricePending }: ParcelCardProp
         <div className="p-5">
           <div className="flex items-start justify-between gap-3">
             <div className="min-w-0">
-              <h3 className="font-semibold text-ink">القطعة {parcel.code}</h3>
+              <h3 className="text-lg font-bold text-ink">القطعة {parcel.code}</h3>
               <p className="mt-0.5 truncate text-sm text-muted">{place ?? parcel.project_name}</p>
             </div>
             <span className={`shrink-0 rounded-full px-2.5 py-1 text-xs font-semibold ring-1 ring-inset ${parcelStatusTone(parcel.status)}`}>
@@ -43,9 +45,15 @@ export function ParcelCard({ parcel, href, place, pricePending }: ParcelCardProp
             </span>
           </div>
 
-          <dl className="mt-4 space-y-2 text-sm">
-            <ParcelRow label="المساحة">{formatCount(parcel.area_m2)} م²</ParcelRow>
-            <ParcelRow label="عدد الزيتونات">{trees}</ParcelRow>
+          <dl className="mt-4 grid grid-cols-2 gap-2 text-sm">
+            <FactTile icon={<LandPlot aria-hidden="true" className="size-4" />} label="المساحة">
+              {formatCount(parcel.area_m2)} م²
+            </FactTile>
+            <FactTile icon={<TreeDeciduous aria-hidden="true" className="size-4" />} label="عدد الزيتونات">
+              {trees}
+            </FactTile>
+          </dl>
+          <dl className="mt-3 space-y-2 text-sm">
             <ParcelRow label="نوع الغراسة">
               {parcel.plantation_system ? (PLANTATION_LABELS[parcel.plantation_system] ?? parcel.plantation_system) : "—"}
             </ParcelRow>
@@ -55,13 +63,11 @@ export function ParcelCard({ parcel, href, place, pricePending }: ParcelCardProp
           </dl>
 
           {parcel.offered ? (
-            <p className="mt-4 border-t border-line pt-3 text-sm">
+            <p className="mt-4 flex items-baseline justify-between gap-3 border-t border-line pt-3 text-sm">
               {parcel.cash_price_millimes ? (
                 <>
-                  <span className="text-muted">السعر حاضر </span>
-                  <span className="font-display text-xl font-bold text-forest tabular-nums">
-                    {formatMillimes(parcel.cash_price_millimes)}
-                  </span>
+                  <span className="text-muted">السعر حاضر</span>
+                  <span className="text-xl font-bold text-forest tabular-nums">{formatMillimes(parcel.cash_price_millimes)}</span>
                 </>
               ) : (
                 <span className="text-muted">{pricePending}</span>
