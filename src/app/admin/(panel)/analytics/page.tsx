@@ -1,12 +1,14 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 
-import { BarList, StatTile } from "@/components/admin/charts";
+import { BarList, StatTile, type BarItem } from "@/components/admin/charts";
 import { DemandMap, type MapTile } from "@/components/admin/demand-map";
+import { formatPercent } from "@/components/admin/tree-pricing-inputs";
 import { CRM_READ_ROLES, hasRole, requireStaff } from "@/lib/auth";
-import { formatCount } from "@/lib/format";
+import { formatArea, formatCount, formatMillimes } from "@/lib/format";
 import { createClient } from "@/lib/supabase/server";
 
+import { PAYMENT_MODE_LABELS } from "../leads/filters";
 import { RANGES, resolveRange, type DemandStats } from "./demand-stats";
 
 export const metadata: Metadata = { title: "التحليلات وخريطة الطلب" };
@@ -21,11 +23,45 @@ const MODES = [
   { key: "people", label: "نعدّ الأشخاص" },
 ] as const;
 
+// Label crm_demand_stats gives the bucket of demands that did not answer a question.
+const NO_ANSWER_LABEL = "بدون إجابة";
+
 type Metric = (typeof METRICS)[number]["key"];
 type Mode = (typeof MODES)[number]["key"];
 
 function firstValue(value: string | string[] | undefined): string | undefined {
   return Array.isArray(value) ? value[0] : value;
+}
+
+/** Plan Q-7: breakdowns of retired questions, only those with at least one recorded answer in the period. */
+function legacyBreakdowns(stats: DemandStats): { key: string; title: string; items: BarItem[] }[] {
+  const sources: { key: string; title: string; rows: { label: string; count: number }[] | undefined }[] = [
+    { key: "installment", title: "القسط الشهري", rows: stats.by_installment },
+    { key: "down-payment", title: "التسبقة بالمبلغ", rows: stats.by_down_payment },
+    { key: "desired-area", title: "المساحة المطلوبة", rows: stats.by_desired_area },
+    { key: "priority", title: "الأهم بالنسبة للحريف", rows: stats.by_priority },
+  ];
+  return sources.flatMap((source) => {
+    const items = (source.rows ?? [])
+      .filter((row) => row.count > 0 && row.label !== NO_ANSWER_LABEL)
+      .map((row, index) => ({ key: `${source.key}-${index}`, label: row.label, count: row.count }));
+    return items.length > 0 ? [{ key: source.key, title: source.title, items }] : [];
+  });
+}
+
+/** Price bands in the order crm_demand_stats gives them; a band without min starts where the previous one ended. */
+function priceBandItems(bands: NonNullable<DemandStats["by_total_price_band"]>): BarItem[] {
+  let previousMax: number | null = null;
+  return bands.map((band, index) => {
+    const max = band.max ?? band.upper_millimes ?? null;
+    const min = band.min ?? previousMax;
+    if (max !== null) previousMax = max;
+    let label: string;
+    if (band.label) label = band.label;
+    else if (min === null) label = max === null ? "كل الأسعار" : `حتى ${formatMillimes(max)}`;
+    else label = max === null ? `أكثر من ${formatMillimes(min)}` : `أكثر من ${formatMillimes(min)} وحتى ${formatMillimes(max)}`;
+    return { key: `band-${index}`, label, count: band.count };
+  });
 }
 
 /** Spec v2 §55 (Analytics, Demand map) and §47: «شنو أكثر ولاية مطلوبة؟». */
@@ -63,6 +99,7 @@ export default async function AnalyticsPage({ searchParams }: PageProps<"/admin/
   };
 
   const countUnit = mode === "people" ? "شخص" : "مطلب";
+  const countTotal = mode === "people" ? stats.persons : stats.requests;
   const figures = new Map(stats.by_invest_governorate.map((g) => [g.id, g]));
   const tiles: MapTile[] = (governorates.data ?? []).flatMap((g) => {
     if (g.map_row === null || g.map_col === null) return [];
@@ -88,6 +125,14 @@ export default async function AnalyticsPage({ searchParams }: PageProps<"/admin/
   const valueLabel = metric === "trees" ? "الزيتونات المطلوبة" : mode === "people" ? "الأشخاص" : "المطالب";
   const secondaryLabel = metric === "trees" ? (mode === "people" ? "الأشخاص" : "المطالب") : "الزيتونات المطلوبة";
   const anywhere = metric === "trees" ? stats.anywhere_trees : stats.anywhere;
+
+  const percentItems: BarItem[] = (stats.by_down_payment_percent ?? []).map((entry, index) => ({
+    key: entry.percent === null ? "none" : `${entry.percent}-${index}`,
+    label: entry.percent === null ? entry.label || "بدون نسبة" : entry.label || formatPercent(entry.percent),
+    count: entry.count,
+  }));
+  const priceBands = stats.by_total_price_band ?? [];
+  const legacy = legacyBreakdowns(stats);
 
   return (
     <div className="space-y-8">
@@ -147,7 +192,7 @@ export default async function AnalyticsPage({ searchParams }: PageProps<"/admin/
         <ChartCard title="عدد الزيتونات في المطالب" subtitle={`عدد ${mode === "people" ? "الأشخاص" : "المطالب"} حسب الاختيار.`}>
           <BarList
             items={stats.by_tree_count.map((bucket) => ({ key: bucket.code ?? "none", label: bucket.label, count: bucket.count }))}
-            total={mode === "people" ? stats.persons : stats.requests}
+            total={countTotal}
           />
         </ChartCard>
         <ChartCard title="الزيتونات المطلوبة حسب الاختيار" subtitle="«اقترحولي» والمطالب بدون عدد لا تضيف زيتونات.">
@@ -160,38 +205,82 @@ export default async function AnalyticsPage({ searchParams }: PageProps<"/admin/
 
       <div className="grid gap-4 xl:grid-cols-2">
         <ChartCard title="شنوّة يحبوا يملكوا" subtitle={`${formatCount(stats.unsure_type)} ${countUnit} «ما يهمنيش النوع».`}>
-          <BarList
-            items={stats.by_scenario.map((s) => ({ key: s.id, label: s.name, count: s.count }))}
-            total={mode === "people" ? stats.persons : stats.requests}
-          />
+          <BarList items={stats.by_scenario.map((s) => ({ key: s.id, label: s.name, count: s.count }))} total={countTotal} />
         </ChartCard>
-        {/* Report v3 §49: which of 3, 5 or 7 years is chosen most. */}
-        <ChartCard title="مدة الدفع" subtitle={`عدد ${mode === "people" ? "الأشخاص" : "المطالب"} حسب المدة المختارة.`}>
+        <ChartCard title="فئات المساحة" subtitle={`عدد ${mode === "people" ? "الأشخاص" : "المطالب"} حسب المساحة لكل زيتونة المختارة.`}>
           <BarList
-            items={stats.by_duration.map((d) => ({ key: d.id ?? "none", label: d.label, count: d.count }))}
-            total={mode === "people" ? stats.persons : stats.requests}
+            items={(stats.by_spacing_class ?? []).map((spacing) => ({
+              key: spacing.id ?? "none",
+              label: typeof spacing.area_m2 === "number" ? `${spacing.label} · ${formatArea(spacing.area_m2)}` : spacing.label || "بدون فئة",
+              count: spacing.count,
+            }))}
+            total={countTotal}
+            emptyText="حتى مطلب ما فيه فئة مساحة في هذه الفترة."
           />
         </ChartCard>
       </div>
 
       <div className="grid gap-4 xl:grid-cols-2">
+        <ChartCard title="طريقة الدفع" subtitle="بالحاضر أو بالتقسيط، كما اختارها الحريف مع السعر.">
+          <BarList
+            items={(stats.by_payment_mode ?? []).map((entry) => ({
+              key: entry.code ?? "none",
+              label: entry.code ? (PAYMENT_MODE_LABELS[entry.code] ?? entry.code) : "بدون اختيار",
+              count: entry.count,
+            }))}
+            total={countTotal}
+            emptyText="حتى مطلب ما فيه طريقة دفع في هذه الفترة."
+          />
+        </ChartCard>
+        {/* Plan Q-1: the percentage of the cash total chosen with installments. */}
+        <ChartCard title="نسبة التسبقة" subtitle={`عدد ${mode === "people" ? "الأشخاص" : "المطالب"} حسب نسبة التسبقة المختارة مع التقسيط.`}>
+          <BarList items={percentItems} total={countTotal} emptyText="حتى مطلب ما فيه نسبة تسبقة في هذه الفترة." />
+        </ChartCard>
+      </div>
+
+      <div className="grid gap-4 xl:grid-cols-2">
+        {/* Report v3 §49: which duration is chosen most. */}
+        <ChartCard title="مدة الدفع" subtitle={`عدد ${mode === "people" ? "الأشخاص" : "المطالب"} حسب المدة المختارة.`}>
+          <BarList items={stats.by_duration.map((d) => ({ key: d.id ?? "none", label: d.label, count: d.count }))} total={countTotal} />
+        </ChartCard>
         <ChartCard title="الزيارة والتمويل البنكي" subtitle="اللي جاوبوا بنعم. السؤالين اختياريين في الاستمارة.">
           <BarList
             items={[
               { key: "visit", label: "يحب يزور الأرض", count: stats.visit_yes },
               { key: "bank", label: "يحب حل تمويل بنكي", count: stats.bank_financing_yes },
             ]}
-            total={mode === "people" ? stats.persons : stats.requests}
+            total={countTotal}
             emptyText="حتى حدّ ما جاوب بنعم في هذه الفترة."
           />
         </ChartCard>
-        <ChartCard title="القسط الشهري (المطالب القديمة)" subtitle="قبل اعتماد مدة الدفع، كان الحريف يختار القسط.">
-          <BarList
-            items={stats.by_installment.map((d) => ({ key: d.label, label: d.label, count: d.count }))}
-            total={mode === "people" ? stats.persons : stats.requests}
-          />
-        </ChartCard>
       </div>
+
+      {priceBands.length > 0 ? (
+        <ChartCard
+          title="شرائح السعر الجملي"
+          subtitle={`عدد ${mode === "people" ? "الأشخاص" : "المطالب"} حسب السعر الجملي المقدّر وقت التسجيل. الشرائح من الإعداد analytics.total_price_bands_millimes.`}
+        >
+          <BarList items={priceBandItems(priceBands)} total={countTotal} emptyText="حتى مطلب ما فيه سعر جملي في هذه الفترة." />
+        </ChartCard>
+      ) : null}
+
+      {legacy.length > 0 ? (
+        <section aria-labelledby="legacy-answers" className="space-y-3">
+          <div>
+            <h2 id="legacy-answers" className="text-lg font-semibold">
+              قديم
+            </h2>
+            <p className="text-sm text-muted">أسئلة ما عادتش في الاستمارة. تظهر كان الإجابات المسجّلة في هذه الفترة، و«بدون إجابة» ما يتحسبش.</p>
+          </div>
+          <div className="grid gap-4 xl:grid-cols-2">
+            {legacy.map((chart) => (
+              <ChartCard key={chart.key} title={chart.title}>
+                <BarList items={chart.items} total={countTotal} />
+              </ChartCard>
+            ))}
+          </div>
+        </section>
+      ) : null}
 
       <p className="text-sm text-muted">
         لسؤال أدق، مثلاً عدد الزيتونات مع الولاية ونظام الغراسة ومدة الدفع معاً، استعمل{" "}

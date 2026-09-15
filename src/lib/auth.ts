@@ -21,6 +21,8 @@ export const ROLE_LABELS: Record<AppRole, string> = {
 
 export const ADMIN_ROLES = ["admin", "super_admin"] as const satisfies readonly StaffRole[];
 export const CRM_READ_ROLES = ["commercial", "finance", "legal", "admin", "super_admin"] as const satisfies readonly StaffRole[];
+// Prices, costs and margins (report v3 §53, V2-D9): Finance and Admin only.
+export const PRICE_ROLES = ["finance", "admin", "super_admin"] as const satisfies readonly StaffRole[];
 export const LAND_OFFER_ROLES = ["agri_manager", "legal", "finance", "admin", "super_admin"] as const satisfies readonly StaffRole[];
 
 export type StaffSession = {

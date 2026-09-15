@@ -9,6 +9,9 @@ import { getStaffSession } from "@/lib/auth";
 import { normalizePhone } from "@/lib/phone";
 import { auditHeaders, clientIp, hashIp } from "@/lib/request-context";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { PAYMENT_MODES } from "@/lib/tree-pricing";
+
+import { calculatorGap } from "../start/calculator-summary";
 
 const interestSchema = z.object({
   fullName: z.string().trim().min(3).max(120),
@@ -19,21 +22,17 @@ const interestSchema = z.object({
   governorateId: z.number().int().positive(),
   investAnywhere: z.boolean(),
   investGovernorateIds: z.array(z.number().int().positive()).max(30),
-  // Clause 25: what the citizen wants to own; the scenario decides the project type.
-  scenarioIds: z.array(z.uuid()).min(1).max(10),
-  // MIL-01: how many olive trees, asked before anything else. Independent of the surface (PARC-02).
+  // P2-6: the calculator answers come from /start through the URL; the database checks each against its list.
   treeCountOptionId: z.uuid().nullable(),
   // /start also lets the visitor type a number; the database enforces the limits (invalid_tree_custom).
   treeCountCustom: z.number().int().positive().nullable(),
-  desiredAreaOptionId: z.uuid().nullable(),
-  // Priority is not in report v3 §40 and the wizard no longer asks it; the database still accepts one.
-  priorityOptionId: z.uuid().nullable().optional(),
-  goalOptionId: z.uuid(),
-  downPaymentOptionId: z.uuid(),
-  // Report v3 §6: the client picks a duration, never a monthly amount; kept only for older callers.
-  installmentOptionId: z.uuid().nullable().optional(),
+  // Q-6: one optional offer type; none means the visitor is not sure.
+  scenarioId: z.uuid().nullable(),
+  spacingClassId: z.uuid().nullable(),
+  paymentMode: z.enum(PAYMENT_MODES).nullable(),
+  downPercentOptionId: z.uuid().nullable(),
   durationOptionId: z.uuid().nullable(),
-  budgetOptionId: z.uuid().nullable(),
+  goalOptionId: z.uuid(),
   // Report v3 §40 and §14 (decision N-9): optional yes/no answers, null when skipped.
   wantsVisit: z.boolean().nullable(),
   wantsBankFinancing: z.boolean().nullable(),
@@ -60,26 +59,31 @@ const ERROR_STEP: Record<string, number> = {
   invalid_delegation: 1,
   invest_location_required: 2,
   invalid_invest_governorate: 2,
-  scenario_required: 3,
-  invalid_scenario: 3,
-  single_scenario_only: 3,
-  invalid_project_type: 3,
-  invalid_tree_choice: 4,
-  invalid_tree_custom: 4,
-  invalid_desired_area: 4,
-  invalid_goal: 5,
-  invalid_down_payment: 6,
-  invalid_installment: 6,
-  invalid_duration: 6,
-  invalid_budget: 6,
-  invalid_contact_time: 8,
-  contact_channel_required: 8,
-  consent_required: 9,
+  invalid_goal: 3,
+  invalid_contact_time: 5,
+  contact_channel_required: 5,
+  consent_required: 6,
 };
+
+/** Answers only /start can change; the wizard links back there instead of reopening a step. */
+const CALCULATOR_ERRORS = new Set([
+  "invalid_tree_choice",
+  "invalid_tree_custom",
+  "invalid_spacing",
+  "invalid_payment_mode",
+  "invalid_down_payment_percent",
+  "down_payment_percent_required",
+  "invalid_duration",
+  "duration_required",
+  "invalid_scenario",
+  "single_scenario_only",
+  "scenario_required",
+  "invalid_project_type",
+]);
 
 export type SubmitInterestResult =
   | { ok: true; requestNo: string }
-  | { ok: false; message: string; step?: number };
+  | { ok: false; message: string; step?: number; calculator?: boolean };
 
 export async function submitInterest(input: InterestInput): Promise<SubmitInterestResult> {
   const config = await getPublicConfig();
@@ -96,9 +100,20 @@ export async function submitInterest(input: InterestInput): Promise<SubmitIntere
   if (data.website) {
     return { ok: false, message: intakeErrorMessage(null) };
   }
-  // The database keeps the duration optional for other callers; this form requires it once AgriZed lists durations.
-  if (!data.durationOptionId && optionsFor(config, "duration").length > 0) {
-    return { ok: false, message: intakeErrorMessage("invalid_duration"), step: ERROR_STEP.invalid_duration };
+  const gap = calculatorGap(
+    {
+      treeId: data.treeCountOptionId,
+      treesCustom: data.treeCountCustom,
+      scenarioId: data.scenarioId,
+      spacingId: data.spacingClassId,
+      paymentMode: data.paymentMode,
+      downPercentId: data.downPercentOptionId,
+      durationId: data.durationOptionId,
+    },
+    { downPercents: optionsFor(config, "down_payment_percent").length, durations: optionsFor(config, "duration").length },
+  );
+  if (gap) {
+    return { ok: false, message: intakeErrorMessage(gap), calculator: true };
   }
 
   const phone = normalizePhone(data.phone, settingBool(config, "lead.allow_international_phone"));
@@ -126,20 +141,20 @@ export async function submitInterest(input: InterestInput): Promise<SubmitIntere
       whatsapp_e164: whatsapp,
       email: data.email,
       residence_governorate_id: data.governorateId,
-      // The public form no longer asks for the delegation; a commercial can add it later.
-      residence_delegation_id: null,
       invest_anywhere: data.investAnywhere,
       invest_governorate_ids: data.investAnywhere ? [] : data.investGovernorateIds,
-      scenario_ids: data.scenarioIds,
-      tree_count_option_id: data.treeCountOptionId,
-      tree_count_custom: data.treeCountCustom === null ? null : String(data.treeCountCustom),
-      desired_area_option_id: data.desiredAreaOptionId,
-      priority_option_id: data.priorityOptionId ?? null,
+      scenario_ids: data.scenarioId ? [data.scenarioId] : [],
+      project_type_unsure: !data.scenarioId,
+      ...(data.treeCountOptionId
+        ? { tree_count_option_id: data.treeCountOptionId }
+        : { tree_count_custom: data.treeCountCustom === null ? null : String(data.treeCountCustom) }),
+      spacing_class_id: data.spacingClassId,
+      payment_mode: data.paymentMode,
+      // A cash payer answered neither question, so neither key is sent.
+      ...(data.paymentMode === "installments"
+        ? { down_payment_percent_option_id: data.downPercentOptionId, duration_option_id: data.durationOptionId }
+        : {}),
       goal_option_id: data.goalOptionId,
-      down_payment_option_id: data.downPaymentOptionId,
-      installment_option_id: data.installmentOptionId ?? null,
-      duration_option_id: data.durationOptionId,
-      budget_option_id: data.budgetOptionId,
       wants_visit: data.wantsVisit,
       wants_bank_financing: data.wantsBankFinancing,
       contact_channel: data.contactChannel,
@@ -154,7 +169,10 @@ export async function submitInterest(input: InterestInput): Promise<SubmitIntere
     if (!isKnownIntakeError(error.message)) {
       console.error("submit_interest_request failed", error);
     }
-    return { ok: false, message: intakeErrorMessage(error.message), step: ERROR_STEP[error.message] };
+    const message = intakeErrorMessage(error.message);
+    return CALCULATOR_ERRORS.has(error.message)
+      ? { ok: false, message, calculator: true }
+      : { ok: false, message, step: ERROR_STEP[error.message] };
   }
 
   const requestNo = (result as { request_no?: string } | null)?.request_no;

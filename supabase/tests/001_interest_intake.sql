@@ -1,6 +1,9 @@
 -- Interest intake: request numbers, snapshots, duplicates, validation, throttling.
 -- Spec: LEAD-02, LEAD-04, LEAD-05, LEAD-06, LEAD-11, PARC-01..PARC-06.
 
+-- 0032 retires these lists (plan Q-7) but this file submits their items: active again inside this rolled-back test only.
+update public.option_items set is_active = true where list_key in ('desired_area', 'priority', 'down_payment', 'monthly_installment');
+
 create function pg_temp.payload(p_overrides jsonb) returns jsonb language sql as $$
   select jsonb_build_object(
     'full_name', 'محمد التونسي',
@@ -106,7 +109,16 @@ begin
   perform pg_temp.expect_error(pg_temp.payload('{"residence_governorate_id": 99, "ip_hash": "v4b"}'), 'invalid_governorate');
   perform pg_temp.expect_error(pg_temp.payload('{"invest_governorate_ids": [], "ip_hash": "v5"}'), 'invest_location_required');
   perform pg_temp.expect_error(pg_temp.payload('{"invest_governorate_ids": [99], "ip_hash": "v6"}'), 'invalid_invest_governorate');
-  perform pg_temp.expect_error(pg_temp.payload('{"scenario_ids": [], "ip_hash": "v7"}'), 'scenario_required');
+  -- No offer type: refused before 0032, recorded as «no specific type» since (plan Q-6). A spare phone keeps the throttle count.
+  begin
+    v_second := public.submit_interest_request(pg_temp.payload('{"scenario_ids": [], "phone_e164": "+21622000010", "ip_hash": "v7"}'));
+    assert (select project_type_unsure from public.interest_requests where request_no = v_second->>'request_no'),
+      'a demand without an offer type is recorded as unsure';
+  exception when others then
+    if sqlerrm <> 'scenario_required' then
+      raise;
+    end if;
+  end;
   perform pg_temp.expect_error(pg_temp.payload(
     jsonb_build_object('scenario_ids', jsonb_build_array(gen_random_uuid()), 'ip_hash', 'v7b')), 'invalid_scenario');
   perform pg_temp.expect_error(pg_temp.payload(

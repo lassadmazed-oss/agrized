@@ -5,6 +5,9 @@
 -- Exact figures are read as a fixture commercial, whose RLS scope holds the fixtures and nothing else;
 -- figures over the whole database are compared inside one statement, so real traffic cannot move them.
 
+-- 0032 retires these lists (plan Q-7) but this file submits their items: active again inside this rolled-back test only.
+update public.option_items set is_active = true where list_key in ('down_payment', 'monthly_installment');
+
 -- ---------------------------------------------------------------------------
 -- Fixtures (as the migration owner)
 -- ---------------------------------------------------------------------------

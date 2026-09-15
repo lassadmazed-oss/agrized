@@ -6,6 +6,9 @@
 -- limits read from settings, so real traffic or a Back Office edit cannot make it fail.
 set transaction isolation level repeatable read;
 
+-- 0032 retires these lists (plan Q-7) but this file submits their items: active again inside this rolled-back test only.
+update public.option_items set is_active = true where list_key in ('desired_area', 'down_payment', 'monthly_installment');
+
 do $$
 declare
   v_phone text;

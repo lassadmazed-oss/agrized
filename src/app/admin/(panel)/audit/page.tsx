@@ -33,6 +33,10 @@ const ENTITY_LABELS: Record<string, string> = {
   profiles: "المستخدمون",
   governorates: "الولايات",
   delegations: "المعتمديات",
+  tree_spacing_classes: "فئات المساحة",
+  tree_pricing_rules: "قواعد تسعير الزيتونة",
+  tree_cost_items: "المصاريف الإضافية",
+  financing_markups: "الزيادة حسب مدة التقسيط",
 };
 
 const ACTION_LABELS: Record<string, string> = {
@@ -47,6 +51,13 @@ const ACTION_LABELS: Record<string, string> = {
   "auth.password_reset": "إعادة تعيين كلمة السر",
   "crm.export": "تصدير المطالب",
   "document.open": "فتح وثيقة",
+  "pricing.spacing_class_save": "حفظ فئة مساحة",
+  "pricing.spacing_class_delete": "حذف فئة مساحة",
+  "pricing.rule_save": "حفظ قواعد التسعير",
+  "pricing.rule_delete": "حذف القواعد الخاصة بمشروع",
+  "pricing.cost_item_save": "حفظ مصروف إضافي",
+  "pricing.cost_item_delete": "حذف مصروف إضافي",
+  "pricing.markups_save": "حفظ نسب الزيادة حسب المدة",
 };
 
 const UUID = /^[0-9a-f-]{36}$/i;

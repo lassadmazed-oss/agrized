@@ -35,3 +35,14 @@ export function formatDateTime(value: string | Date): string {
 export function formatCount(value: number): string {
   return new Intl.NumberFormat("en-US").format(value);
 }
+
+/** Square metres with at most two decimals, e.g. "35 م²" or "6.5 م²". */
+export function formatArea(m2: number, unit = "م²"): string {
+  return `${new Intl.NumberFormat("en-US", { maximumFractionDigits: 2 }).format(m2)} ${unit}`;
+}
+
+/** Planting spacing as it is written in the field, e.g. "7 × 5 م". */
+export function formatSpacing(rowMetres: number, treeMetres: number, unit = "م"): string {
+  const n = new Intl.NumberFormat("en-US", { maximumFractionDigits: 2 });
+  return `${n.format(rowMetres)} × ${n.format(treeMetres)} ${unit}`;
+}

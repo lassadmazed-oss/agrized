@@ -3,6 +3,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import { ActionForm } from "@/components/admin/action-form";
+import { formatPercent } from "@/components/admin/tree-pricing-inputs";
 import { ADMIN_ROLES, CRM_READ_ROLES, hasRole, requireStaff } from "@/lib/auth";
 import { getPublicConfig } from "@/lib/config";
 import {
@@ -13,10 +14,11 @@ import {
   PRODUCTION_LABELS,
   STAGE_TONES,
 } from "@/lib/crm";
-import { formatDateTime } from "@/lib/format";
+import { formatArea, formatDateTime, formatMillimes } from "@/lib/format";
 import { formatPhone } from "@/lib/phone";
 import { createClient } from "@/lib/supabase/server";
 
+import { PAYMENT_MODE_LABELS } from "../filters";
 import { addContactAttempt, addNote, assignPerson, updateStatus } from "./actions";
 
 export const metadata: Metadata = { title: "ملف حريف" };
@@ -161,7 +163,9 @@ export default async function LeadDetailPage({ params }: PageProps<"/admin/leads
         <div className="space-y-6">
           <section className="space-y-3">
             <h2 className="text-lg font-semibold">المطالب ({requests.data?.length ?? 0})</h2>
-            {(requests.data ?? []).map((request) => (
+            {(requests.data ?? []).map((request) => {
+              const legacy = legacyAnswers(request);
+              return (
               <article key={request.id} className="rounded-2xl border border-line bg-surface p-5">
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <p dir="ltr" className="font-semibold text-forest tabular-nums">
@@ -198,26 +202,54 @@ export default async function LeadDetailPage({ params }: PageProps<"/admin/leads
                       </span>
                     ) : null}
                   </Item>
-                  <Item label="المساحة المطلوبة">{request.desired_area_label_ar ?? "بدون تفضيل"}</Item>
-                  {/* Priority left the public form with report v3 §40; older demands still carry it. */}
-                  {request.priority_label_ar ? <Item label="الأهم بالنسبة إليه">{request.priority_label_ar}</Item> : null}
-                  <Item label="الهدف">{request.goal_label_ar}</Item>
-                  <Item label="التسبقة">
-                    <span className="tabular-nums">{request.down_payment_label_ar}</span>
-                  </Item>
+                  {/* Tree pricing addendum: what the visitor chose and the estimate shown at that moment. */}
+                  {request.spacing_label_ar ? <Item label="فئة المساحة">{request.spacing_label_ar}</Item> : null}
+                  {typeof request.area_per_tree_m2 === "number" ? (
+                    <Item label="المساحة لكل زيتونة">
+                      <span className="tabular-nums">{formatArea(request.area_per_tree_m2)}</span>
+                    </Item>
+                  ) : null}
+                  {typeof request.total_area_m2 === "number" ? (
+                    <Item label="المساحة الجملية">
+                      <span className="tabular-nums">{formatArea(request.total_area_m2)}</span>
+                    </Item>
+                  ) : null}
+                  {request.payment_mode ? <Item label="طريقة الدفع">{PAYMENT_MODE_LABELS[request.payment_mode] ?? request.payment_mode}</Item> : null}
+                  {typeof request.price_per_tree_millimes === "number" ? (
+                    <Item label="سعر الزيتونة المقدّر">
+                      <span className="tabular-nums">{estimate(request.price_per_tree_millimes)}</span>
+                    </Item>
+                  ) : null}
+                  {typeof request.total_price_millimes === "number" ? (
+                    <Item label="السعر الجملي المقدّر">
+                      <span className="tabular-nums">{estimate(request.total_price_millimes)}</span>
+                    </Item>
+                  ) : null}
+                  {/* Plan Q-1, Q-2: the percentage of the cash total and the amount it gave when the demand was sent. */}
+                  {request.down_payment_percent !== null && request.down_payment_percent !== undefined ? (
+                    <Item label="نسبة التسبقة">
+                      <span className="tabular-nums">{formatPercent(request.down_payment_percent)}</span>
+                    </Item>
+                  ) : null}
+                  {typeof request.down_payment_amount_millimes === "number" ? (
+                    <Item label="مبلغ التسبقة المقدّر">
+                      <span className="tabular-nums">{estimate(request.down_payment_amount_millimes)}</span>
+                    </Item>
+                  ) : null}
                   <Item label="مدة الدفع">
                     <span className="tabular-nums">{request.duration_label_ar ?? "بدون إجابة"}</span>
                   </Item>
-                  {request.installment_label_ar ? (
-                    <Item label="القسط الشهري (قبل اعتماد المدة)">
-                      <span className="tabular-nums">{request.installment_label_ar} شهرياً</span>
+                  {typeof request.total_financed_millimes === "number" ? (
+                    <Item label="السعر بالتقسيط">
+                      <span className="tabular-nums">{estimate(request.total_financed_millimes)}</span>
                     </Item>
                   ) : null}
-                  {request.budget_label_ar ? (
-                    <Item label="الميزانية">
-                      <span className="tabular-nums">{request.budget_label_ar}</span>
+                  {typeof request.monthly_millimes === "number" ? (
+                    <Item label="القسط الشهري المقدّر">
+                      <span className="tabular-nums">{estimate(request.monthly_millimes)} شهرياً</span>
                     </Item>
                   ) : null}
+                  <Item label="الهدف">{request.goal_label_ar}</Item>
                   <Item label="يحب يزور الأرض">{answerLabel(request.wants_visit, "لا، مازال")}</Item>
                   <Item label="يحب حل تمويل بنكي">{answerLabel(request.wants_bank_financing, "لا")}</Item>
                   <Item label="التواصل">
@@ -237,8 +269,22 @@ export default async function LeadDetailPage({ params }: PageProps<"/admin/leads
                     <span dir="ltr">{(request.source as { utm_source?: string } | null)?.utm_source ?? "direct"}</span>
                   </Item>
                 </dl>
+                {legacy.length > 0 ? (
+                  <div className="mt-4 border-t border-line pt-4">
+                    <h3 className="text-sm font-semibold text-muted">إجابات قديمة</h3>
+                    <p className="text-xs text-muted">أسئلة ما عادتش في الاستمارة. القيم محفوظة كيما سجّلها الحريف.</p>
+                    <dl className="mt-3 grid gap-x-6 gap-y-3 text-sm sm:grid-cols-2">
+                      {legacy.map((answer) => (
+                        <Item key={answer.label} label={answer.label}>
+                          <span className="tabular-nums">{answer.value}</span>
+                        </Item>
+                      ))}
+                    </dl>
+                  </div>
+                ) : null}
               </article>
-            ))}
+              );
+            })}
           </section>
 
           <section className="space-y-3">
@@ -342,9 +388,37 @@ export default async function LeadDetailPage({ params }: PageProps<"/admin/leads
   );
 }
 
+/** Amount snapshot of a demand; millimes are shown only when it has some. */
+function estimate(millimes: number): string {
+  return formatMillimes(millimes, { withMillimes: millimes % 1000 !== 0 });
+}
+
 /** An optional yes/no answer of the public form (report v3 §14, §40). */
 function answerLabel(value: boolean | null, no: string): string {
   return value === true ? "نعم" : value === false ? no : "بدون إجابة";
+}
+
+type LegacySnapshot = {
+  desired_area_label_ar: string | null;
+  priority_label_ar: string | null;
+  down_payment_label_ar: string | null;
+  installment_label_ar: string | null;
+  budget_label_ar: string | null;
+  down_payment_percent?: number | string | null;
+};
+
+/** Plan Q-7: answers to retired questions, kept as the demand recorded them (LEAD-02); only those it carries. */
+function legacyAnswers(request: LegacySnapshot): { label: string; value: string }[] {
+  const hasPercent = request.down_payment_percent !== null && request.down_payment_percent !== undefined;
+  const answers: { label: string; value: string | null }[] = [
+    { label: "المساحة المطلوبة", value: request.desired_area_label_ar },
+    { label: "الأهم بالنسبة إليه", value: request.priority_label_ar },
+    // A demand with a percentage never answered the amount list.
+    { label: "التسبقة (مبلغ)", value: hasPercent ? null : request.down_payment_label_ar },
+    { label: "القسط الشهري", value: request.installment_label_ar ? `${request.installment_label_ar} شهرياً` : null },
+    { label: "الميزانية", value: request.budget_label_ar },
+  ];
+  return answers.flatMap((answer) => (answer.value ? [{ label: answer.label, value: answer.value }] : []));
 }
 
 function Item({ label, children }: { label: string; children: React.ReactNode }) {

@@ -1,10 +1,15 @@
 import type { Metadata } from "next";
+import { redirect } from "next/navigation";
 
 import { ComingSoon, PreviewBanner } from "@/components/site/module-gate";
-import { getPublicConfig, optionsFor, settingBool, settingInt, settingText } from "@/lib/config";
+import { getPublicConfig, optionsFor, settingBool, settingText } from "@/lib/config";
+import { intakeErrorMessage } from "@/lib/errors";
 import { moduleAccess } from "@/lib/modules";
 
-import { RegisterWizard } from "./register-wizard";
+import { getCalculatorLists, quoteChoices, readCalculatorChoices, summaryInput } from "../start/calculator";
+import { calculatorGap, calculatorQuery, calculatorSummary } from "../start/calculator-summary";
+import { startCopy } from "../start/copy";
+import { RegisterWizard, type RecapRow } from "./register-wizard";
 
 export async function generateMetadata(): Promise<Metadata> {
   const config = await getPublicConfig();
@@ -18,6 +23,16 @@ export async function generateMetadata(): Promise<Metadata> {
   };
 }
 
+/** Every query parameter as it arrived, for sending a visitor on without losing any. */
+function forwardedQuery(params: Record<string, string | string[] | undefined>): string {
+  const query = new URLSearchParams();
+  for (const [key, value] of Object.entries(params)) {
+    for (const item of Array.isArray(value) ? value : value === undefined ? [] : [value]) query.append(key, item);
+  }
+  const text = query.toString();
+  return text ? `?${text}` : "";
+}
+
 export default async function RegisterPage({ searchParams }: PageProps<"/register">) {
   const config = await getPublicConfig();
   const access = await moduleAccess(config, "interest_form");
@@ -25,52 +40,45 @@ export default async function RegisterPage({ searchParams }: PageProps<"/registe
     return <ComingSoon title="سجّل اهتمامك" />;
   }
 
-  const downPayments = optionsFor(config, "down_payment");
-  // Report v3 §6: a down payment and a duration; the monthly amount is computed per offer, never asked.
-  const durations = optionsFor(config, "duration");
-  const treeCounts = optionsFor(config, "tree_count");
-
-  // The simulator and the home page chooser link here with what the visitor already picked
-  // (SIM-03, MIL-01), so nobody answers the same question twice.
+  // P2-6: every calculator question lives on /start, so a visitor without a usable tree count starts there.
   const params = await searchParams;
-  const pick = (list: { id: string }[], value: string | string[] | undefined) =>
-    typeof value === "string" && list.some((option) => option.id === value) ? value : undefined;
+  const lists = await getCalculatorLists(config);
+  const choices = readCalculatorChoices(lists, params);
+  if (!choices.treeId && choices.treesCustom === null) {
+    redirect(`/start${forwardedQuery(params)}`);
+  }
 
-  // /start also lets the visitor type their own number (MIL-01); a listed option wins when both arrive.
-  const customTreesMin = settingInt(config, "million.custom_trees_min", 1);
-  const customTreesMax = settingInt(config, "million.custom_trees_max", 5000);
-  const initialTreeCountId = pick(treeCounts, params.trees);
-  const pickCustomTrees = (value: string | string[] | undefined) => {
-    if (initialTreeCountId || typeof value !== "string" || !/^\d{1,9}$/.test(value)) return undefined;
-    const count = Number(value);
-    return count >= customTreesMin && count <= customTreesMax ? count : undefined;
-  };
+  const wantsVisit = params.visit === "1";
+  const copy = startCopy(config);
+  const quote = await quoteChoices(lists, choices);
+  const summary = calculatorSummary(summaryInput(lists, choices, quote, copy));
+  const gap = calculatorGap(choices, { downPercents: lists.downPercents.length, durations: lists.durations.length });
+  const rows: RecapRow[] = summary.rows.flatMap((row) =>
+    row.value ? [{ key: row.key, label: row.label.ar, value: row.value.ar, notes: row.notes.map((note) => note.ar) }] : [],
+  );
 
   return (
     <>
       {access === "preview" ? <PreviewBanner /> : null}
       <RegisterWizard
         governorates={config.governorates}
-        scenarios={config.scenarios}
-        treeCounts={treeCounts}
-        desiredAreas={optionsFor(config, "desired_area")}
         goals={optionsFor(config, "goal")}
-        downPayments={downPayments}
-        durations={durations}
-        budgets={optionsFor(config, "budget")}
         contactTimes={optionsFor(config, "contact_time")}
-        allowMultipleScenarios={settingBool(config, "lead.project_types_multi", true)}
         allowInternationalPhone={settingBool(config, "lead.allow_international_phone")}
         notice={settingText(config, "site.free_interest_notice")}
         consentText={settingText(config, "legal.consent_text")}
-        initialDownPaymentId={pick(downPayments, params.down)}
-        initialDurationId={pick(durations, params.duration)}
-        initialWantsVisit={params.visit === "1"}
-        initialTreeCountId={initialTreeCountId}
-        initialTreeCountCustom={pickCustomTrees(params.trees_custom)}
-        customTreesMin={customTreesMin}
-        customTreesMax={customTreesMax}
-        initialScenarioId={pick(config.scenarios, params.scenario)}
+        initialWantsVisit={wantsVisit}
+        choices={choices}
+        recap={{
+          title: settingText(config, "register.summary_title", "اختياراتك في الحاسبة"),
+          rows,
+          notice: summary.notice?.ar || null,
+          estimateNote: summary.priced && copy.estimateNote ? copy.estimateNote : null,
+          error: gap ? intakeErrorMessage(gap) : null,
+          editLabel: settingText(config, "start.edit_choices", "بدّل اختياراتك"),
+          editHref: `/start?${calculatorQuery(choices, wantsVisit)}`,
+        }}
+        successNote={settingText(config, "register.success_note", "التسجيل مجاني ولا يلزمك بالشراء.")}
       />
     </>
   );

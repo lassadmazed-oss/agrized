@@ -5,6 +5,9 @@
 -- Fixtures (as the migration owner)
 -- ---------------------------------------------------------------------------
 
+-- 0032 retires these lists (plan Q-7) but this file submits their items: active again inside this rolled-back test only.
+update public.option_items set is_active = true where list_key in ('desired_area', 'priority', 'down_payment', 'monthly_installment');
+
 insert into auth.users (id, aud, role, email, raw_user_meta_data) values
   ('00000000-0000-0000-0000-0000000000c1', 'authenticated', 'authenticated', 'com1@test.local', '{"full_name":"Commercial One"}'),
   ('00000000-0000-0000-0000-0000000000c2', 'authenticated', 'authenticated', 'com2@test.local', '{"full_name":"Commercial Two"}'),

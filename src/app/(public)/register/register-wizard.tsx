@@ -3,53 +3,46 @@
 import Link from "next/link";
 import { useEffect, useRef, useState, useTransition, type ReactNode } from "react";
 
-import { GrowthIcon } from "@/components/site/growth-icon";
 import { readVisitSource } from "@/components/site/source-capture";
 import { toWesternDigits } from "@/lib/digits";
-import { formatCount } from "@/lib/format";
 
+import type { CalculatorChoices, SummaryRowKey } from "../start/calculator-summary";
 import { submitInterest } from "./actions";
 
 type Option = { id: string; code: string | null; label_ar: string };
 
-type Scenario = {
-  id: string;
-  code: string;
-  label_ar: string;
-  description_ar: string | null;
-  is_any: boolean;
-  icon_code: string | null;
-  image_url: string | null;
-  image_alt_ar: string | null;
+/** One line of «اختياراتك في الحاسبة», formatted on the server (Arabic only on /register). */
+export type RecapRow = { key: SummaryRowKey; label: string; value: string; notes: string[] };
+
+/** The calculator answers, shown read-only above the form (P2-6). */
+export type CalculatorRecap = {
+  title: string;
+  rows: RecapRow[];
+  /** Why a figure is missing, e.g. no price set yet. */
+  notice: string | null;
+  /** PRN-01: set only when an amount is shown. */
+  estimateNote: string | null;
+  /** The calculator answer is incomplete; only /start can fix it. */
+  error: string | null;
+  editLabel: string;
+  /** /start with every choice kept in the URL. */
+  editHref: string;
 };
 
-type RegisterWizardProps = {
+export type RegisterWizardProps = {
   governorates: { id: number; name_ar: string }[];
-  scenarios: Scenario[];
-  treeCounts: Option[];
-  desiredAreas: Option[];
   goals: Option[];
-  downPayments: Option[];
-  /** Report v3 §8: how long the client pays; the monthly amount is never chosen (§6). */
-  durations: Option[];
-  /** Report v3 §40: the question stays hidden while AgriZed has not filled the list. */
-  budgets: Option[];
   contactTimes: Option[];
-  allowMultipleScenarios: boolean;
   allowInternationalPhone: boolean;
   notice: string;
   consentText: string;
-  initialDownPaymentId?: string;
-  initialDurationId?: string;
   /** `visit=1` in the link pre-answers «تحب تزور الأرض؟» with yes. */
-  initialWantsVisit?: boolean;
-  /** Chosen on the home page, in «قدّاش زيتونة تحب تبدا بيهم؟» (MIL-01). */
-  initialTreeCountId?: string;
-  /** Typed on /start instead of picking a card (MIL-01); the page already checked the limits. */
-  initialTreeCountCustom?: number;
-  customTreesMin: number;
-  customTreesMax: number;
-  initialScenarioId?: string;
+  initialWantsVisit: boolean;
+  /** Sent with the request exactly as /start passed them. */
+  choices: CalculatorChoices;
+  recap: CalculatorRecap;
+  /** Closing line of the success screen. */
+  successNote: string;
 };
 
 type ContactChannel = "phone" | "whatsapp" | "both";
@@ -63,14 +56,7 @@ type FormState = {
   governorateId: number | null;
   investAnywhere: boolean;
   investGovernorateIds: number[];
-  scenarioIds: string[];
-  treeCountOptionId: string | null;
-  treeCountCustom: number | null;
-  desiredAreaOptionId: string | null;
   goalOptionId: string | null;
-  downPaymentOptionId: string | null;
-  durationOptionId: string | null;
-  budgetOptionId: string | null;
   wantsVisit: boolean | null;
   wantsBankFinancing: boolean | null;
   contactChannel: ContactChannel | null;
@@ -80,13 +66,12 @@ type FormState = {
 
 type Errors = Partial<Record<keyof FormState, string>>;
 
+type SubmitError = { message: string; /** Only /start can fix it. */ calculator: boolean };
+
 const STEPS = [
   "بياناتك",
   "أين ترغب في الاستثمار؟",
-  "شنوّة تحب تملك؟",
-  "قدّاش زيتونة؟",
   "ما هو هدفك؟",
-  "قدرتك المالية",
   "الزيارة والتمويل",
   "كيف تحب نتصلوا بيك؟",
   "راجع طلبك",
@@ -108,11 +93,14 @@ const BANK_CHOICES: YesNoChoice[] = [
   { value: false, label: "لا" },
 ];
 const NO_ANSWER = "بدون إجابة";
-const BUDGET_NONE = "ما نحبش نحدّد";
 
-// Drafts saved before report v3 hold an installment and a priority the form no longer asks.
-const DRAFT_KEY = "agrized:register-draft-v3";
-const LEGACY_DRAFT_KEY = "agrized:register-draft";
+/** What the success screen recaps, in this order. */
+const SUCCESS_ROWS: SummaryRowKey[] = ["trees", "area_per_tree", "total_area", "payment", "total_price"];
+
+// The calculator answers moved to the URL (P2-6); an older draft still gives back the identity and contact answers.
+const DRAFT_KEY = "agrized:register-draft-v4";
+const PREVIOUS_DRAFT_KEY = "agrized:register-draft-v3";
+const OLD_DRAFT_KEYS = ["agrized:register-draft", PREVIOUS_DRAFT_KEY];
 
 function emptyForm(props: RegisterWizardProps): FormState {
   return {
@@ -124,14 +112,7 @@ function emptyForm(props: RegisterWizardProps): FormState {
     governorateId: null,
     investAnywhere: false,
     investGovernorateIds: [],
-    scenarioIds: props.initialScenarioId ? [props.initialScenarioId] : [],
-    treeCountOptionId: props.initialTreeCountId ?? null,
-    treeCountCustom: props.initialTreeCountId ? null : (props.initialTreeCountCustom ?? null),
-    desiredAreaOptionId: null,
     goalOptionId: null,
-    downPaymentOptionId: props.initialDownPaymentId ?? null,
-    durationOptionId: props.initialDurationId ?? null,
-    budgetOptionId: null,
     wantsVisit: props.initialWantsVisit ? true : null,
     wantsBankFinancing: null,
     contactChannel: null,
@@ -146,28 +127,19 @@ function emptyForm(props: RegisterWizardProps): FormState {
  */
 function sanitize(form: FormState, props: RegisterWizardProps): FormState {
   const has = (list: { id: string }[], id: unknown) => (typeof id === "string" && list.some((o) => o.id === id) ? id : null);
+  const text = (value: unknown) => (typeof value === "string" ? value : "");
   const yesNo = (value: unknown) => (typeof value === "boolean" ? value : null);
   const governorateIds = new Set(props.governorates.map((g) => g.id));
-  const scenarioIds = new Set(props.scenarios.map((s) => s.id));
-  const treeCountOptionId = has(props.treeCounts, form.treeCountOptionId);
   return {
-    fullName: form.fullName,
-    phone: form.phone,
-    whatsappSame: form.whatsappSame,
-    whatsapp: form.whatsapp,
-    email: form.email,
+    fullName: text(form.fullName),
+    phone: text(form.phone),
+    whatsappSame: form.whatsappSame !== false,
+    whatsapp: text(form.whatsapp),
+    email: text(form.email),
     governorateId: form.governorateId && governorateIds.has(form.governorateId) ? form.governorateId : null,
-    investAnywhere: form.investAnywhere,
-    investGovernorateIds: form.investGovernorateIds.filter((id) => governorateIds.has(id)),
-    scenarioIds: form.scenarioIds.filter((id) => scenarioIds.has(id)),
-    treeCountOptionId,
-    // A listed option and a typed number never coexist; the option wins.
-    treeCountCustom: treeCountOptionId === null && isCustomTreesInRange(form.treeCountCustom, props) ? form.treeCountCustom : null,
-    desiredAreaOptionId: has(props.desiredAreas, form.desiredAreaOptionId),
+    investAnywhere: form.investAnywhere === true,
+    investGovernorateIds: Array.isArray(form.investGovernorateIds) ? form.investGovernorateIds.filter((id) => governorateIds.has(id)) : [],
     goalOptionId: has(props.goals, form.goalOptionId),
-    downPaymentOptionId: has(props.downPayments, form.downPaymentOptionId),
-    durationOptionId: has(props.durations, form.durationOptionId),
-    budgetOptionId: has(props.budgets, form.budgetOptionId),
     wantsVisit: yesNo(form.wantsVisit),
     wantsBankFinancing: yesNo(form.wantsBankFinancing),
     contactChannel: form.contactChannel && form.contactChannel in CHANNEL_LABELS ? form.contactChannel : null,
@@ -178,14 +150,6 @@ function sanitize(form: FormState, props: RegisterWizardProps): FormState {
 
 function yesNoLabel(choices: YesNoChoice[], value: boolean | null): string {
   return choices.find((choice) => choice.value === value)?.label ?? NO_ANSWER;
-}
-
-function isCustomTreesInRange(value: unknown, props: RegisterWizardProps): value is number {
-  return typeof value === "number" && Number.isInteger(value) && value >= props.customTreesMin && value <= props.customTreesMax;
-}
-
-function customTreesHint(props: RegisterWizardProps): string {
-  return `اكتب عدداً بين ${formatCount(props.customTreesMin)} و${formatCount(props.customTreesMax)}.`;
 }
 
 function phoneError(value: string, allowInternational: boolean): string | null {
@@ -217,26 +181,9 @@ function validateStep(step: number, form: FormState, props: RegisterWizardProps)
   if (step === 2 && !form.investAnywhere && form.investGovernorateIds.length === 0) {
     errors.investGovernorateIds = "اختر ولاية واحدة على الأقل، أو «المكان غير مهم».";
   }
-  if (step === 3 && form.scenarioIds.length === 0) {
-    errors.scenarioIds = "اختر شنوّة تحب تملك.";
-  }
-  if (step === 4) {
-    if (form.treeCountCustom !== null && !isCustomTreesInRange(form.treeCountCustom, props)) {
-      errors.treeCountOptionId = customTreesHint(props);
-    } else if (props.treeCounts.length > 0 && !form.treeCountOptionId && form.treeCountCustom === null) {
-      errors.treeCountOptionId = "اختر عدد الزيتونات، أو «اقترحولي».";
-    }
-    if (props.desiredAreas.length > 0 && !form.desiredAreaOptionId) {
-      errors.desiredAreaOptionId = "اختر المساحة، أو «ما عنديش تفضيل».";
-    }
-  }
-  if (step === 5 && !form.goalOptionId) errors.goalOptionId = "اختر هدفك.";
-  if (step === 6) {
-    if (!form.downPaymentOptionId) errors.downPaymentOptionId = "اختر التسبقة التي تناسبك.";
-    if (props.durations.length > 0 && !form.durationOptionId) errors.durationOptionId = "اختر مدة الدفع التي تناسبك.";
-  }
-  if (step === 8 && !form.contactChannel) errors.contactChannel = "اختر طريقة التواصل.";
-  if (step === 9 && !form.consent) errors.consent = "لإرسال الطلب، وافق على التواصل ومعالجة معطياتك.";
+  if (step === 3 && !form.goalOptionId) errors.goalOptionId = "اختر هدفك.";
+  if (step === 5 && !form.contactChannel) errors.contactChannel = "اختر طريقة التواصل.";
+  if (step === 6 && !form.consent) errors.consent = "لإرسال الطلب، وافق على التواصل ومعالجة معطياتك.";
   return errors;
 }
 
@@ -248,10 +195,11 @@ function focusFirstError() {
 }
 
 export function RegisterWizard(props: RegisterWizardProps) {
+  const { recap, choices } = props;
   const [step, setStep] = useState(1);
   const [form, setForm] = useState<FormState>(() => emptyForm(props));
   const [errors, setErrors] = useState<Errors>({});
-  const [submitError, setSubmitError] = useState<string | null>(null);
+  const [submitError, setSubmitError] = useState<SubmitError | null>(null);
   const [requestNo, setRequestNo] = useState<string | null>(null);
   const [honeypot, setHoneypot] = useState("");
   const [pending, startTransition] = useTransition();
@@ -262,23 +210,14 @@ export function RegisterWizard(props: RegisterWizardProps) {
   // LEAD-07: keep answers in this browser so a reload does not lose them. Nothing is sent before submit.
   useEffect(() => {
     try {
-      localStorage.removeItem(LEGACY_DRAFT_KEY);
-      const raw = localStorage.getItem(DRAFT_KEY);
+      const raw = localStorage.getItem(DRAFT_KEY) ?? localStorage.getItem(PREVIOUS_DRAFT_KEY);
+      for (const key of OLD_DRAFT_KEYS) localStorage.removeItem(key);
       if (raw) {
         const draft = JSON.parse(raw) as Partial<FormState>;
-        // What the visitor just picked on the home page or /start wins over an older draft (MIL-01).
-        const fromHome: Partial<FormState> = {
-          ...(props.initialTreeCountId ? { treeCountOptionId: props.initialTreeCountId, treeCountCustom: null } : {}),
-          ...(!props.initialTreeCountId && props.initialTreeCountCustom !== undefined
-            ? { treeCountOptionId: null, treeCountCustom: props.initialTreeCountCustom }
-            : {}),
-          ...(props.initialScenarioId ? { scenarioIds: [props.initialScenarioId] } : {}),
-          ...(props.initialDownPaymentId ? { downPaymentOptionId: props.initialDownPaymentId } : {}),
-          ...(props.initialDurationId ? { durationOptionId: props.initialDurationId } : {}),
-          ...(props.initialWantsVisit ? { wantsVisit: true } : {}),
-        };
+        // `visit=1` in the link wins over an older draft.
+        const fromLink: Partial<FormState> = props.initialWantsVisit ? { wantsVisit: true } : {};
         // eslint-disable-next-line react-hooks/set-state-in-effect -- restoring browser-only state after hydration
-        setForm((current) => sanitize({ ...current, ...draft, ...fromHome }, props));
+        setForm((current) => sanitize({ ...current, ...draft, ...fromLink }, props));
       }
     } catch {
       // Ignore unreadable drafts.
@@ -338,8 +277,13 @@ export function RegisterWizard(props: RegisterWizardProps) {
         return;
       }
     }
+    if (recap.error) {
+      setSubmitError({ message: recap.error, calculator: true });
+      return;
+    }
 
     setSubmitError(null);
+    const installments = choices.paymentMode === "installments";
     startTransition(async () => {
       try {
         const result = await submitInterest({
@@ -351,14 +295,14 @@ export function RegisterWizard(props: RegisterWizardProps) {
           governorateId: form.governorateId ?? 0,
           investAnywhere: form.investAnywhere,
           investGovernorateIds: form.investGovernorateIds,
-          scenarioIds: form.scenarioIds,
-          treeCountOptionId: form.treeCountOptionId,
-          treeCountCustom: form.treeCountCustom,
-          desiredAreaOptionId: form.desiredAreaOptionId,
+          treeCountOptionId: choices.treeId,
+          treeCountCustom: choices.treeId ? null : choices.treesCustom,
+          scenarioId: choices.scenarioId,
+          spacingClassId: choices.spacingId,
+          paymentMode: choices.paymentMode,
+          downPercentOptionId: installments ? choices.downPercentId : null,
+          durationOptionId: installments ? choices.durationId : null,
           goalOptionId: form.goalOptionId ?? "",
-          downPaymentOptionId: form.downPaymentOptionId ?? "",
-          durationOptionId: form.durationOptionId,
-          budgetOptionId: form.budgetOptionId,
           wantsVisit: form.wantsVisit,
           wantsBankFinancing: form.wantsBankFinancing,
           contactChannel: form.contactChannel ?? "phone",
@@ -375,24 +319,37 @@ export function RegisterWizard(props: RegisterWizardProps) {
             // Nothing to clean.
           }
         } else {
-          setSubmitError(result.message);
+          setSubmitError({ message: result.message, calculator: result.calculator === true });
           if (result.step) setStep(result.step);
         }
       } catch {
-        setSubmitError("تعذّر الإرسال. تحقق من اتصالك بالإنترنت وحاول مرة أخرى.");
+        setSubmitError({ message: "تعذّر الإرسال. تحقق من اتصالك بالإنترنت وحاول مرة أخرى.", calculator: false });
       }
     });
   }
 
   if (requestNo) {
-    return <Success requestNo={requestNo} form={form} contactTimes={props.contactTimes} notice={props.notice} headingRef={headingRef} />;
+    return (
+      <Success
+        requestNo={requestNo}
+        form={form}
+        contactTimes={props.contactTimes}
+        rows={recap.rows}
+        note={props.successNote}
+        headingRef={headingRef}
+      />
+    );
   }
 
   const lastStep = step === STEPS.length;
 
   return (
     <div className="mx-auto max-w-2xl px-4 pb-6 pt-6 sm:px-6 sm:pt-10">
-      <Progress step={step} total={STEPS.length} />
+      <RecapCard recap={recap} />
+
+      <div className="mt-6">
+        <Progress step={step} total={STEPS.length} />
+      </div>
 
       <form
         noValidate
@@ -413,70 +370,34 @@ export function RegisterWizard(props: RegisterWizardProps) {
 
         {submitError ? (
           <div role="alert" className="mt-4 rounded-xl bg-danger-soft px-4 py-3 text-sm font-medium text-danger">
-            {submitError}
+            {submitError.message}
+            {submitError.calculator ? (
+              <>
+                {" "}
+                <Link href={recap.editHref} className="font-semibold underline underline-offset-4 hover:no-underline">
+                  {recap.editLabel}
+                </Link>
+              </>
+            ) : null}
           </div>
         ) : null}
 
         <div className="mt-6">
-          {step === 1 ? <IdentityStep form={form} errors={errors} update={update} {...props} /> : null}
+          {step === 1 ? <IdentityStep form={form} errors={errors} update={update} governorates={props.governorates} /> : null}
           {step === 2 ? <LocationStep form={form} errors={errors} update={update} governorates={props.governorates} /> : null}
           {step === 3 ? (
-            <ScenarioStep
-              form={form}
-              errors={errors}
-              update={update}
-              scenarios={props.scenarios}
-              multiple={props.allowMultipleScenarios}
-            />
-          ) : null}
-          {step === 4 ? (
-            <div className="space-y-7">
-              <div>
-                <p className="label">قدّاش زيتونة تحب تبدا بيهم؟</p>
-                <p className="hint mb-3">هذا هو العدد اللي يدخل في عدّاد مشروع المليون زيتونة.</p>
-                <div className="space-y-2">
-                  <SingleChoice
-                    name="treeCount"
-                    options={props.treeCounts}
-                    value={form.treeCountOptionId}
-                    onChange={(id) => {
-                      update("treeCountOptionId", id);
-                      update("treeCountCustom", null);
-                    }}
-                  />
-                  <CustomTreesRow form={form} errors={errors} update={update} {...props} />
-                </div>
-                <GroupError message={errors.treeCountOptionId} />
-              </div>
-              <div>
-                <p className="label">والمساحة؟</p>
-                {/* PARC-02: two separate questions on purpose; neither answer fills in the other. */}
-                <p className="hint mb-3">
-                  المساحة تختلف من مشروع لآخر: عدد الزيتونات ما يتحسبش من المساحة، والعكس صحيح.
-                </p>
-                <SingleChoice
-                  name="desiredArea"
-                  options={props.desiredAreas}
-                  value={form.desiredAreaOptionId}
-                  onChange={(id) => update("desiredAreaOptionId", id)}
-                  error={errors.desiredAreaOptionId}
-                />
-              </div>
-            </div>
-          ) : null}
-          {step === 5 ? (
             <SingleChoice
               name="goal"
+              legend={STEPS[2]}
               options={props.goals}
               value={form.goalOptionId}
               onChange={(id) => update("goalOptionId", id)}
               error={errors.goalOptionId}
             />
           ) : null}
-          {step === 6 ? <CapacityStep form={form} errors={errors} update={update} {...props} /> : null}
-          {step === 7 ? <VisitStep form={form} errors={errors} update={update} /> : null}
-          {step === 8 ? <ContactStep form={form} errors={errors} update={update} contactTimes={props.contactTimes} /> : null}
-          {step === 9 ? <ReviewStep form={form} errors={errors} update={update} setStep={setStep} {...props} /> : null}
+          {step === 4 ? <VisitStep form={form} errors={errors} update={update} /> : null}
+          {step === 5 ? <ContactStep form={form} errors={errors} update={update} contactTimes={props.contactTimes} /> : null}
+          {step === 6 ? <ReviewStep form={form} errors={errors} update={update} setStep={setStep} {...props} /> : null}
         </div>
 
         {/* Honeypot for bots; hidden from people and assistive technology */}
@@ -503,6 +424,52 @@ export function RegisterWizard(props: RegisterWizardProps) {
 }
 
 // ---------------------------------------------------------------------------
+// Calculator recap
+// ---------------------------------------------------------------------------
+
+/** P2-6: what was answered on /start, read-only; changing it means going back to the calculator. */
+function RecapCard({ recap }: { recap: CalculatorRecap }) {
+  return (
+    <section aria-labelledby="calculator-recap-title" className="rounded-2xl border border-line bg-surface p-4 sm:p-5">
+      {/* Not a heading: the step title below stays the page's first heading. */}
+      <div className="flex items-baseline justify-between gap-3">
+        <p id="calculator-recap-title" className="font-display text-lg font-bold text-forest">
+          {recap.title}
+        </p>
+        <Link href={recap.editHref} className="flex-none text-sm font-semibold text-forest underline underline-offset-4 hover:no-underline">
+          {recap.editLabel}
+        </Link>
+      </div>
+      <dl className="mt-3 grid grid-cols-2 gap-x-4 gap-y-3 sm:grid-cols-3">
+        {recap.rows.map((row) => (
+          <div key={row.key} className="min-w-0">
+            <dt className="text-xs text-muted">{row.label}</dt>
+            <dd className="mt-0.5 font-semibold break-words text-ink tabular-nums">
+              {row.value}
+              {row.notes.map((note) => (
+                <span key={note} className="mt-0.5 block text-xs font-normal text-muted">
+                  {note}
+                </span>
+              ))}
+            </dd>
+          </div>
+        ))}
+      </dl>
+      {recap.notice ? <p className="mt-3 rounded-xl bg-leaf-soft px-3 py-2 text-sm leading-6 text-forest">{recap.notice}</p> : null}
+      {recap.error ? (
+        <p className="mt-3 rounded-xl bg-danger-soft px-3 py-2 text-sm font-medium leading-6 text-danger">
+          {recap.error}{" "}
+          <Link href={recap.editHref} className="font-semibold underline underline-offset-4 hover:no-underline">
+            {recap.editLabel}
+          </Link>
+        </p>
+      ) : null}
+      {recap.estimateNote ? <p className="mt-3 text-xs leading-5 text-muted">{recap.estimateNote}</p> : null}
+    </section>
+  );
+}
+
+// ---------------------------------------------------------------------------
 // Steps
 // ---------------------------------------------------------------------------
 
@@ -512,7 +479,7 @@ type StepProps = {
   update: <K extends keyof FormState>(key: K, value: FormState[K]) => void;
 };
 
-function IdentityStep({ form, errors, update, governorates }: StepProps & RegisterWizardProps) {
+function IdentityStep({ form, errors, update, governorates }: StepProps & { governorates: RegisterWizardProps["governorates"] }) {
   return (
     <div className="space-y-5">
       <Field id="fullName" label="الاسم واللقب" error={errors.fullName}>
@@ -647,167 +614,6 @@ function LocationStep({ form, errors, update, governorates }: StepProps & { gove
   );
 }
 
-/** Clause 25.3: the scenario, not the area, says what the citizen will own. */
-function ScenarioStep({
-  form,
-  errors,
-  update,
-  scenarios,
-  multiple,
-}: StepProps & { scenarios: Scenario[]; multiple: boolean }) {
-  function choose(scenario: Scenario, checked: boolean) {
-    if (scenario.is_any) {
-      update("scenarioIds", checked ? [scenario.id] : []);
-      return;
-    }
-    const anyIds = new Set(scenarios.filter((s) => s.is_any).map((s) => s.id));
-    const withoutAny = form.scenarioIds.filter((id) => !anyIds.has(id));
-    const next = multiple
-      ? checked
-        ? [...withoutAny, scenario.id]
-        : withoutAny.filter((id) => id !== scenario.id)
-      : [scenario.id];
-    update("scenarioIds", next);
-  }
-
-  return (
-    <fieldset className="space-y-3">
-      <legend className="sr-only">شنوّة تحب تملك؟</legend>
-      {multiple ? <p className="hint -mt-2 mb-1">يمكنك اختيار أكثر من خيار.</p> : null}
-      {scenarios.map((scenario) => (
-        <label key={scenario.id} className="choice items-start">
-          <input
-            type={multiple && !scenario.is_any ? "checkbox" : "radio"}
-            name="scenario"
-            className="mt-1"
-            checked={form.scenarioIds.includes(scenario.id)}
-            onChange={(event) => choose(scenario, event.target.checked)}
-          />
-          {scenario.image_url ? (
-            // eslint-disable-next-line @next/next/no-img-element -- the address is set in the Back Office, its host is not known at build time
-            <img
-              src={scenario.image_url}
-              alt={scenario.image_alt_ar ?? ""}
-              loading="lazy"
-              decoding="async"
-              className="size-16 flex-none rounded-lg object-cover"
-            />
-          ) : (
-            <GrowthIcon code={scenario.icon_code} className="size-8 flex-none text-leaf" />
-          )}
-          <span>
-            <span className="block font-semibold">{scenario.label_ar}</span>
-            {scenario.description_ar ? <span className="mt-0.5 block text-sm text-muted">{scenario.description_ar}</span> : null}
-          </span>
-        </label>
-      ))}
-      <GroupError message={errors.scenarioIds} />
-    </fieldset>
-  );
-}
-
-/** MIL-01: the visitor may type a number instead of picking a card; it is never derived from a surface (PARC-02). */
-function CustomTreesRow({ form, errors, update, ...props }: StepProps & RegisterWizardProps) {
-  const inputRef = useRef<HTMLInputElement>(null);
-  // Picking the row before typing still shows it as the chosen answer, until a card is picked instead.
-  const [picked, setPicked] = useState(false);
-  const selected = form.treeCountCustom !== null || (picked && form.treeCountOptionId === null);
-
-  function setCustom(raw: string) {
-    // Arabic keyboards type ٠-٩; keep digits only and cap the length so Number() stays exact.
-    const digits = toWesternDigits(raw).replace(/\D/g, "").slice(0, 9);
-    setPicked(true);
-    update("treeCountOptionId", null);
-    update("treeCountCustom", digits ? Number(digits) : null);
-  }
-
-  return (
-    <div>
-      {/* Two controls, two labels: the radio names the row, the text field carries its own name and hint. */}
-      <div className="choice">
-        <label className="flex flex-1 cursor-pointer items-center gap-3">
-          <input
-            type="radio"
-            name="treeCount"
-            checked={selected}
-            onChange={() => {
-              setPicked(true);
-              update("treeCountOptionId", null);
-              inputRef.current?.focus();
-            }}
-          />
-          <span className="font-semibold">عدد مخصّص</span>
-        </label>
-        <input
-          ref={inputRef}
-          type="text"
-          // `.choice input` sizes radios (1.125rem); these utilities restore a text field inside the row.
-          className="field h-auto min-h-10 w-full max-w-40 py-1.5 text-center tabular-nums"
-          inputMode="numeric"
-          dir="ltr"
-          placeholder="أدخل العدد"
-          aria-label="عدد الزيتونات المخصّص"
-          aria-describedby="custom-trees-hint"
-          autoComplete="off"
-          value={form.treeCountCustom ?? ""}
-          onChange={(event) => setCustom(event.target.value)}
-          aria-invalid={selected && Boolean(errors.treeCountOptionId)}
-        />
-      </div>
-      <p id="custom-trees-hint" className="hint mt-1.5">
-        {customTreesHint(props)}
-      </p>
-    </div>
-  );
-}
-
-/** Report v3 §6-§8, §40: a down payment and a duration; the monthly amount is computed per offer, never picked here. */
-function CapacityStep({ form, errors, update, downPayments, durations, budgets }: StepProps & RegisterWizardProps) {
-  return (
-    <div className="space-y-8">
-      <fieldset>
-        <legend className="label text-base">التسبقة</legend>
-        <p className="hint mb-3">المبلغ الذي يمكنك دفعه في البداية.</p>
-        <ChipGrid
-          name="downPayment"
-          options={downPayments}
-          value={form.downPaymentOptionId}
-          onChange={(id) => update("downPaymentOptionId", id)}
-        />
-        <GroupError message={errors.downPaymentOptionId} />
-      </fieldset>
-
-      {durations.length > 0 ? (
-        <fieldset>
-          <legend className="label text-base">مدة الدفع</legend>
-          <p className="hint mb-3">المدة اللي تحب تخلّص فيها الباقي بعد التسبقة. القسط الشهري يتحسب حسب كل عرض.</p>
-          <ChipGrid
-            name="duration"
-            options={durations}
-            value={form.durationOptionId}
-            onChange={(id) => update("durationOptionId", id)}
-          />
-          <GroupError message={errors.durationOptionId} />
-        </fieldset>
-      ) : null}
-
-      {budgets.length > 0 ? (
-        <fieldset>
-          <legend className="label text-base">الميزانية (اختياري)</legend>
-          <p className="hint mb-3">الميزانية الجملية اللي تنجم تخصّصها للمشروع.</p>
-          <ChipGrid
-            name="budget"
-            options={budgets}
-            value={form.budgetOptionId}
-            onChange={(id) => update("budgetOptionId", id)}
-            noneLabel={BUDGET_NONE}
-          />
-        </fieldset>
-      ) : null}
-    </div>
-  );
-}
-
 /** Report v3 §40 asks whether the client wants a visit; §14 (decision N-9) records the wish for bank financing. */
 function VisitStep({ form, update }: StepProps) {
   return (
@@ -891,13 +697,7 @@ function ReviewStep({
   update,
   setStep,
   governorates,
-  scenarios,
-  treeCounts,
-  desiredAreas,
   goals,
-  downPayments,
-  durations,
-  budgets,
   contactTimes,
   consentText,
 }: StepProps & RegisterWizardProps & { setStep: (step: number) => void }) {
@@ -917,31 +717,11 @@ function ReviewStep({
         ? "المكان غير مهم"
         : governorates.filter((g) => form.investGovernorateIds.includes(g.id)).map((g) => g.name_ar).join("، "),
     },
+    { step: 3, label: "الهدف", value: label(goals, form.goalOptionId) },
+    { step: 4, label: "زيارة الأرض", value: yesNoLabel(VISIT_CHOICES, form.wantsVisit) },
+    { step: 4, label: "تمويل بنكي", value: yesNoLabel(BANK_CHOICES, form.wantsBankFinancing) },
     {
-      step: 3,
-      label: "شنوّة تحب تملك",
-      value: scenarios.filter((s) => form.scenarioIds.includes(s.id)).map((s) => s.label_ar).join("، ") || "—",
-    },
-    ...(treeCounts.length > 0 || form.treeCountCustom !== null
-      ? [
-          {
-            step: 4,
-            label: "عدد الزيتونات",
-            value: form.treeCountCustom !== null ? `${formatCount(form.treeCountCustom)} زيتونة` : label(treeCounts, form.treeCountOptionId),
-          },
-        ]
-      : []),
-    ...(desiredAreas.length > 0 ? [{ step: 4, label: "المساحة", value: label(desiredAreas, form.desiredAreaOptionId) }] : []),
-    { step: 5, label: "الهدف", value: label(goals, form.goalOptionId) },
-    { step: 6, label: "التسبقة", value: label(downPayments, form.downPaymentOptionId) },
-    ...(durations.length > 0 ? [{ step: 6, label: "مدة الدفع", value: label(durations, form.durationOptionId) }] : []),
-    ...(budgets.length > 0
-      ? [{ step: 6, label: "الميزانية", value: form.budgetOptionId ? label(budgets, form.budgetOptionId) : BUDGET_NONE }]
-      : []),
-    { step: 7, label: "زيارة الأرض", value: yesNoLabel(VISIT_CHOICES, form.wantsVisit) },
-    { step: 7, label: "تمويل بنكي", value: yesNoLabel(BANK_CHOICES, form.wantsBankFinancing) },
-    {
-      step: 8,
+      step: 5,
       label: "التواصل",
       value: [
         form.contactChannel ? CHANNEL_LABELS[form.contactChannel] : null,
@@ -1044,12 +824,14 @@ function GroupError({ message }: { message?: string }) {
 
 function SingleChoice({
   name,
+  legend,
   options,
   value,
   onChange,
   error,
 }: {
   name: string;
+  legend: string;
   options: Option[];
   value: string | null;
   onChange: (id: string) => void;
@@ -1057,7 +839,7 @@ function SingleChoice({
 }) {
   return (
     <fieldset className="space-y-2">
-      <legend className="sr-only">{name}</legend>
+      <legend className="sr-only">{legend}</legend>
       {options.map((option) => (
         <label key={option.id} className="choice">
           <input type="radio" name={name} checked={value === option.id} onChange={() => onChange(option.id)} />
@@ -1066,40 +848,6 @@ function SingleChoice({
       ))}
       <GroupError message={error} />
     </fieldset>
-  );
-}
-
-function ChipGrid({
-  name,
-  options,
-  value,
-  onChange,
-  noneLabel,
-}: {
-  name: string;
-  options: Option[];
-  value: string | null;
-  onChange: (id: string | null) => void;
-  /** Adds a chip for an optional question that clears the answer. */
-  noneLabel?: string;
-}) {
-  return (
-    <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
-      {options.map((option) => (
-        <label key={option.id} className="choice justify-center">
-          <input type="radio" name={name} className="sr-only" checked={value === option.id} onChange={() => onChange(option.id)} />
-          <span className="text-center">
-            <span className="block font-semibold tabular-nums">{option.label_ar}</span>
-          </span>
-        </label>
-      ))}
-      {noneLabel ? (
-        <label className="choice justify-center">
-          <input type="radio" name={name} className="sr-only" checked={value === null} onChange={() => onChange(null)} />
-          <span className="text-center font-semibold">{noneLabel}</span>
-        </label>
-      ) : null}
-    </div>
   );
 }
 
@@ -1138,18 +886,22 @@ function Success({
   requestNo,
   form,
   contactTimes,
-  notice,
+  rows,
+  note,
   headingRef,
 }: {
   requestNo: string;
   form: FormState;
   contactTimes: Option[];
-  notice: string;
+  rows: RecapRow[];
+  note: string;
   headingRef: React.RefObject<HTMLHeadingElement | null>;
 }) {
   const [copied, setCopied] = useState(false);
   const channel = form.contactChannel ? CHANNEL_LABELS[form.contactChannel] : null;
   const time = contactTimes.find((t) => t.id === form.contactTimeOptionId)?.label_ar;
+  // The total price appears only when it was shown in the recap, i.e. while prices were open to this visitor.
+  const recap = SUCCESS_ROWS.flatMap((key) => rows.filter((row) => row.key === key));
 
   return (
     <div className="mx-auto max-w-xl px-4 py-14 text-center sm:px-6">
@@ -1181,12 +933,23 @@ function Success({
         {copied ? "تم نسخ الرقم" : "نسخ الرقم"}
       </button>
 
+      {recap.length > 0 ? (
+        <dl className="mx-auto mt-8 max-w-md divide-y divide-line rounded-2xl border border-line bg-surface px-4 text-start">
+          {recap.map((row) => (
+            <div key={row.key} className="flex items-start justify-between gap-4 py-2.5">
+              <dt className="text-sm text-muted">{row.label}</dt>
+              <dd className="text-end font-semibold text-ink tabular-nums">{row.value}</dd>
+            </div>
+          ))}
+        </dl>
+      ) : null}
+
       <p className="mx-auto mt-6 max-w-md leading-7 text-muted">
         احتفظ بهذا الرقم. سيتصل بك فريق AgriZed
         {channel ? ` عبر ${channel}` : ""}
         {time ? ` (${time})` : ""} عند دراسة طلبك.
       </p>
-      {notice ? <p className="mt-3 text-sm font-medium text-leaf">{notice}</p> : null}
+      {note ? <p className="mt-3 text-sm font-medium text-leaf">{note}</p> : null}
 
       <Link href="/" className="btn btn-secondary mt-8">
         العودة للصفحة الرئيسية

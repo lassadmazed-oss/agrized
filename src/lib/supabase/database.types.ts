@@ -180,6 +180,48 @@ export type Database = {
           },
         ]
       }
+      financing_markups: {
+        Row: {
+          id: string
+          markup_bp: number
+          months: number
+          project_id: string | null
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          id?: string
+          markup_bp: number
+          months: number
+          project_id?: string | null
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          id?: string
+          markup_bp?: number
+          months?: number
+          project_id?: string | null
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "financing_markups_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "financing_markups_updated_by_fkey"
+            columns: ["updated_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       governorates: {
         Row: {
           id: number
@@ -212,6 +254,7 @@ export type Database = {
       }
       interest_requests: {
         Row: {
+          area_per_tree_m2: number | null
           budget_label_ar: string | null
           budget_max_millimes: number | null
           budget_min_millimes: number | null
@@ -225,10 +268,13 @@ export type Database = {
           desired_area_max_m2: number | null
           desired_area_min_m2: number | null
           desired_area_option_id: string | null
-          down_payment_label_ar: string
+          down_payment_amount_millimes: number | null
+          down_payment_label_ar: string | null
           down_payment_max_millimes: number | null
           down_payment_min_millimes: number | null
-          down_payment_option_id: string
+          down_payment_option_id: string | null
+          down_payment_percent: number | null
+          down_payment_percent_option_id: string | null
           duration_label_ar: string | null
           duration_months: number | null
           duration_option_id: string | null
@@ -245,6 +291,7 @@ export type Database = {
           invest_anywhere: boolean
           invest_governorate_ids: number[]
           is_duplicate: boolean
+          monthly_millimes: number | null
           parcel_area_m2: number | null
           parcel_captured_at: string | null
           parcel_cash_price_millimes: number | null
@@ -257,9 +304,11 @@ export type Database = {
           parcel_plantation_system: string | null
           parcel_production_status: string | null
           parcel_property_type: string | null
+          payment_mode: string | null
           person_id: string
           phone_e164: string
           plantation_systems: string[]
+          price_per_tree_millimes: number | null
           priority_code: string | null
           priority_label_ar: string | null
           priority_option_id: string | null
@@ -275,6 +324,11 @@ export type Database = {
           scenario_ids: string[]
           scenario_labels: string[]
           source: Json
+          spacing_class_id: string | null
+          spacing_label_ar: string | null
+          total_area_m2: number | null
+          total_financed_millimes: number | null
+          total_price_millimes: number | null
           tree_count_code: string | null
           tree_count_label_ar: string | null
           tree_count_max: number | null
@@ -285,6 +339,7 @@ export type Database = {
           whatsapp_e164: string | null
         }
         Insert: {
+          area_per_tree_m2?: number | null
           budget_label_ar?: string | null
           budget_max_millimes?: number | null
           budget_min_millimes?: number | null
@@ -298,10 +353,13 @@ export type Database = {
           desired_area_max_m2?: number | null
           desired_area_min_m2?: number | null
           desired_area_option_id?: string | null
-          down_payment_label_ar: string
+          down_payment_amount_millimes?: number | null
+          down_payment_label_ar?: string | null
           down_payment_max_millimes?: number | null
           down_payment_min_millimes?: number | null
-          down_payment_option_id: string
+          down_payment_option_id?: string | null
+          down_payment_percent?: number | null
+          down_payment_percent_option_id?: string | null
           duration_label_ar?: string | null
           duration_months?: number | null
           duration_option_id?: string | null
@@ -318,6 +376,7 @@ export type Database = {
           invest_anywhere?: boolean
           invest_governorate_ids?: number[]
           is_duplicate?: boolean
+          monthly_millimes?: number | null
           parcel_area_m2?: number | null
           parcel_captured_at?: string | null
           parcel_cash_price_millimes?: number | null
@@ -330,9 +389,11 @@ export type Database = {
           parcel_plantation_system?: string | null
           parcel_production_status?: string | null
           parcel_property_type?: string | null
+          payment_mode?: string | null
           person_id: string
           phone_e164: string
           plantation_systems?: string[]
+          price_per_tree_millimes?: number | null
           priority_code?: string | null
           priority_label_ar?: string | null
           priority_option_id?: string | null
@@ -348,6 +409,11 @@ export type Database = {
           scenario_ids?: string[]
           scenario_labels?: string[]
           source?: Json
+          spacing_class_id?: string | null
+          spacing_label_ar?: string | null
+          total_area_m2?: number | null
+          total_financed_millimes?: number | null
+          total_price_millimes?: number | null
           tree_count_code?: string | null
           tree_count_label_ar?: string | null
           tree_count_max?: number | null
@@ -358,6 +424,7 @@ export type Database = {
           whatsapp_e164?: string | null
         }
         Update: {
+          area_per_tree_m2?: number | null
           budget_label_ar?: string | null
           budget_max_millimes?: number | null
           budget_min_millimes?: number | null
@@ -371,10 +438,13 @@ export type Database = {
           desired_area_max_m2?: number | null
           desired_area_min_m2?: number | null
           desired_area_option_id?: string | null
-          down_payment_label_ar?: string
+          down_payment_amount_millimes?: number | null
+          down_payment_label_ar?: string | null
           down_payment_max_millimes?: number | null
           down_payment_min_millimes?: number | null
-          down_payment_option_id?: string
+          down_payment_option_id?: string | null
+          down_payment_percent?: number | null
+          down_payment_percent_option_id?: string | null
           duration_label_ar?: string | null
           duration_months?: number | null
           duration_option_id?: string | null
@@ -391,6 +461,7 @@ export type Database = {
           invest_anywhere?: boolean
           invest_governorate_ids?: number[]
           is_duplicate?: boolean
+          monthly_millimes?: number | null
           parcel_area_m2?: number | null
           parcel_captured_at?: string | null
           parcel_cash_price_millimes?: number | null
@@ -403,9 +474,11 @@ export type Database = {
           parcel_plantation_system?: string | null
           parcel_production_status?: string | null
           parcel_property_type?: string | null
+          payment_mode?: string | null
           person_id?: string
           phone_e164?: string
           plantation_systems?: string[]
+          price_per_tree_millimes?: number | null
           priority_code?: string | null
           priority_label_ar?: string | null
           priority_option_id?: string | null
@@ -421,6 +494,11 @@ export type Database = {
           scenario_ids?: string[]
           scenario_labels?: string[]
           source?: Json
+          spacing_class_id?: string | null
+          spacing_label_ar?: string | null
+          total_area_m2?: number | null
+          total_financed_millimes?: number | null
+          total_price_millimes?: number | null
           tree_count_code?: string | null
           tree_count_label_ar?: string | null
           tree_count_max?: number | null
@@ -455,6 +533,13 @@ export type Database = {
           {
             foreignKeyName: "interest_requests_down_payment_option_id_fkey"
             columns: ["down_payment_option_id"]
+            isOneToOne: false
+            referencedRelation: "option_items"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "interest_requests_down_payment_percent_option_id_fkey"
+            columns: ["down_payment_percent_option_id"]
             isOneToOne: false
             referencedRelation: "option_items"
             referencedColumns: ["id"]
@@ -520,6 +605,13 @@ export type Database = {
             columns: ["residence_governorate_id"]
             isOneToOne: false
             referencedRelation: "governorates"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "interest_requests_spacing_class_id_fkey"
+            columns: ["spacing_class_id"]
+            isOneToOne: false
+            referencedRelation: "tree_spacing_classes"
             referencedColumns: ["id"]
           },
           {
@@ -1460,6 +1552,49 @@ export type Database = {
           },
         ]
       }
+      project_down_payment_percents: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          option_item_id: string
+          project_id: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          option_item_id: string
+          project_id: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          option_item_id?: string
+          project_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "project_down_payment_percents_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "project_down_payment_percents_option_item_id_fkey"
+            columns: ["option_item_id"]
+            isOneToOne: false
+            referencedRelation: "option_items"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "project_down_payment_percents_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       project_media: {
         Row: {
           alt_ar: string
@@ -1510,6 +1645,49 @@ export type Database = {
             columns: ["project_id"]
             isOneToOne: false
             referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      project_spacing_classes: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          project_id: string
+          spacing_class_id: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          project_id: string
+          spacing_class_id: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          project_id?: string
+          spacing_class_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "project_spacing_classes_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "project_spacing_classes_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "project_spacing_classes_spacing_class_id_fkey"
+            columns: ["spacing_class_id"]
+            isOneToOne: false
+            referencedRelation: "tree_spacing_classes"
             referencedColumns: ["id"]
           },
         ]
@@ -1811,6 +1989,179 @@ export type Database = {
           },
         ]
       }
+      tree_cost_items: {
+        Row: {
+          amount_millimes: number
+          basis: string
+          id: string
+          is_active: boolean
+          label_ar: string
+          label_fr: string | null
+          project_id: string | null
+          sort_order: number
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          amount_millimes: number
+          basis: string
+          id?: string
+          is_active?: boolean
+          label_ar: string
+          label_fr?: string | null
+          project_id?: string | null
+          sort_order?: number
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          amount_millimes?: number
+          basis?: string
+          id?: string
+          is_active?: boolean
+          label_ar?: string
+          label_fr?: string | null
+          project_id?: string | null
+          sort_order?: number
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tree_cost_items_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tree_cost_items_updated_by_fkey"
+            columns: ["updated_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      tree_pricing_rules: {
+        Row: {
+          id: string
+          land_price_per_m2_millimes: number | null
+          margin_fixed_millimes: number | null
+          margin_mode: string | null
+          margin_percent_bp: number | null
+          markups_note_ar: string | null
+          monthly_rounding_millimes: number | null
+          note_ar: string | null
+          planting_cost_per_tree_millimes: number | null
+          price_rounding_millimes: number | null
+          project_id: string | null
+          updated_at: string
+          updated_by: string | null
+          use_global_cost_items: boolean
+        }
+        Insert: {
+          id?: string
+          land_price_per_m2_millimes?: number | null
+          margin_fixed_millimes?: number | null
+          margin_mode?: string | null
+          margin_percent_bp?: number | null
+          markups_note_ar?: string | null
+          monthly_rounding_millimes?: number | null
+          note_ar?: string | null
+          planting_cost_per_tree_millimes?: number | null
+          price_rounding_millimes?: number | null
+          project_id?: string | null
+          updated_at?: string
+          updated_by?: string | null
+          use_global_cost_items?: boolean
+        }
+        Update: {
+          id?: string
+          land_price_per_m2_millimes?: number | null
+          margin_fixed_millimes?: number | null
+          margin_mode?: string | null
+          margin_percent_bp?: number | null
+          markups_note_ar?: string | null
+          monthly_rounding_millimes?: number | null
+          note_ar?: string | null
+          planting_cost_per_tree_millimes?: number | null
+          price_rounding_millimes?: number | null
+          project_id?: string | null
+          updated_at?: string
+          updated_by?: string | null
+          use_global_cost_items?: boolean
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tree_pricing_rules_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: true
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tree_pricing_rules_updated_by_fkey"
+            columns: ["updated_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      tree_spacing_classes: {
+        Row: {
+          area_m2: number | null
+          code: string
+          created_at: string
+          id: string
+          is_active: boolean
+          label_ar: string
+          label_fr: string | null
+          row_spacing_m: number
+          sort_order: number
+          tree_spacing_m: number
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          area_m2?: number | null
+          code: string
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          label_ar: string
+          label_fr?: string | null
+          row_spacing_m: number
+          sort_order?: number
+          tree_spacing_m: number
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          area_m2?: number | null
+          code?: string
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          label_ar?: string
+          label_fr?: string | null
+          row_spacing_m?: number
+          sort_order?: number
+          tree_spacing_m?: number
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tree_spacing_classes_updated_by_fkey"
+            columns: ["updated_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       user_roles: {
         Row: {
           granted_at: string
@@ -1851,6 +2202,7 @@ export type Database = {
     Views: {
       crm_requests: {
         Row: {
+          area_per_tree_m2: number | null
           assigned_to: string | null
           assigned_to_name: string | null
           budget_label_ar: string | null
@@ -1866,10 +2218,13 @@ export type Database = {
           desired_area_max_m2: number | null
           desired_area_min_m2: number | null
           desired_area_option_id: string | null
+          down_payment_amount_millimes: number | null
           down_payment_label_ar: string | null
           down_payment_max_millimes: number | null
           down_payment_min_millimes: number | null
           down_payment_option_id: string | null
+          down_payment_percent: number | null
+          down_payment_percent_option_id: string | null
           duration_label_ar: string | null
           duration_months: number | null
           duration_option_id: string | null
@@ -1886,6 +2241,7 @@ export type Database = {
           invest_anywhere: boolean | null
           invest_governorate_ids: number[] | null
           is_duplicate: boolean | null
+          monthly_millimes: number | null
           parcel_area_m2: number | null
           parcel_captured_at: string | null
           parcel_cash_price_millimes: number | null
@@ -1898,10 +2254,12 @@ export type Database = {
           parcel_plantation_system: string | null
           parcel_production_status: string | null
           parcel_property_type: string | null
+          payment_mode: string | null
           person_archived_at: string | null
           person_id: string | null
           phone_e164: string | null
           plantation_systems: string[] | null
+          price_per_tree_millimes: number | null
           priority_code: string | null
           priority_label_ar: string | null
           priority_option_id: string | null
@@ -1917,9 +2275,14 @@ export type Database = {
           scenario_ids: string[] | null
           scenario_labels: string[] | null
           source: Json | null
+          spacing_class_id: string | null
+          spacing_label_ar: string | null
           stage: Database["public"]["Enums"]["lead_stage"] | null
           status_id: string | null
           status_label_ar: string | null
+          total_area_m2: number | null
+          total_financed_millimes: number | null
+          total_price_millimes: number | null
           tree_count_code: string | null
           tree_count_label_ar: string | null
           tree_count_max: number | null
@@ -1954,6 +2317,13 @@ export type Database = {
           {
             foreignKeyName: "interest_requests_down_payment_option_id_fkey"
             columns: ["down_payment_option_id"]
+            isOneToOne: false
+            referencedRelation: "option_items"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "interest_requests_down_payment_percent_option_id_fkey"
+            columns: ["down_payment_percent_option_id"]
             isOneToOne: false
             referencedRelation: "option_items"
             referencedColumns: ["id"]
@@ -2022,6 +2392,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "interest_requests_spacing_class_id_fkey"
+            columns: ["spacing_class_id"]
+            isOneToOne: false
+            referencedRelation: "tree_spacing_classes"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "interest_requests_tree_count_option_id_fkey"
             columns: ["tree_count_option_id"]
             isOneToOne: false
@@ -2078,6 +2455,7 @@ export type Database = {
       crm_search_requests: {
         Args: { p: Json; p_limit?: number; p_offset?: number }
         Returns: {
+          area_per_tree_m2: number
           assigned_to: string
           assigned_to_name: string
           budget_label_ar: string
@@ -2088,8 +2466,10 @@ export type Database = {
           desired_area_label_ar: string
           desired_area_max_m2: number
           desired_area_min_m2: number
+          down_payment_amount_millimes: number
           down_payment_label_ar: string
           down_payment_min_millimes: number
+          down_payment_percent: number
           duration_label_ar: string
           duration_months: number
           full_name: string
@@ -2101,6 +2481,8 @@ export type Database = {
           invest_anywhere: boolean
           invest_governorate_ids: number[]
           is_duplicate: boolean
+          monthly_millimes: number
+          payment_mode: string
           person_id: string
           persons_total: number
           phone_e164: string
@@ -2116,10 +2498,15 @@ export type Database = {
           residence_governorate_id: number
           scenario_labels: string[]
           source: Json
+          spacing_class_id: string
+          spacing_label_ar: string
           stage: Database["public"]["Enums"]["lead_stage"]
           status_id: string
           status_label_ar: string
+          total_area_m2: number
           total_count: number
+          total_financed_millimes: number
+          total_price_millimes: number
           tree_count_code: string
           tree_count_label_ar: string
           tree_count_max: number
@@ -2233,6 +2620,16 @@ export type Database = {
           tree_count: number
         }[]
       }
+      public_tree_quote: {
+        Args: {
+          p_down_percent_option_id?: string
+          p_duration_option_id?: string
+          p_payment_mode?: string
+          p_spacing_class: string
+          p_trees?: number
+        }
+        Returns: Json
+      }
       review_land_offer: {
         Args: {
           p_next_status?: Database["public"]["Enums"]["land_offer_status"]
@@ -2243,11 +2640,61 @@ export type Database = {
         }
         Returns: undefined
       }
+      staff_delete_cost_item: {
+        Args: { p_id: string; p_reason: string }
+        Returns: undefined
+      }
+      staff_delete_pricing_rule: {
+        Args: { p_project: string; p_reason: string }
+        Returns: undefined
+      }
+      staff_delete_spacing_class: {
+        Args: { p_id: string; p_reason: string }
+        Returns: undefined
+      }
       staff_parcel_offer: {
         Args: {
           p_down_option?: string
           p_installment_option?: string
           p_parcel: string
+        }
+        Returns: Json
+      }
+      staff_save_cost_item: {
+        Args: { p: Json; p_reason: string }
+        Returns: string
+      }
+      staff_save_financing_markups: {
+        Args: { p_project: string; p_reason: string; p_rows: Json }
+        Returns: undefined
+      }
+      staff_save_pricing_rule: {
+        Args: { p: Json; p_project: string; p_reason: string }
+        Returns: undefined
+      }
+      staff_save_project_down_percents: {
+        Args: {
+          p_option_item_ids: string[]
+          p_project: string
+          p_reason: string
+        }
+        Returns: undefined
+      }
+      staff_save_project_spacing_classes: {
+        Args: { p_class_ids: string[]; p_project: string; p_reason: string }
+        Returns: undefined
+      }
+      staff_save_spacing_class: {
+        Args: { p: Json; p_reason: string }
+        Returns: string
+      }
+      staff_tree_quote: {
+        Args: {
+          p_down_percent?: number
+          p_months?: number
+          p_project?: string
+          p_spacing_class: string
+          p_trees?: number
         }
         Returns: Json
       }

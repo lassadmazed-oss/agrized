@@ -1,16 +1,25 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 
+import { formatPercent } from "@/components/admin/tree-pricing-inputs";
 import { ADMIN_ROLES, CRM_READ_ROLES, hasRole, requireStaff } from "@/lib/auth";
 import { getPublicConfig, optionsFor } from "@/lib/config";
 import { CHANNEL_LABELS, PLANTATION_LABELS, PRODUCTION_LABELS, STAGE_TONES } from "@/lib/crm";
-import { formatCount, formatDateTime } from "@/lib/format";
+import { formatArea, formatCount, formatDateTime, formatMillimes } from "@/lib/format";
 import { formatPhone } from "@/lib/phone";
 import { createClient } from "@/lib/supabase/server";
 
 import { assignPersons } from "./actions";
 import { BulkAssignBar, SelectAllCheckbox } from "./bulk-assign";
-import { filtersToQuery, filtersToRpc, hasActiveFilters, parseLeadFilters } from "./filters";
+import {
+  downPaymentSummary,
+  filtersToQuery,
+  filtersToRpc,
+  hasActiveFilters,
+  parseLeadFilters,
+  PAYMENT_MODE_LABELS,
+  PAYMENT_MODES,
+} from "./filters";
 
 export const metadata: Metadata = { title: "مطالب الاستثمار" };
 
@@ -28,7 +37,7 @@ export default async function LeadsPage({ searchParams }: PageProps<"/admin/lead
   const supabase = await createClient();
   const config = await getPublicConfig();
 
-  const [search, statuses, commercials] = await Promise.all([
+  const [search, statuses, commercials, spacingClasses] = await Promise.all([
     supabase.rpc("crm_search_requests", {
       p: filtersToRpc(filters, { withPeople: true }),
       p_limit: PAGE_SIZE,
@@ -41,6 +50,8 @@ export default async function LeadsPage({ searchParams }: PageProps<"/admin/lead
           .select("user_id, profile:profiles!user_roles_user_id_fkey(full_name, is_active)")
           .eq("role", "commercial")
       : Promise.resolve({ data: [] as { user_id: string; profile: { full_name: string; is_active: boolean } | null }[] }),
+    // Retired classes stay listed: older demands still carry them.
+    supabase.from("tree_spacing_classes").select("id, label_ar, area_m2, is_active").order("sort_order"),
   ]);
   if (search.error) {
     throw new Error(`CRM search failed: ${search.error.message}`);
@@ -56,13 +67,22 @@ export default async function LeadsPage({ searchParams }: PageProps<"/admin/lead
 
   const governorateName = new Map(config.governorates.map((g) => [g.id, g.name_ar]));
   const delegationName = new Map(config.delegations.map((d) => [d.id, d.name_ar]));
-  const downPayments = optionsFor(config, "down_payment");
-  const installments = optionsFor(config, "monthly_installment");
   const durations = optionsFor(config, "duration").filter((option) => option.min_number !== null);
   const goals = optionsFor(config, "goal");
-  const areas = optionsFor(config, "desired_area").filter((option) => option.min_number !== null);
-  const priorities = optionsFor(config, "priority");
   const plantations = optionsFor(config, "plantation_system");
+  // Option values are the percentages themselves, matched exactly by crm_search_requests.
+  const percentOptions: { value: string; label: string }[] = [];
+  for (const option of optionsFor(config, "down_payment_percent")) {
+    if (option.min_number === null) continue;
+    const value = String(Number(option.min_number));
+    const percentText = formatPercent(value);
+    if (percentOptions.some((known) => known.value === value)) continue;
+    percentOptions.push({ value, label: option.label_ar.replace(/\s/g, "") === percentText ? option.label_ar : `${option.label_ar} · ${percentText}` });
+  }
+  if (filters.down_payment_percent && !percentOptions.some((option) => option.value === filters.down_payment_percent)) {
+    // A percentage retired from the list still finds the demands that chose it.
+    percentOptions.push({ value: filters.down_payment_percent, label: `${formatPercent(filters.down_payment_percent)} (معطّلة)` });
+  }
   const treeOptions = optionsFor(config, "tree_count");
   const openTreeLabel = treeOptions.find((option) => option.min_number === null)?.label_ar;
   const treeValues = new Map<number, string>();
@@ -183,16 +203,17 @@ export default async function LeadsPage({ searchParams }: PageProps<"/admin/lead
             <CheckboxLabel name="include_unsure" checked={filters.include_unsure} label="مع «ما يهمنيش النوع»" />
           </FilterField>
 
-          <RangeField
-            label="المساحة المطلوبة (م²)"
-            nameMin="area_min"
-            nameMax="area_max"
-            min={filters.area_min}
-            max={filters.area_max}
-            options={areas.map((option) => ({ id: option.id, label_ar: option.label_ar, value: String(option.min_number) }))}
-          >
-            <CheckboxLabel name="include_area_any" checked={filters.include_area_any} label="مع «ما عنديش تفضيل»" />
-          </RangeField>
+          <FilterField label="فئة المساحة">
+            <select name="spacing_class_id" defaultValue={filters.spacing_class_id ?? ""} className="field">
+              <option value="">الكل</option>
+              {(spacingClasses.data ?? []).map((spacing) => (
+                <option key={spacing.id} value={spacing.id}>
+                  {spacing.label_ar} · {formatArea(Number(spacing.area_m2))}
+                  {spacing.is_active ? "" : " (معطّلة)"}
+                </option>
+              ))}
+            </select>
+          </FilterField>
 
           <FilterField label="نظام الغراسة">
             <select name="plantation_system" defaultValue={filters.plantation_system ?? ""} className="field">
@@ -216,28 +237,17 @@ export default async function LeadsPage({ searchParams }: PageProps<"/admin/lead
             </select>
           </FilterField>
 
-          <FilterField label="الأهم بالنسبة للحريف">
-            <select name="priority_code" defaultValue={filters.priority_code ?? ""} className="field">
+          {/* Plan Q-1: the down payment is a percentage of the cash total; the amount lists are retired (Q-7). */}
+          <FilterField label="نسبة التسبقة">
+            <select name="down_payment_percent" defaultValue={filters.down_payment_percent ?? ""} className="field">
               <option value="">الكل</option>
-              {priorities.map((option) => (
-                <option key={option.id} value={option.code ?? ""}>
-                  {option.label_ar}
+              {percentOptions.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
                 </option>
               ))}
             </select>
           </FilterField>
-
-          <RangeField
-            label="التسبقة"
-            nameMin="down_min"
-            nameMax="down_max"
-            min={filters.down_min}
-            max={filters.down_max}
-            options={downPayments
-              .filter((option) => option.min_millimes !== null)
-              .map((option) => ({ id: option.id, label_ar: option.label_ar, value: String(option.min_millimes) }))}
-          />
-          {/* Report v3 §44: the duration replaces the installment; older demands still carry an installment. */}
           <RangeField
             label="مدة الدفع"
             nameMin="duration_min"
@@ -246,17 +256,16 @@ export default async function LeadsPage({ searchParams }: PageProps<"/admin/lead
             max={filters.duration_max}
             options={durations.map((option) => ({ id: option.id, label_ar: option.label_ar, value: String(option.min_number) }))}
           />
-          <RangeField
-            label="القسط الشهري (المطالب القديمة)"
-            nameMin="installment_min"
-            nameMax="installment_max"
-            min={filters.installment_min}
-            max={filters.installment_max}
-            options={installments
-              .filter((option) => option.min_millimes !== null)
-              .map((option) => ({ id: option.id, label_ar: option.label_ar, value: String(option.min_millimes) }))}
-          />
-
+          <FilterField label="طريقة الدفع">
+            <select name="payment_mode" defaultValue={filters.payment_mode ?? ""} className="field">
+              <option value="">الكل</option>
+              {PAYMENT_MODES.map((paymentMode) => (
+                <option key={paymentMode} value={paymentMode}>
+                  {PAYMENT_MODE_LABELS[paymentMode]}
+                </option>
+              ))}
+            </select>
+          </FilterField>
           <FilterField label="يحب يزور الأرض">
             <select name="wants_visit" defaultValue={filters.wants_visit ?? ""} className="field">
               <option value="">الكل</option>
@@ -400,7 +409,7 @@ export default async function LeadsPage({ searchParams }: PageProps<"/admin/lead
 
           {/* Desktop table */}
           <div className="hidden overflow-x-auto rounded-2xl border border-line bg-surface md:block">
-            <table className="w-full min-w-[88rem] text-sm">
+            <table className="w-full min-w-[84rem] text-sm">
               <thead className="bg-paper text-xs text-muted">
                 <tr className="text-start">
                   {isAdmin ? (
@@ -412,13 +421,11 @@ export default async function LeadsPage({ searchParams }: PageProps<"/admin/lead
                   <Th>الاسم</Th>
                   <Th>الهاتف</Th>
                   <Th>الزيتونات</Th>
+                  <Th>الفئة والسعر</Th>
                   <Th>الإقامة</Th>
                   <Th>الاستثمار</Th>
                   <Th>يحب يملك</Th>
-                  <Th>المساحة</Th>
-                  <Th>التسبقة</Th>
-                  <Th>مدة الدفع</Th>
-                  <Th>الأهم</Th>
+                  <Th>التسبقة والمدة</Th>
                   <Th>الحالة</Th>
                   <Th>المسؤول</Th>
                 </tr>
@@ -453,6 +460,22 @@ export default async function LeadsPage({ searchParams }: PageProps<"/admin/lead
                       <div className="text-xs text-muted">{CHANNEL_LABELS[row.contact_channel]}</div>
                     </Td>
                     <Td className="whitespace-nowrap font-medium tabular-nums">{row.tree_count_label_ar ?? "—"}</Td>
+                    <Td className="whitespace-nowrap">
+                      {row.spacing_label_ar ? (
+                        <>
+                          <span className="font-medium">{row.spacing_label_ar}</span>
+                          {typeof row.area_per_tree_m2 === "number" ? (
+                            <div className="text-xs text-muted tabular-nums">{formatArea(row.area_per_tree_m2)} للزيتونة</div>
+                          ) : null}
+                        </>
+                      ) : (
+                        "—"
+                      )}
+                      {row.payment_mode ? <div className="text-xs text-muted">{PAYMENT_MODE_LABELS[row.payment_mode] ?? row.payment_mode}</div> : null}
+                      {typeof row.total_price_millimes === "number" ? (
+                        <div className="text-xs tabular-nums">مقدّر: {formatMillimes(row.total_price_millimes)}</div>
+                      ) : null}
+                    </Td>
                     <Td>
                       {governorateName.get(row.residence_governorate_id)}
                       {row.residence_delegation_id ? (
@@ -468,15 +491,10 @@ export default async function LeadsPage({ searchParams }: PageProps<"/admin/lead
                         </div>
                       ) : null}
                     </Td>
-                    <Td className="whitespace-nowrap tabular-nums">{row.desired_area_label_ar ?? "—"}</Td>
                     <Td className="whitespace-nowrap tabular-nums">
-                      {row.down_payment_label_ar}
-                      {row.installment_label_ar ? (
-                        <div className="text-xs text-muted">قسط {row.installment_label_ar} شهرياً</div>
-                      ) : null}
+                      {downPaymentSummary(row.down_payment_percent, row.down_payment_amount_millimes) ?? "—"}
+                      {row.duration_label_ar ? <div className="text-xs text-muted">{row.duration_label_ar}</div> : null}
                     </Td>
-                    <Td className="whitespace-nowrap tabular-nums">{row.duration_label_ar ?? "—"}</Td>
-                    <Td className="max-w-36">{row.priority_label_ar ?? "—"}</Td>
                     <Td>
                       <StatusChip stage={row.stage} label={row.status_label_ar} />
                     </Td>
@@ -502,17 +520,24 @@ export default async function LeadsPage({ searchParams }: PageProps<"/admin/lead
                     <StatusChip stage={row.stage} label={row.status_label_ar} />
                   </div>
                   <p className="mt-2 text-sm font-medium tabular-nums">{row.tree_count_label_ar ?? "عدد الزيتونات: بدون إجابة"}</p>
+                  {row.spacing_label_ar || row.payment_mode || typeof row.total_price_millimes === "number" ? (
+                    <p className="mt-1 text-sm tabular-nums">
+                      {[
+                        row.spacing_label_ar
+                          ? `${row.spacing_label_ar}${typeof row.area_per_tree_m2 === "number" ? ` (${formatArea(row.area_per_tree_m2)} للزيتونة)` : ""}`
+                          : null,
+                        row.payment_mode ? (PAYMENT_MODE_LABELS[row.payment_mode] ?? row.payment_mode) : null,
+                        typeof row.total_price_millimes === "number" ? `مقدّر: ${formatMillimes(row.total_price_millimes)}` : null,
+                      ]
+                        .filter(Boolean)
+                        .join(" · ")}
+                    </p>
+                  ) : null}
                   <p className="mt-1 text-sm text-muted">
                     {investLabel(row)} · {wantsLabel(row)}
                   </p>
-                  <p className="mt-1 text-sm tabular-nums">
-                    {row.desired_area_label_ar ? `${row.desired_area_label_ar} · ` : ""}
-                    {row.down_payment_label_ar} تسبقة
-                    {row.duration_label_ar
-                      ? ` · ${row.duration_label_ar}`
-                      : row.installment_label_ar
-                        ? ` · ${row.installment_label_ar} شهرياً`
-                        : ""}
+                  <p className="mt-1 text-sm tabular-nums empty:hidden">
+                    {[downPaymentSummary(row.down_payment_percent, row.down_payment_amount_millimes), row.duration_label_ar].filter(Boolean).join(" · ")}
                   </p>
                   <p dir="ltr" className="mt-2 text-end text-xs text-muted tabular-nums">
                     {row.request_no} · {formatDateTime(row.created_at)}

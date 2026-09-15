@@ -1,15 +1,34 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useId, useState, type ReactNode } from "react";
+import { useEffect, useId, useRef, useState, type ReactNode } from "react";
 
 import { Bi } from "@/components/site/bilingual";
 import { GrowthIcon } from "@/components/site/growth-icon";
 import { OliveMark, TreeCardBody, treeCardClass } from "@/components/site/tree-card";
 import { toWesternDigits } from "@/lib/digits";
-import { formatCount } from "@/lib/format";
+import { formatArea, formatCount, formatSpacing } from "@/lib/format";
+import type { PaymentMode, SpacingClass, TreeQuote } from "@/lib/tree-pricing";
 
-type TreeOption = { id: string; code: string | null; label_ar: string; label_fr: string | null; min_number: number | null };
+import { quoteStart } from "./actions";
+import {
+  calculatorGap,
+  calculatorQuery,
+  calculatorSummary,
+  type CalculatorChoices,
+  type Line,
+  type SummaryCopy,
+  type SummaryRowKey,
+} from "./calculator-summary";
+
+type TreeOption = {
+  id: string;
+  code: string | null;
+  label_ar: string;
+  label_fr: string | null;
+  min_number: number | null;
+  max_number: number | null;
+};
 type Scenario = {
   id: string;
   code: string;
@@ -33,47 +52,56 @@ export type ValueIconKey = "people" | "leaf" | "hand" | "chart";
 export type ValueItem = { icon: ValueIconKey; ar: string; fr?: string };
 
 /** Every text on the page, resolved from `settings` on the server (MIL-02, PRN-02). */
-export type StartCopy = {
+export type StartCopy = SummaryCopy & {
   title: string;
   titleFr: string;
   subtitle: string;
   subtitleFr: string;
   styleQuestion: string;
   styleQuestionFr: string;
-  capacityTitle: string;
-  capacityTitleFr: string;
-  capacityHint: string;
-  capacityHintFr: string;
   summaryTitle: string;
   summaryTitleFr: string;
-  rowTrees: string;
-  rowTreesFr: string;
-  rowType: string;
-  rowTypeFr: string;
-  rowDown: string;
-  rowDownFr: string;
-  rowDuration: string;
-  rowDurationFr: string;
   continue: string;
   continueFr: string;
   continueHint: string;
   continueHintFr: string;
+  continueHintPayment: string;
+  continueHintPaymentFr: string;
+  continueHintInstallments: string;
+  continueHintInstallmentsFr: string;
   secureNote: string;
   secureNoteFr: string;
   customLabel: string;
   customLabelFr: string;
   customPlaceholder: string;
   customPlaceholderFr: string;
+  /** Contains `{min}` and `{max}`. */
   customHint: string;
   customHintFr: string;
-  treesUnit: string;
-  treesUnitFr: string;
+  spacingTitle: string;
+  spacingTitleFr: string;
+  spacingHint: string;
+  spacingHintFr: string;
+  spacingAny: string;
+  spacingAnyFr: string;
+  paymentTitle: string;
+  paymentTitleFr: string;
+  downPercentTitle: string;
+  downPercentTitleFr: string;
+  downPercentHint: string;
+  downPercentHintFr: string;
+  estimateNote: string;
+  estimateNoteFr: string;
 };
 
 export type StartChooserProps = {
   treeCounts: TreeOption[];
+  /** Offer types (ownership scenarios): one optional question (Q-6). */
   scenarios: Scenario[];
-  downPayments: ChoiceOption[];
+  /** Back Office spacing classes (docs/tree-area-and-cost.md); the question hides while there are none. */
+  spacingClasses: SpacingClass[];
+  /** Q-1: the down payment as a percentage of the cash total. */
+  downPercents: ChoiceOption[];
   /** Report v3 §8: payment durations; the visitor never picks a monthly amount (§6). */
   durations: ChoiceOption[];
   copy: StartCopy;
@@ -81,14 +109,27 @@ export type StartChooserProps = {
   values: ValueItem[];
   customMin: number;
   customMax: number;
-  initialTreeId?: string;
-  initialCustom?: number;
-  initialScenarioId?: string;
-  initialDownId?: string;
-  initialDurationId?: string;
+  /** Answers already in the URL: a home card, or «بدّل اختياراتك» on /register. */
+  initial: CalculatorChoices;
+  /** `visit=1` travels on to /register. */
+  wantsVisit: boolean;
   /** Server-rendered nodes (next/image, breadcrumb links) kept out of the client bundle. */
   breadcrumb: ReactNode;
   photo: ReactNode;
+};
+
+const QUOTE_DEBOUNCE_MS = 250;
+
+/** Rows read out in the status announcement; the rest stay visual so it remains short. */
+const ANNOUNCED: Partial<Record<SummaryRowKey, "value" | "labelled">> = {
+  trees: "value",
+  area_per_tree: "labelled",
+  type: "value",
+  total_price: "labelled",
+  payment: "value",
+  down: "value",
+  duration: "value",
+  monthly: "labelled",
 };
 
 /** §8: a card shows its picture, or its drawing when the Back Office has not uploaded one. */
@@ -118,37 +159,41 @@ function fillLimits(text: string, min: number, max: number): string {
 }
 
 /**
- * The number of olive trees is the entry point of the whole journey (MIL-01): the visitor picks a
- * tier or types a number, may add how they want the grove and what they can pay, and continues to
- * /register with those answers in the URL so nothing is asked twice. Choices come from the Back
- * Office lists (LEAD-01) and the summary repeats them verbatim — never a surface, never a price (PARC-02).
+ * The calculator (MIL-01, P2-6): tree count, area per tree, offer type, then cash or installments with a
+ * down payment percentage and a duration. The answers continue to /register in the URL, so nothing is asked
+ * twice. Choices come from the Back Office lists (LEAD-01); areas and prices come from the database quote.
  */
 export function StartChooser({
   treeCounts,
   scenarios,
-  downPayments,
+  spacingClasses,
+  downPercents,
   durations,
   copy,
   taglines,
   values,
   customMin,
   customMax,
-  initialTreeId,
-  initialCustom,
-  initialScenarioId,
-  initialDownId,
-  initialDurationId,
+  initial,
+  wantsVisit,
   breadcrumb,
   photo,
 }: StartChooserProps) {
-  const [treeId, setTreeId] = useState<string | null>(initialTreeId ?? null);
-  const [custom, setCustom] = useState(initialCustom ? String(initialCustom) : "");
-  const [scenarioId, setScenarioId] = useState<string | null>(initialScenarioId ?? null);
-  const [downId, setDownId] = useState<string | null>(initialDownId ?? null);
-  const [durationId, setDurationId] = useState<string | null>(initialDurationId ?? null);
+  const [treeId, setTreeId] = useState<string | null>(initial.treeId);
+  const [custom, setCustom] = useState(initial.treesCustom !== null ? String(initial.treesCustom) : "");
+  const [spacingId, setSpacingId] = useState<string | null>(initial.spacingId);
+  const [scenarioId, setScenarioId] = useState<string | null>(initial.scenarioId);
+  const [paymentMode, setPaymentMode] = useState<PaymentMode | null>(initial.paymentMode);
+  const [downId, setDownId] = useState<string | null>(initial.downPercentId);
+  const [durationId, setDurationId] = useState<string | null>(initial.durationId);
+  const [quote, setQuote] = useState<TreeQuote | null>(null);
+  const [quoting, setQuoting] = useState(false);
+  const quoteSeq = useRef(0);
   const [announcement, setAnnouncement] = useState("");
   const groupId = useId();
   const customInputId = `${groupId}-custom`;
+  const spacingHintId = `${groupId}-spacing-hint`;
+  const continueHintId = `${groupId}-continue-hint`;
 
   const customNumber = custom === "" ? null : Number(custom);
   const customValid =
@@ -159,9 +204,11 @@ export function StartChooser({
   const chosenTree = treeId ? treeCounts.find((option) => option.id === treeId) : undefined;
   const chosenScenario = scenarioId ? scenarios.find((option) => option.id === scenarioId) : undefined;
   const withPictures = scenarios.some((option) => Boolean(option.image_url));
-  const chosenDown = downId ? downPayments.find((option) => option.id === downId) : undefined;
+  const chosenSpacing = spacingId ? spacingClasses.find((option) => option.id === spacingId) : undefined;
+  const chosenDown = downId ? downPercents.find((option) => option.id === downId) : undefined;
   const chosenDuration = durationId ? durations.find((option) => option.id === durationId) : undefined;
   const hasChoice = Boolean(chosenTree) || customSelected;
+  const installments = paymentMode === "installments";
 
   const pickTier = (id: string) => {
     setTreeId(id);
@@ -174,14 +221,58 @@ export function StartChooser({
     if (digits !== "") setTreeId(null);
   };
 
-  // Only what was actually chosen travels; /register validates each id against the same lists.
-  const params = new URLSearchParams();
-  if (chosenTree) params.set("trees", chosenTree.id);
-  else if (customSelected && customNumber !== null) params.set("trees_custom", String(customNumber));
-  if (scenarioId) params.set("scenario", scenarioId);
-  if (downId) params.set("down", downId);
-  if (durationId) params.set("duration", durationId);
-  const href = `/register?${params}`;
+  const pickSpacing = (id: string | null) => {
+    setSpacingId(id);
+    if (id === null) setQuote(null);
+  };
+
+  // «اقترحولي» has no lower bound, so the quote then carries per-tree figures only.
+  const quoteTrees = chosenTree ? chosenTree.min_number : customSelected ? customNumber : null;
+  const quoteDown = installments ? downId : null;
+  const quoteDuration = installments ? durationId : null;
+
+  useEffect(() => {
+    const seq = ++quoteSeq.current;
+    if (!spacingId) return;
+    const timer = setTimeout(() => {
+      setQuoting(true);
+      quoteStart({
+        spacingClassId: spacingId,
+        trees: quoteTrees,
+        paymentMode,
+        downPercentOptionId: quoteDown,
+        durationOptionId: quoteDuration,
+      })
+        .catch(() => null)
+        .then((result) => {
+          // Server Actions run one after another; only the answer to the latest choice may land.
+          if (seq !== quoteSeq.current) return;
+          setQuote(result);
+          setQuoting(false);
+        });
+    }, QUOTE_DEBOUNCE_MS);
+    return () => clearTimeout(timer);
+  }, [spacingId, quoteTrees, paymentMode, quoteDown, quoteDuration]);
+
+  // Only what was actually chosen travels; /register checks each id against the same lists.
+  const choices: CalculatorChoices = {
+    treeId: chosenTree?.id ?? null,
+    treesCustom: customSelected ? customNumber : null,
+    scenarioId: chosenScenario?.id ?? null,
+    spacingId: chosenSpacing?.id ?? null,
+    paymentMode,
+    downPercentId: chosenDown?.id ?? null,
+    durationId: chosenDuration?.id ?? null,
+  };
+  // /register cannot ask these again, so the button waits until the database would accept the answers.
+  const gap = calculatorGap(choices, { downPercents: downPercents.length, durations: durations.length });
+  const href = `/register?${calculatorQuery(choices, wantsVisit)}`;
+  const gapHint: Line | null =
+    gap === "invalid_payment_mode"
+      ? { ar: copy.continueHintPayment, fr: copy.continueHintPaymentFr || null }
+      : gap === "down_payment_percent_required" || gap === "duration_required"
+        ? { ar: copy.continueHintInstallments, fr: copy.continueHintInstallmentsFr || null }
+        : null;
 
   const customHintAr = fillLimits(copy.customHint, customMin, customMax);
   const customHintFr = fillLimits(copy.customHintFr, customMin, customMax);
@@ -189,19 +280,36 @@ export function StartChooser({
     ? `${copy.customPlaceholder} · ${copy.customPlaceholderFr}`
     : copy.customPlaceholder;
 
-  const treesValueAr = chosenTree
-    ? chosenTree.label_ar
-    : customSelected && customNumber !== null
-      ? `${formatCount(customNumber)} ${copy.treesUnit}`
-      : null;
-  const treesValueFr = chosenTree
-    ? chosenTree.label_fr
-    : customSelected && customNumber !== null && copy.treesUnitFr
-      ? `${formatCount(customNumber)} ${copy.treesUnitFr}`
-      : null;
+  const paymentOptions: ChoiceOption[] = [
+    { id: "cash", label_ar: copy.paymentCash, label_fr: copy.paymentCashFr || null },
+    { id: "installments", label_ar: copy.paymentInstallments, label_fr: copy.paymentInstallmentsFr || null },
+  ];
+
+  // Figures stay on screen while a newer quote loads, dimmed, so the card does not jump.
+  const shownQuote = spacingId ? quote : null;
+  const busy = quoting && spacingId !== null;
+  const summary = calculatorSummary({
+    copy,
+    tree: chosenTree ?? null,
+    treesCustom: choices.treesCustom,
+    scenario: chosenScenario ?? null,
+    withSpacing: spacingClasses.length > 0,
+    areaPerTreeM2: chosenSpacing?.area_m2 ?? null,
+    paymentMode,
+    downPercent: chosenDown ?? null,
+    duration: chosenDuration ?? null,
+    quote: shownQuote,
+  });
 
   // Read the summary out once the visitor pauses, not on every digit typed.
-  const summaryText = [treesValueAr, chosenScenario?.label_ar, chosenDown?.label_ar, chosenDuration?.label_ar]
+  const summaryText = [
+    ...summary.rows.map((row) => {
+      const mode = ANNOUNCED[row.key];
+      if (!mode || !row.value) return null;
+      return mode === "labelled" ? `${row.label.ar}: ${row.value.ar}` : row.value.ar;
+    }),
+    summary.notice?.ar,
+  ]
     .filter(Boolean)
     .join("، ");
   useEffect(() => {
@@ -298,74 +406,138 @@ export function StartChooser({
             </p>
           ) : null}
 
-          {/* 2 · The rest only appears once the first question is answered, so the page never looks like a form.
+          {/* The rest only appears once the first question is answered, so the page never looks like a form.
               It stays while a typed number is being corrected, so earlier answers do not vanish mid-edit. */}
           {hasChoice || custom !== "" ? (
             <>
-              <fieldset className="mt-10">
-                <legend className="font-display text-2xl font-bold text-forest">
-                  <Bi ar={copy.styleQuestion} fr={copy.styleQuestionFr} />
-                </legend>
-                <ul className="mt-4 grid gap-3 sm:grid-cols-2">
-                  {scenarios.map((option) => (
-                    <li key={option.id}>
-                      <label className={`choice h-full items-start ${withPictures ? "sm:flex-col sm:items-stretch" : ""}`}>
+              {/* 2 · The area that goes with each tree. */}
+              {spacingClasses.length > 0 ? (
+                <fieldset className="mt-10" aria-describedby={copy.spacingHint ? spacingHintId : undefined}>
+                  <legend className="font-display text-2xl font-bold text-forest">
+                    <Bi ar={copy.spacingTitle} fr={copy.spacingTitleFr} />
+                  </legend>
+                  {copy.spacingHint ? (
+                    <p id={spacingHintId} className="hint mt-1">
+                      <Bi ar={copy.spacingHint} fr={copy.spacingHintFr} frClassName="text-[0.9em] opacity-85" />
+                    </p>
+                  ) : null}
+                  <ul className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3">
+                    {spacingClasses.map((option) => (
+                      <li key={option.id}>
+                        <label className="choice h-full flex-col items-start justify-start gap-1">
+                          <input
+                            type="radio"
+                            name={`${groupId}-spacing`}
+                            value={option.id}
+                            checked={spacingId === option.id}
+                            onChange={() => pickSpacing(option.id)}
+                            className="sr-only"
+                          />
+                          <span className="block font-semibold leading-snug text-ink">
+                            <Bi ar={option.label_ar} fr={option.label_fr} frClassName="text-[0.85em] text-muted" />
+                          </span>
+                          <span className="block text-sm text-muted tabular-nums">
+                            <Bi
+                              ar={formatSpacing(option.row_spacing_m, option.tree_spacing_m)}
+                              fr={formatSpacing(option.row_spacing_m, option.tree_spacing_m, "m")}
+                              frClassName="text-[0.95em] opacity-85"
+                            />
+                          </span>
+                          <span className="mt-auto block pt-1 font-display text-xl font-bold text-forest tabular-nums">
+                            <Bi ar={formatArea(option.area_m2)} fr={formatArea(option.area_m2, "m²")} frClassName="text-[0.7em] text-muted" />
+                          </span>
+                        </label>
+                      </li>
+                    ))}
+                    <li>
+                      <label className="choice h-full justify-center text-center">
                         <input
                           type="radio"
-                          name={`${groupId}-scenario`}
-                          value={option.id}
-                          checked={scenarioId === option.id}
-                          onChange={() => setScenarioId(option.id)}
+                          name={`${groupId}-spacing`}
+                          value=""
+                          checked={spacingId === null}
+                          onChange={() => pickSpacing(null)}
                           className="sr-only"
                         />
-                        <ScenarioVisual scenario={option} framed={withPictures} />
-                        <span className="min-w-0">
-                          <span className="block font-semibold text-ink">
-                            <Bi ar={option.label_ar} fr={option.label_fr} />
-                          </span>
-                          {option.description_ar ? (
-                            <span className="mt-1 block text-sm leading-6 text-muted">
-                              <Bi ar={option.description_ar} fr={option.description_fr} frClassName="text-[0.9em] opacity-85" />
-                            </span>
-                          ) : null}
+                        <span className="font-semibold text-ink">
+                          <Bi ar={copy.spacingAny} fr={copy.spacingAnyFr} frClassName="text-[0.85em] text-muted" />
                         </span>
                       </label>
                     </li>
-                  ))}
-                </ul>
-              </fieldset>
+                  </ul>
+                </fieldset>
+              ) : null}
 
-              <fieldset className="mt-10">
-                <legend className="font-display text-2xl font-bold text-forest">
-                  <Bi ar={copy.capacityTitle} fr={copy.capacityTitleFr} />
-                </legend>
-                {copy.capacityHint ? (
-                  <p className="hint mt-1">
-                    <Bi ar={copy.capacityHint} fr={copy.capacityHintFr} frClassName="text-[0.9em] opacity-85" />
-                  </p>
-                ) : null}
+              {/* 3 · The offer type, optional (Q-6). */}
+              {scenarios.length > 0 ? (
+                <fieldset className="mt-10">
+                  <legend className="font-display text-2xl font-bold text-forest">
+                    <Bi ar={copy.styleQuestion} fr={copy.styleQuestionFr} />
+                  </legend>
+                  <ul className="mt-4 grid gap-3 sm:grid-cols-2">
+                    {scenarios.map((option) => (
+                      <li key={option.id}>
+                        <label className={`choice h-full items-start ${withPictures ? "sm:flex-col sm:items-stretch" : ""}`}>
+                          <input
+                            type="radio"
+                            name={`${groupId}-scenario`}
+                            value={option.id}
+                            checked={scenarioId === option.id}
+                            onChange={() => setScenarioId(option.id)}
+                            className="sr-only"
+                          />
+                          <ScenarioVisual scenario={option} framed={withPictures} />
+                          <span className="min-w-0">
+                            <span className="block font-semibold text-ink">
+                              <Bi ar={option.label_ar} fr={option.label_fr} />
+                            </span>
+                            {option.description_ar ? (
+                              <span className="mt-1 block text-sm leading-6 text-muted">
+                                <Bi ar={option.description_ar} fr={option.description_fr} frClassName="text-[0.9em] opacity-85" />
+                              </span>
+                            ) : null}
+                          </span>
+                        </label>
+                      </li>
+                    ))}
+                  </ul>
+                </fieldset>
+              ) : null}
+
+              {/* 4 · Cash or installments; installments add a down payment percentage and a duration (report v3 §12). */}
+              <ChipGroup
+                name={`${groupId}-payment`}
+                title={{ ar: copy.paymentTitle, fr: copy.paymentTitleFr || null }}
+                options={paymentOptions}
+                value={paymentMode}
+                onChange={(id) => setPaymentMode(id === "cash" ? "cash" : "installments")}
+                prominent
+                twoColumns
+              />
+              {installments && downPercents.length > 0 ? (
                 <ChipGroup
                   name={`${groupId}-down`}
-                  labelAr={copy.rowDown}
-                  labelFr={copy.rowDownFr}
-                  options={downPayments}
+                  title={{ ar: copy.downPercentTitle, fr: copy.downPercentTitleFr || null }}
+                  hint={{ ar: copy.downPercentHint, fr: copy.downPercentHintFr || null }}
+                  options={downPercents}
                   value={downId}
                   onChange={setDownId}
                 />
+              ) : null}
+              {installments && durations.length > 0 ? (
                 <ChipGroup
                   name={`${groupId}-duration`}
-                  labelAr={copy.rowDuration}
-                  labelFr={copy.rowDurationFr}
+                  title={{ ar: copy.rowDuration, fr: copy.rowDurationFr || null }}
                   options={durations}
                   value={durationId}
                   onChange={setDurationId}
                 />
-              </fieldset>
+              ) : null}
             </>
           ) : null}
         </div>
 
-        {/* 3 · The summary follows the visitor down the page. */}
+        {/* 5 · The result follows the visitor down the page. */}
         <div className="space-y-4 lg:sticky lg:top-24">
           {/* Only where the photo and the summary both fit above the fold, so the button never hides below it. */}
           <div className="hidden [@media(min-width:64rem)_and_(min-height:64rem)]:block">{photo}</div>
@@ -377,41 +549,47 @@ export function StartChooser({
             <p role="status" className="sr-only">
               {announcement}
             </p>
-            {/* PARC-02: only what the visitor picked, never a surface or a price derived from it. */}
-            <dl className="mt-3 divide-y divide-line">
-              <SummaryRow labelAr={copy.rowTrees} labelFr={copy.rowTreesFr} valueAr={treesValueAr} valueFr={treesValueFr} />
-              <SummaryRow
-                labelAr={copy.rowType}
-                labelFr={copy.rowTypeFr}
-                valueAr={chosenScenario?.label_ar ?? null}
-                valueFr={chosenScenario?.label_fr ?? null}
-              />
-              <SummaryRow
-                labelAr={copy.rowDown}
-                labelFr={copy.rowDownFr}
-                valueAr={chosenDown?.label_ar ?? null}
-                valueFr={chosenDown?.label_fr ?? null}
-              />
-              <SummaryRow
-                labelAr={copy.rowDuration}
-                labelFr={copy.rowDurationFr}
-                valueAr={chosenDuration?.label_ar ?? null}
-                valueFr={chosenDuration?.label_fr ?? null}
-              />
+            {/* What the visitor picked, plus the areas and prices the database quoted for it (docs/tree-area-and-cost.md). */}
+            <dl aria-busy={busy || undefined} className={`mt-3 divide-y divide-line transition-opacity ${busy ? "opacity-60" : ""}`}>
+              {summary.rows.map((row) => (
+                <SummaryItem key={row.key} label={row.label} value={row.value} notes={row.notes} />
+              ))}
             </dl>
 
-            {hasChoice ? (
+            {summary.notice?.ar ? (
+              <p className="mt-3 rounded-xl bg-leaf-soft px-3 py-2 text-sm leading-6 text-forest">
+                <Bi ar={summary.notice.ar} fr={summary.notice.fr} frClassName="text-[0.9em] opacity-85" />
+              </p>
+            ) : null}
+            {summary.priced && copy.estimateNote ? (
+              <p className="mt-3 text-xs leading-5 text-muted">
+                <Bi ar={copy.estimateNote} fr={copy.estimateNoteFr} frClassName="text-[0.95em] opacity-85" />
+              </p>
+            ) : null}
+
+            {gap === null ? (
               <Link href={href} className="btn mt-6 min-h-14 w-full bg-gold-bright text-lg text-forest-700 hover:bg-gold-soft">
                 <span>
                   <Bi ar={copy.continue} fr={copy.continueFr} frClassName="text-[0.7em] text-forest-700/80" />
                 </span>
               </Link>
             ) : (
-              <span aria-disabled="true" className="btn mt-6 min-h-14 w-full cursor-not-allowed bg-line text-lg text-muted">
-                <span>
-                  <Bi ar={copy.continue} fr={copy.continueFr} frClassName="text-[0.7em] text-muted" />
+              <>
+                <span
+                  aria-disabled="true"
+                  aria-describedby={gapHint?.ar ? continueHintId : undefined}
+                  className="btn mt-6 min-h-14 w-full cursor-not-allowed bg-line text-lg text-muted"
+                >
+                  <span>
+                    <Bi ar={copy.continue} fr={copy.continueFr} frClassName="text-[0.7em] text-muted" />
+                  </span>
                 </span>
-              </span>
+                {gapHint?.ar ? (
+                  <p id={continueHintId} className="mt-2 text-sm leading-6 text-muted">
+                    <Bi ar={gapHint.ar} fr={gapHint.fr} frClassName="text-[0.9em] opacity-85" />
+                  </p>
+                ) : null}
+              </>
             )}
 
             {copy.secureNote ? (
@@ -442,25 +620,20 @@ export function StartChooser({
   );
 }
 
-function SummaryRow({
-  labelAr,
-  labelFr,
-  valueAr,
-  valueFr,
-}: {
-  labelAr: string;
-  labelFr: string;
-  valueAr: string | null;
-  valueFr?: string | null;
-}) {
+function SummaryItem({ label, value, notes }: { label: Line; value: Line | null; notes: Line[] }) {
   return (
     <div className="flex items-start justify-between gap-4 py-2.5">
       <dt className="text-sm text-muted">
-        <Bi ar={labelAr} fr={labelFr} frClassName="text-[0.85em]" />
+        <Bi ar={label.ar} fr={label.fr} frClassName="text-[0.85em]" />
       </dt>
       {/* The French line is an LTR block, so "start" there is the same edge as "end" of the RTL cell. */}
-      <dd className="text-end font-semibold text-ink">
-        {valueAr ? <Bi ar={valueAr} fr={valueFr} frClassName="text-[0.78em] text-start text-muted" /> : "—"}
+      <dd className="text-end font-semibold text-ink tabular-nums">
+        {value ? <Bi ar={value.ar} fr={value.fr} frClassName="text-[0.78em] text-start text-muted" /> : "—"}
+        {notes.map((note) => (
+          <span key={note.ar} className="mt-1 block text-xs font-normal text-muted">
+            <Bi ar={note.ar} fr={note.fr} frClassName="text-[0.95em] text-start" />
+          </span>
+        ))}
       </dd>
     </div>
   );
@@ -468,25 +641,36 @@ function SummaryRow({
 
 function ChipGroup({
   name,
-  labelAr,
-  labelFr,
+  title,
+  hint,
   options,
   value,
   onChange,
+  prominent = false,
+  twoColumns = false,
 }: {
   name: string;
-  labelAr: string;
-  labelFr: string;
+  title: Line;
+  hint?: Line;
   options: ChoiceOption[];
   value: string | null;
   onChange: (id: string) => void;
+  /** A main question of the page rather than a follow-up of the one above. */
+  prominent?: boolean;
+  twoColumns?: boolean;
 }) {
+  const hintId = `${name}-hint`;
   return (
-    <fieldset className="mt-5">
-      <legend className="label">
-        <Bi ar={labelAr} fr={labelFr} frClassName="text-[0.85em] text-muted" />
+    <fieldset className={prominent ? "mt-10" : "mt-5"} aria-describedby={hint?.ar ? hintId : undefined}>
+      <legend className={prominent ? "font-display text-2xl font-bold text-forest" : "label"}>
+        <Bi ar={title.ar} fr={title.fr} frClassName={prominent ? undefined : "text-[0.85em] text-muted"} />
       </legend>
-      <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+      {hint?.ar ? (
+        <p id={hintId} className="hint mt-1 mb-2">
+          <Bi ar={hint.ar} fr={hint.fr} frClassName="text-[0.9em] opacity-85" />
+        </p>
+      ) : null}
+      <div className={`grid grid-cols-2 gap-2 ${prominent ? "mt-4" : ""} ${twoColumns ? "" : "sm:grid-cols-3"}`}>
         {options.map((option) => (
           <label key={option.id} className="choice justify-center">
             <input

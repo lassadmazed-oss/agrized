@@ -1,5 +1,5 @@
 // Modules that exist in this version of the code. The Back Office refuses to publish the others.
-export const IMPLEMENTED_MODULES = ["interest_form", "simulator_basic", "land_offers", "projects", "public_statistics"] as const;
+export const IMPLEMENTED_MODULES = ["interest_form", "simulator_basic", "land_offers", "projects", "public_statistics", "pricing"] as const;
 
 export const FLAG_STATE_LABELS = {
   disabled: "معطّل",

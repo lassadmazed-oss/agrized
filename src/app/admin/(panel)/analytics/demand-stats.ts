@@ -29,6 +29,16 @@ export type DemandStats = {
   by_down_payment: { label: string; min: number | null; count: number }[];
   by_installment: { label: string; min: number | null; count: number }[];
   by_goal: CountItem[];
+  /** Tree pricing addendum: spacing class and payment mode chosen with the price (id or code null = none). */
+  by_spacing_class: { id: string | null; label: string; area_m2: number | null; count: number }[];
+  by_payment_mode: { code: string | null; count: number }[];
+  /** Plan Q-1: the chosen down payment percentage (percent null = none chosen). */
+  by_down_payment_percent?: { percent: number | string | null; label: string | null; count: number }[];
+  /**
+   * Bands of the setting analytics.total_price_bands_millimes: totals above min and up to max (null = open end), then
+   * «بدون إجابة» with its own label; empty while no bound is set. upper_millimes is the brief's name for max.
+   */
+  by_total_price_band?: { min?: number | null; max?: number | null; upper_millimes?: number | null; label?: string | null; count: number }[];
   by_source: { source: string; count: number }[];
   daily: { day: string; count: number }[];
 };

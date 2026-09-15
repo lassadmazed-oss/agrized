@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 
 import { Wordmark } from "@/components/brand/wordmark";
-import { ADMIN_ROLES, CRM_READ_ROLES, hasRole, LAND_OFFER_ROLES, requireStaff, ROLE_LABELS, type StaffSession } from "@/lib/auth";
+import { ADMIN_ROLES, CRM_READ_ROLES, hasRole, LAND_OFFER_ROLES, PRICE_ROLES, requireStaff, ROLE_LABELS, type StaffSession } from "@/lib/auth";
 
 import { signOut } from "../login/actions";
 
@@ -20,6 +20,7 @@ function navFor(session: StaffSession): NavGroup[] {
   if (hasRole(session, CRM_READ_ROLES)) demand.push({ href: "/admin/analytics", label: "التحليلات وخريطة الطلب" });
   if (hasRole(session, LAND_OFFER_ROLES)) demand.push({ href: "/admin/land-offers", label: "عروض الأراضي" });
   demand.push({ href: "/admin/projects", label: "المشاريع والقطع" });
+  if (hasRole(session, PRICE_ROLES)) demand.push({ href: "/admin/pricing", label: "التسعير" });
   if (demand.length) groups.push({ title: "الطلب والعرض", items: demand });
 
   if (hasRole(session, ADMIN_ROLES)) {

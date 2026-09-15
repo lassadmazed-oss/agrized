@@ -1,6 +1,9 @@
 -- «مشروع المليون زيتونة»: the tree count is snapshotted, and the public counter shows real rows only.
 -- Spec: MIL-01, MIL-02, PARC-02, LEAD-02, LEAD-04.
 
+-- 0032 retires these lists (plan Q-7) but this file submits their items: active again inside this rolled-back test only.
+update public.option_items set is_active = true where list_key in ('desired_area', 'down_payment', 'monthly_installment');
+
 create function pg_temp.payload(p_overrides jsonb) returns jsonb language sql as $$
   select jsonb_build_object(
     'full_name', 'سامي الزيتوني',
