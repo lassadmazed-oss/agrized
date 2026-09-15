@@ -4,8 +4,10 @@ import { revalidatePath, updateTag } from "next/cache";
 import { z } from "zod";
 
 import type { ActionResult } from "@/components/admin/action-form";
+import { GROWTH_ICON_CODES } from "@/components/site/growth-icon";
 import { ADMIN_ROLES, requireStaff } from "@/lib/auth";
 import { PUBLIC_CONFIG_TAG } from "@/lib/config";
+import { isPickedFile, uploadSiteImage } from "@/lib/site-media-upload";
 import { createClient } from "@/lib/supabase/server";
 
 const FAILED: ActionResult = { ok: false, message: "تعذّر الحفظ. تحقق من القيم وحاول مرة أخرى." };
@@ -140,7 +142,10 @@ export async function saveProjectType(typeId: string | null, _previous: ActionRe
   return done("تمت الإضافة.");
 }
 
-/** Clause 25.3: each scenario maps the citizen's words to project type, plantation system and production status. */
+/**
+ * Clause 25.3 and §8: each card maps the citizen's words to project type, plantation system and production
+ * status, and carries its own drawing, optional picture and French copy (PARC-04, MED-01).
+ */
 export async function saveScenario(scenarioId: string | null, _previous: ActionResult, formData: FormData): Promise<ActionResult> {
   await requireStaff(ADMIN_ROLES);
   const labelAr = text(formData, "label_ar", 160);
@@ -157,33 +162,90 @@ export async function saveScenario(scenarioId: string | null, _previous: ActionR
   if (plantation && !["traditional", "intensive", "other"].includes(plantation)) return FAILED;
   if (production && !["none", "starting", "producing"].includes(production)) return FAILED;
 
+  const iconCode = text(formData, "icon_code", 41) || "other";
+  if (!(GROWTH_ICON_CODES as readonly string[]).includes(iconCode)) {
+    return { ok: false, message: "اختر رسم البطاقة من الرسوم المعروضة." };
+  }
+
+  const picked = formData.get("image");
+  const newFile = isPickedFile(picked) ? picked : null;
+  const altAr = text(formData, "image_alt_ar", 160);
+  const altFr = text(formData, "image_alt_fr", 160);
+
+  const supabase = await createClient();
+
+  let code: string;
+  let imageUrl: string | null = null;
+  if (scenarioId) {
+    const { data: current, error: readError } = await supabase
+      .from("ownership_scenarios")
+      .select("code, image_url")
+      .eq("id", scenarioId)
+      .maybeSingle();
+    if (readError) return FAILED;
+    if (!current) return { ok: false, message: "هذا الخيار لم يعد موجوداً. حدّث الصفحة وحاول مرة أخرى." };
+    code = current.code;
+    imageUrl = current.image_url;
+  } else {
+    const parsed = z
+      .string()
+      .regex(/^[a-z][a-z0-9_]{2,40}$/)
+      .safeParse(text(formData, "code", 41));
+    if (!parsed.success) return { ok: false, message: "الرمز التقني بأحرف لاتينية صغيرة وأرقام و«_»، مثال: intensive_grove" };
+    code = parsed.data;
+    // Checked before the upload, so a taken code does not leave an orphan file in the bucket.
+    const { data: taken } = await supabase.from("ownership_scenarios").select("id").eq("code", code).maybeSingle();
+    if (taken) return { ok: false, message: "هذا الرمز مستعمل. اختر رمزاً آخر." };
+  }
+
+  // A picture without alternative text is unusable for a screen reader, and the database refuses it.
+  if ((newFile || imageUrl) && !altAr) {
+    return { ok: false, message: "اكتب وصفاً مختصراً للصورة (نص بديل بالعربية). إلزامي ما دامت للبطاقة صورة." };
+  }
+  if (newFile) {
+    const upload = await uploadSiteImage(supabase, `scenarios/${code}`, newFile);
+    if (!upload.ok) return upload;
+    imageUrl = upload.url;
+  }
+
   const row = {
     label_ar: labelAr,
     label_fr: text(formData, "label_fr", 160) || null,
     description_ar: text(formData, "description_ar", 300) || null,
+    description_fr: text(formData, "description_fr", 300) || null,
     project_type_id: isAny || !projectType ? null : projectType,
     plantation_system: plantation || null,
     production_status: production || null,
     is_any: isAny,
     sort_order: sortOrder(formData),
     is_active: formData.get("is_active") === "on",
+    icon_code: iconCode,
+    image_url: imageUrl,
+    image_alt_ar: altAr || null,
+    image_alt_fr: altFr || null,
   };
 
-  const supabase = await createClient();
   if (scenarioId) {
     const { data, error } = await supabase.from("ownership_scenarios").update(row).eq("id", scenarioId).select("id");
     if (error || !data?.length) return FAILED;
-    return done();
+    return done(newFile ? "تم الحفظ ونشر الصورة في الموقع." : undefined);
   }
 
-  const code = z
-    .string()
-    .regex(/^[a-z][a-z0-9_]{2,40}$/)
-    .safeParse(text(formData, "code", 41));
-  if (!code.success) return { ok: false, message: "الرمز التقني بأحرف لاتينية صغيرة وأرقام و«_»، مثال: intensive_grove" };
-  const { error } = await supabase.from("ownership_scenarios").insert({ ...row, code: code.data });
-  if (error) return error.code === "23505" ? { ok: false, message: "هذا الرمز مستعمل." } : FAILED;
+  const { error } = await supabase.from("ownership_scenarios").insert({ ...row, code });
+  if (error) return error.code === "23505" ? { ok: false, message: "هذا الرمز مستعمل. اختر رمزاً آخر." } : FAILED;
   return done("تمت الإضافة.");
+}
+
+/** Takes the picture off a card; the site shows the card's drawing again (MED-01). */
+export async function clearScenarioImage(scenarioId: string): Promise<void> {
+  await requireStaff(ADMIN_ROLES);
+  const supabase = await createClient();
+  await supabase
+    .from("ownership_scenarios")
+    .update({ image_url: null, image_alt_ar: null, image_alt_fr: null })
+    .eq("id", scenarioId);
+  updateTag(PUBLIC_CONFIG_TAG);
+  revalidatePath("/admin/settings/lists");
 }
 
 const STAGES = ["new", "contacting", "qualified", "proposed", "visit", "reserved", "contracting", "owner", "paused", "closed"] as const;

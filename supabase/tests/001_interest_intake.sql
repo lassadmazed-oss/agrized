@@ -53,7 +53,9 @@ begin
 
   -- Clause 25: the scenario decides the project type, and area and priority are stored as chosen
   assert cardinality(v_req.scenario_ids) = 1, 'the chosen scenario is kept';
-  assert v_req.scenario_labels = array['قطعة فيها زيتون كبير ومنتج'], 'scenario label snapshot';
+  -- The label is whatever the Back Office shows today (0027 renamed the seed), snapshotted as displayed.
+  assert v_req.scenario_labels = array[(select s.label_ar from public.ownership_scenarios s where s.code = 'big_productive')],
+    'scenario label snapshot, got ' || v_req.scenario_labels::text;
   assert v_req.project_type_ids = array[(select id from public.project_types where code = 'productive')],
     'the project type is derived from the scenario';
   assert not v_req.project_type_unsure, 'a mapped scenario is not "unsure"';

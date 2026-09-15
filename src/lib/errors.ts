@@ -34,6 +34,8 @@ const MESSAGES: Record<string, string> = {
   invalid_property_type: "اختر نوع العقار من القائمة.",
   invalid_tree_age: "اختر عمر الأشجار من القائمة.",
   invalid_choice: "أحد الاختيارات غير صحيح. أعد الاختيار من القائمة.",
+  // Raised by app.require_reason in sensitive Back Office RPCs (§51), not by the public intake.
+  reason_required: "سبب التغيير ناقص أو قصير جداً. اكتب في خانة «سبب التغيير» جملة توضّح لماذا تقوم بهذا التغيير، ثم أعد الحفظ.",
 };
 
 const FALLBACK = "تعذّر إرسال الطلب. تحقق من اتصالك وحاول مرة أخرى.";

@@ -1,11 +1,39 @@
 import type { Metadata } from "next";
 
 import { ActionForm } from "@/components/admin/action-form";
+import { GROWTH_ICON_CODES, GrowthIcon, type GrowthIconCode } from "@/components/site/growth-icon";
 import { ADMIN_ROLES, requireStaff } from "@/lib/auth";
 import { PLANTATION_LABELS, PRODUCTION_LABELS, STAGE_LABELS, type LeadStage } from "@/lib/crm";
 import { createClient } from "@/lib/supabase/server";
 
-import { saveLeadStatus, saveOptionItem, saveProjectType, saveScenario } from "./actions";
+import { clearScenarioImage, saveLeadStatus, saveOptionItem, saveProjectType, saveScenario } from "./actions";
+
+const ICON_LABELS: Record<GrowthIconCode, string> = {
+  productive: "زيتونة منتجة",
+  near_production: "قريبة للإنتاج",
+  young_olive: "زيتونة صغيرة",
+  bare_land: "أرض تتغرس",
+  other: "رسم عام",
+};
+
+type ScenarioRow = {
+  id: string;
+  code: string;
+  label_ar: string;
+  label_fr: string | null;
+  description_ar: string | null;
+  description_fr: string | null;
+  project_type_id: string | null;
+  plantation_system: string | null;
+  production_status: string | null;
+  is_any: boolean;
+  sort_order: number;
+  is_active: boolean;
+  icon_code: string | null;
+  image_url: string | null;
+  image_alt_ar: string | null;
+  image_alt_fr: string | null;
+};
 
 export const metadata: Metadata = { title: "القوائم" };
 
@@ -40,7 +68,9 @@ export default async function ListsPage() {
     supabase.from("project_types").select("id, code, label_ar, label_fr, description_ar, sort_order, is_active").order("sort_order"),
     supabase
       .from("ownership_scenarios")
-      .select("id, code, label_ar, label_fr, description_ar, project_type_id, plantation_system, production_status, is_any, sort_order, is_active")
+      .select(
+        "id, code, label_ar, label_fr, description_ar, description_fr, project_type_id, plantation_system, production_status, is_any, sort_order, is_active, icon_code, image_url, image_alt_ar, image_alt_fr",
+      )
       .order("sort_order"),
     supabase.from("lead_statuses").select("id, stage, label_ar, label_fr, sort_order, is_active").order("sort_order"),
   ]);
@@ -62,6 +92,7 @@ export default async function ListsPage() {
   ];
   const orderedLists = [...(lists.data ?? [])].sort((a, b) => listOrder.indexOf(a.key) - listOrder.indexOf(b.key));
   const types = projectTypes.data ?? [];
+  const scenarioRows = (scenarios.data ?? []) as ScenarioRow[];
 
   return (
     <div className="max-w-5xl space-y-10">
@@ -75,82 +106,50 @@ export default async function ListsPage() {
 
       <section className="space-y-3">
         <div>
-          <h2 className="text-lg font-semibold">شنوّة تحب تملك؟ (السيناريوهات)</h2>
+          <h2 className="text-lg font-semibold">كيفاش تحب مشروعك يكون؟ (بطاقات نوع المشروع)</h2>
           <p className="text-sm text-muted">
-            كل خيار يراه المواطن مربوط هنا بنوع مشروع ونظام غراسة وحالة إنتاج. المساحة وعدد الزيتونات والسعر تبقى حقولاً مستقلة في كل قطعة.
+            كل بطاقة يراها المواطن مربوطة هنا بنوع مشروع ونظام غراسة وحالة إنتاج. ما دامت البطاقة بلا صورة يظهر رسمها، والشرح
+            الفارغ لا يُعرض. المساحة وعدد الزيتونات والسعر تبقى حقولاً مستقلة في كل قطعة.
           </p>
         </div>
-        <ul className="space-y-2">
-          {(scenarios.data ?? []).map((scenario) => (
+        <ul className="space-y-3">
+          {scenarioRows.map((scenario) => (
             <li key={scenario.id} className="rounded-2xl border border-line bg-surface p-4">
-              <ActionForm
-                action={saveScenario.bind(null, scenario.id)}
-                submitLabel="حفظ"
-                className="grid gap-3 lg:grid-cols-[1.4fr_1fr_1fr_1fr_5rem_auto_auto] lg:items-end"
-                buttonClassName="btn btn-secondary min-h-11"
-              >
-                <TextInput name="label_ar" label="النص للمواطن" defaultValue={scenario.label_ar} required />
-                <SelectInput
-                  name="project_type_id"
-                  label="نوع المشروع"
-                  defaultValue={scenario.project_type_id ?? ""}
-                  options={[{ value: "", label: "بدون" }, ...types.map((t) => ({ value: t.id, label: t.label_ar }))]}
-                />
-                <SelectInput
-                  name="plantation_system"
-                  label="نظام الغراسة"
-                  defaultValue={scenario.plantation_system ?? ""}
-                  options={[{ value: "", label: "غير محدّد" }, ...Object.entries(PLANTATION_LABELS).map(([value, label]) => ({ value, label }))]}
-                />
-                <SelectInput
-                  name="production_status"
-                  label="حالة الإنتاج"
-                  defaultValue={scenario.production_status ?? ""}
-                  options={[{ value: "", label: "غير محدّدة" }, ...Object.entries(PRODUCTION_LABELS).map(([value, label]) => ({ value, label }))]}
-                />
-                <NumberInput name="sort_order" label="الترتيب" defaultValue={scenario.sort_order} />
-                <CheckboxInput name="is_any" label="ما يهمنيش" defaultChecked={scenario.is_any} />
-                <ActiveToggle defaultChecked={scenario.is_active} />
-                <div className="lg:col-span-7">
-                  <TextInput name="description_ar" label="شرح قصير (اختياري)" defaultValue={scenario.description_ar ?? ""} />
+              <div className="grid gap-4 md:grid-cols-[10rem_1fr]">
+                <div>
+                  <ScenarioPreview scenario={scenario} />
+                  <p dir="ltr" className="mt-2 text-center font-mono text-[0.7rem] text-muted">
+                    {scenario.code}
+                  </p>
+                  {scenario.image_url ? (
+                    <form action={clearScenarioImage.bind(null, scenario.id)} className="mt-2 text-center">
+                      <button type="submit" className="text-sm font-medium text-danger underline-offset-4 hover:underline">
+                        إزالة الصورة
+                      </button>
+                    </form>
+                  ) : null}
                 </div>
-              </ActionForm>
-              <p dir="ltr" className="mt-2 text-end text-xs text-muted lg:text-start">
-                {scenario.code}
-              </p>
+                <ActionForm
+                  action={saveScenario.bind(null, scenario.id)}
+                  submitLabel="حفظ"
+                  className="space-y-3"
+                  buttonClassName="btn btn-secondary min-h-11"
+                >
+                  <ScenarioFields scenario={scenario} types={types} />
+                </ActionForm>
+              </div>
             </li>
           ))}
           <li className="rounded-2xl border border-dashed border-line-strong bg-paper/60 p-4">
-            <p className="mb-2 text-sm font-semibold text-forest">إضافة خيار</p>
+            <p className="mb-2 text-sm font-semibold text-forest">إضافة بطاقة</p>
             <ActionForm
               action={saveScenario.bind(null, null)}
               submitLabel="إضافة"
-              className="grid gap-3 lg:grid-cols-[1.4fr_1fr_1fr_1fr_5rem_auto_auto] lg:items-end"
+              pendingLabel="جارٍ الإضافة…"
+              className="space-y-3"
               buttonClassName="btn btn-primary min-h-11"
             >
-              <TextInput name="label_ar" label="النص للمواطن" required />
-              <SelectInput
-                name="project_type_id"
-                label="نوع المشروع"
-                options={[{ value: "", label: "بدون" }, ...types.map((t) => ({ value: t.id, label: t.label_ar }))]}
-              />
-              <SelectInput
-                name="plantation_system"
-                label="نظام الغراسة"
-                options={[{ value: "", label: "غير محدّد" }, ...Object.entries(PLANTATION_LABELS).map(([value, label]) => ({ value, label }))]}
-              />
-              <SelectInput
-                name="production_status"
-                label="حالة الإنتاج"
-                options={[{ value: "", label: "غير محدّدة" }, ...Object.entries(PRODUCTION_LABELS).map(([value, label]) => ({ value, label }))]}
-              />
-              <NumberInput name="sort_order" label="الترتيب" defaultValue={((scenarios.data ?? []).at(-1)?.sort_order ?? 0) + 10} />
-              <CheckboxInput name="is_any" label="ما يهمنيش" />
-              <ActiveToggle defaultChecked />
-              <div className="lg:col-span-7 lg:grid lg:grid-cols-[1fr_1fr] lg:gap-3">
-                <TextInput name="code" label="الرمز التقني" ltr required placeholder="intensive_grove" />
-                <TextInput name="description_ar" label="شرح قصير (اختياري)" />
-              </div>
+              <ScenarioFields scenario={null} types={types} nextOrder={(scenarioRows.at(-1)?.sort_order ?? 0) + 10} />
             </ActionForm>
           </li>
         </ul>
@@ -300,6 +299,110 @@ export default async function ListsPage() {
           </li>
         </ul>
       </section>
+    </div>
+  );
+}
+
+/** One §8 card: its words, what it maps to, its drawing and its optional picture. */
+function ScenarioFields({
+  scenario,
+  types,
+  nextOrder = 0,
+}: {
+  scenario: ScenarioRow | null;
+  types: { id: string; label_ar: string }[];
+  nextOrder?: number;
+}) {
+  const fileId = `scenario-image-${scenario?.id ?? "new"}`;
+  return (
+    <>
+      <div className="grid gap-3 sm:grid-cols-2">
+        <TextInput name="label_ar" label="النص للمواطن" defaultValue={scenario?.label_ar ?? ""} required />
+        <TextInput name="label_fr" label="بالفرنسية" defaultValue={scenario?.label_fr ?? ""} ltr />
+        <TextInput name="description_ar" label="شرح قصير (اختياري)" defaultValue={scenario?.description_ar ?? ""} />
+        <TextInput name="description_fr" label="الشرح بالفرنسية (اختياري)" defaultValue={scenario?.description_fr ?? ""} ltr />
+      </div>
+
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-[1fr_1fr_1fr_6rem] lg:items-end">
+        <SelectInput
+          name="project_type_id"
+          label="نوع المشروع"
+          defaultValue={scenario?.project_type_id ?? ""}
+          options={[{ value: "", label: "بدون" }, ...types.map((t) => ({ value: t.id, label: t.label_ar }))]}
+        />
+        <SelectInput
+          name="plantation_system"
+          label="نظام الغراسة"
+          defaultValue={scenario?.plantation_system ?? ""}
+          options={[{ value: "", label: "غير محدّد" }, ...Object.entries(PLANTATION_LABELS).map(([value, label]) => ({ value, label }))]}
+        />
+        <SelectInput
+          name="production_status"
+          label="حالة الإنتاج"
+          defaultValue={scenario?.production_status ?? ""}
+          options={[{ value: "", label: "غير محدّدة" }, ...Object.entries(PRODUCTION_LABELS).map(([value, label]) => ({ value, label }))]}
+        />
+        <NumberInput name="sort_order" label="الترتيب" defaultValue={scenario?.sort_order ?? nextOrder} />
+      </div>
+
+      <div className="flex flex-wrap items-end gap-x-6 gap-y-3">
+        {scenario ? null : (
+          <div className="w-60">
+            <TextInput name="code" label="الرمز التقني" ltr required placeholder="near_production" />
+          </div>
+        )}
+        <CheckboxInput name="is_any" label="ما يهمنيش النوع (اقترحولي)" defaultChecked={scenario?.is_any ?? false} />
+        <ActiveToggle defaultChecked={scenario?.is_active ?? true} />
+      </div>
+
+      <fieldset>
+        <legend className="block text-xs text-muted">الرسم، يظهر ما دامت البطاقة بلا صورة</legend>
+        <div className="mt-1 flex flex-wrap gap-2">
+          {GROWTH_ICON_CODES.map((code) => (
+            <label key={code} className="choice min-h-11 gap-2 px-3 py-1.5 text-sm">
+              <input type="radio" name="icon_code" value={code} defaultChecked={(scenario?.icon_code ?? "other") === code} />
+              <GrowthIcon code={code} className="size-6 flex-none text-leaf" />
+              {ICON_LABELS[code]}
+            </label>
+          ))}
+        </div>
+      </fieldset>
+
+      <div className="grid gap-3 lg:grid-cols-3">
+        <div className="space-y-1">
+          <label htmlFor={fileId} className="block text-xs text-muted">
+            صورة البطاقة (اختيارية)
+          </label>
+          <input
+            id={fileId}
+            name="image"
+            type="file"
+            accept="image/jpeg,image/png,image/webp,image/avif"
+            className="field min-h-11 py-2 file:me-3 file:rounded-lg file:border-0 file:bg-leaf-soft file:px-3 file:py-1 file:text-sm file:font-semibold file:text-forest"
+          />
+          <p className="hint">JPG أو PNG أو WEBP أو AVIF، 5 ميغا كحد أقصى. اتركه فارغاً للإبقاء على الصورة الحالية.</p>
+        </div>
+        <TextInput
+          name="image_alt_ar"
+          label="وصف الصورة (نص بديل، إلزامي مع الصورة)"
+          defaultValue={scenario?.image_alt_ar ?? ""}
+          placeholder="مثال: زيتونة كبيرة محمّلة بالزيتون"
+        />
+        <TextInput name="image_alt_fr" label="وصف الصورة بالفرنسية" defaultValue={scenario?.image_alt_fr ?? ""} ltr />
+      </div>
+    </>
+  );
+}
+
+function ScenarioPreview({ scenario }: { scenario: ScenarioRow }) {
+  return (
+    <div className="grid aspect-video w-full place-items-center overflow-hidden rounded-xl border border-line bg-leaf-soft">
+      {scenario.image_url ? (
+        // eslint-disable-next-line @next/next/no-img-element -- admin preview of an uploaded file
+        <img src={scenario.image_url} alt={scenario.image_alt_ar ?? ""} className="size-full object-cover" />
+      ) : (
+        <GrowthIcon code={scenario.icon_code} className="size-12 text-leaf" />
+      )}
     </div>
   );
 }

@@ -6,10 +6,17 @@ import { moduleAccess } from "@/lib/modules";
 
 import { RegisterWizard } from "./register-wizard";
 
-export const metadata: Metadata = {
-  title: "سجّل اهتمامك",
-  description: "سجّل اهتمامك بالاستثمار في الزيتون حسب قدرتك. التسجيل مجاني ولا يمثل التزاماً بالشراء.",
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const config = await getPublicConfig();
+  return {
+    title: settingText(config, "site.register_meta_title", "سجّل مطلبك"),
+    description: settingText(
+      config,
+      "site.register_meta_description",
+      "سجّل مطلبك في مشروع المليون زيتونة: قداش زيتونة، وين، وكيفاش. التسجيل مجاني ولا يمثل التزاماً بالشراء.",
+    ),
+  };
+}
 
 export default async function RegisterPage({ searchParams }: PageProps<"/register">) {
   const config = await getPublicConfig();

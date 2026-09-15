@@ -18,6 +18,9 @@ type Scenario = {
   label_ar: string;
   description_ar: string | null;
   is_any: boolean;
+  icon_code: string | null;
+  image_url: string | null;
+  image_alt_ar: string | null;
 };
 
 type RegisterWizardProps = {
@@ -87,14 +90,6 @@ const CHANNEL_LABELS: Record<ContactChannel, string> = {
   phone: "مكالمة هاتفية",
   whatsapp: "WhatsApp",
   both: "الاثنين",
-};
-
-/** Growth stage icon per seeded scenario; unknown codes fall back to the generic leaf. */
-const SCENARIO_ICONS: Record<string, string> = {
-  big_productive: "productive",
-  intensive_grove: "near_production",
-  bare_land: "bare_land",
-  young_trees: "young_olive",
 };
 
 const DRAFT_KEY = "agrized:register-draft";
@@ -660,7 +655,18 @@ function ScenarioStep({
             checked={form.scenarioIds.includes(scenario.id)}
             onChange={(event) => choose(scenario, event.target.checked)}
           />
-          <GrowthIcon code={SCENARIO_ICONS[scenario.code] ?? "other"} className="size-8 flex-none text-leaf" />
+          {scenario.image_url ? (
+            // eslint-disable-next-line @next/next/no-img-element -- the address is set in the Back Office, its host is not known at build time
+            <img
+              src={scenario.image_url}
+              alt={scenario.image_alt_ar ?? ""}
+              loading="lazy"
+              decoding="async"
+              className="size-16 flex-none rounded-lg object-cover"
+            />
+          ) : (
+            <GrowthIcon code={scenario.icon_code} className="size-8 flex-none text-leaf" />
+          )}
           <span>
             <span className="block font-semibold">{scenario.label_ar}</span>
             {scenario.description_ar ? <span className="mt-0.5 block text-sm text-muted">{scenario.description_ar}</span> : null}

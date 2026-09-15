@@ -47,7 +47,9 @@ const loadPublicConfig = unstable_cache(
           .order("sort_order"),
         supabase
           .from("ownership_scenarios")
-          .select("id, code, label_ar, label_fr, description_ar, project_type_id, plantation_system, production_status, is_any")
+          .select(
+            "id, code, label_ar, label_fr, description_ar, description_fr, project_type_id, plantation_system, production_status, is_any, icon_code, image_url, image_alt_ar, image_alt_fr",
+          )
           .eq("is_active", true)
           .order("sort_order"),
         supabase
@@ -73,7 +75,7 @@ const loadPublicConfig = unstable_cache(
         media: Object.fromEntries((media.data ?? []).map((row) => [row.slot, row])),
       };
     }),
-  ["public-config-v5"],
+  ["public-config-v6"],
   { tags: [PUBLIC_CONFIG_TAG], revalidate: 300 },
 );
 

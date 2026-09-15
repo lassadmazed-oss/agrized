@@ -16,7 +16,12 @@ type Scenario = {
   label_ar: string;
   label_fr: string | null;
   description_ar: string | null;
+  description_fr: string | null;
   is_any: boolean;
+  icon_code: string | null;
+  image_url: string | null;
+  image_alt_ar: string | null;
+  image_alt_fr: string | null;
 };
 type MoneyOption = { id: string; label_ar: string; label_fr: string | null };
 
@@ -87,13 +92,27 @@ export type StartChooserProps = {
   photo: ReactNode;
 };
 
-/** Growth stage icon per seeded scenario; unknown codes fall back to the generic leaf. */
-const SCENARIO_ICONS: Record<string, string> = {
-  big_productive: "productive",
-  intensive_grove: "near_production",
-  bare_land: "bare_land",
-  young_trees: "young_olive",
-};
+/** §8: a card shows its picture, or its drawing when the Back Office has not uploaded one. */
+function ScenarioVisual({ scenario, framed }: { scenario: Scenario; framed: boolean }) {
+  // A thumbnail beside the text on a phone, a banner above it once the cards sit two per row.
+  const box = "size-20 flex-none rounded-xl sm:aspect-video sm:h-auto sm:w-full";
+  if (scenario.image_url) {
+    const alt = [scenario.image_alt_ar, scenario.image_alt_fr].filter(Boolean).join(" · ");
+    return (
+      // eslint-disable-next-line @next/next/no-img-element -- the address is set in the Back Office, its host is not known at build time
+      <img src={scenario.image_url} alt={alt} loading="lazy" decoding="async" className={`${box} object-cover`} />
+    );
+  }
+  if (framed) {
+    // Keeps the rows aligned when only some cards have a picture.
+    return (
+      <span className={`${box} grid place-items-center bg-paper`}>
+        <GrowthIcon code={scenario.icon_code} className="size-10 text-leaf" />
+      </span>
+    );
+  }
+  return <GrowthIcon code={scenario.icon_code} className="size-8 flex-none text-leaf" />;
+}
 
 function fillLimits(text: string, min: number, max: number): string {
   return text.replace(/\{min\}/g, formatCount(min)).replace(/\{max\}/g, formatCount(max));
@@ -140,6 +159,7 @@ export function StartChooser({
 
   const chosenTree = treeId ? treeCounts.find((option) => option.id === treeId) : undefined;
   const chosenScenario = scenarioId ? scenarios.find((option) => option.id === scenarioId) : undefined;
+  const withPictures = scenarios.some((option) => Boolean(option.image_url));
   const chosenDown = downId ? downPayments.find((option) => option.id === downId) : undefined;
   const chosenInstallment = installmentId ? installments.find((option) => option.id === installmentId) : undefined;
   const hasChoice = Boolean(chosenTree) || customSelected;
@@ -290,7 +310,7 @@ export function StartChooser({
                 <ul className="mt-4 grid gap-3 sm:grid-cols-2">
                   {scenarios.map((option) => (
                     <li key={option.id}>
-                      <label className="choice h-full items-start">
+                      <label className={`choice h-full items-start ${withPictures ? "sm:flex-col sm:items-stretch" : ""}`}>
                         <input
                           type="radio"
                           name={`${groupId}-scenario`}
@@ -299,13 +319,15 @@ export function StartChooser({
                           onChange={() => setScenarioId(option.id)}
                           className="sr-only"
                         />
-                        <GrowthIcon code={SCENARIO_ICONS[option.code] ?? "other"} className="size-8 flex-none text-leaf" />
-                        <span>
+                        <ScenarioVisual scenario={option} framed={withPictures} />
+                        <span className="min-w-0">
                           <span className="block font-semibold text-ink">
                             <Bi ar={option.label_ar} fr={option.label_fr} />
                           </span>
                           {option.description_ar ? (
-                            <span className="mt-1 block text-sm leading-6 text-muted">{option.description_ar}</span>
+                            <span className="mt-1 block text-sm leading-6 text-muted">
+                              <Bi ar={option.description_ar} fr={option.description_fr} frClassName="text-[0.9em] opacity-85" />
+                            </span>
                           ) : null}
                         </span>
                       </label>

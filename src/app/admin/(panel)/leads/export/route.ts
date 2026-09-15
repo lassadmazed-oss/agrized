@@ -32,7 +32,8 @@ export async function GET(request: Request) {
 
   const header = [
     "رقم المطلب", "التاريخ", "الاسم", "الهاتف", "ولاية الإقامة", "المعتمدية", "ولايات الاستثمار", "أنواع المشاريع",
-    "يحب يملك", "نظام الغراسة", "حالة الإنتاج", "المساحة المطلوبة", "الأهم بالنسبة إليه",
+    "يحب يملك", "عدد الزيتونات", "الزيتونات (الحد الأدنى)", "الزيتونات (الحد الأقصى)",
+    "نظام الغراسة", "حالة الإنتاج", "المساحة المطلوبة", "الأهم بالنسبة إليه",
     "الهدف", "التسبقة", "القسط الشهري", "طريقة التواصل", "الوقت المفضل", "الحالة", "المسؤول", "مكرّر", "المصدر",
   ];
   const lines = [header.map(csvCell).join(",")];
@@ -62,6 +63,9 @@ export async function GET(request: Request) {
           row.invest_anywhere ? "المكان غير مهم" : row.invest_governorate_ids.map((id) => governorateName.get(id) ?? id).join(" | "),
           row.project_type_unsure ? "لا يعرف" : row.project_type_ids.map((id) => typeName.get(id) ?? id).join(" | "),
           row.scenario_labels.join(" | "),
+          row.tree_count_label_ar ?? "",
+          row.tree_count_min ?? "",
+          row.tree_count_max ?? "",
           row.plantation_systems.map((code) => PLANTATION_LABELS[code] ?? code).join(" | "),
           row.production_statuses.map((code) => PRODUCTION_LABELS[code] ?? code).join(" | "),
           row.desired_area_label_ar ?? "",

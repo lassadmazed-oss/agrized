@@ -1,6 +1,7 @@
 import Link from "next/link";
 
 import { Wordmark } from "@/components/brand/wordmark";
+import { getPublicConfig, settingText, type PublicConfig } from "@/lib/config";
 
 type SiteHeaderProps = {
   tagline: string;
@@ -10,7 +11,19 @@ type SiteHeaderProps = {
   showZitounti: boolean;
 };
 
-export function SiteHeader({ tagline, showInterestCta, showProjects, showZitounti }: SiteHeaderProps) {
+/**
+ * The main call to action (report v3 §17, spec v2 §5): label and target from settings. v2 starts every journey
+ * with the tree question, so anything but an explicit "register" opens /start.
+ */
+export function primaryCta(config: PublicConfig): { label: string; href: "/start" | "/register" } {
+  return {
+    label: settingText(config, "site.cta_primary_label", "سجّل اهتمامك"),
+    href: settingText(config, "site.cta_primary_target", "start") === "register" ? "/register" : "/start",
+  };
+}
+
+export async function SiteHeader({ tagline, showInterestCta, showProjects, showZitounti }: SiteHeaderProps) {
+  const cta = primaryCta(await getPublicConfig());
   const links = [
     { href: "/#million", label: "مشروع المليون زيتونة" },
     { href: "/#how", label: "كيفاش تخدم" },
@@ -42,9 +55,9 @@ export function SiteHeader({ tagline, showInterestCta, showProjects, showZitount
         </nav>
 
         {/* Always reachable while scrolling; on a phone the fixed bar at the bottom takes over. */}
-        {showInterestCta ? (
-          <Link href="/register" className="btn btn-primary ms-auto hidden min-h-11 px-4 text-[0.95rem] md:ms-0 md:inline-flex">
-            سجّل مطلبك
+        {showInterestCta && cta.label ? (
+          <Link href={cta.href} className="btn btn-primary ms-auto hidden min-h-11 px-4 text-[0.95rem] md:ms-0 md:inline-flex">
+            {cta.label}
           </Link>
         ) : null}
       </div>

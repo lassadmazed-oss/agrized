@@ -17,6 +17,7 @@ function navFor(session: StaffSession): NavGroup[] {
 
   const demand = [];
   if (hasRole(session, CRM_READ_ROLES)) demand.push({ href: "/admin/leads", label: "مطالب الاستثمار" });
+  if (hasRole(session, CRM_READ_ROLES)) demand.push({ href: "/admin/analytics", label: "التحليلات وخريطة الطلب" });
   if (hasRole(session, LAND_OFFER_ROLES)) demand.push({ href: "/admin/land-offers", label: "عروض الأراضي" });
   demand.push({ href: "/admin/projects", label: "المشاريع والقطع" });
   if (demand.length) groups.push({ title: "الطلب والعرض", items: demand });

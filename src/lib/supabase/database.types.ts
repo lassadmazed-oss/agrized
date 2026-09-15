@@ -184,6 +184,8 @@ export type Database = {
         Row: {
           id: number
           is_active: boolean
+          map_col: number | null
+          map_row: number | null
           name_ar: string
           name_fr: string
           sort_order: number
@@ -191,6 +193,8 @@ export type Database = {
         Insert: {
           id: number
           is_active?: boolean
+          map_col?: number | null
+          map_row?: number | null
           name_ar: string
           name_fr: string
           sort_order?: number
@@ -198,6 +202,8 @@ export type Database = {
         Update: {
           id?: number
           is_active?: boolean
+          map_col?: number | null
+          map_row?: number | null
           name_ar?: string
           name_fr?: string
           sort_order?: number
@@ -934,7 +940,12 @@ export type Database = {
           code: string
           created_at: string
           description_ar: string | null
+          description_fr: string | null
+          icon_code: string | null
           id: string
+          image_alt_ar: string | null
+          image_alt_fr: string | null
+          image_url: string | null
           is_active: boolean
           is_any: boolean
           label_ar: string
@@ -950,7 +961,12 @@ export type Database = {
           code: string
           created_at?: string
           description_ar?: string | null
+          description_fr?: string | null
+          icon_code?: string | null
           id?: string
+          image_alt_ar?: string | null
+          image_alt_fr?: string | null
+          image_url?: string | null
           is_active?: boolean
           is_any?: boolean
           label_ar: string
@@ -966,7 +982,12 @@ export type Database = {
           code?: string
           created_at?: string
           description_ar?: string | null
+          description_fr?: string | null
+          icon_code?: string | null
           id?: string
+          image_alt_ar?: string | null
+          image_alt_fr?: string | null
+          image_url?: string | null
           is_active?: boolean
           is_any?: boolean
           label_ar?: string
@@ -1958,7 +1979,7 @@ export type Database = {
         Returns: Json
       }
       crm_demand_stats: {
-        Args: { p_from?: string; p_to?: string }
+        Args: { p_from?: string; p_people?: boolean; p_to?: string }
         Returns: Json
       }
       crm_search_requests: {
@@ -1984,6 +2005,7 @@ export type Database = {
           invest_governorate_ids: number[]
           is_duplicate: boolean
           person_id: string
+          persons_total: number
           phone_e164: string
           plantation_systems: string[]
           priority_code: string
@@ -1992,6 +2014,7 @@ export type Database = {
           project_type_ids: string[]
           project_type_unsure: boolean
           request_no: string
+          requests_total: number
           residence_delegation_id: number
           residence_governorate_id: number
           scenario_labels: string[]
@@ -2004,6 +2027,7 @@ export type Database = {
           tree_count_label_ar: string
           tree_count_max: number
           tree_count_min: number
+          trees_total: number
         }[]
       }
       demand_indicator: { Args: { p_governorate: number }; Returns: Json }

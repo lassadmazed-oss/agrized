@@ -18,12 +18,17 @@ const ENTITY_LABELS: Record<string, string> = {
   land_offers: "عروض الأراضي",
   land_offer_reviews: "مراجعات العروض",
   land_offer_files: "ملفات العروض",
+  projects: "المشاريع",
+  parcels: "القطع",
+  project_costs: "التكاليف الداخلية",
   settings: "الإعدادات",
   feature_flags: "الموديولات",
   option_items: "القوائم",
   project_types: "أنواع المشاريع",
+  ownership_scenarios: "سيناريوهات التملّك",
   lead_statuses: "حالات الملفات",
   message_templates: "قوالب الرسائل",
+  site_media: "صور الموقع",
   user_roles: "الأدوار",
   profiles: "المستخدمون",
   governorates: "الولايات",
@@ -104,7 +109,7 @@ export default async function AuditPage({ searchParams }: PageProps<"/admin/audi
     <div className="space-y-6">
       <header>
         <h1 className="font-display text-4xl font-bold text-forest">سجل العمليات</h1>
-        <p className="mt-2 max-w-2xl leading-7 text-muted">من قام بالعملية، متى، وماذا تغيّر. السجل لا يُعدَّل ولا يُحذف.</p>
+        <p className="mt-2 max-w-2xl leading-7 text-muted">من قام بالعملية، متى، ماذا تغيّر، ولماذا. السجل لا يُعدَّل ولا يُحذف.</p>
       </header>
 
       <form method="get" className="grid gap-3 rounded-2xl border border-line bg-surface p-4 sm:grid-cols-2 lg:grid-cols-6">
@@ -150,7 +155,8 @@ export default async function AuditPage({ searchParams }: PageProps<"/admin/audi
 
       <ul className="space-y-2">
         {(logs ?? []).map((log) => {
-          const changes = log.action === "update" ? changedFields(log.old_data, log.new_data) : [];
+          // Named events (e.g. a parcel status change) carry both values too, so they get the same table as updates.
+          const changes = log.old_data && log.new_data ? changedFields(log.old_data, log.new_data) : [];
           return (
             <li key={log.id} className="rounded-xl border border-line bg-surface px-4 py-3 text-sm">
               <div className="flex flex-wrap items-baseline justify-between gap-2">
@@ -174,7 +180,11 @@ export default async function AuditPage({ searchParams }: PageProps<"/admin/audi
                   ) : null}
                 </p>
               </div>
-              {log.reason ? <p className="mt-1 text-muted">السبب: {log.reason}</p> : null}
+              {log.reason ? (
+                <p className="mt-2 rounded-lg bg-paper px-3 py-2 leading-6 break-words">
+                  <span className="font-semibold">السبب:</span> {log.reason}
+                </p>
+              ) : null}
               {changes.length > 0 ? (
                 <div className="mt-2 overflow-x-auto">
                   <table className="w-full min-w-[28rem] text-xs">

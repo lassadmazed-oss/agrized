@@ -1,9 +1,14 @@
+/** Drawings a scenario card can name in `ownership_scenarios.icon_code`; the Back Office offers exactly these. */
+export const GROWTH_ICON_CODES = ["productive", "near_production", "young_olive", "bare_land", "other"] as const;
+export type GrowthIconCode = (typeof GROWTH_ICON_CODES)[number];
+
 type GrowthIconProps = {
-  code: string;
+  /** A scenario's `icon_code`, or a project type code on the home page. Empty or unknown draws the generic leaf. */
+  code: string | null | undefined;
   className?: string;
 };
 
-/** Growth stage of each project type, from bare land to a productive olive tree. */
+/** Growth stage from bare land to a productive olive tree. */
 export function GrowthIcon({ code, className = "size-10" }: GrowthIconProps) {
   const common = {
     viewBox: "0 0 32 32",

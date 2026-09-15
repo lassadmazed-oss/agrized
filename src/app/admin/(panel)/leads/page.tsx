@@ -8,17 +8,21 @@ import { formatCount, formatDateTime } from "@/lib/format";
 import { formatPhone } from "@/lib/phone";
 import { createClient } from "@/lib/supabase/server";
 
+import { assignPersons } from "./actions";
+import { BulkAssignBar, SelectAllCheckbox } from "./bulk-assign";
 import { filtersToQuery, filtersToRpc, hasActiveFilters, parseLeadFilters } from "./filters";
 
 export const metadata: Metadata = { title: "مطالب الاستثمار" };
 
 const PAGE_SIZE = 50;
+const BULK_FORM_ID = "bulk-assign";
 
 export default async function LeadsPage({ searchParams }: PageProps<"/admin/leads">) {
   const session = await requireStaff(CRM_READ_ROLES);
   const isAdmin = hasRole(session, ADMIN_ROLES);
   const params = await searchParams;
   const filters = parseLeadFilters(params);
+  const people = filters.people === true;
   const page = Math.max(1, Number.parseInt(typeof params.page === "string" ? params.page : "1", 10) || 1);
 
   const supabase = await createClient();
@@ -26,7 +30,7 @@ export default async function LeadsPage({ searchParams }: PageProps<"/admin/lead
 
   const [search, statuses, commercials] = await Promise.all([
     supabase.rpc("crm_search_requests", {
-      p: filtersToRpc(filters),
+      p: filtersToRpc(filters, { withPeople: true }),
       p_limit: PAGE_SIZE,
       p_offset: (page - 1) * PAGE_SIZE,
     }),
@@ -43,7 +47,11 @@ export default async function LeadsPage({ searchParams }: PageProps<"/admin/lead
   }
 
   const rows = search.data ?? [];
-  const total = rows[0]?.total_count ?? 0;
+  const firstRow = rows[0];
+  const total = firstRow?.total_count ?? 0;
+  const requestsTotal = firstRow?.requests_total ?? 0;
+  const personsTotal = firstRow?.persons_total ?? 0;
+  const treesTotal = firstRow?.trees_total ?? 0;
   const pageCount = Math.max(1, Math.ceil(total / PAGE_SIZE));
 
   const governorateName = new Map(config.governorates.map((g) => [g.id, g.name_ar]));
@@ -54,6 +62,17 @@ export default async function LeadsPage({ searchParams }: PageProps<"/admin/lead
   const areas = optionsFor(config, "desired_area").filter((option) => option.min_number !== null);
   const priorities = optionsFor(config, "priority");
   const plantations = optionsFor(config, "plantation_system");
+  const treeOptions = optionsFor(config, "tree_count");
+  const openTreeLabel = treeOptions.find((option) => option.min_number === null)?.label_ar;
+  const treeValues = new Map<number, string>();
+  for (const option of treeOptions) {
+    for (const bound of [option.min_number, option.max_number]) {
+      if (bound !== null && !treeValues.has(bound)) treeValues.set(bound, option.label_ar);
+    }
+  }
+  const activeCommercials = (commercials.data ?? [])
+    .filter((c) => c.profile?.is_active)
+    .map((c) => ({ id: c.user_id, name: c.profile?.full_name || "—" }));
 
   const investLabel = (row: (typeof rows)[number]) =>
     row.invest_anywhere
@@ -70,12 +89,12 @@ export default async function LeadsPage({ searchParams }: PageProps<"/admin/lead
           <p className="mt-1 text-muted">
             {hasRole(session, ["commercial"]) && !hasRole(session, ["admin", "super_admin", "finance", "legal"])
               ? "المطالب المسندة إليك."
-              : "كل المطالب المسجّلة، مع البحث حسب الطلب والمساحة والقدرة المالية."}
+              : "كل المطالب المسجّلة، مع البحث حسب عدد الزيتونات والطلب والقدرة المالية."}
           </p>
         </div>
         {isAdmin ? (
-          <a href={`/admin/leads/export?${filtersToQuery(filters)}`} className="btn btn-secondary">
-            تصدير CSV
+          <a href={`/admin/leads/export?${filtersToQuery({ ...filters, people: false })}`} className="btn btn-secondary">
+            تصدير CSV (كل المطالب المطابقة)
           </a>
         ) : null}
       </header>
@@ -86,9 +105,58 @@ export default async function LeadsPage({ searchParams }: PageProps<"/admin/lead
           <span className="text-sm font-normal text-muted group-open:hidden">اضغط لعرض الفلاتر</span>
         </summary>
         <form method="get" action="/admin/leads" className="grid gap-4 border-t border-line px-5 py-5 sm:grid-cols-2 lg:grid-cols-4">
+          {people ? <input type="hidden" name="people" value="1" /> : null}
+
           <FilterField label="بحث" className="sm:col-span-2">
             <input name="q" defaultValue={filters.q} placeholder="الاسم، الهاتف أو رقم المطلب" className="field" />
           </FilterField>
+
+          {/* §47: the olive tree is the unit the demand is expressed in, so it leads the filters. */}
+          <fieldset className="space-y-1.5">
+            <legend className="text-sm font-semibold">عدد الزيتونات</legend>
+            <div className="grid grid-cols-2 gap-2">
+              <input
+                type="number"
+                name="trees_min"
+                min={0}
+                step={1}
+                inputMode="numeric"
+                list="tree-count-values"
+                defaultValue={filters.trees_min}
+                placeholder="من"
+                aria-label="عدد الزيتونات: من"
+                className="field"
+                dir="ltr"
+              />
+              <input
+                type="number"
+                name="trees_max"
+                min={0}
+                step={1}
+                inputMode="numeric"
+                list="tree-count-values"
+                defaultValue={filters.trees_max}
+                placeholder="إلى"
+                aria-label="عدد الزيتونات: إلى"
+                className="field"
+                dir="ltr"
+              />
+            </div>
+            <datalist id="tree-count-values">
+              {[...treeValues.entries()]
+                .sort(([a], [b]) => a - b)
+                .map(([value, label]) => (
+                  <option key={value} value={value}>
+                    {label}
+                  </option>
+                ))}
+            </datalist>
+            <CheckboxLabel
+              name="include_trees_any"
+              checked={filters.include_trees_any}
+              label={openTreeLabel ? `مع «${openTreeLabel}» والمطالب بدون عدد` : "مع المطالب بدون عدد"}
+            />
+          </fieldset>
 
           <FilterField label="ولاية الاستثمار">
             <select name="invest_governorate_id" defaultValue={filters.invest_governorate_id ?? ""} className="field">
@@ -251,9 +319,37 @@ export default async function LeadsPage({ searchParams }: PageProps<"/admin/lead
         </form>
       </details>
 
-      <p className="text-lg">
-        <span className="text-3xl font-semibold text-ink">{formatCount(total)}</span> <span className="text-muted">مطلب مطابق</span>
-      </p>
+      <section aria-label="نتيجة البحث" className="flex flex-wrap items-end justify-between gap-4">
+        <div>
+          <p className="text-lg">
+            <span className="text-3xl font-semibold text-ink tabular-nums">{formatCount(people ? personsTotal : requestsTotal)}</span>{" "}
+            <span className="text-muted">{people ? "شخص مطابق" : "مطلب مطابق"}</span>
+            <span className="text-muted"> · </span>
+            <span className="font-semibold tabular-nums">{formatCount(people ? requestsTotal : personsTotal)}</span>{" "}
+            <span className="text-muted">{people ? "مطلب" : "شخص"}</span>
+            <span className="text-muted"> · </span>
+            <span className="font-semibold tabular-nums">{formatCount(treesTotal)}</span> <span className="text-muted">زيتونة مطلوبة</span>
+          </p>
+          <p className="mt-0.5 text-xs text-muted">الزيتونات: الحد الأدنى لكل اختيار، دون المطالب المكرّرة.</p>
+        </div>
+        <nav aria-label="طريقة العرض" className="flex gap-1 rounded-xl border border-line bg-surface p-1">
+          {[
+            { key: "requests", label: "مطلب في كل سطر", active: !people, href: `/admin/leads?${filtersToQuery({ ...filters, people: false })}` },
+            { key: "people", label: "شخص في كل سطر", active: people, href: `/admin/leads?${filtersToQuery({ ...filters, people: true })}` },
+          ].map((option) => (
+            <Link
+              key={option.key}
+              href={option.href}
+              aria-current={option.active ? "page" : undefined}
+              className={`rounded-lg px-3 py-1.5 text-sm ${
+                option.active ? "bg-forest font-semibold text-paper" : "text-muted hover:bg-paper hover:text-ink"
+              }`}
+            >
+              {option.label}
+            </Link>
+          ))}
+        </nav>
+      </section>
 
       {rows.length === 0 ? (
         <div className="rounded-2xl border border-dashed border-line-strong bg-surface px-6 py-12 text-center text-muted">
@@ -266,14 +362,30 @@ export default async function LeadsPage({ searchParams }: PageProps<"/admin/lead
         </div>
       ) : (
         <>
+          {isAdmin ? (
+            <BulkAssignBar
+              formId={BULK_FORM_ID}
+              action={assignPersons}
+              commercials={activeCommercials}
+              filtersQuery={filtersToQuery({ ...filters, people: false })}
+              matchingPersons={personsTotal}
+            />
+          ) : null}
+
           {/* Desktop table */}
           <div className="hidden overflow-x-auto rounded-2xl border border-line bg-surface md:block">
-            <table className="w-full min-w-[76rem] text-sm">
+            <table className="w-full min-w-[82rem] text-sm">
               <thead className="bg-paper text-xs text-muted">
                 <tr className="text-start">
+                  {isAdmin ? (
+                    <th className="w-10 px-4 py-3">
+                      <SelectAllCheckbox formId={BULK_FORM_ID} label="تحديد كل الملفات في هذه الصفحة" />
+                    </th>
+                  ) : null}
                   <Th>رقم المطلب</Th>
                   <Th>الاسم</Th>
                   <Th>الهاتف</Th>
+                  <Th>الزيتونات</Th>
                   <Th>الإقامة</Th>
                   <Th>الاستثمار</Th>
                   <Th>يحب يملك</Th>
@@ -287,6 +399,18 @@ export default async function LeadsPage({ searchParams }: PageProps<"/admin/lead
               <tbody className="divide-y divide-line">
                 {rows.map((row) => (
                   <tr key={row.id} className="align-top hover:bg-paper/60">
+                    {isAdmin ? (
+                      <td className="px-4 py-3">
+                        <input
+                          type="checkbox"
+                          name="person_ids"
+                          value={row.person_id}
+                          form={BULK_FORM_ID}
+                          aria-label={`تحديد ملف ${row.full_name}`}
+                          className="size-4 accent-forest"
+                        />
+                      </td>
+                    ) : null}
                     <Td>
                       <Link href={`/admin/leads/${row.person_id}`} dir="ltr" className="font-semibold text-forest underline-offset-4 hover:underline">
                         {row.request_no}
@@ -301,6 +425,7 @@ export default async function LeadsPage({ searchParams }: PageProps<"/admin/lead
                       </span>
                       <div className="text-xs text-muted">{CHANNEL_LABELS[row.contact_channel]}</div>
                     </Td>
+                    <Td className="whitespace-nowrap font-medium tabular-nums">{row.tree_count_label_ar ?? "—"}</Td>
                     <Td>
                       {governorateName.get(row.residence_governorate_id)}
                       {row.residence_delegation_id ? (
@@ -346,7 +471,8 @@ export default async function LeadsPage({ searchParams }: PageProps<"/admin/lead
                     </div>
                     <StatusChip stage={row.stage} label={row.status_label_ar} />
                   </div>
-                  <p className="mt-2 text-sm text-muted">
+                  <p className="mt-2 text-sm font-medium tabular-nums">{row.tree_count_label_ar ?? "عدد الزيتونات: بدون إجابة"}</p>
+                  <p className="mt-1 text-sm text-muted">
                     {investLabel(row)} · {wantsLabel(row)}
                   </p>
                   <p className="mt-1 text-sm tabular-nums">

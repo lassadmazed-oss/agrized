@@ -173,6 +173,9 @@ export default async function LeadDetailPage({ params }: PageProps<"/admin/leads
                   </p>
                 </div>
                 <dl className="mt-4 grid gap-x-6 gap-y-3 text-sm sm:grid-cols-2">
+                  <Item label="عدد الزيتونات">
+                    <span className="tabular-nums">{request.tree_count_label_ar ?? "بدون إجابة"}</span>
+                  </Item>
                   <Item label="مكان الاستثمار">
                     {request.invest_anywhere
                       ? "المكان غير مهم"

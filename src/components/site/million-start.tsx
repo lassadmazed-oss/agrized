@@ -7,24 +7,28 @@ type TreeOption = { id: string; code: string | null; label_ar: string; min_numbe
 type MillionStartProps = {
   treeCounts: TreeOption[];
   treesQuestion: string;
-  /** `start.tier_taglines`, keyed by tree_count code; only the Arabic line is used here. */
+  /** Line under the question; hidden when the setting is empty. */
+  subtitle: string;
+  /** `start.tier_taglines`, keyed by tree_count code ("custom" for the free number); only the Arabic line is used here. */
   taglines: Record<string, { ar: string; fr?: string }>;
-  /** «عدد آخر؟» text under the grid; hidden when the setting is empty. */
+  /** «عدد آخر» card closing the row (spec v2 §7); hidden when the setting is empty. */
+  otherCardLabel: string;
+  /** «عدد آخر؟» text under the grid, shown only when the card is hidden so the same choice is not offered twice. */
   otherLink: string;
 };
 
 /**
  * The tree question on the home page (MIL-01). Clicking a card is the next step: it opens /start
- * with that tier selected, where the rest of the choice happens.
+ * with that tier selected, or on the free-number field for «عدد آخر», where the rest of the choice happens.
  */
-export function MillionStart({ treeCounts, treesQuestion, taglines, otherLink }: MillionStartProps) {
+export function MillionStart({ treeCounts, treesQuestion, subtitle, taglines, otherCardLabel, otherLink }: MillionStartProps) {
   return (
     <section id="start" className="scroll-mt-20 bg-forest text-paper">
       <div className="mx-auto max-w-6xl px-4 py-16 sm:px-6">
         <h2 className="font-display text-3xl font-bold sm:text-4xl">{treesQuestion}</h2>
-        <p className="mt-2 text-paper/75">اختيارك يمشي معك للخطوة الموالية. تنجم تبدّلو وقت اللي تحب.</p>
+        {subtitle ? <p className="mt-2 text-paper/75">{subtitle}</p> : null}
 
-        <ul className="mt-7 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-7">
+        <ul className="mt-7 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
           {treeCounts.map((option) => (
             <li key={option.id}>
               <Link href={`/start?trees=${option.id}`} className={treeCardClass(false, "dark")}>
@@ -37,9 +41,16 @@ export function MillionStart({ treeCounts, treesQuestion, taglines, otherLink }:
               </Link>
             </li>
           ))}
+          {otherCardLabel ? (
+            <li>
+              <Link href="/start#custom" className={treeCardClass(false, "dark")}>
+                <TreeCardBody labelAr={otherCardLabel} taglineAr={taglines.custom?.ar} tone="dark" />
+              </Link>
+            </li>
+          ) : null}
         </ul>
 
-        {otherLink ? (
+        {!otherCardLabel && otherLink ? (
           <Link
             href="/start#custom"
             className="mt-6 inline-block font-semibold text-gold-bright underline-offset-4 hover:underline"

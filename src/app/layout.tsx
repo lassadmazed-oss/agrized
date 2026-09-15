@@ -1,6 +1,8 @@
 import type { Metadata, Viewport } from "next";
 import { IBM_Plex_Sans_Arabic, Markazi_Text } from "next/font/google";
 
+import { getPublicConfig, settingText } from "@/lib/config";
+
 import "./globals.css";
 
 const plexArabic = IBM_Plex_Sans_Arabic({
@@ -16,24 +18,34 @@ const markazi = Markazi_Text({
   display: "swap",
 });
 
-const description =
-  "AgriZed منصة تونسية تسهّل الاستثمار في الزيتون والأراضي الفلاحية حسب القدرة المالية لكل شخص. سجّل اهتمامك مجاناً.";
+/** Site title and description from settings (spec v2 §5, §53, §59): no investment wording in code. */
+export async function generateMetadata(): Promise<Metadata> {
+  // Metadata wraps every page, the Back Office included, so a configuration outage must not take them down.
+  const config = await getPublicConfig().catch(() => null);
+  const text = (key: string, fallback: string) => (config ? settingText(config, key, fallback) : fallback) || fallback;
 
-export const metadata: Metadata = {
-  title: {
-    default: "AgriZed · استثمر في الزيتون حسب قدرتك",
-    template: "%s · AgriZed",
-  },
-  description,
-  applicationName: "AgriZed",
-  openGraph: {
-    type: "website",
-    locale: "ar_TN",
-    siteName: "AgriZed",
-    title: "AgriZed · استثمر في الزيتون حسب قدرتك",
+  const title = text("site.meta_title", "AgriZed · مشروع المليون زيتونة");
+  const description = text(
+    "site.meta_description",
+    "كل واحد فينا ينجم يكون فاعل في مشروع المليون زيتونة حسب مقدرته. اختار قداش زيتونة تحب تبدأ بيهم، وإحنا نرافقوك في الباقي.",
+  );
+
+  return {
+    title: {
+      default: title,
+      template: "%s · AgriZed",
+    },
     description,
-  },
-};
+    applicationName: "AgriZed",
+    openGraph: {
+      type: "website",
+      locale: "ar_TN",
+      siteName: "AgriZed",
+      title,
+      description,
+    },
+  };
+}
 
 export const viewport: Viewport = {
   themeColor: "#1f4a2c",

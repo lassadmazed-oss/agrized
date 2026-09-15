@@ -2,8 +2,9 @@ import Link from "next/link";
 
 import { Wordmark } from "@/components/brand/wordmark";
 import { GrowthIcon } from "@/components/site/growth-icon";
-import { MillionCounter } from "@/components/site/million-counter";
+import { MillionCounter, millionCounterCopy } from "@/components/site/million-counter";
 import { MillionStart } from "@/components/site/million-start";
+import { primaryCta } from "@/components/site/site-header";
 import { SitePhoto } from "@/components/site/site-photo";
 import { flagState, getPublicConfig, optionsFor, settingJson, settingText } from "@/lib/config";
 import { getMillionProgress } from "@/lib/million";
@@ -17,7 +18,10 @@ type ParcelExample = { title: string; area: string; trees: string; system: strin
 export const revalidate = 60;
 
 export default async function HomePage() {
-  const [config, progress] = await Promise.all([getPublicConfig(), getMillionProgress()]);
+  const config = await getPublicConfig();
+  // §54: this page is prerendered for everyone, so reading the session for an "internal" preview would break
+  // its regeneration; only a public module shows here, and million_progress() refuses visitors otherwise.
+  const progress = flagState(config, "public_statistics") === "public" ? await getMillionProgress() : null;
 
   const interestOpen = flagState(config, "interest_form") === "public";
   const simulatorOpen = flagState(config, "simulator_basic") === "public";
@@ -29,6 +33,13 @@ export default async function HomePage() {
   const parcels = settingJson<ParcelExample[]>(config, "site.parcel_examples", []);
   const notice = settingText(config, "site.free_interest_notice");
   const treeCounts = optionsFor(config, "tree_count");
+  // Report v3 §17: the main button opens the tree question first (v2 §5). «شوف العروض» replaces the steps link
+  // only once offers are public, so it never leads to a «قريباً» page.
+  const cta = primaryCta(config);
+  const offersLabel = flagState(config, "projects") === "public" ? settingText(config, "site.cta_offers_label") : "";
+  const secondaryCta: { label: string; href: "/projects" | "/#how" } = offersLabel
+    ? { label: offersLabel, href: "/projects" }
+    : { label: settingText(config, "site.cta_secondary_label", "اكتشف كيفاش تخدم AgriZed"), href: "/#how" };
 
   return (
     <>
@@ -54,20 +65,22 @@ export default async function HomePage() {
               </p>
 
               <div className="mt-8 flex flex-wrap items-center gap-3">
-                {interestOpen ? (
+                {interestOpen && cta.label ? (
                   <Link
-                    href="/register"
+                    href={cta.href}
                     className="btn min-h-14 bg-gold-bright px-8 text-lg text-forest-700 hover:bg-gold-soft"
                   >
-                    سجّل مطلبك
+                    {cta.label}
                   </Link>
                 ) : null}
-                <Link
-                  href="/#how"
-                  className="btn min-h-14 border-2 border-paper/40 px-6 text-paper hover:border-paper hover:bg-paper/10"
-                >
-                  اكتشف كيفاش تخدم AgriZed
-                </Link>
+                {secondaryCta.label ? (
+                  <Link
+                    href={secondaryCta.href}
+                    className="btn min-h-14 border-2 border-paper/40 px-6 text-paper hover:border-paper hover:bg-paper/10"
+                  >
+                    {secondaryCta.label}
+                  </Link>
+                ) : null}
               </div>
 
               {notice ? <p className="mt-4 text-sm font-medium text-paper/85">{notice}</p> : null}
@@ -76,14 +89,8 @@ export default async function HomePage() {
         </div>
       </section>
 
-      {/* 02 · Where the project stands. Counts of real rows only. */}
-      {progress ? (
-        <MillionCounter
-          progress={progress}
-          title={settingText(config, "site.progress_title", "وين وصلنا؟")}
-          note={settingText(config, "site.progress_note")}
-        />
-      ) : null}
+      {/* 02 · Where the project stands. Counts of real rows only, one tile per stage (spec v2 §6). */}
+      {progress ? <MillionCounter progress={progress} copy={millionCounterCopy(config)} /> : null}
 
       {/* 03 · The million starts with one olive tree */}
       <section className="mx-auto max-w-6xl px-4 py-16 sm:px-6">
@@ -109,12 +116,18 @@ export default async function HomePage() {
         </div>
       </section>
 
-      {/* 04 · The tree question; a card click opens /start with that tier chosen (MIL-01) */}
+      {/* 04 · The tree question; a card click opens /start with that tier chosen (MIL-01, spec v2 §7) */}
       {interestOpen && treeCounts.length > 0 ? (
         <MillionStart
           treeCounts={treeCounts}
           treesQuestion={settingText(config, "site.trees_question", "قدّاش زيتونة تحب تبدا بيهم؟")}
+          subtitle={settingText(
+            config,
+            "site.trees_subtitle",
+            "اختيارك يمشي معك للخطوة الموالية. تنجم تبدّلو وقت اللي تحب.",
+          )}
           taglines={settingJson(config, "start.tier_taglines", {})}
+          otherCardLabel={settingText(config, "site.trees_other_card_label", "عدد آخر")}
           otherLink={settingText(config, "site.trees_other_link")}
         />
       ) : null}
@@ -303,9 +316,11 @@ export default async function HomePage() {
             <h2 className="font-display text-3xl font-bold text-balance text-forest sm:text-4xl">
               {settingText(config, "site.final_cta_title", "سجّل مطلبك في مشروع المليون زيتونة")}
             </h2>
-            <Link href="/register" className="btn btn-primary mt-7 min-h-14 px-10 text-lg">
-              سجّل مطلبك
-            </Link>
+            {cta.label ? (
+              <Link href={cta.href} className="btn btn-primary mt-7 min-h-14 px-10 text-lg">
+                {cta.label}
+              </Link>
+            ) : null}
             <p className="mt-3 text-sm text-muted">{settingText(config, "site.final_cta_note")}</p>
           </div>
         </section>

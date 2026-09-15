@@ -6,45 +6,9 @@ import { ADMIN_ROLES, CRM_READ_ROLES, hasRole, LAND_OFFER_ROLES, requireStaff } 
 import { formatCount } from "@/lib/format";
 import { createClient } from "@/lib/supabase/server";
 
+import { daysAgo, RANGES, resolveRange, type DemandStats } from "./analytics/demand-stats";
+
 export const metadata: Metadata = { title: "لوحة القيادة" };
-
-type DemandStats = {
-  requests: number;
-  persons: number;
-  duplicates: number;
-  today: number;
-  last_7_days: number;
-  anywhere: number;
-  unsure_type: number;
-  by_invest_governorate: { id: number; name: string; count: number }[];
-  by_project_type: { id: string; name: string; count: number }[];
-  by_scenario: { id: string; name: string; count: number }[];
-  by_desired_area: { label: string; min: number | null; count: number }[];
-  by_priority: { label: string; count: number }[];
-  by_plantation_system: { code: string; name: string; count: number }[];
-  by_down_payment: { label: string; min: number | null; count: number }[];
-  by_installment: { label: string; min: number | null; count: number }[];
-  by_goal: { label: string; count: number }[];
-  by_source: { source: string; count: number }[];
-  daily: { day: string; count: number }[];
-};
-
-const RANGES = [
-  { key: "all", label: "كل الفترة", days: null },
-  { key: "7d", label: "آخر 7 أيام", days: 7 },
-  { key: "30d", label: "آخر 30 يوماً", days: 30 },
-  { key: "90d", label: "آخر 90 يوماً", days: 90 },
-] as const;
-
-function tunisToday(): string {
-  return new Intl.DateTimeFormat("en-CA", { timeZone: "Africa/Tunis" }).format(new Date());
-}
-
-function daysAgo(isoDate: string, days: number): string {
-  const date = new Date(`${isoDate}T00:00:00Z`);
-  date.setUTCDate(date.getUTCDate() - (days - 1));
-  return date.toISOString().slice(0, 10);
-}
 
 export default async function DashboardPage({ searchParams }: PageProps<"/admin">) {
   const session = await requireStaff();
@@ -54,9 +18,7 @@ export default async function DashboardPage({ searchParams }: PageProps<"/admin"
   const isAdmin = hasRole(session, ADMIN_ROLES);
   const ownFilesOnly = hasRole(session, ["commercial"]) && !hasRole(session, ["admin", "super_admin", "finance", "legal"]);
 
-  const range = RANGES.find((r) => r.key === params.range) ?? RANGES[0];
-  const today = tunisToday();
-  const rangeFrom = range.days ? daysAgo(today, range.days) : null;
+  const { range, from: rangeFrom, today } = resolveRange(params.range);
 
   const supabase = await createClient();
   const endOfToday = new Date(`${today}T23:59:59+01:00`).toISOString();
@@ -81,6 +43,7 @@ export default async function DashboardPage({ searchParams }: PageProps<"/admin"
 
   const stats = (overall?.data ?? null) as DemandStats | null;
   const breakdown = ((ranged?.data ?? overall?.data) ?? null) as DemandStats | null;
+  const analyticsHref = range.key === "all" ? "/admin/analytics" : `/admin/analytics?range=${range.key}`;
 
   const attention = [
     isAdmin ? { label: "ملفات بدون مسؤول", value: unassigned?.count ?? 0, href: "/admin/leads?assigned_to=none" } : null,
@@ -129,8 +92,10 @@ export default async function DashboardPage({ searchParams }: PageProps<"/admin"
 
       {stats ? (
         <>
-          <section aria-label="الأرقام الأساسية" className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+          {/* §46: Total Leads and Olive trees requested lead the dashboard. */}
+          <section aria-label="الأرقام الأساسية" className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
             <StatTile label="مطالب الاستثمار" value={stats.requests} note={`${formatCount(stats.duplicates)} منها مكرّرة`} />
+            <StatTile label="زيتونات مطلوبة" value={stats.trees_total} note="الحد الأدنى لكل اختيار، دون المطالب المكرّرة" />
             <StatTile label="أشخاص" value={stats.persons} note="رقم هاتف واحد لكل شخص" />
             <StatTile label="اليوم" value={stats.today} />
             <StatTile label="آخر 7 أيام" value={stats.last_7_days} />
@@ -162,8 +127,33 @@ export default async function DashboardPage({ searchParams }: PageProps<"/admin"
                 </nav>
               </div>
               <p className="text-sm text-muted">
-                {formatCount(breakdown.requests)} مطلب في هذه الفترة. الأرقام أدناه تخص الفترة المختارة.
+                {formatCount(breakdown.requests)} مطلب و{formatCount(breakdown.trees_total)} زيتونة مطلوبة في هذه الفترة. الأرقام أدناه تخص
+                الفترة المختارة.
               </p>
+
+              <div className="grid gap-4 xl:grid-cols-2">
+                <ChartCard title="عدد الزيتونات المطلوبة" subtitle="عدد المطالب حسب اختيار عدد الزيتونات.">
+                  <BarList
+                    items={breakdown.by_tree_count.map((bucket) => ({ key: bucket.code ?? "none", label: bucket.label, count: bucket.count }))}
+                    total={breakdown.requests}
+                  />
+                </ChartCard>
+                <ChartCard
+                  title="الزيتونات المطلوبة حسب ولاية الاستثمار"
+                  subtitle={`${formatCount(breakdown.anywhere_trees)} زيتونة في مطالب «المكان غير مهم» غير محسوبة في الولايات.`}
+                >
+                  <BarList
+                    items={breakdown.by_governorate_trees
+                      .filter((g) => g.trees > 0)
+                      .slice(0, 8)
+                      .map((g) => ({ key: String(g.id), label: g.name, count: g.trees }))}
+                    emptyText="لا توجد زيتونات مطلوبة في ولاية محددة في هذه الفترة."
+                  />
+                  <Link href={analyticsHref} className="mt-4 inline-block text-sm font-semibold text-forest underline-offset-4 hover:underline">
+                    خريطة الطلب وكل الولايات ←
+                  </Link>
+                </ChartCard>
+              </div>
 
               <div className="grid gap-4 xl:grid-cols-2">
                 <ChartCard
