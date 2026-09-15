@@ -76,6 +76,23 @@ export type PublicParcel = {
   photo_alt_ar: string | null;
 };
 
+export type ProjectPicture = { id: string; url: string; alt_ar: string; caption_ar: string | null; is_cover: boolean };
+
+/** Report v3 §20: what public_project_page() adds to a project's listing row. */
+export type ProjectPage = {
+  description_ar: string | null;
+  water_available: boolean | null;
+  water_note: string | null;
+  access_note: string | null;
+  video_url: string | null;
+  /** Both null unless the team chose to show the location. */
+  latitude: number | null;
+  longitude: number | null;
+  document_option_ids: string[];
+  service_option_ids: string[];
+  media: ProjectPicture[];
+};
+
 export type CoverageRow = {
   governorate_id: number;
   projects_count: number;
@@ -196,6 +213,33 @@ export async function getParcelOffer(
     if (!withChoice) throw error;
     return ((await load(mode, "public_parcel_offer", base)) as ParcelOffer | null) ?? null;
   }
+}
+
+/** Report v3 §20: description, water, access, video, documents, services and gallery of one project. */
+export async function getProjectPage(code: string, mode: PublicMode): Promise<ProjectPage | null> {
+  const row = (await load(mode, "public_project_page", { p_code: code })) as Record<string, unknown> | null;
+  if (!row) return null;
+  const text = (value: unknown) => (typeof value === "string" && value ? value : null);
+  const ids = (value: unknown) => (Array.isArray(value) ? value.map(String) : []);
+  const media = Array.isArray(row.media) ? (row.media as Record<string, unknown>[]) : [];
+  return {
+    description_ar: text(row.description_ar),
+    water_available: typeof row.water_available === "boolean" ? row.water_available : null,
+    water_note: text(row.water_note),
+    access_note: text(row.access_note),
+    video_url: text(row.video_url),
+    latitude: numOrNull(row.latitude),
+    longitude: numOrNull(row.longitude),
+    document_option_ids: ids(row.document_option_ids),
+    service_option_ids: ids(row.service_option_ids),
+    media: media.map((picture) => ({
+      id: String(picture.id),
+      url: String(picture.url),
+      alt_ar: String(picture.alt_ar),
+      caption_ar: text(picture.caption_ar),
+      is_cover: Boolean(picture.is_cover),
+    })),
+  };
 }
 
 export function findProject(projects: PublicProject[], code: string): PublicProject | undefined {

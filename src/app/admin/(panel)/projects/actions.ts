@@ -5,6 +5,7 @@ import { z } from "zod";
 
 import type { ActionResult } from "@/components/admin/action-form";
 import { requireStaff, type StaffRole } from "@/lib/auth";
+import { getPublicConfig, settingInt } from "@/lib/config";
 import { COST_KINDS } from "@/lib/projects";
 import { PUBLIC_PROJECTS_TAG } from "@/lib/public-projects";
 import type { Json } from "@/lib/supabase/database.types";
@@ -14,6 +15,8 @@ const WRITE_ROLES = ["finance", "admin", "super_admin"] as const satisfies reado
 
 const FAILED_MESSAGE = "تعذّر الحفظ. تحقق من القيم وحاول مرة أخرى.";
 const FAILED: ActionResult = { ok: false, message: FAILED_MESSAGE };
+
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 function text(formData: FormData, name: string, max: number): string {
   return String(formData.get(name) ?? "").trim().slice(0, max);
@@ -90,6 +93,66 @@ function parsePricing(raw: string): { ok: true; value: Json } | { ok: false; mes
   return { ok: true, value: result.data as Json };
 }
 
+function coordinate(formData: FormData, name: string, limit: number): number | null | undefined {
+  const raw = String(formData.get(name) ?? "").trim().replace(",", ".");
+  if (!raw) return null;
+  const value = Number(raw);
+  return Number.isFinite(value) && Math.abs(value) <= limit ? Math.round(value * 1e6) / 1e6 : undefined;
+}
+
+/** Checked items of an option list, as ids. Unknown or inactive ids are simply not shown by the site. */
+function optionIds(formData: FormData, name: string): string[] {
+  return [...new Set(formData.getAll(name).map(String).filter((id) => UUID.test(id)))].slice(0, 30);
+}
+
+type PageFields = {
+  description_ar: string | null;
+  water_available: boolean | null;
+  water_note: string | null;
+  access_note: string | null;
+  video_url: string | null;
+  latitude: number | null;
+  longitude: number | null;
+  show_location: boolean;
+  document_option_ids: string[];
+  service_option_ids: string[];
+};
+
+/** Report v3 §20: what the public project page shows beyond the listing facts. */
+function readPageFields(formData: FormData): { ok: true; value: PageFields } | { ok: false; message: string } {
+  const videoUrl = text(formData, "video_url", 500);
+  if (videoUrl && !/^https:\/\/[^ ]+$/.test(videoUrl)) {
+    return { ok: false, message: "رابط الفيديو يبدأ بـ https://، مثال: https://www.youtube.com/watch?v=…" };
+  }
+
+  const latitude = coordinate(formData, "latitude", 90);
+  const longitude = coordinate(formData, "longitude", 180);
+  if (latitude === undefined || longitude === undefined || (latitude === null) !== (longitude === null)) {
+    return { ok: false, message: "اكتب خط العرض وخط الطول معاً بالأرقام، مثال: 34.55 و 10.30." };
+  }
+  const showLocation = formData.get("show_location") === "on";
+  if (showLocation && latitude === null) {
+    return { ok: false, message: "اكتب خط العرض وخط الطول قبل إظهار الموقع في صفحة المشروع." };
+  }
+
+  const water = String(formData.get("water_available") ?? "");
+  return {
+    ok: true,
+    value: {
+      description_ar: text(formData, "description_ar", 4000) || null,
+      water_available: water === "yes" ? true : water === "no" ? false : null,
+      water_note: text(formData, "water_note", 300) || null,
+      access_note: text(formData, "access_note", 300) || null,
+      video_url: videoUrl || null,
+      latitude,
+      longitude,
+      show_location: showLocation,
+      document_option_ids: optionIds(formData, "document_option_ids"),
+      service_option_ids: optionIds(formData, "service_option_ids"),
+    },
+  };
+}
+
 export async function saveProject(projectId: string | null, _previous: ActionResult, formData: FormData): Promise<ActionResult> {
   await requireStaff(WRITE_ROLES);
 
@@ -117,6 +180,10 @@ export async function saveProject(projectId: string | null, _previous: ActionRes
   const irrigation = z.enum(IRRIGATION).safeParse(formData.get("irrigation") ?? "");
   if (!status.success || !plantation.success || !production.success || !irrigation.success) return FAILED;
 
+  // Written only when the form carries the page fields, so the short «new project» form never erases them.
+  const page = formData.has("page_fields") ? readPageFields(formData) : null;
+  if (page && !page.ok) return page;
+
   const row = {
     name,
     project_type_id: text(formData, "project_type_id", 40) || null,
@@ -134,6 +201,7 @@ export async function saveProject(projectId: string | null, _previous: ActionRes
     annual_costs_millimes: dinarsToMillimes(annualCosts) ?? null,
     pricing: pricing.value,
     status: status.data,
+    ...(page?.ok ? page.value : {}),
   };
 
   const supabase = await createClient();
@@ -258,4 +326,124 @@ export async function addProjectCost(projectId: string, _previous: ActionResult,
 
   revalidatePath(`/admin/projects/${projectId}`);
   return { ok: true, message: "تمت إضافة المصروف." };
+}
+
+// ---------------------------------------------------------------------------
+// Report v3 §20 · project gallery, in the public project-media bucket (MED-01)
+// ---------------------------------------------------------------------------
+
+const PROJECT_MEDIA_BUCKET = "project-media";
+
+// Mirrors the bucket's own file_size_limit and allowed_mime_types.
+const MAX_PICTURE_BYTES = 5 * 1024 * 1024;
+const PICTURE_TYPES: Record<string, string> = {
+  "image/jpeg": "jpg",
+  "image/png": "png",
+  "image/webp": "webp",
+  "image/avif": "avif",
+};
+
+function pictureChanged(projectId: string) {
+  revalidatePath(`/admin/projects/${projectId}`);
+  expirePublicProjects();
+}
+
+export async function addProjectPicture(projectId: string, _previous: ActionResult, formData: FormData): Promise<ActionResult> {
+  await requireStaff(WRITE_ROLES);
+
+  const file = formData.get("file");
+  const alt = text(formData, "alt", 160);
+  if (!(file instanceof File) || file.size === 0) return { ok: false, message: "اختر ملف الصورة من جهازك." };
+  if (!alt) {
+    return { ok: false, message: "اكتب وصفاً مختصراً للصورة (نص بديل). إلزامي حتى تبقى الصفحة مقروءة للجميع." };
+  }
+  const extension = PICTURE_TYPES[file.type];
+  if (!extension) return { ok: false, message: "الصيغ المقبولة: JPG، PNG، WEBP أو AVIF." };
+  if (file.size > MAX_PICTURE_BYTES) return { ok: false, message: "حجم الصورة يتجاوز 5 ميغا. اضغطها ثم أعد المحاولة." };
+
+  const supabase = await createClient();
+  const [project, pictures, config] = await Promise.all([
+    supabase.from("projects").select("code").eq("id", projectId).maybeSingle(),
+    supabase.from("project_media").select("sort_order").eq("project_id", projectId),
+    getPublicConfig(),
+  ]);
+  if (!project.data || pictures.error) return FAILED;
+
+  const limit = settingInt(config, "projects.gallery_max", 24);
+  const existing = pictures.data ?? [];
+  if (existing.length >= limit) {
+    return { ok: false, message: `وصل المشروع للحد الأقصى (${limit} صورة). احذف صورة أو غيّر الحد من الإعدادات.` };
+  }
+
+  // A fresh name on every upload, so a replaced picture is never served from a cache.
+  const path = `${project.data.code.toLowerCase()}/${Date.now()}.${extension}`;
+  const bucket = supabase.storage.from(PROJECT_MEDIA_BUCKET);
+  const { error: uploadError } = await bucket.upload(path, file, { contentType: file.type, upsert: false });
+  if (uploadError) return { ok: false, message: `تعذّر رفع الصورة: ${uploadError.message}` };
+
+  const { error } = await supabase.from("project_media").insert({
+    project_id: projectId,
+    url: bucket.getPublicUrl(path).data.publicUrl,
+    storage_path: path,
+    alt_ar: alt,
+    caption_ar: text(formData, "caption", 200) || null,
+    sort_order: Math.max(0, ...existing.map((picture) => picture.sort_order)) + 10,
+  });
+  if (error) {
+    // Never leave a file in the public bucket that no row points to.
+    await bucket.remove([path]);
+    return error.code === "23514" ? { ok: false, message: `وصل المشروع للحد الأقصى (${limit} صورة).` } : FAILED;
+  }
+
+  pictureChanged(projectId);
+  return { ok: true, message: "تمت إضافة الصورة." };
+}
+
+/** One cover per project: the previous one is released first, as the database allows only one. */
+export async function setProjectCover(projectId: string, pictureId: string): Promise<void> {
+  await requireStaff(WRITE_ROLES);
+  const supabase = await createClient();
+  await supabase.from("project_media").update({ is_cover: false }).eq("project_id", projectId).eq("is_cover", true);
+  await supabase.from("project_media").update({ is_cover: true }).eq("id", pictureId).eq("project_id", projectId);
+  pictureChanged(projectId);
+}
+
+export async function moveProjectPicture(projectId: string, pictureId: string, step: -1 | 1): Promise<void> {
+  await requireStaff(WRITE_ROLES);
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("project_media")
+    .select("id, sort_order")
+    .eq("project_id", projectId)
+    .order("sort_order")
+    .order("created_at");
+  const rows = data ?? [];
+  const from = rows.findIndex((row) => row.id === pictureId);
+  const to = from + step;
+  if (from < 0 || to < 0 || to >= rows.length) return;
+
+  [rows[from], rows[to]] = [rows[to], rows[from]];
+  await Promise.all(
+    rows.map((row, index) =>
+      row.sort_order === (index + 1) * 10
+        ? null
+        : supabase.from("project_media").update({ sort_order: (index + 1) * 10 }).eq("id", row.id),
+    ),
+  );
+  pictureChanged(projectId);
+}
+
+/** Removes the picture from the gallery and its file from the bucket. */
+export async function removeProjectPicture(projectId: string, pictureId: string): Promise<void> {
+  await requireStaff(WRITE_ROLES);
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("project_media")
+    .delete()
+    .eq("id", pictureId)
+    .eq("project_id", projectId)
+    .select("storage_path");
+  const path = data?.[0]?.storage_path;
+  if (path) await supabase.storage.from(PROJECT_MEDIA_BUCKET).remove([path]);
+  pictureChanged(projectId);
 }

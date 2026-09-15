@@ -180,6 +180,47 @@ try {
     console.log(`${code}  ${place.name}  ${kind.type.padEnd(15)} ${totalArea} m²  ${treeCount} trees  ${parcelCount} parcels`);
   }
   console.log(`Created ${created} demo project(s); ${have.size} already existed. All are 'internal' — never public.`);
+
+  // Report v3 §20: the project page fields, filled once for demo projects that have none yet.
+  // Skipped on a database that does not have those columns yet.
+  const { rows: pageColumns } = await client.query(
+    "select 1 from information_schema.columns where table_schema = 'public' and table_name = 'projects' and column_name = 'description_ar'",
+  );
+  if (pageColumns.length > 0) {
+    const { rows: items } = await client.query(
+      "select id, list_key, code from public.option_items where list_key in ('land_document', 'agrized_service') and is_active order by sort_order",
+    );
+    const documents = items.filter((item) => item.list_key === "land_document" && item.code !== "other").map((item) => item.id);
+    const services = items.filter((item) => item.list_key === "agrized_service").map((item) => item.id);
+    const { rows: bare } = await client.query(
+      "select id, irrigation from public.projects where code like 'DEMO-%' and description_ar is null order by code",
+    );
+
+    await client.query("begin");
+    for (const project of bare) {
+      const [waterAvailable, waterNote] =
+        project.irrigation === "irrigated"
+          ? [true, pick(["بئر عميقة داخل الضيعة", "شبكة ري جماعية قرب الضيعة"])]
+          : pick([[true, "ماجل لتجميع مياه الأمطار"], [false, null], [null, null]]);
+      await client.query(
+        `update public.projects
+            set description_ar = $2, water_available = $3, water_note = $4, access_note = $5, show_location = true,
+                document_option_ids = $6, service_option_ids = $7
+          where id = $1`,
+        [
+          project.id,
+          "مشروع تجريبي للمعاينة الداخلية فقط، لا يمثّل أي عقار حقيقي.\nهذا النص يبيّن كيفاش يظهر وصف المشروع: الضيعة، الطريق، ووين القطع.",
+          waterAvailable,
+          waterNote,
+          `طريق ${pick(["معبّدة", "فلاحية"])} على بعد ${between(1, 6)} كم من الطريق الرئيسية.`,
+          documents.filter(() => rand() < 0.6),
+          services.filter(() => rand() < 0.5),
+        ],
+      );
+    }
+    await client.query("commit");
+    console.log(`Filled the project page fields of ${bare.length} demo project(s).`);
+  }
 } catch (error) {
   await client.query("rollback").catch(() => {});
   console.error(error.message);

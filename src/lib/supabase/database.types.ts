@@ -1398,6 +1398,60 @@ export type Database = {
           },
         ]
       }
+      project_media: {
+        Row: {
+          alt_ar: string
+          caption_ar: string | null
+          created_at: string
+          created_by: string | null
+          id: string
+          is_cover: boolean
+          project_id: string
+          sort_order: number
+          storage_path: string | null
+          url: string
+        }
+        Insert: {
+          alt_ar: string
+          caption_ar?: string | null
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          is_cover?: boolean
+          project_id: string
+          sort_order?: number
+          storage_path?: string | null
+          url: string
+        }
+        Update: {
+          alt_ar?: string
+          caption_ar?: string | null
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          is_cover?: boolean
+          project_id?: string
+          sort_order?: number
+          storage_path?: string | null
+          url?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "project_media_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "project_media_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       project_types: {
         Row: {
           code: string
@@ -1453,10 +1507,13 @@ export type Database = {
       }
       projects: {
         Row: {
+          access_note: string | null
           annual_costs_millimes: number | null
           code: string
           created_at: string
           delegation_id: number | null
+          description_ar: string | null
+          document_option_ids: string[]
           governorate_id: number
           id: string
           irrigation: Database["public"]["Enums"]["irrigation_type"] | null
@@ -1472,18 +1529,26 @@ export type Database = {
           pricing: Json
           production_status: string | null
           project_type_id: string | null
+          service_option_ids: string[]
+          show_location: boolean
           status: Database["public"]["Enums"]["project_status"]
           total_area_m2: number | null
           tree_age_years: number | null
           tree_count: number | null
           updated_at: string
           updated_by: string | null
+          video_url: string | null
+          water_available: boolean | null
+          water_note: string | null
         }
         Insert: {
+          access_note?: string | null
           annual_costs_millimes?: number | null
           code: string
           created_at?: string
           delegation_id?: number | null
+          description_ar?: string | null
+          document_option_ids?: string[]
           governorate_id: number
           id?: string
           irrigation?: Database["public"]["Enums"]["irrigation_type"] | null
@@ -1499,18 +1564,26 @@ export type Database = {
           pricing?: Json
           production_status?: string | null
           project_type_id?: string | null
+          service_option_ids?: string[]
+          show_location?: boolean
           status?: Database["public"]["Enums"]["project_status"]
           total_area_m2?: number | null
           tree_age_years?: number | null
           tree_count?: number | null
           updated_at?: string
           updated_by?: string | null
+          video_url?: string | null
+          water_available?: boolean | null
+          water_note?: string | null
         }
         Update: {
+          access_note?: string | null
           annual_costs_millimes?: number | null
           code?: string
           created_at?: string
           delegation_id?: number | null
+          description_ar?: string | null
+          document_option_ids?: string[]
           governorate_id?: number
           id?: string
           irrigation?: Database["public"]["Enums"]["irrigation_type"] | null
@@ -1526,12 +1599,17 @@ export type Database = {
           pricing?: Json
           production_status?: string | null
           project_type_id?: string | null
+          service_option_ids?: string[]
+          show_location?: boolean
           status?: Database["public"]["Enums"]["project_status"]
           total_area_m2?: number | null
           tree_age_years?: number | null
           tree_count?: number | null
           updated_at?: string
           updated_by?: string | null
+          video_url?: string | null
+          water_available?: boolean | null
+          water_note?: string | null
         }
         Relationships: [
           {
@@ -2001,6 +2079,7 @@ export type Database = {
           tree_age_years: number
         }[]
       }
+      public_project_page: { Args: { p_code: string }; Returns: Json }
       public_projects: {
         Args: never
         Returns: {

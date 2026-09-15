@@ -5,7 +5,7 @@ import { notFound } from "next/navigation";
 import { ActionForm } from "@/components/admin/action-form";
 import { ParcelPlan } from "@/components/site/parcel-plan";
 import { hasRole, requireStaff, type StaffRole } from "@/lib/auth";
-import { getPublicConfig } from "@/lib/config";
+import { getPublicConfig, optionsFor } from "@/lib/config";
 import { PLANTATION_LABELS, PRODUCTION_LABELS } from "@/lib/crm";
 import { formatCount, formatMillimes } from "@/lib/format";
 import {
@@ -22,7 +22,15 @@ import {
 } from "@/lib/projects";
 import { createClient } from "@/lib/supabase/server";
 
-import { addProjectCost, saveParcel, saveProject } from "../actions";
+import {
+  addProjectCost,
+  addProjectPicture,
+  moveProjectPicture,
+  removeProjectPicture,
+  saveParcel,
+  saveProject,
+  setProjectCover,
+} from "../actions";
 
 export const metadata: Metadata = { title: "مشروع" };
 
@@ -43,12 +51,21 @@ export default async function ProjectDetailPage({ params }: PageProps<"/admin/pr
   const { data: project } = await supabase.from("projects").select("*").eq("id", id).maybeSingle();
   if (!project) notFound();
 
-  const [parcels, costs] = await Promise.all([
+  const [parcels, costs, media] = await Promise.all([
     supabase.from("parcels").select("*").eq("project_id", id).order("sort_order").order("code"),
     canSeeCosts ? supabase.from("project_costs").select("*").eq("project_id", id).order("created_at") : Promise.resolve({ data: [] }),
+    supabase
+      .from("project_media")
+      .select("id, url, alt_ar, caption_ar, is_cover, sort_order")
+      .eq("project_id", id)
+      .order("sort_order")
+      .order("created_at"),
   ]);
 
   const rows = parcels.data ?? [];
+  const pictures = media.data ?? [];
+  // Without a chosen cover the site uses the first picture in order.
+  const hasChosenCover = pictures.some((picture) => picture.is_cover);
   const parcelArea = rows.reduce((sum, parcel) => sum + Number(parcel.area_m2 ?? 0), 0);
   const parcelTrees = rows.reduce((sum, parcel) => sum + (parcel.olive_tree_count ?? 0), 0);
   const parcelValue = rows.reduce((sum, parcel) => sum + (parcel.cash_price_millimes ?? 0), 0);
@@ -209,6 +226,94 @@ export default async function ProjectDetailPage({ params }: PageProps<"/admin/pr
         ) : null}
       </section>
 
+      {/* Report v3 §20: the gallery of the public project page */}
+      <section className="space-y-3">
+        <div className="flex flex-wrap items-baseline justify-between gap-3">
+          <h2 className="text-lg font-semibold">صور المشروع</h2>
+          <p className="text-sm text-muted">تظهر في صفحة المشروع. الغلاف يظهر أولاً وفي بطاقة المشروع.</p>
+        </div>
+        <div className="rounded-2xl border border-line bg-surface p-5">
+          {pictures.length > 0 ? (
+            <ul className="mb-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+              {pictures.map((picture, index) => {
+                const isCover = picture.is_cover || (!hasChosenCover && index === 0);
+                return (
+                  <li key={picture.id} className="rounded-xl border border-line bg-paper p-2">
+                    <div className="relative aspect-4/3 overflow-hidden rounded-lg bg-leaf-soft">
+                      {/* eslint-disable-next-line @next/next/no-img-element -- admin preview of an uploaded file */}
+                      <img src={picture.url} alt={picture.alt_ar} className="size-full object-cover" />
+                      {isCover ? (
+                        <span className="absolute start-2 top-2 rounded-full bg-forest px-2 py-0.5 text-xs font-semibold text-paper">الغلاف</span>
+                      ) : null}
+                    </div>
+                    <p className="mt-2 text-sm">{picture.alt_ar}</p>
+                    {picture.caption_ar ? <p className="text-xs text-muted">{picture.caption_ar}</p> : null}
+                    {canWrite ? (
+                      <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm">
+                        {!picture.is_cover ? (
+                          <form action={setProjectCover.bind(null, id, picture.id)}>
+                            <button type="submit" className="font-semibold text-forest underline-offset-4 hover:underline">
+                              اجعلها الغلاف
+                            </button>
+                          </form>
+                        ) : null}
+                        {index > 0 ? (
+                          <form action={moveProjectPicture.bind(null, id, picture.id, -1)}>
+                            <button type="submit" className="font-medium text-ink/80 underline-offset-4 hover:underline">
+                              تقديم
+                            </button>
+                          </form>
+                        ) : null}
+                        {index < pictures.length - 1 ? (
+                          <form action={moveProjectPicture.bind(null, id, picture.id, 1)}>
+                            <button type="submit" className="font-medium text-ink/80 underline-offset-4 hover:underline">
+                              تأخير
+                            </button>
+                          </form>
+                        ) : null}
+                        <form action={removeProjectPicture.bind(null, id, picture.id)}>
+                          <button type="submit" className="font-medium text-danger underline-offset-4 hover:underline">
+                            حذف
+                          </button>
+                        </form>
+                      </div>
+                    ) : null}
+                  </li>
+                );
+              })}
+            </ul>
+          ) : (
+            <p className="mb-5 text-sm text-muted">لا توجد صور بعد. ما دام المشروع بلا صورة يظهر رسم بألوان العلامة.</p>
+          )}
+
+          {canWrite ? (
+            <ActionForm
+              action={addProjectPicture.bind(null, id)}
+              submitLabel="رفع الصورة"
+              pendingLabel="جارٍ الرفع…"
+              className="grid gap-3 sm:grid-cols-2 lg:grid-cols-[1.2fr_1fr_1fr_auto] lg:items-end"
+              buttonClassName="btn btn-secondary min-h-11"
+            >
+              <Labeled label="ملف الصورة">
+                <input
+                  name="file"
+                  type="file"
+                  required
+                  accept="image/jpeg,image/png,image/webp,image/avif"
+                  className="field py-2.5 file:me-3 file:rounded-lg file:border-0 file:bg-leaf-soft file:px-3 file:py-1.5 file:text-sm file:font-semibold file:text-forest"
+                />
+              </Labeled>
+              <Labeled label="النص البديل">
+                <input name="alt" required maxLength={160} placeholder="مثال: صفوف زيتون شملالي عند مدخل الضيعة" className="field min-h-11" />
+              </Labeled>
+              <Labeled label="تعليق (اختياري)">
+                <input name="caption" maxLength={200} className="field min-h-11" />
+              </Labeled>
+            </ActionForm>
+          ) : null}
+        </div>
+      </section>
+
       {canWrite ? (
         <section className="space-y-3">
           <h2 className="text-lg font-semibold">بيانات المشروع</h2>
@@ -303,6 +408,80 @@ export default async function ProjectDetailPage({ params }: PageProps<"/admin/pr
                   <input name="location_description" defaultValue={project.location_description ?? ""} className="field" />
                 </Labeled>
               </div>
+
+              {/* Report v3 §20: what the public project page shows beyond the facts */}
+              <input type="hidden" name="page_fields" value="1" />
+              <div className="sm:col-span-2 lg:col-span-3">
+                <Labeled label="وصف المشروع (يظهر في صفحة المشروع)">
+                  <textarea
+                    name="description_ar"
+                    rows={5}
+                    maxLength={4000}
+                    defaultValue={project.description_ar ?? ""}
+                    className="field min-h-32"
+                  />
+                </Labeled>
+                <p className="hint mt-1">بلا وعود ولا أرقام مردود أو ربح (PRN-01).</p>
+              </div>
+              <Labeled label="الماء">
+                <select
+                  name="water_available"
+                  defaultValue={project.water_available === true ? "yes" : project.water_available === false ? "no" : ""}
+                  className="field"
+                >
+                  <option value="">غير محدّد</option>
+                  <option value="yes">متوفّر</option>
+                  <option value="no">غير متوفّر</option>
+                </select>
+              </Labeled>
+              <Labeled label="مصدر الماء">
+                <input name="water_note" maxLength={300} defaultValue={project.water_note ?? ""} placeholder="مثال: بئر عميقة داخل الضيعة" className="field" />
+              </Labeled>
+              <Labeled label="النفاذ والطريق">
+                <input
+                  name="access_note"
+                  maxLength={300}
+                  defaultValue={project.access_note ?? ""}
+                  placeholder="مثال: طريق معبّدة حتى مدخل الضيعة"
+                  className="field"
+                />
+              </Labeled>
+              <div className="sm:col-span-2 lg:col-span-3">
+                <Labeled label="رابط الفيديو (YouTube أو Vimeo يظهر داخل الصفحة، غيرهما يظهر كرابط)">
+                  <input
+                    name="video_url"
+                    type="url"
+                    maxLength={500}
+                    defaultValue={project.video_url ?? ""}
+                    placeholder="https://www.youtube.com/watch?v=…"
+                    dir="ltr"
+                    className="field text-left"
+                  />
+                </Labeled>
+              </div>
+              <Labeled label="خط العرض">
+                <input name="latitude" defaultValue={project.latitude ?? ""} inputMode="decimal" placeholder="34.55" dir="ltr" className="field text-left" />
+              </Labeled>
+              <Labeled label="خط الطول">
+                <input name="longitude" defaultValue={project.longitude ?? ""} inputMode="decimal" placeholder="10.30" dir="ltr" className="field text-left" />
+              </Labeled>
+              <label className="choice self-end">
+                <input type="checkbox" name="show_location" defaultChecked={project.show_location} />
+                <span className="font-medium">إظهار الموقع على الخريطة في صفحة المشروع</span>
+              </label>
+              <OptionChecks
+                legend="الوثائق المتوفّرة (تظهر أسماؤها فقط، الملفات لا تُنشر)"
+                name="document_option_ids"
+                options={optionsFor(config, "land_document")}
+                chosen={project.document_option_ids}
+              />
+              <OptionChecks
+                legend="خدمات AgriZed في هذا المشروع (أسماء بلا أسعار)"
+                name="service_option_ids"
+                options={optionsFor(config, "agrized_service")}
+                chosen={project.service_option_ids}
+              />
+
               <div className="sm:col-span-2 lg:col-span-3">
                 <Labeled label="صيغة التسعير (JSON)">
                   <textarea
@@ -512,6 +691,37 @@ export function ParcelFields({
         </Labeled>
       </div>
     </>
+  );
+}
+
+/** Checkboxes over an option list (PRN-02): the values live in «الإعدادات ← القوائم», not in the code. */
+function OptionChecks({
+  legend,
+  name,
+  options,
+  chosen,
+}: {
+  legend: string;
+  name: string;
+  options: { id: string; label_ar: string }[];
+  chosen: string[];
+}) {
+  return (
+    <fieldset className="sm:col-span-2 lg:col-span-3">
+      <legend className="text-sm font-semibold">{legend}</legend>
+      {options.length === 0 ? (
+        <p className="hint mt-1">القائمة فارغة. أضف قيماً من الإعدادات ← القوائم.</p>
+      ) : (
+        <div className="mt-2 flex flex-wrap gap-2">
+          {options.map((option) => (
+            <label key={option.id} className="choice">
+              <input type="checkbox" name={name} value={option.id} defaultChecked={chosen.includes(option.id)} />
+              <span>{option.label_ar}</span>
+            </label>
+          ))}
+        </div>
+      )}
+    </fieldset>
   );
 }
 
