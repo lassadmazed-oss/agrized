@@ -2,6 +2,10 @@
 -- projects flag; the pricing formula, internal costs and notes never leave Postgres.
 -- Spec: PRN-01, PRJ-02/03, PARC-01/02/11, SIM-05/08, FLAG-01..03, LEAD-02, clause 25.6.
 -- Live data caveat: the catalog may hold other projects, so every assertion is relative to the PUB-* fixtures.
+-- Migration 0032 retires the old amount lists (docs/plan-zitouna.md Q-7) that this offer card still reads; they are
+-- switched back on inside this rolled-back test until plan P5-4 moves the card to tree pricing.
+update public.option_items set is_active = true
+where list_key in ('desired_area', 'priority', 'down_payment', 'monthly_installment');
 
 -- ---------------------------------------------------------------------------
 -- Fixtures (as the migration owner)

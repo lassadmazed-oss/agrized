@@ -52,12 +52,12 @@ export default async function ParcelPage({ params, searchParams }: PageProps<"/p
 
   const cta = canAsk
     ? {
+        // The old down payment and monthly installment choices are no longer questions (plan P2-6): the calculator
+        // asks the payment once, with its own down-payment percentages and durations.
         href: interestHref({
           parcelId: parcel.id,
           trees: pick(query.trees) ?? offer.suggested_tree_count_option_id,
           scenario: pick(query.scenario) ?? offer.suggested_scenario_id,
-          down: offer.chosen?.down_option_id ?? null,
-          installment: offer.chosen?.installment_option_id ?? null,
         }),
         label: settingText(config, "projects.parcel_cta", "أنا مهتم بهذه القطعة"),
       }

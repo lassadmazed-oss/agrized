@@ -1,18 +1,18 @@
 import Link from "next/link";
 
 import { Wordmark } from "@/components/brand/wordmark";
-import { GrowthIcon } from "@/components/site/growth-icon";
 import { MillionCounter, millionCounterCopy } from "@/components/site/million-counter";
 import { MillionStart } from "@/components/site/million-start";
 import { primaryCta } from "@/components/site/site-header";
 import { SitePhoto } from "@/components/site/site-photo";
 import { flagState, getPublicConfig, optionsFor, settingJson, settingText } from "@/lib/config";
+import { formatArea, formatSpacing } from "@/lib/format";
 import { getMillionProgress } from "@/lib/million";
+import { getSpacingClasses } from "@/lib/tree-pricing";
 
 type Step = { title: string; text: string };
 type Faq = { q: string; a: string };
 type Fact = { value: string; label: string };
-type ParcelExample = { title: string; area: string; trees: string; system: string; status: string };
 
 // The counter moves as requests arrive, so the page is rebuilt at most once a minute (MIL-01).
 export const revalidate = 60;
@@ -24,15 +24,16 @@ export default async function HomePage() {
   const progress = flagState(config, "public_statistics") === "public" ? await getMillionProgress() : null;
 
   const interestOpen = flagState(config, "interest_form") === "public";
-  const simulatorOpen = flagState(config, "simulator_basic") === "public";
   const landOpen = flagState(config, "land_offers") === "public";
 
   const steps = settingJson<Step[]>(config, "site.how_it_works", []);
   const faq = settingJson<Faq[]>(config, "site.faq", []);
   const facts = settingJson<Fact[]>(config, "site.facts", []);
-  const parcels = settingJson<ParcelExample[]>(config, "site.parcel_examples", []);
   const notice = settingText(config, "site.free_interest_notice");
   const treeCounts = optionsFor(config, "tree_count");
+  // docs/plan-zitouna.md P3-2: the unit section shows once its copy exists and the Back Office has spacing classes.
+  const unitTitle = settingText(config, "site.unit_title");
+  const spacingClasses = unitTitle ? await getSpacingClasses() : [];
   // Report v3 §17: the main button opens the tree question first (v2 §5). «شوف العروض» replaces the steps link
   // only once offers are public, so it never leads to a «قريباً» page.
   const cta = primaryCta(config);
@@ -116,7 +117,7 @@ export default async function HomePage() {
         </div>
       </section>
 
-      {/* 04 · The tree question; a card click opens /start with that tier chosen (MIL-01, spec v2 §7) */}
+      {/* 04 · The tree question; a card click opens the calculator on /start with that tier chosen (MIL-01) */}
       {interestOpen && treeCounts.length > 0 ? (
         <MillionStart
           treeCounts={treeCounts}
@@ -137,7 +138,8 @@ export default async function HomePage() {
         <section id="how" className="mx-auto max-w-6xl scroll-mt-20 px-4 py-16 sm:px-6">
           <h2 className="font-display text-3xl font-bold text-forest sm:text-4xl">كيفاش تخدم AgriZed؟</h2>
           <p className="mt-3 max-w-2xl leading-7 text-muted">مسار واضح، خطوة بخطوة، بدون أي دفع في البداية.</p>
-          <ol className="mt-8 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          {/* Four steps fit one row on a wide screen; any other count wraps three per row. */}
+          <ol className={`mt-8 grid gap-3 sm:grid-cols-2 ${steps.length === 4 ? "lg:grid-cols-4" : "lg:grid-cols-3"}`}>
             {steps.map((step, index) => (
               <li key={step.title} className="rounded-2xl border border-line bg-surface p-5">
                 <span className="grid size-10 place-items-center rounded-full bg-gold-soft font-display text-xl font-bold text-gold tabular-nums">
@@ -151,49 +153,42 @@ export default async function HomePage() {
         </section>
       ) : null}
 
-      {/* 06 · What a parcel is. PARC-01/02: area, tree count, system and status are independent. */}
-      {parcels.length > 0 ? (
-        <section id="parcels" className="scroll-mt-20 border-y border-line bg-surface">
+      {/* 06 · The sale unit: one olive tree with its area (docs/tree-area-and-cost.md). The areas are the Back Office
+          spacing classes; no price and none of the internal formula is shown here. Asking happens on /start only. */}
+      {unitTitle && spacingClasses.length > 0 ? (
+        <section id="unit" className="scroll-mt-20 border-y border-line bg-surface">
           <div className="mx-auto max-w-6xl px-4 py-16 sm:px-6">
             <div className="max-w-2xl">
-              <h2 className="font-display text-3xl font-bold text-forest sm:text-4xl">
-                {settingText(config, "site.parcels_title")}
-              </h2>
-              <p className="mt-3 leading-7 text-muted">{settingText(config, "site.parcels_text")}</p>
+              <h2 className="font-display text-3xl font-bold text-forest sm:text-4xl">{unitTitle}</h2>
+              {settingText(config, "site.unit_text") ? (
+                <p className="mt-3 leading-7 text-muted">{settingText(config, "site.unit_text")}</p>
+              ) : null}
             </div>
 
-            <ul className="mt-8 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
-              {parcels.slice(0, 3).map((parcel, index) => (
-                <li key={parcel.title} className="overflow-hidden rounded-2xl border border-line bg-paper">
-                  <SitePhoto
-                    config={config}
-                    slot={`home.parcel_${"abc"[index] ?? "a"}`}
-                    sizes="(min-width: 1024px) 30vw, (min-width: 640px) 46vw, 100vw"
-                    className="rounded-none"
-                  />
-                  <div className="p-5">
-                    <div className="flex items-center justify-between gap-3">
-                      <h3 className="font-semibold text-ink">{parcel.title}</h3>
-                      <span className="rounded-full bg-leaf-soft px-2.5 py-1 text-xs font-semibold text-forest">
-                        مثال توضيحي
-                      </span>
-                    </div>
-                    <dl className="mt-4 space-y-2 text-sm">
-                      <ParcelRow label="المساحة" value={parcel.area} />
-                      <ParcelRow label="عدد الزيتونات" value={parcel.trees} />
-                      <ParcelRow label="نوع الغراسة" value={parcel.system} />
-                      <ParcelRow label="حالة الإنتاج" value={parcel.status} />
-                    </dl>
-                  </div>
+            <ul className="mt-8 grid grid-cols-2 gap-3 sm:grid-cols-4">
+              {spacingClasses.map((spacing) => (
+                <li key={spacing.id} className="rounded-2xl border border-line bg-paper p-4 sm:p-5">
+                  <p className="text-sm leading-5 text-muted">{spacing.label_ar}</p>
+                  <p className="mt-2 font-display text-3xl font-bold leading-none text-forest tabular-nums">
+                    {formatArea(spacing.area_m2)}
+                  </p>
+                  <p className="mt-2 text-xs text-muted">
+                    لكل زيتونة · <span dir="ltr">{formatSpacing(spacing.row_spacing_m, spacing.tree_spacing_m)}</span>
+                  </p>
                 </li>
               ))}
             </ul>
 
-            {settingText(config, "legal.parcel_card_note") ? (
-              <p className="mt-6 max-w-3xl rounded-xl bg-gold-soft/50 px-4 py-3 text-sm leading-6 text-ink/80">
-                {settingText(config, "legal.parcel_card_note")}
-              </p>
-            ) : null}
+            <div className="mt-6 flex flex-wrap items-center gap-x-6 gap-y-3">
+              {interestOpen && settingText(config, "site.unit_cta") ? (
+                <Link href="/start" className="btn btn-primary">
+                  {settingText(config, "site.unit_cta")}
+                </Link>
+              ) : null}
+              {settingText(config, "site.unit_note") ? (
+                <p className="text-sm leading-6 text-muted">{settingText(config, "site.unit_note")}</p>
+              ) : null}
+            </div>
           </div>
         </section>
       ) : null}
@@ -221,56 +216,7 @@ export default async function HomePage() {
         </div>
       </section>
 
-      {/* 08 · Plantation types */}
-      <section className="border-y border-line bg-surface">
-        <div className="mx-auto max-w-6xl px-4 py-16 sm:px-6">
-          <h2 className="font-display text-3xl font-bold text-forest sm:text-4xl">من أين تبدأ؟</h2>
-          <p className="mt-3 max-w-2xl leading-7 text-muted">
-            أربع نقاط انطلاق، من الأرض البيضاء إلى الضيعة المنتجة. تختار اللي يناسب قدرتك وصبرك.
-          </p>
-          <ul className="mt-8 grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
-            {config.projectTypes.map((type) => (
-              <li key={type.id} className="overflow-hidden rounded-2xl border border-line bg-paper">
-                {type.image_url ? (
-                  // eslint-disable-next-line @next/next/no-img-element -- remote host is set per project, not known at build time
-                  <img
-                    src={type.image_url}
-                    alt={type.image_alt_ar ?? ""}
-                    className="aspect-4/3 w-full object-cover"
-                    loading="lazy"
-                  />
-                ) : null}
-                <div className="p-5">
-                  <GrowthIcon code={type.code} className="size-10 text-leaf" />
-                  <h3 className="mt-4 text-lg font-semibold text-ink">{type.label_ar}</h3>
-                  {type.description_ar ? (
-                    <p className="mt-1 text-sm leading-6 text-muted">{type.description_ar}</p>
-                  ) : null}
-                </div>
-              </li>
-            ))}
-          </ul>
-        </div>
-      </section>
-
-      {/* 09 · Simulator */}
-      {simulatorOpen ? (
-        <section className="mx-auto max-w-6xl px-4 py-16 sm:px-6">
-          <div className="grid gap-6 rounded-3xl bg-forest px-6 py-10 text-paper sm:px-10 md:grid-cols-[1fr_auto] md:items-center">
-            <div>
-              <h2 className="font-display text-3xl font-bold sm:text-4xl">احسب قدرتك</h2>
-              <p className="mt-2 max-w-xl leading-7 text-paper/80">
-                اختر التسبقة والقسط الشهري، ونوريك قدرتك التقديرية على مدد مختلفة، بدون تسجيل.
-              </p>
-            </div>
-            <Link href="/simulator" className="btn min-h-14 bg-gold-bright px-8 text-forest-700 hover:bg-gold-soft">
-              جرّب المحاكي
-            </Link>
-          </div>
-        </section>
-      ) : null}
-
-      {/* 10 · Landowners */}
+      {/* 08 · Landowners */}
       {landOpen ? (
         <section className="mx-auto max-w-6xl px-4 pb-16 sm:px-6">
           <div className="grid items-center gap-8 rounded-3xl border border-gold/25 bg-gold-soft/50 p-6 sm:p-10 lg:grid-cols-[1fr_0.9fr]">
@@ -309,7 +255,7 @@ export default async function HomePage() {
         </section>
       ) : null}
 
-      {/* 11 · Ask once more, plainly */}
+      {/* 09 · Ask once more, plainly */}
       {interestOpen ? (
         <section className="mx-auto max-w-6xl px-4 pb-16 sm:px-6">
           <div className="rounded-3xl border border-line bg-surface px-6 py-12 text-center sm:px-10">
@@ -352,14 +298,5 @@ export default async function HomePage() {
         </div>
       </section>
     </>
-  );
-}
-
-function ParcelRow({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="flex items-center justify-between gap-4">
-      <dt className="text-muted">{label}</dt>
-      <dd className="font-semibold text-ink">{value}</dd>
-    </div>
   );
 }

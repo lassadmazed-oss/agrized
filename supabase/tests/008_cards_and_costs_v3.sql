@@ -1,5 +1,8 @@
--- Report v3 §19 (smallest accepted down payment in the listing) and §35 (project cost categories).
--- Pending with supabase/pending/e3_cards_and_costs_v3.sql; moves to supabase/tests when applied.
+-- Report v3 §19 (smallest accepted down payment in the listing) and §35 (project cost categories). Migration 0022.
+-- Migration 0032 retires the old amount lists (docs/plan-zitouna.md Q-7) that the listing's «ابتداءً من» still reads;
+-- they are switched back on inside this rolled-back test until plan P5-4 moves the listing to tree pricing.
+update public.option_items set is_active = true
+where list_key in ('desired_area', 'priority', 'down_payment', 'monthly_installment');
 
 update public.feature_flags set state = 'public' where key = 'projects';
 
