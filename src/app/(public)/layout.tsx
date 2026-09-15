@@ -1,5 +1,5 @@
 import { SiteFooter } from "@/components/site/site-footer";
-import { SiteHeader } from "@/components/site/site-header";
+import { primaryCta, SiteHeader } from "@/components/site/site-header";
 import { SourceCapture } from "@/components/site/source-capture";
 import { StickyCta } from "@/components/site/sticky-cta";
 import { flagState, getPublicConfig, mediaCredits, settingText } from "@/lib/config";
@@ -26,7 +26,7 @@ export default async function PublicLayout({ children }: LayoutProps<"/">) {
         email={settingText(config, "site.contact_email")}
         credits={mediaCredits(config)}
       />
-      {interestOpen ? <StickyCta note={settingText(config, "site.final_cta_note")} /> : null}
+      {interestOpen ? <StickyCta {...primaryCta(config)} note={settingText(config, "site.final_cta_note")} /> : null}
     </div>
   );
 }

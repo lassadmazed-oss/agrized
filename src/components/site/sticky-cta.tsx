@@ -8,12 +8,13 @@ import { usePathname } from "next/navigation";
 const OWN_ACTION = [/^\/start\/?$/, /^\/projects\/[^/]+\/[^/]+\/?$/];
 
 /**
- * The register button, always within reach on a phone.
- * Hidden from large screens, where the header button is already visible while scrolling.
+ * The site's main button (primaryCta: label and target from settings, report v3 §17), always within reach
+ * on a phone. Hidden from large screens, where the header button is already visible while scrolling,
+ * and when the label setting is empty.
  */
-export function StickyCta({ note }: { note: string }) {
+export function StickyCta({ label, href, note }: { label: string; href: string; note: string }) {
   const pathname = usePathname();
-  if (OWN_ACTION.some((pattern) => pattern.test(pathname))) return null;
+  if (!label || OWN_ACTION.some((pattern) => pattern.test(pathname))) return null;
 
   return (
     <>
@@ -21,8 +22,8 @@ export function StickyCta({ note }: { note: string }) {
       <div aria-hidden="true" className="h-28 md:hidden" />
       <div className="pointer-events-none fixed inset-x-0 bottom-0 z-40 md:hidden">
         <div className="pointer-events-auto border-t border-line bg-paper/95 px-4 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-3 backdrop-blur">
-          <Link href="/register" className="btn btn-primary min-h-13 w-full text-lg">
-            سجّل مطلبك
+          <Link href={href} className="btn btn-primary min-h-13 w-full text-lg">
+            {label}
           </Link>
           {note ? <p className="mt-1.5 text-center text-xs text-muted">{note}</p> : null}
         </div>
