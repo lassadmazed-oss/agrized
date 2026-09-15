@@ -4,7 +4,7 @@ import { ParcelRow } from "@/components/site/parcel-row";
 import { RemotePhoto } from "@/components/site/site-photo";
 import { PLANTATION_LABELS, PRODUCTION_LABELS } from "@/lib/crm";
 import { formatCount, formatMillimes } from "@/lib/format";
-import { parcelStatusLabel, parcelStatusTone, PROPERTY_TYPE_LABELS } from "@/lib/projects";
+import { durationLabel, OFFER_TYPE_LABELS, offerTypeOf, parcelStatusLabel, parcelStatusTone, PROPERTY_TYPE_LABELS } from "@/lib/projects";
 import type { PublicParcel } from "@/lib/public-projects";
 
 type ParcelCardProps = {
@@ -13,13 +13,15 @@ type ParcelCardProps = {
   /** Shown under the code on grids that mix projects. */
   place?: string;
   pricePending: string;
+  /** Longest payment duration offered, in months (report v3 §19 «التقسيط حتى 7 سنوات»); hidden when unknown. */
+  maxMonths?: number | null;
 };
 
 /**
  * PARC-11: a price never appears without the area, tree count, plantation system and production
  * status next to it. PARC-02: each of those is the parcel's own value, never computed from another.
  */
-export function ParcelCard({ parcel, href, place, pricePending }: ParcelCardProps) {
+export function ParcelCard({ parcel, href, place, pricePending, maxMonths }: ParcelCardProps) {
   const trees = parcel.property_type === "bare_land" ? PROPERTY_TYPE_LABELS.bare_land : formatCount(parcel.olive_tree_count ?? 0);
 
   return (
@@ -35,7 +37,8 @@ export function ParcelCard({ parcel, href, place, pricePending }: ParcelCardProp
         <div className="p-5">
           <div className="flex items-start justify-between gap-3">
             <div className="min-w-0">
-              <h3 className="font-semibold text-ink">القطعة {parcel.code}</h3>
+              <p className="text-xs font-semibold text-leaf">{OFFER_TYPE_LABELS[offerTypeOf(parcel)]}</p>
+              <h3 className="mt-0.5 font-semibold text-ink">القطعة {parcel.code}</h3>
               <p className="mt-0.5 truncate text-sm text-muted">{place ?? parcel.project_name}</p>
             </div>
             <span className={`shrink-0 rounded-full px-2.5 py-1 text-xs font-semibold ring-1 ring-inset ${parcelStatusTone(parcel.status)}`}>
@@ -55,18 +58,26 @@ export function ParcelCard({ parcel, href, place, pricePending }: ParcelCardProp
           </dl>
 
           {parcel.offered ? (
-            <p className="mt-4 border-t border-line pt-3 text-sm">
+            <div className="mt-4 space-y-1 border-t border-line pt-3 text-sm">
               {parcel.cash_price_millimes ? (
                 <>
-                  <span className="text-muted">السعر حاضر </span>
-                  <span className="font-display text-xl font-bold text-forest tabular-nums">
-                    {formatMillimes(parcel.cash_price_millimes)}
-                  </span>
+                  <p>
+                    <span className="text-muted">السعر حاضر </span>
+                    <span className="font-display text-xl font-bold text-forest tabular-nums">
+                      {formatMillimes(parcel.cash_price_millimes)}
+                    </span>
+                  </p>
+                  {parcel.down_from_millimes ? (
+                    <p className="font-semibold text-ink">
+                      ابتداءً من <span className="tabular-nums">{formatMillimes(parcel.down_from_millimes)}</span> تسبقة
+                    </p>
+                  ) : null}
+                  {maxMonths ? <p className="text-muted">التقسيط حتى {durationLabel(maxMonths)}</p> : null}
                 </>
               ) : (
-                <span className="text-muted">{pricePending}</span>
+                <p className="text-muted">{pricePending}</p>
               )}
-            </p>
+            </div>
           ) : null}
         </div>
       </Link>

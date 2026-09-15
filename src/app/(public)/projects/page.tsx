@@ -5,9 +5,8 @@ import { ComingSoon, PreviewBanner } from "@/components/site/module-gate";
 import { ParcelCard } from "@/components/site/parcel-card";
 import { ProjectCard } from "@/components/site/project-card";
 import { getPublicConfig, optionsFor, settingText, type PublicConfig } from "@/lib/config";
-import { PLANTATION_LABELS } from "@/lib/crm";
 import { moduleAccess } from "@/lib/modules";
-import { PROPERTY_TYPE_LABELS } from "@/lib/projects";
+import { OFFER_TYPE_LABELS, offerTypeOf, type OfferType } from "@/lib/projects";
 import { parcelHref, projectHref } from "@/lib/public-hrefs";
 import { getPublicParcels, getPublicProjects, publicMode, type PublicParcel } from "@/lib/public-projects";
 
@@ -19,7 +18,18 @@ export const metadata: Metadata = {
 // The «internal» module state checks the staff session cookie, so this page renders per request.
 export const dynamic = "force-dynamic";
 
-type Filters = { gov: number | null; type: string | null; system: string | null; trees: string | null };
+/** Report v3 §18. Down payment and duration filters arrive with the duration-based pricing. */
+type Filters = {
+  gov: number | null;
+  del: number | null;
+  type: OfferType | null;
+  trees: string | null;
+  area: string | null;
+  price: number | null;
+  available: boolean;
+};
+
+const MAX_PRICE_DINARS = 10_000_000;
 
 export default async function ProjectsPage({ searchParams }: PageProps<"/projects">) {
   const config = await getPublicConfig();
@@ -37,6 +47,7 @@ export default async function ProjectsPage({ searchParams }: PageProps<"/project
   const closed = projects.filter((project) => project.status === "sold_out" || project.status === "operating");
   const place = (governorateId: number) => config.governorates.find((g) => g.id === governorateId)?.name_ar ?? "";
   const pricePending = settingText(config, "projects.price_pending", "السعر يُعلن لاحقاً.");
+  const maxMonths = longestDuration(config);
 
   return (
     <>
@@ -101,6 +112,7 @@ export default async function ProjectsPage({ searchParams }: PageProps<"/project
                   href={parcelHref(parcel.project_code, parcel.code)}
                   place={`${parcel.project_name} · ${place(parcel.governorate_id)}`}
                   pricePending={pricePending}
+                  maxMonths={maxMonths}
                 />
               ))}
             </ul>
@@ -124,44 +136,76 @@ export default async function ProjectsPage({ searchParams }: PageProps<"/project
   );
 }
 
+/**
+ * The longest duration in the Back Office's `duration` list (months). That list comes with the
+ * duration-based pricing of report v3 §8; until it exists nothing is shown rather than a guessed cap.
+ */
+export function longestDuration(config: PublicConfig): number | null {
+  const months = optionsFor(config, "duration")
+    .map((option) => Number(option.min_number))
+    .filter((value) => Number.isFinite(value) && value > 0);
+  return months.length > 0 ? Math.max(...months) : null;
+}
+
 function readFilters(params: Record<string, string | string[] | undefined>, config: PublicConfig): Filters {
   const text = (value: string | string[] | undefined) => (typeof value === "string" && value ? value : null);
   const gov = Number(text(params.gov));
+  const del = Number(text(params.del));
   const type = text(params.type);
-  const system = text(params.system);
   const trees = text(params.trees);
+  const area = text(params.area);
+  const price = Number(text(params.price));
+  const validGov = config.governorates.some((g) => g.id === gov) ? gov : null;
   return {
-    gov: config.governorates.some((g) => g.id === gov) ? gov : null,
-    type: type && type in PROPERTY_TYPE_LABELS ? type : null,
-    system: system && system in PLANTATION_LABELS ? system : null,
+    gov: validGov,
+    // A delegation only counts when it belongs to the chosen governorate.
+    del: validGov !== null && config.delegations.some((d) => d.id === del && d.governorate_id === validGov) ? del : null,
+    type: type && type in OFFER_TYPE_LABELS ? (type as OfferType) : null,
     trees: trees && optionsFor(config, "tree_count").some((option) => option.id === trees) ? trees : null,
+    area: area && optionsFor(config, "desired_area").some((option) => option.id === area) ? area : null,
+    price: Number.isFinite(price) && price > 0 && price <= MAX_PRICE_DINARS ? price : null,
+    available: text(params.available) === "1",
   };
+}
+
+function inRange(value: number, option: { min_number: number | null; max_number: number | null } | undefined): boolean {
+  if (!option || option.min_number === null) return true; // an open choice filters nothing
+  if (value < Number(option.min_number)) return false;
+  return option.max_number === null || value <= Number(option.max_number);
 }
 
 function matches(parcel: PublicParcel, filters: Filters, config: PublicConfig): boolean {
   if (filters.gov !== null && parcel.governorate_id !== filters.gov) return false;
-  if (filters.type && parcel.property_type !== filters.type) return false;
-  if (filters.system && parcel.plantation_system !== filters.system) return false;
-  if (filters.trees) {
-    const option = optionsFor(config, "tree_count").find((item) => item.id === filters.trees);
-    // Bare land has no trees yet, so a tree count never hides it; an open choice («اقترحولي») filters nothing.
-    if (option?.min_number !== null && option?.min_number !== undefined && parcel.property_type !== "bare_land") {
-      const count = parcel.olive_tree_count ?? 0;
-      if (count < Number(option.min_number)) return false;
-      if (option.max_number !== null && count > Number(option.max_number)) return false;
-    }
+  if (filters.del !== null && parcel.delegation_id !== filters.del) return false;
+  if (filters.type && offerTypeOf(parcel) !== filters.type) return false;
+  if (filters.available && !parcel.offered) return false;
+  if (filters.price !== null && (parcel.cash_price_millimes === null || parcel.cash_price_millimes > filters.price * 1000)) {
+    return false;
+  }
+  if (filters.area && !inRange(parcel.area_m2, optionsFor(config, "desired_area").find((item) => item.id === filters.area))) {
+    return false;
+  }
+  // Bare land has no trees yet, so a tree count never hides it.
+  if (
+    filters.trees &&
+    parcel.property_type !== "bare_land" &&
+    !inRange(parcel.olive_tree_count ?? 0, optionsFor(config, "tree_count").find((item) => item.id === filters.trees))
+  ) {
+    return false;
   }
   return true;
 }
 
 function FilterForm({ filters, config }: { filters: Filters; config: PublicConfig }) {
+  const delegations = filters.gov === null ? [] : config.delegations.filter((d) => d.governorate_id === filters.gov);
+
   return (
-    <form method="get" action="/projects" className="grid gap-3 sm:grid-cols-2 lg:grid-cols-[repeat(4,minmax(0,1fr))_auto] lg:items-end">
-      <p className="text-sm leading-6 text-muted sm:col-span-2 lg:col-span-5">
+    <form method="get" action="/projects" className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4 lg:items-end">
+      <p className="text-sm leading-6 text-muted sm:col-span-2 lg:col-span-4">
         {settingText(
           config,
           "projects.filters_hint",
-          "صفّي حسب الولاية أو نوع العقار أو نوع الغراسة أو عدد الزيتونات. الأراضي البيضاء تظهر دايماً مهما كان عدد الزيتونات المختار.",
+          "صفّي حسب الولاية أو نوع العرض أو السعر أو المساحة أو عدد الزيتونات. الأراضي البيضاء تظهر دايماً مهما كان عدد الزيتونات المختار.",
         )}
       </p>
       <label className="block">
@@ -176,10 +220,21 @@ function FilterForm({ filters, config }: { filters: Filters; config: PublicConfi
         </select>
       </label>
       <label className="block">
-        <span className="label">نوع العقار</span>
+        <span className="label">المعتمدية</span>
+        <select name="del" defaultValue={filters.del ?? ""} disabled={delegations.length === 0} className="field">
+          <option value="">{delegations.length === 0 ? "اختر الولاية أولاً" : "الكل"}</option>
+          {delegations.map((delegation) => (
+            <option key={delegation.id} value={delegation.id}>
+              {delegation.name_ar}
+            </option>
+          ))}
+        </select>
+      </label>
+      <label className="block">
+        <span className="label">نوع العرض</span>
         <select name="type" defaultValue={filters.type ?? ""} className="field">
           <option value="">الكل</option>
-          {Object.entries(PROPERTY_TYPE_LABELS).map(([value, label]) => (
+          {Object.entries(OFFER_TYPE_LABELS).map(([value, label]) => (
             <option key={value} value={value}>
               {label}
             </option>
@@ -187,12 +242,26 @@ function FilterForm({ filters, config }: { filters: Filters; config: PublicConfi
         </select>
       </label>
       <label className="block">
-        <span className="label">نوع الغراسة</span>
-        <select name="system" defaultValue={filters.system ?? ""} className="field">
+        <span className="label">أقصى سعر حاضر (د.ت)</span>
+        <input
+          type="number"
+          name="price"
+          min={1}
+          max={MAX_PRICE_DINARS}
+          step={500}
+          defaultValue={filters.price ?? ""}
+          inputMode="numeric"
+          dir="ltr"
+          className="field text-left"
+        />
+      </label>
+      <label className="block">
+        <span className="label">المساحة</span>
+        <select name="area" defaultValue={filters.area ?? ""} className="field">
           <option value="">الكل</option>
-          {Object.entries(PLANTATION_LABELS).map(([value, label]) => (
-            <option key={value} value={value}>
-              {label}
+          {optionsFor(config, "desired_area").map((option) => (
+            <option key={option.id} value={option.id}>
+              {option.label_ar}
             </option>
           ))}
         </select>
@@ -208,7 +277,11 @@ function FilterForm({ filters, config }: { filters: Filters; config: PublicConfi
           ))}
         </select>
       </label>
-      <div className="flex gap-2">
+      <label className="choice self-end">
+        <input type="checkbox" name="available" value="1" defaultChecked={filters.available} />
+        <span className="font-medium">المتوفّر فقط</span>
+      </label>
+      <div className="flex gap-2 self-end">
         <button type="submit" className="btn btn-primary flex-1">
           صفّي
         </button>

@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 
 import { ComingSoon, PreviewBanner } from "@/components/site/module-gate";
 import { ParcelCard } from "@/components/site/parcel-card";
+import { ParcelPlan } from "@/components/site/parcel-plan";
 import { ParcelRow } from "@/components/site/parcel-row";
 import { RemotePhoto } from "@/components/site/site-photo";
 import { getPublicConfig, settingText } from "@/lib/config";
@@ -15,7 +16,7 @@ import { projectStatusLabel, projectStatusTone } from "@/lib/projects";
 import { parcelHref } from "@/lib/public-hrefs";
 import { findProject, getPublicParcels, getPublicProjects, publicMode } from "@/lib/public-projects";
 
-import { LegalNotes } from "../page";
+import { LegalNotes, longestDuration } from "../page";
 
 export const metadata: Metadata = { title: "مشروع" };
 
@@ -43,6 +44,7 @@ export default async function ProjectPage({ params }: PageProps<"/projects/[code
   const delegation = config.delegations.find((d) => d.id === project.delegation_id)?.name_ar;
   const irrigation = project.irrigation ? (IRRIGATION_LABELS as Record<string, string>)[project.irrigation] : null;
   const hasTaken = own.some((parcel) => !parcel.offered);
+  const maxMonths = longestDuration(config);
 
   return (
     <>
@@ -90,7 +92,7 @@ export default async function ProjectPage({ params }: PageProps<"/projects/[code
               </ParcelRow>
               {irrigation ? <ParcelRow label="الري">{irrigation}</ParcelRow> : null}
               <ParcelRow label="القطع">
-                {formatCount(project.parcels_total)} · {formatCount(project.parcels_offered)} معروضة
+                {formatCount(project.parcels_total)} · {formatCount(project.parcels_offered)} متبقية
               </ParcelRow>
             </dl>
           </div>
@@ -98,22 +100,36 @@ export default async function ProjectPage({ params }: PageProps<"/projects/[code
       </section>
 
       <section className="border-y border-line bg-surface">
-        <div className="mx-auto max-w-6xl px-4 py-10 sm:px-6">
-          <h2 className="font-display text-3xl font-bold text-forest">
-            {settingText(config, "projects.detail_parcels_title", "القطع في هذا المشروع")}
-          </h2>
-          {hasTaken ? (
-            <p className="mt-2 text-sm text-muted">
-              {settingText(config, "projects.taken_hint", "القطع المحجوزة أو المتعاقد عليها تظهر للمعلومة فقط، بلا سعر.")}
-            </p>
-          ) : null}
+        <div className="mx-auto max-w-6xl space-y-6 px-4 py-10 sm:px-6">
+          <div>
+            <h2 className="font-display text-3xl font-bold text-forest">
+              {settingText(config, "projects.detail_parcels_title", "القطع في هذا المشروع")}
+            </h2>
+            {hasTaken ? (
+              <p className="mt-2 text-sm text-muted">
+                {settingText(config, "projects.taken_hint", "القطع المحجوزة أو المتعاقد عليها تظهر للمعلومة فقط، بلا سعر.")}
+              </p>
+            ) : null}
+          </div>
+
+          {/* Report v3 §21: the parcels at a glance, coloured by status, each tile opening its parcel */}
+          <ParcelPlan
+            title="مخطط القطع"
+            tiles={own.map((parcel) => ({
+              id: parcel.id,
+              code: parcel.code,
+              status: parcel.status,
+              href: parcelHref(project.code, parcel.code),
+              detail: `${formatCount(parcel.area_m2)} م²`,
+            }))}
+          />
 
           {own.length === 0 ? (
-            <p className="mt-6 rounded-2xl border border-dashed border-line-strong bg-paper px-6 py-10 text-center text-muted">
+            <p className="rounded-2xl border border-dashed border-line-strong bg-paper px-6 py-10 text-center text-muted">
               {settingText(config, "projects.empty_text", "ما فماش قطع متاحة توّا.")}
             </p>
           ) : (
-            <ul className="mt-6 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+            <ul className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
               {own.map((parcel) => (
                 <ParcelCard
                   key={parcel.id}
@@ -121,6 +137,7 @@ export default async function ProjectPage({ params }: PageProps<"/projects/[code
                   href={parcelHref(project.code, parcel.code)}
                   place={project.name}
                   pricePending={settingText(config, "projects.price_pending", "السعر يُعلن لاحقاً.")}
+                  maxMonths={maxMonths}
                 />
               ))}
             </ul>

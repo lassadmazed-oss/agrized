@@ -3,6 +3,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import { ActionForm } from "@/components/admin/action-form";
+import { ParcelPlan } from "@/components/site/parcel-plan";
 import { hasRole, requireStaff, type StaffRole } from "@/lib/auth";
 import { getPublicConfig } from "@/lib/config";
 import { PLANTATION_LABELS, PRODUCTION_LABELS } from "@/lib/crm";
@@ -118,6 +119,18 @@ export default async function ProjectDetailPage({ params }: PageProps<"/admin/pr
           <h2 className="text-lg font-semibold">القطع</h2>
           <p className="text-sm text-muted">المساحة وعدد الزيتونات والسعر حقول مستقلة لكل قطعة.</p>
         </div>
+
+        {/* Report v3 §21: the plan staff read at a glance, each tile opening the parcel card */}
+        <ParcelPlan
+          title="مخطط القطع"
+          tiles={rows.map((parcel) => ({
+            id: parcel.id,
+            code: parcel.code,
+            status: parcel.status,
+            href: `/admin/projects/${id}/parcels/${parcel.id}`,
+            detail: `${formatCount(Number(parcel.area_m2))} م²`,
+          }))}
+        />
 
         {rows.length === 0 ? (
           <p className="rounded-2xl border border-dashed border-line-strong bg-surface px-6 py-10 text-center text-muted">

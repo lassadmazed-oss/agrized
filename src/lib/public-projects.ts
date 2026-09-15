@@ -40,6 +40,7 @@ export type PublicProject = {
   offered: boolean;
   parcels_total: number;
   parcels_offered: number;
+  min_cash_price_millimes: number | null;
   min_area_m2: number | null;
   max_area_m2: number | null;
   parcel_trees: number | null;
@@ -67,6 +68,8 @@ export type PublicParcel = {
   status: string;
   offered: boolean;
   cash_price_millimes: number | null;
+  /** Smallest down payment this parcel accepts (report v3 §19); null until the listing returns it. */
+  down_from_millimes: number | null;
   annual_costs_millimes: number | null;
   sort_order: number;
   photo_url: string | null;
@@ -126,6 +129,7 @@ export async function getPublicProjects(mode: PublicMode): Promise<PublicProject
     offered: Boolean(row.offered),
     parcels_total: num(row.parcels_total),
     parcels_offered: num(row.parcels_offered),
+    min_cash_price_millimes: numOrNull(row.min_cash_price_millimes),
     min_area_m2: numOrNull(row.min_area_m2),
     max_area_m2: numOrNull(row.max_area_m2),
     parcel_trees: numOrNull(row.parcel_trees),
@@ -156,6 +160,7 @@ export async function getPublicParcels(mode: PublicMode): Promise<PublicParcel[]
     status: String(row.status),
     offered: Boolean(row.offered),
     cash_price_millimes: numOrNull(row.cash_price_millimes),
+    down_from_millimes: numOrNull(row.down_from_millimes),
     annual_costs_millimes: numOrNull(row.annual_costs_millimes),
     sort_order: num(row.sort_order),
     photo_url: (row.photo_url as string | null) ?? null,

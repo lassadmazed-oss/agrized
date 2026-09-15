@@ -3,11 +3,14 @@ import Link from "next/link";
 import { ParcelRow } from "@/components/site/parcel-row";
 import { RemotePhoto } from "@/components/site/site-photo";
 import { PLANTATION_LABELS, PRODUCTION_LABELS } from "@/lib/crm";
-import { formatCount } from "@/lib/format";
+import { formatCount, formatMillimes } from "@/lib/format";
 import { projectStatusLabel, projectStatusTone } from "@/lib/projects";
 import type { PublicProject } from "@/lib/public-projects";
 
-/** A project at a glance. No price here: prices only sit next to a parcel's own facts (PARC-11). */
+/**
+ * A project at a glance (report v3 §19). The «ابتداءً من» price sits with the project's own area,
+ * trees, plantation system and production status, so it is never shown without its facts (PARC-11).
+ */
 export function ProjectCard({ project, href, place }: { project: PublicProject; href: string; place: string }) {
   return (
     <li className="overflow-hidden rounded-2xl border border-line bg-surface">
@@ -43,10 +46,21 @@ export function ProjectCard({ project, href, place }: { project: PublicProject; 
             <ParcelRow label="حالة الإنتاج">
               {project.production_status ? (PRODUCTION_LABELS[project.production_status] ?? project.production_status) : "—"}
             </ParcelRow>
-            <ParcelRow label="القطع">
-              {formatCount(project.parcels_total)} · {formatCount(project.parcels_offered)} معروضة
-            </ParcelRow>
           </dl>
+
+          <div className="mt-4 flex flex-wrap items-baseline justify-between gap-2 border-t border-line pt-3 text-sm">
+            {project.offered && project.min_cash_price_millimes ? (
+              <p>
+                <span className="text-muted">ابتداءً من </span>
+                <span className="font-display text-xl font-bold text-forest tabular-nums">
+                  {formatMillimes(project.min_cash_price_millimes)}
+                </span>
+              </p>
+            ) : null}
+            <p className="font-semibold text-ink">
+              <span className="tabular-nums">{formatCount(project.parcels_offered)}</span> قطعة متبقية
+            </p>
+          </div>
         </div>
       </Link>
     </li>

@@ -63,6 +63,31 @@ export function projectStatusTone(status: string): string {
   return (PROJECT_STATUS_TONES as Record<string, string>)[status] ?? UNKNOWN_TONE;
 }
 
+/** The four offer families of report v3 §3 / §18, read from a parcel's own fields. */
+export type OfferType = "productive" | "new_planting" | "intensive" | "bare_land";
+
+export const OFFER_TYPE_LABELS: Record<OfferType, string> = {
+  productive: "زيتون منتج",
+  new_planting: "غراسة جديدة",
+  intensive: "زيتون مكثّف",
+  bare_land: "أرض بيضاء",
+};
+
+export function offerTypeOf(parcel: {
+  property_type: string;
+  plantation_system: string | null;
+  production_status: string | null;
+}): OfferType {
+  if (parcel.property_type === "bare_land") return "bare_land";
+  if (parcel.plantation_system === "intensive") return "intensive";
+  return parcel.production_status === "producing" ? "productive" : "new_planting";
+}
+
+/** «7 سنوات» when the months are whole years, «30 شهراً» otherwise. */
+export function durationLabel(months: number): string {
+  return months % 12 === 0 ? `${months / 12} سنوات` : `${months} شهراً`;
+}
+
 export const PROPERTY_TYPE_LABELS: Record<string, string> = {
   bare_land: "أرض بيضاء",
   planted: "زيتون موجود",

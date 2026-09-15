@@ -43,6 +43,10 @@ export function OfferBlock({ offer, config }: { offer: ParcelOffer; config: Publ
 
   const cash = offer.cash_price_millimes;
   const entry = offer.entry;
+  // «من X» only from a down payment that actually produces a plan: the smallest option may be below
+  // this parcel's minimum, and advertising it would contradict «غير متاح» on the next line.
+  const validDowns = offer.plans.filter((plan) => plan.ok).map((plan) => plan.down_millimes);
+  const downFrom = validDowns.length > 0 ? Math.min(...validDowns) : null;
 
   return (
     <section className="rounded-2xl border border-line bg-surface p-5 sm:p-6">
@@ -50,7 +54,7 @@ export function OfferBlock({ offer, config }: { offer: ParcelOffer; config: Publ
         <Row label="السعر حاضر">
           <span className="font-display text-3xl font-bold text-forest">{formatMillimes(cash)}</span>
         </Row>
-        {offer.down_from_millimes ? <Row label="التسبقة">من {formatMillimes(offer.down_from_millimes)}</Row> : null}
+        {downFrom ? <Row label="التسبقة">من {formatMillimes(downFrom)}</Row> : null}
         <Row label="القسط">
           {entry?.ok && entry.months
             ? `من ${formatMillimes(entry.installment_millimes)} في الشهر · ${formatCount(entry.months)} شهراً`
