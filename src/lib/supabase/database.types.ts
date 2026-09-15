@@ -2097,6 +2097,7 @@ export type Database = {
         | "reserved"
         | "contracting"
         | "sold"
+        | "owned"
         | "withdrawn"
       project_status:
         | "draft"
@@ -2282,6 +2283,7 @@ export const Constants = {
         "reserved",
         "contracting",
         "sold",
+        "owned",
         "withdrawn",
       ],
       project_status: [

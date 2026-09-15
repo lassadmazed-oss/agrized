@@ -189,7 +189,7 @@ export async function saveParcel(
   const production = z.enum(PRODUCTION).safeParse(formData.get("production_status") ?? "");
   const irrigation = z.enum(IRRIGATION).safeParse(formData.get("irrigation") ?? "");
   const status = z
-    .enum(["available", "interested", "reserved", "contracting", "sold", "withdrawn"])
+    .enum(["available", "interested", "reserved", "contracting", "sold", "owned", "withdrawn"])
     .safeParse(formData.get("status") ?? "available");
   if (!plantation.success || !production.success || !irrigation.success || !status.success) return FAILED;
 

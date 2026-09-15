@@ -31,7 +31,7 @@ export default async function ParcelPage({ params, searchParams }: PageProps<"/p
   const config = await getPublicConfig();
   const access = await moduleAccess(config, "projects");
   if (access === "closed") {
-    return <ComingSoon title={settingText(config, "projects.title", "اختر قطعتك")} />;
+    return <ComingSoon title={settingText(config, "projects.title", "المشاريع المتوفّرة")} />;
   }
 
   const mode = publicMode(access);

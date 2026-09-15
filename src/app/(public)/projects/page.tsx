@@ -12,7 +12,7 @@ import { parcelHref, projectHref } from "@/lib/public-hrefs";
 import { getPublicParcels, getPublicProjects, publicMode, type PublicParcel } from "@/lib/public-projects";
 
 export const metadata: Metadata = {
-  title: "اختر قطعتك",
+  title: "المشاريع المتوفّرة",
   description: "قطع زيتون بمساحتها وعدد زيتوناتها ونوع غراستها وحالة إنتاجها. بلا وعود.",
 };
 
@@ -25,7 +25,7 @@ export default async function ProjectsPage({ searchParams }: PageProps<"/project
   const config = await getPublicConfig();
   const access = await moduleAccess(config, "projects");
   if (access === "closed") {
-    return <ComingSoon title={settingText(config, "projects.title", "اختر قطعتك")} />;
+    return <ComingSoon title={settingText(config, "projects.title", "المشاريع المتوفّرة")} />;
   }
 
   const mode = publicMode(access);
@@ -46,13 +46,13 @@ export default async function ProjectsPage({ searchParams }: PageProps<"/project
         <div className="flex flex-wrap items-end justify-between gap-4">
           <div className="max-w-2xl">
             <h1 className="font-display text-4xl font-bold text-forest sm:text-5xl">
-              {settingText(config, "projects.title", "اختر قطعتك")}
+              {settingText(config, "projects.title", "المشاريع المتوفّرة")}
             </h1>
             <p className="mt-3 leading-7 text-muted">
               {settingText(
                 config,
                 "projects.intro",
-                "كل قطعة عندها مساحتها وعدد زيتوناتها ونوع غراستها وحالة إنتاجها. معطيات مستقلّة، ما نحسبوش وحدة من الأخرى.",
+                "كل مشروع يحدّد وحدته: قدّاش من زيتونة وقدّاش من مساحة. الأرقام تختلف من مشروع لآخر، فتبدا من عدد الزيتونات ونوريوك الباقي حسب المشروع.",
               )}
             </p>
           </div>

@@ -23,13 +23,14 @@ export const PROJECT_STATUS_TONES: Record<ProjectStatus, string> = {
   archived: "bg-stone-100 text-stone-600 ring-stone-200",
 };
 
-/** Plot statuses of clause 11.1. They change through events, not free editing (COM-01). */
+/** Plot statuses of spec v2 §28. They change through events, not free editing (COM-01). */
 export const PARCEL_STATUS_LABELS: Record<ParcelStatus, string> = {
   available: "متاحة",
   interested: "مهتم بها",
   reserved: "محجوزة",
   contracting: "في طور التعاقد",
   sold: "متعاقد عليها",
+  owned: "مملوكة",
   withdrawn: "موقوفة",
 };
 
@@ -39,6 +40,7 @@ export const PARCEL_STATUS_TONES: Record<ParcelStatus, string> = {
   reserved: "bg-orange-50 text-orange-800 ring-orange-200",
   contracting: "bg-violet-50 text-violet-800 ring-violet-200",
   sold: "bg-stone-100 text-stone-700 ring-stone-200",
+  owned: "bg-leaf-soft text-forest ring-leaf/30",
   withdrawn: "bg-danger-soft text-danger ring-danger/30",
 };
 
