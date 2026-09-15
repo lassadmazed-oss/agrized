@@ -11,6 +11,8 @@ import { PUBLIC_PROJECTS_TAG } from "@/lib/public-projects";
 import type { Json } from "@/lib/supabase/database.types";
 import { createClient } from "@/lib/supabase/server";
 
+import { INTEGER_RANGES } from "./ranges";
+
 // PRN-01: legal texts can be edited but never emptied (they cannot be hidden from the site).
 const REQUIRED_TEXT = new Set([
   "site.home_headline",
@@ -23,16 +25,6 @@ const REQUIRED_TEXT = new Set([
   "request_no.prefix",
   "land_offer_no.prefix",
 ]);
-
-const INTEGER_RANGES: Record<string, [number, number]> = {
-  "projects.installment_examples": [1, 5],
-  "projects.listing_limit": [20, 1000],
-  "antispam.max_requests_per_ip_per_hour": [1, 1000],
-  "antispam.max_requests_per_phone_per_day": [1, 100],
-  "antispam.max_land_offers_per_ip_per_day": [1, 100],
-  "land_offer.max_file_size_mb": [1, 20],
-  "land_offer.max_files": [0, 50],
-};
 
 const JSON_SCHEMAS: Record<string, { schema: z.ZodType; message: string }> = {
   "site.how_it_works": {
@@ -122,6 +114,23 @@ export async function updateSetting(key: string, _previous: ActionResult, formDa
 
   const parsed = parseValue(key, setting.value_type, formData);
   if (!parsed.ok) return parsed;
+
+  // The database refuses new durations above the cap, but not a cap lowered under the durations already offered.
+  if (key === "pricing.max_months") {
+    const { data: durations, error: durationsError } = await supabase
+      .from("option_items")
+      .select("min_number")
+      .eq("list_key", "duration")
+      .eq("is_active", true);
+    if (durationsError) return { ok: false, message: "تعذّرت قراءة قائمة المدد. حاول مرة أخرى." };
+    const longest = Math.max(0, ...(durations ?? []).map((item) => Number(item.min_number ?? 0)));
+    if (Number(parsed.value) < longest) {
+      return {
+        ok: false,
+        message: `أطول مدة مفعّلة في قائمة المدد هي ${longest} شهراً. عطّل المدد الأطول من «القوائم» قبل، ولا اختار رقماً أكبر.`,
+      };
+    }
+  }
 
   const { data, error } = await supabase.from("settings").update({ value: parsed.value }).eq("key", key).select("key");
   if (error || !data?.length) {

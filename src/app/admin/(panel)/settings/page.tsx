@@ -1,13 +1,16 @@
 import type { Metadata } from "next";
 
 import { ActionForm } from "@/components/admin/action-form";
+import { LegacyPricingNotice, treePricingReady } from "@/components/admin/legacy-pricing-notice";
 import { PricingEditor } from "@/components/admin/pricing-editor";
 import { ADMIN_ROLES, requireStaff } from "@/lib/auth";
+import { getPublicConfig } from "@/lib/config";
 import { formatDateTime } from "@/lib/format";
 import { createClient } from "@/lib/supabase/server";
 
 import { updateSetting } from "./actions";
 import { PairListEditor } from "./pair-list-editor";
+import { INTEGER_RANGES } from "./ranges";
 
 export const metadata: Metadata = { title: "الإعدادات والنصوص" };
 
@@ -39,6 +42,7 @@ const LTR_KEYS = new Set(["request_no.prefix", "land_offer_no.prefix", "site.con
 export default async function SettingsPage() {
   await requireStaff(ADMIN_ROLES);
   const supabase = await createClient();
+  const newPricing = treePricingReady(await getPublicConfig());
   const { data: settings, error } = await supabase
     .from("settings")
     .select("key, value, value_type, group_key, label_ar, description_ar, is_public, updated_at, editor:profiles!settings_updated_by_fkey(full_name)")
@@ -78,7 +82,13 @@ export default async function SettingsPage() {
                     </p>
                   </div>
                   <ActionForm action={updateSetting.bind(null, setting.key)} submitLabel="حفظ" buttonClassName="btn btn-secondary min-h-10">
-                    <SettingInput settingKey={setting.key} type={setting.value_type} value={setting.value} label={setting.label_ar} />
+                    <SettingInput
+                      settingKey={setting.key}
+                      type={setting.value_type}
+                      value={setting.value}
+                      label={setting.label_ar}
+                      newPricing={newPricing}
+                    />
                   </ActionForm>
                 </li>
               ))}
@@ -90,7 +100,19 @@ export default async function SettingsPage() {
   );
 }
 
-function SettingInput({ settingKey, type, value, label }: { settingKey: string; type: string; value: unknown; label: string }) {
+function SettingInput({
+  settingKey,
+  type,
+  value,
+  label,
+  newPricing,
+}: {
+  settingKey: string;
+  type: string;
+  value: unknown;
+  label: string;
+  newPricing: boolean;
+}) {
   if (type === "boolean") {
     return (
       <label className="flex items-center gap-3">
@@ -101,7 +123,29 @@ function SettingInput({ settingKey, type, value, label }: { settingKey: string; 
   }
 
   if (type === "integer") {
-    return <input type="number" name="value" defaultValue={Number(value)} dir="ltr" className="field max-w-40 text-left" aria-label={label} />;
+    const [min, max] = INTEGER_RANGES[settingKey] ?? [0, 1_000_000];
+    const input = (
+      <input
+        type="number"
+        name="value"
+        defaultValue={Number(value)}
+        min={min}
+        max={max}
+        step={1}
+        dir="ltr"
+        className="field max-w-40 text-left"
+        aria-label={label}
+      />
+    );
+    // Months, not a bare number: the cap of report v3 §8.
+    return settingKey === "pricing.max_months" ? (
+      <span className="flex items-center gap-2">
+        {input}
+        <span className="text-sm text-muted">شهراً</span>
+      </span>
+    ) : (
+      input
+    );
   }
 
   if (settingKey === "crm.auto_assign_mode") {
@@ -126,7 +170,12 @@ function SettingInput({ settingKey, type, value, label }: { settingKey: string; 
   }
 
   if (settingKey === "pricing.default") {
-    return <PricingEditor initial={value} inherit={null} />;
+    return (
+      <div className="space-y-3">
+        {newPricing ? <LegacyPricingNotice /> : null}
+        <PricingEditor initial={value} inherit={null} />
+      </div>
+    );
   }
 
   if (settingKey === "site.how_it_works") {

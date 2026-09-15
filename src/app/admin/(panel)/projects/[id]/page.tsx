@@ -3,6 +3,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import { ActionForm } from "@/components/admin/action-form";
+import { LegacyPricingNotice, treePricingReady } from "@/components/admin/legacy-pricing-notice";
 import { PricingEditor } from "@/components/admin/pricing-editor";
 import { ParcelPlan } from "@/components/site/parcel-plan";
 import { hasRole, requireStaff, type StaffRole } from "@/lib/auth";
@@ -56,6 +57,9 @@ export default async function ProjectDetailPage({ params }: PageProps<"/admin/pr
   if (!project) notFound();
   const defaultPricing = defaultSetting?.value ?? null;
   const projectHasPricing = describePricing(project.pricing).length > 0;
+  // Once the tree pricing exists, the jsonb formulas on this page only price parcels still on the legacy path.
+  const newPricing = treePricingReady(config);
+  const newPricingHref = `/admin/pricing?project=${id}`;
   // What a parcel without its own formula uses: the project's, else the default.
   const parcelInherit = {
     label: "نفس صيغة المشروع",
@@ -125,6 +129,11 @@ export default async function ProjectDetailPage({ params }: PageProps<"/admin/pr
                 className="text-sm font-semibold text-forest underline-offset-4 hover:underline"
               >
                 معاينة في الموقع ↗
+              </Link>
+            ) : null}
+            {newPricing && canWrite ? (
+              <Link href={newPricingHref} className="text-sm font-semibold text-forest underline-offset-4 hover:underline">
+                التسعير الجديد لهذا المشروع
               </Link>
             ) : null}
           </div>
@@ -231,7 +240,7 @@ export default async function ProjectDetailPage({ params }: PageProps<"/admin/pr
                 className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4"
                 buttonClassName="btn btn-primary sm:col-span-2 lg:col-span-4 lg:w-48"
               >
-                <ParcelFields parcel={null} pricingInherit={parcelInherit} nextOrder={(rows.at(-1)?.sort_order ?? 0) + 10} nextCode={`P${String(rows.length + 1).padStart(2, "0")}`} />
+                <ParcelFields parcel={null} pricingInherit={parcelInherit} legacyNoticeHref={newPricing ? newPricingHref : null} nextOrder={(rows.at(-1)?.sort_order ?? 0) + 10} nextCode={`P${String(rows.length + 1).padStart(2, "0")}`} />
               </ActionForm>
             </div>
           </details>
@@ -494,7 +503,8 @@ export default async function ProjectDetailPage({ params }: PageProps<"/admin/pr
                 chosen={project.service_option_ids}
               />
 
-              <div className="sm:col-span-2 lg:col-span-3">
+              <div className="space-y-3 sm:col-span-2 lg:col-span-3">
+                {newPricing ? <LegacyPricingNotice href={newPricingHref} /> : null}
                 <PricingEditor
                   initial={project.pricing}
                   inherit={{
@@ -576,11 +586,14 @@ export default async function ProjectDetailPage({ params }: PageProps<"/admin/pr
 export function ParcelFields({
   parcel,
   pricingInherit,
+  legacyNoticeHref = null,
   nextOrder = 0,
   nextCode = "",
 }: {
   /** The formula this parcel uses when it has none of its own. */
   pricingInherit: { label: string; hint: string; lines: string[] };
+  /** Set once the tree pricing exists: this parcel's jsonb formula is then the legacy path only. */
+  legacyNoticeHref?: string | null;
   parcel: {
     code: string;
     area_m2: number | string;
@@ -686,7 +699,8 @@ export function ParcelFields({
           <input name="notes" defaultValue={parcel?.notes ?? ""} className="field" />
         </Labeled>
       </div>
-      <div className="sm:col-span-2 lg:col-span-4">
+      <div className="space-y-3 sm:col-span-2 lg:col-span-4">
+        {legacyNoticeHref ? <LegacyPricingNotice href={legacyNoticeHref} /> : null}
         <PricingEditor initial={parcel?.pricing ?? null} inherit={pricingInherit} />
       </div>
     </>

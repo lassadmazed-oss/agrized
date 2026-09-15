@@ -3,6 +3,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import { ActionForm } from "@/components/admin/action-form";
+import { treePricingReady } from "@/components/admin/legacy-pricing-notice";
 import { hasRole, requireStaff, type StaffRole } from "@/lib/auth";
 import { getPublicConfig, settingText } from "@/lib/config";
 import { PLANTATION_LABELS, PRODUCTION_LABELS } from "@/lib/crm";
@@ -261,7 +262,11 @@ export default async function ParcelPage({ params, searchParams }: PageProps<"/a
                   className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4"
                   buttonClassName="btn btn-secondary sm:col-span-2 lg:col-span-4 lg:w-48"
                 >
-                  <ParcelFields parcel={parcel} pricingInherit={pricingInherit} />
+                  <ParcelFields
+                    parcel={parcel}
+                    pricingInherit={pricingInherit}
+                    legacyNoticeHref={treePricingReady(config) ? `/admin/pricing?project=${id}` : null}
+                  />
                 </ActionForm>
               </div>
             </section>
