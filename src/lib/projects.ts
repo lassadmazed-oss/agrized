@@ -93,6 +93,29 @@ export const PROPERTY_TYPE_LABELS: Record<string, string> = {
   planted: "زيتون موجود",
 };
 
+/** Project cost categories of report v3 §35. Internal: Finance and Admin only (PRJ-03). */
+export const COST_KIND_LABELS: Record<string, string> = {
+  purchase: "شراء العقار",
+  notary: "موثّق ومصاريف قانونية",
+  commission: "عمولة",
+  plantation: "غراسة",
+  irrigation: "ري",
+  fencing: "سياج",
+  access: "طريق ونفاذ",
+  marketing: "تسويق",
+  sales_commission: "عمولة البيع",
+  management: "تسيير",
+  development: "تهيئة وغراسة",
+  fees: "معاليم وأتعاب",
+  other: "أخرى",
+};
+
+/** Accepted by the database; `development` and `fees` stay valid for rows recorded before v3. */
+export const COST_KINDS = Object.keys(COST_KIND_LABELS) as [string, ...string[]];
+
+/** Offered in the form: the v3 categories only. */
+export const COST_KINDS_OFFERED = COST_KINDS.filter((kind) => kind !== "development" && kind !== "fees");
+
 export const PRICING_MODEL_LABELS: Record<string, string> = {
   markup_brackets: "هامش حسب المدة",
   monthly_rate: "هامش شهري على الرصيد",

@@ -1979,6 +1979,7 @@ export type Database = {
           cash_price_millimes: number
           code: string
           delegation_id: number
+          down_from_millimes: number
           governorate_id: number
           id: string
           irrigation: Database["public"]["Enums"]["irrigation_type"]

@@ -5,6 +5,7 @@ import { z } from "zod";
 
 import type { ActionResult } from "@/components/admin/action-form";
 import { requireStaff, type StaffRole } from "@/lib/auth";
+import { COST_KINDS } from "@/lib/projects";
 import { PUBLIC_PROJECTS_TAG } from "@/lib/public-projects";
 import type { Json } from "@/lib/supabase/database.types";
 import { createClient } from "@/lib/supabase/server";
@@ -240,7 +241,7 @@ export async function addProjectCost(projectId: string, _previous: ActionResult,
   await requireStaff(WRITE_ROLES);
   const label = text(formData, "label", 160);
   const amount = optionalNumber(formData, "amount_dinars");
-  const kind = z.enum(["purchase", "development", "fees", "other"]).safeParse(formData.get("kind"));
+  const kind = z.enum(COST_KINDS).safeParse(formData.get("kind"));
   if (!label || amount === undefined || amount === null || !kind.success) {
     return { ok: false, message: "اكتب البيان والمبلغ بالدينار واختر النوع." };
   }

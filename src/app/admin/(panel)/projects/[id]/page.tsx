@@ -9,6 +9,8 @@ import { getPublicConfig } from "@/lib/config";
 import { PLANTATION_LABELS, PRODUCTION_LABELS } from "@/lib/crm";
 import { formatCount, formatMillimes } from "@/lib/format";
 import {
+  COST_KIND_LABELS,
+  COST_KINDS_OFFERED,
   PARCEL_STATUS_LABELS,
   PARCEL_STATUS_TONES,
   PRICING_MODEL_LABELS,
@@ -51,6 +53,11 @@ export default async function ProjectDetailPage({ params }: PageProps<"/admin/pr
   const parcelTrees = rows.reduce((sum, parcel) => sum + (parcel.olive_tree_count ?? 0), 0);
   const parcelValue = rows.reduce((sum, parcel) => sum + (parcel.cash_price_millimes ?? 0), 0);
   const costTotal = (costs.data ?? []).reduce((sum, cost) => sum + (cost.amount_millimes ?? 0), 0);
+  // Report v3 §35: what the parcels not withdrawn would bring at their cash price, against the recorded costs.
+  const expectedRevenue = rows
+    .filter((parcel) => parcel.status !== "withdrawn")
+    .reduce((sum, parcel) => sum + (parcel.cash_price_millimes ?? 0), 0);
+  const expectedMargin = expectedRevenue - costTotal;
   const governorate = config.governorates.find((g) => g.id === project.governorate_id)?.name_ar;
 
   // PRJ-04: warn when the parcels do not add up to the project
@@ -330,13 +337,25 @@ export default async function ProjectDetailPage({ params }: PageProps<"/admin/pr
               <ul className="mb-4 divide-y divide-line">
                 {(costs.data ?? []).map((cost) => (
                   <li key={cost.id} className="flex items-center justify-between gap-4 py-2 text-sm">
-                    <span>{cost.label}</span>
+                    <span>
+                      {cost.label} <span className="text-xs text-muted">· {COST_KIND_LABELS[cost.kind] ?? cost.kind}</span>
+                    </span>
                     <span className="tabular-nums">{formatMillimes(cost.amount_millimes)}</span>
                   </li>
                 ))}
                 <li className="flex items-center justify-between gap-4 py-2 text-sm font-semibold">
                   <span>المجموع</span>
                   <span className="tabular-nums">{formatMillimes(costTotal)}</span>
+                </li>
+                <li className="flex items-center justify-between gap-4 py-2 text-sm">
+                  <span>المداخيل المتوقّعة (سعر الحاضر للقطع غير الموقوفة)</span>
+                  <span className="tabular-nums">{formatMillimes(expectedRevenue)}</span>
+                </li>
+                <li
+                  className={`flex items-center justify-between gap-4 py-2 text-sm font-semibold ${expectedMargin < 0 ? "text-danger" : "text-forest"}`}
+                >
+                  <span>الهامش المتوقّع</span>
+                  <span className="tabular-nums">{formatMillimes(expectedMargin)}</span>
                 </li>
               </ul>
             ) : (
@@ -345,7 +364,7 @@ export default async function ProjectDetailPage({ params }: PageProps<"/admin/pr
             <ActionForm
               action={addProjectCost.bind(null, id)}
               submitLabel="إضافة"
-              className="grid gap-3 sm:grid-cols-[1fr_10rem_10rem_auto] sm:items-end"
+              className="grid gap-3 sm:grid-cols-[1fr_13rem_10rem_auto] sm:items-end"
               buttonClassName="btn btn-secondary min-h-11"
             >
               <Labeled label="البيان">
@@ -353,10 +372,11 @@ export default async function ProjectDetailPage({ params }: PageProps<"/admin/pr
               </Labeled>
               <Labeled label="النوع">
                 <select name="kind" defaultValue="purchase" className="field min-h-11">
-                  <option value="purchase">شراء العقار</option>
-                  <option value="development">تهيئة وغراسة</option>
-                  <option value="fees">معاليم وأتعاب</option>
-                  <option value="other">أخرى</option>
+                  {COST_KINDS_OFFERED.map((kind) => (
+                    <option key={kind} value={kind}>
+                      {COST_KIND_LABELS[kind]}
+                    </option>
+                  ))}
                 </select>
               </Labeled>
               <Labeled label="المبلغ (د.ت)">
