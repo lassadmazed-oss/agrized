@@ -133,6 +133,13 @@ export async function updateSetting(key: string, _previous: ActionResult, formDa
   }
 
   const { data, error } = await supabase.from("settings").update({ value: parsed.value }).eq("key", key).select("key");
+  if (error?.message.includes("cap_below_durations")) {
+    // The database's own guard (agrized-db's tree pricing): a markup on /admin/pricing is longer than the new cap.
+    return {
+      ok: false,
+      message: "فمّا زيادة محدّدة على مدة أطول من هالرقم في صفحة التسعير. نقّصها ولا احذفها قبل، ولا اختار رقماً أكبر.",
+    };
+  }
   if (error || !data?.length) {
     return { ok: false, message: "تعذّر الحفظ. تحقق من صلاحياتك وحاول مرة أخرى." };
   }
