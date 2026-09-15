@@ -610,7 +610,11 @@ export function LandOfferForm(props: LandOfferFormProps) {
           {props.notice ? <p className="text-sm leading-6 text-muted">{props.notice}</p> : null}
         </div>
 
-        <div aria-hidden="true" style={{ position: "absolute", left: "-10000px", width: 1, height: 1, overflow: "hidden" }}>
+        {/* Honeypot for bots. Clipped in place: a large negative offset adds sideways scroll on a right-to-left page. */}
+        <div
+          aria-hidden="true"
+          style={{ position: "absolute", width: 1, height: 1, overflow: "hidden", clipPath: "inset(50%)", whiteSpace: "nowrap", pointerEvents: "none" }}
+        >
           <label>
             Website
             <input tabIndex={-1} autoComplete="off" value={honeypot} onChange={(event) => setHoneypot(event.target.value)} />

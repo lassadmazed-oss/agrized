@@ -456,8 +456,12 @@ export function RegisterWizard(props: RegisterWizardProps) {
           {step === 9 ? <ReviewStep form={form} errors={errors} update={update} setStep={setStep} {...props} /> : null}
         </div>
 
-        {/* Honeypot for bots; hidden from people and assistive technology */}
-        <div aria-hidden="true" style={{ position: "absolute", left: "-10000px", width: 1, height: 1, overflow: "hidden" }}>
+        {/* Honeypot for bots; hidden from people and assistive technology. Clipped in place rather than pushed
+            off-screen: on this right-to-left page a large negative offset added 10,000px of sideways scroll. */}
+        <div
+          aria-hidden="true"
+          style={{ position: "absolute", width: 1, height: 1, overflow: "hidden", clipPath: "inset(50%)", whiteSpace: "nowrap", pointerEvents: "none" }}
+        >
           <label>
             Website
             <input tabIndex={-1} autoComplete="off" value={honeypot} onChange={(event) => setHoneypot(event.target.value)} />
