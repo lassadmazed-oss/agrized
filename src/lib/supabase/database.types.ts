@@ -1166,6 +1166,7 @@ export type Database = {
           project_id: string
           property_type: string
           sort_order: number
+          spacing_class_id: string | null
           status: Database["public"]["Enums"]["parcel_status"]
           tree_age_years: number | null
           updated_at: string
@@ -1187,6 +1188,7 @@ export type Database = {
           project_id: string
           property_type: string
           sort_order?: number
+          spacing_class_id?: string | null
           status?: Database["public"]["Enums"]["parcel_status"]
           tree_age_years?: number | null
           updated_at?: string
@@ -1208,6 +1210,7 @@ export type Database = {
           project_id?: string
           property_type?: string
           sort_order?: number
+          spacing_class_id?: string | null
           status?: Database["public"]["Enums"]["parcel_status"]
           tree_age_years?: number | null
           updated_at?: string
@@ -1219,6 +1222,13 @@ export type Database = {
             columns: ["project_id"]
             isOneToOne: false
             referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "parcels_spacing_class_id_fkey"
+            columns: ["spacing_class_id"]
+            isOneToOne: false
+            referencedRelation: "tree_spacing_classes"
             referencedColumns: ["id"]
           },
           {
@@ -2590,6 +2600,17 @@ export type Database = {
         }[]
       }
       public_project_page: { Args: { p_code: string }; Returns: Json }
+      public_project_quote: {
+        Args: {
+          p_down_percent_option_id?: string
+          p_duration_option_id?: string
+          p_payment_mode?: string
+          p_project: string
+          p_spacing_class?: string
+          p_trees?: number
+        }
+        Returns: Json
+      }
       public_projects: {
         Args: never
         Returns: {
@@ -2657,6 +2678,17 @@ export type Database = {
           p_down_option?: string
           p_installment_option?: string
           p_parcel: string
+        }
+        Returns: Json
+      }
+      staff_project_quote: {
+        Args: {
+          p_down_percent_option_id?: string
+          p_duration_option_id?: string
+          p_payment_mode?: string
+          p_project: string
+          p_spacing_class?: string
+          p_trees?: number
         }
         Returns: Json
       }
