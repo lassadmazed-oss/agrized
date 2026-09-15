@@ -13,6 +13,11 @@ export type DemandStats = {
   anywhere: number;
   anywhere_trees: number;
   unsure_type: number;
+  /** Report v3 §40 and §14: demands (or persons) that answered yes. */
+  visit_yes: number;
+  bank_financing_yes: number;
+  /** Active durations, retired ones still carried by demands, then no answer (id null). */
+  by_duration: { id: string | null; label: string; months: number | null; count: number }[];
   by_tree_count: { code: string | null; label: string; min: number | null; count: number; trees: number }[];
   by_invest_governorate: { id: number; name: string; count: number; trees: number }[];
   by_governorate_trees: { id: number; name: string; trees: number; count: number }[];

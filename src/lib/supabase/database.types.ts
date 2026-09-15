@@ -212,6 +212,10 @@ export type Database = {
       }
       interest_requests: {
         Row: {
+          budget_label_ar: string | null
+          budget_max_millimes: number | null
+          budget_min_millimes: number | null
+          budget_option_id: string | null
           consent_text: string
           contact_channel: Database["public"]["Enums"]["contact_channel"]
           contact_time_label_ar: string | null
@@ -225,16 +229,19 @@ export type Database = {
           down_payment_max_millimes: number | null
           down_payment_min_millimes: number | null
           down_payment_option_id: string
+          duration_label_ar: string | null
+          duration_months: number | null
+          duration_option_id: string | null
           email: string | null
           full_name: string
           goal_code: string | null
           goal_label_ar: string
           goal_option_id: string
           id: string
-          installment_label_ar: string
+          installment_label_ar: string | null
           installment_max_millimes: number | null
           installment_min_millimes: number | null
-          installment_option_id: string
+          installment_option_id: string | null
           invest_anywhere: boolean
           invest_governorate_ids: number[]
           is_duplicate: boolean
@@ -273,9 +280,15 @@ export type Database = {
           tree_count_max: number | null
           tree_count_min: number | null
           tree_count_option_id: string | null
+          wants_bank_financing: boolean | null
+          wants_visit: boolean | null
           whatsapp_e164: string | null
         }
         Insert: {
+          budget_label_ar?: string | null
+          budget_max_millimes?: number | null
+          budget_min_millimes?: number | null
+          budget_option_id?: string | null
           consent_text: string
           contact_channel: Database["public"]["Enums"]["contact_channel"]
           contact_time_label_ar?: string | null
@@ -289,16 +302,19 @@ export type Database = {
           down_payment_max_millimes?: number | null
           down_payment_min_millimes?: number | null
           down_payment_option_id: string
+          duration_label_ar?: string | null
+          duration_months?: number | null
+          duration_option_id?: string | null
           email?: string | null
           full_name: string
           goal_code?: string | null
           goal_label_ar: string
           goal_option_id: string
           id?: string
-          installment_label_ar: string
+          installment_label_ar?: string | null
           installment_max_millimes?: number | null
           installment_min_millimes?: number | null
-          installment_option_id: string
+          installment_option_id?: string | null
           invest_anywhere?: boolean
           invest_governorate_ids?: number[]
           is_duplicate?: boolean
@@ -337,9 +353,15 @@ export type Database = {
           tree_count_max?: number | null
           tree_count_min?: number | null
           tree_count_option_id?: string | null
+          wants_bank_financing?: boolean | null
+          wants_visit?: boolean | null
           whatsapp_e164?: string | null
         }
         Update: {
+          budget_label_ar?: string | null
+          budget_max_millimes?: number | null
+          budget_min_millimes?: number | null
+          budget_option_id?: string | null
           consent_text?: string
           contact_channel?: Database["public"]["Enums"]["contact_channel"]
           contact_time_label_ar?: string | null
@@ -353,16 +375,19 @@ export type Database = {
           down_payment_max_millimes?: number | null
           down_payment_min_millimes?: number | null
           down_payment_option_id?: string
+          duration_label_ar?: string | null
+          duration_months?: number | null
+          duration_option_id?: string | null
           email?: string | null
           full_name?: string
           goal_code?: string | null
           goal_label_ar?: string
           goal_option_id?: string
           id?: string
-          installment_label_ar?: string
+          installment_label_ar?: string | null
           installment_max_millimes?: number | null
           installment_min_millimes?: number | null
-          installment_option_id?: string
+          installment_option_id?: string | null
           invest_anywhere?: boolean
           invest_governorate_ids?: number[]
           is_duplicate?: boolean
@@ -401,9 +426,18 @@ export type Database = {
           tree_count_max?: number | null
           tree_count_min?: number | null
           tree_count_option_id?: string | null
+          wants_bank_financing?: boolean | null
+          wants_visit?: boolean | null
           whatsapp_e164?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "interest_requests_budget_option_id_fkey"
+            columns: ["budget_option_id"]
+            isOneToOne: false
+            referencedRelation: "option_items"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "interest_requests_contact_time_option_id_fkey"
             columns: ["contact_time_option_id"]
@@ -421,6 +455,13 @@ export type Database = {
           {
             foreignKeyName: "interest_requests_down_payment_option_id_fkey"
             columns: ["down_payment_option_id"]
+            isOneToOne: false
+            referencedRelation: "option_items"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "interest_requests_duration_option_id_fkey"
+            columns: ["duration_option_id"]
             isOneToOne: false
             referencedRelation: "option_items"
             referencedColumns: ["id"]
@@ -1812,6 +1853,10 @@ export type Database = {
         Row: {
           assigned_to: string | null
           assigned_to_name: string | null
+          budget_label_ar: string | null
+          budget_max_millimes: number | null
+          budget_min_millimes: number | null
+          budget_option_id: string | null
           consent_text: string | null
           contact_channel: Database["public"]["Enums"]["contact_channel"] | null
           contact_time_label_ar: string | null
@@ -1825,6 +1870,9 @@ export type Database = {
           down_payment_max_millimes: number | null
           down_payment_min_millimes: number | null
           down_payment_option_id: string | null
+          duration_label_ar: string | null
+          duration_months: number | null
+          duration_option_id: string | null
           email: string | null
           full_name: string | null
           goal_code: string | null
@@ -1838,6 +1886,18 @@ export type Database = {
           invest_anywhere: boolean | null
           invest_governorate_ids: number[] | null
           is_duplicate: boolean | null
+          parcel_area_m2: number | null
+          parcel_captured_at: string | null
+          parcel_cash_price_millimes: number | null
+          parcel_code: string | null
+          parcel_id: string | null
+          parcel_olive_tree_count: number | null
+          parcel_plan_last_millimes: number | null
+          parcel_plan_months: number | null
+          parcel_plan_total_millimes: number | null
+          parcel_plantation_system: string | null
+          parcel_production_status: string | null
+          parcel_property_type: string | null
           person_archived_at: string | null
           person_id: string | null
           phone_e164: string | null
@@ -1846,6 +1906,9 @@ export type Database = {
           priority_label_ar: string | null
           priority_option_id: string | null
           production_statuses: string[] | null
+          project_code: string | null
+          project_id: string | null
+          project_name: string | null
           project_type_ids: string[] | null
           project_type_unsure: boolean | null
           request_no: string | null
@@ -1862,9 +1925,18 @@ export type Database = {
           tree_count_max: number | null
           tree_count_min: number | null
           tree_count_option_id: string | null
+          wants_bank_financing: boolean | null
+          wants_visit: boolean | null
           whatsapp_e164: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "interest_requests_budget_option_id_fkey"
+            columns: ["budget_option_id"]
+            isOneToOne: false
+            referencedRelation: "option_items"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "interest_requests_contact_time_option_id_fkey"
             columns: ["contact_time_option_id"]
@@ -1887,6 +1959,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "interest_requests_duration_option_id_fkey"
+            columns: ["duration_option_id"]
+            isOneToOne: false
+            referencedRelation: "option_items"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "interest_requests_goal_option_id_fkey"
             columns: ["goal_option_id"]
             isOneToOne: false
@@ -1901,6 +1980,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "interest_requests_parcel_id_fkey"
+            columns: ["parcel_id"]
+            isOneToOne: false
+            referencedRelation: "parcels"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "interest_requests_person_id_fkey"
             columns: ["person_id"]
             isOneToOne: false
@@ -1912,6 +1998,13 @@ export type Database = {
             columns: ["priority_option_id"]
             isOneToOne: false
             referencedRelation: "option_items"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "interest_requests_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
             referencedColumns: ["id"]
           },
           {
@@ -1987,6 +2080,8 @@ export type Database = {
         Returns: {
           assigned_to: string
           assigned_to_name: string
+          budget_label_ar: string
+          budget_min_millimes: number
           contact_channel: Database["public"]["Enums"]["contact_channel"]
           contact_time_label_ar: string
           created_at: string
@@ -1995,6 +2090,8 @@ export type Database = {
           desired_area_min_m2: number
           down_payment_label_ar: string
           down_payment_min_millimes: number
+          duration_label_ar: string
+          duration_months: number
           full_name: string
           goal_code: string
           goal_label_ar: string
@@ -2028,6 +2125,8 @@ export type Database = {
           tree_count_max: number
           tree_count_min: number
           trees_total: number
+          wants_bank_financing: boolean
+          wants_visit: boolean
         }[]
       }
       demand_indicator: { Args: { p_governorate: number }; Returns: Json }

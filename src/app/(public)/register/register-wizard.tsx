@@ -28,17 +28,21 @@ type RegisterWizardProps = {
   scenarios: Scenario[];
   treeCounts: Option[];
   desiredAreas: Option[];
-  priorities: Option[];
   goals: Option[];
   downPayments: Option[];
-  installments: Option[];
+  /** Report v3 §8: how long the client pays; the monthly amount is never chosen (§6). */
+  durations: Option[];
+  /** Report v3 §40: the question stays hidden while AgriZed has not filled the list. */
+  budgets: Option[];
   contactTimes: Option[];
   allowMultipleScenarios: boolean;
   allowInternationalPhone: boolean;
   notice: string;
   consentText: string;
   initialDownPaymentId?: string;
-  initialInstallmentId?: string;
+  initialDurationId?: string;
+  /** `visit=1` in the link pre-answers «تحب تزور الأرض؟» with yes. */
+  initialWantsVisit?: boolean;
   /** Chosen on the home page, in «قدّاش زيتونة تحب تبدا بيهم؟» (MIL-01). */
   initialTreeCountId?: string;
   /** Typed on /start instead of picking a card (MIL-01); the page already checked the limits. */
@@ -63,10 +67,12 @@ type FormState = {
   treeCountOptionId: string | null;
   treeCountCustom: number | null;
   desiredAreaOptionId: string | null;
-  priorityOptionId: string | null;
   goalOptionId: string | null;
   downPaymentOptionId: string | null;
-  installmentOptionId: string | null;
+  durationOptionId: string | null;
+  budgetOptionId: string | null;
+  wantsVisit: boolean | null;
+  wantsBankFinancing: boolean | null;
   contactChannel: ContactChannel | null;
   contactTimeOptionId: string | null;
   consent: boolean;
@@ -80,8 +86,8 @@ const STEPS = [
   "شنوّة تحب تملك؟",
   "قدّاش زيتونة؟",
   "ما هو هدفك؟",
-  "شنوّة الأهم بالنسبة ليك؟",
   "قدرتك المالية",
+  "الزيارة والتمويل",
   "كيف تحب نتصلوا بيك؟",
   "راجع طلبك",
 ] as const;
@@ -92,7 +98,21 @@ const CHANNEL_LABELS: Record<ContactChannel, string> = {
   both: "الاثنين",
 };
 
-const DRAFT_KEY = "agrized:register-draft";
+type YesNoChoice = { value: boolean; label: string };
+const VISIT_CHOICES: YesNoChoice[] = [
+  { value: true, label: "نعم" },
+  { value: false, label: "لا، مازال" },
+];
+const BANK_CHOICES: YesNoChoice[] = [
+  { value: true, label: "نعم" },
+  { value: false, label: "لا" },
+];
+const NO_ANSWER = "بدون إجابة";
+const BUDGET_NONE = "ما نحبش نحدّد";
+
+// Drafts saved before report v3 hold an installment and a priority the form no longer asks.
+const DRAFT_KEY = "agrized:register-draft-v3";
+const LEGACY_DRAFT_KEY = "agrized:register-draft";
 
 function emptyForm(props: RegisterWizardProps): FormState {
   return {
@@ -108,38 +128,56 @@ function emptyForm(props: RegisterWizardProps): FormState {
     treeCountOptionId: props.initialTreeCountId ?? null,
     treeCountCustom: props.initialTreeCountId ? null : (props.initialTreeCountCustom ?? null),
     desiredAreaOptionId: null,
-    priorityOptionId: null,
     goalOptionId: null,
     downPaymentOptionId: props.initialDownPaymentId ?? null,
-    installmentOptionId: props.initialInstallmentId ?? null,
+    durationOptionId: props.initialDurationId ?? null,
+    budgetOptionId: null,
+    wantsVisit: props.initialWantsVisit ? true : null,
+    wantsBankFinancing: null,
     contactChannel: null,
     contactTimeOptionId: null,
     consent: false,
   };
 }
 
-/** Drops draft values that no longer exist in the Back Office lists. */
+/**
+ * Rebuilds the form field by field, so keys of questions the form no longer asks are dropped, and
+ * clears values that no longer exist in the Back Office lists.
+ */
 function sanitize(form: FormState, props: RegisterWizardProps): FormState {
-  const has = (list: { id: string }[], id: string | null) => (id && list.some((o) => o.id === id) ? id : null);
+  const has = (list: { id: string }[], id: unknown) => (typeof id === "string" && list.some((o) => o.id === id) ? id : null);
+  const yesNo = (value: unknown) => (typeof value === "boolean" ? value : null);
   const governorateIds = new Set(props.governorates.map((g) => g.id));
   const scenarioIds = new Set(props.scenarios.map((s) => s.id));
   const treeCountOptionId = has(props.treeCounts, form.treeCountOptionId);
   return {
-    ...form,
+    fullName: form.fullName,
+    phone: form.phone,
+    whatsappSame: form.whatsappSame,
+    whatsapp: form.whatsapp,
+    email: form.email,
     governorateId: form.governorateId && governorateIds.has(form.governorateId) ? form.governorateId : null,
+    investAnywhere: form.investAnywhere,
     investGovernorateIds: form.investGovernorateIds.filter((id) => governorateIds.has(id)),
     scenarioIds: form.scenarioIds.filter((id) => scenarioIds.has(id)),
     treeCountOptionId,
     // A listed option and a typed number never coexist; the option wins.
     treeCountCustom: treeCountOptionId === null && isCustomTreesInRange(form.treeCountCustom, props) ? form.treeCountCustom : null,
     desiredAreaOptionId: has(props.desiredAreas, form.desiredAreaOptionId),
-    priorityOptionId: has(props.priorities, form.priorityOptionId),
     goalOptionId: has(props.goals, form.goalOptionId),
     downPaymentOptionId: has(props.downPayments, form.downPaymentOptionId),
-    installmentOptionId: has(props.installments, form.installmentOptionId),
+    durationOptionId: has(props.durations, form.durationOptionId),
+    budgetOptionId: has(props.budgets, form.budgetOptionId),
+    wantsVisit: yesNo(form.wantsVisit),
+    wantsBankFinancing: yesNo(form.wantsBankFinancing),
+    contactChannel: form.contactChannel && form.contactChannel in CHANNEL_LABELS ? form.contactChannel : null,
     contactTimeOptionId: has(props.contactTimes, form.contactTimeOptionId),
     consent: false,
   };
+}
+
+function yesNoLabel(choices: YesNoChoice[], value: boolean | null): string {
+  return choices.find((choice) => choice.value === value)?.label ?? NO_ANSWER;
 }
 
 function isCustomTreesInRange(value: unknown, props: RegisterWizardProps): value is number {
@@ -193,12 +231,9 @@ function validateStep(step: number, form: FormState, props: RegisterWizardProps)
     }
   }
   if (step === 5 && !form.goalOptionId) errors.goalOptionId = "اختر هدفك.";
-  if (step === 6 && props.priorities.length > 0 && !form.priorityOptionId) {
-    errors.priorityOptionId = "اختر الأهم بالنسبة إليك.";
-  }
-  if (step === 7) {
+  if (step === 6) {
     if (!form.downPaymentOptionId) errors.downPaymentOptionId = "اختر التسبقة التي تناسبك.";
-    if (!form.installmentOptionId) errors.installmentOptionId = "اختر القسط الشهري الذي يناسبك.";
+    if (props.durations.length > 0 && !form.durationOptionId) errors.durationOptionId = "اختر مدة الدفع التي تناسبك.";
   }
   if (step === 8 && !form.contactChannel) errors.contactChannel = "اختر طريقة التواصل.";
   if (step === 9 && !form.consent) errors.consent = "لإرسال الطلب، وافق على التواصل ومعالجة معطياتك.";
@@ -227,6 +262,7 @@ export function RegisterWizard(props: RegisterWizardProps) {
   // LEAD-07: keep answers in this browser so a reload does not lose them. Nothing is sent before submit.
   useEffect(() => {
     try {
+      localStorage.removeItem(LEGACY_DRAFT_KEY);
       const raw = localStorage.getItem(DRAFT_KEY);
       if (raw) {
         const draft = JSON.parse(raw) as Partial<FormState>;
@@ -238,7 +274,8 @@ export function RegisterWizard(props: RegisterWizardProps) {
             : {}),
           ...(props.initialScenarioId ? { scenarioIds: [props.initialScenarioId] } : {}),
           ...(props.initialDownPaymentId ? { downPaymentOptionId: props.initialDownPaymentId } : {}),
-          ...(props.initialInstallmentId ? { installmentOptionId: props.initialInstallmentId } : {}),
+          ...(props.initialDurationId ? { durationOptionId: props.initialDurationId } : {}),
+          ...(props.initialWantsVisit ? { wantsVisit: true } : {}),
         };
         // eslint-disable-next-line react-hooks/set-state-in-effect -- restoring browser-only state after hydration
         setForm((current) => sanitize({ ...current, ...draft, ...fromHome }, props));
@@ -318,10 +355,12 @@ export function RegisterWizard(props: RegisterWizardProps) {
           treeCountOptionId: form.treeCountOptionId,
           treeCountCustom: form.treeCountCustom,
           desiredAreaOptionId: form.desiredAreaOptionId,
-          priorityOptionId: form.priorityOptionId,
           goalOptionId: form.goalOptionId ?? "",
           downPaymentOptionId: form.downPaymentOptionId ?? "",
-          installmentOptionId: form.installmentOptionId ?? "",
+          durationOptionId: form.durationOptionId,
+          budgetOptionId: form.budgetOptionId,
+          wantsVisit: form.wantsVisit,
+          wantsBankFinancing: form.wantsBankFinancing,
           contactChannel: form.contactChannel ?? "phone",
           contactTimeOptionId: form.contactTimeOptionId,
           consent: true,
@@ -434,19 +473,8 @@ export function RegisterWizard(props: RegisterWizardProps) {
               error={errors.goalOptionId}
             />
           ) : null}
-          {step === 6 ? (
-            <div>
-              <p className="hint mb-3">نستعملوها باش نقدّموا العروض الأقرب لما يهمّك.</p>
-              <SingleChoice
-                name="priority"
-                options={props.priorities}
-                value={form.priorityOptionId}
-                onChange={(id) => update("priorityOptionId", id)}
-                error={errors.priorityOptionId}
-              />
-            </div>
-          ) : null}
-          {step === 7 ? <CapacityStep form={form} errors={errors} update={update} {...props} /> : null}
+          {step === 6 ? <CapacityStep form={form} errors={errors} update={update} {...props} /> : null}
+          {step === 7 ? <VisitStep form={form} errors={errors} update={update} /> : null}
           {step === 8 ? <ContactStep form={form} errors={errors} update={update} contactTimes={props.contactTimes} /> : null}
           {step === 9 ? <ReviewStep form={form} errors={errors} update={update} setStep={setStep} {...props} /> : null}
         </div>
@@ -733,7 +761,8 @@ function CustomTreesRow({ form, errors, update, ...props }: StepProps & Register
   );
 }
 
-function CapacityStep({ form, errors, update, downPayments, installments }: StepProps & RegisterWizardProps) {
+/** Report v3 §6-§8, §40: a down payment and a duration; the monthly amount is computed per offer, never picked here. */
+function CapacityStep({ form, errors, update, downPayments, durations, budgets }: StepProps & RegisterWizardProps) {
   return (
     <div className="space-y-8">
       <fieldset>
@@ -748,18 +777,58 @@ function CapacityStep({ form, errors, update, downPayments, installments }: Step
         <GroupError message={errors.downPaymentOptionId} />
       </fieldset>
 
-      <fieldset>
-        <legend className="label text-base">القسط الشهري</legend>
-        <p className="hint mb-3">المبلغ الذي يناسبك كل شهر.</p>
-        <ChipGrid
-          name="installment"
-          options={installments}
-          value={form.installmentOptionId}
-          onChange={(id) => update("installmentOptionId", id)}
-          suffix="شهرياً"
-        />
-        <GroupError message={errors.installmentOptionId} />
-      </fieldset>
+      {durations.length > 0 ? (
+        <fieldset>
+          <legend className="label text-base">مدة الدفع</legend>
+          <p className="hint mb-3">المدة اللي تحب تخلّص فيها الباقي بعد التسبقة. القسط الشهري يتحسب حسب كل عرض.</p>
+          <ChipGrid
+            name="duration"
+            options={durations}
+            value={form.durationOptionId}
+            onChange={(id) => update("durationOptionId", id)}
+          />
+          <GroupError message={errors.durationOptionId} />
+        </fieldset>
+      ) : null}
+
+      {budgets.length > 0 ? (
+        <fieldset>
+          <legend className="label text-base">الميزانية (اختياري)</legend>
+          <p className="hint mb-3">الميزانية الجملية اللي تنجم تخصّصها للمشروع.</p>
+          <ChipGrid
+            name="budget"
+            options={budgets}
+            value={form.budgetOptionId}
+            onChange={(id) => update("budgetOptionId", id)}
+            noneLabel={BUDGET_NONE}
+          />
+        </fieldset>
+      ) : null}
+    </div>
+  );
+}
+
+/** Report v3 §40 asks whether the client wants a visit; §14 (decision N-9) records the wish for bank financing. */
+function VisitStep({ form, update }: StepProps) {
+  return (
+    <div className="space-y-8">
+      <p className="hint -mt-2">سؤالين اختياريين: تنجم تعدّي للخطوة الموالية بلا ما تجاوب.</p>
+      <YesNoGroup
+        name="wantsVisit"
+        legend="تحب تزور الأرض؟"
+        hint="جوابك يعاونّا نحضّرولك زيارة للأرض."
+        choices={VISIT_CHOICES}
+        value={form.wantsVisit}
+        onChange={(value) => update("wantsVisit", value)}
+      />
+      <YesNoGroup
+        name="wantsBankFinancing"
+        legend="تحب حل تمويل بنكي؟"
+        hint="التمويل البنكي خيار مستقل على التقسيط مع AgriZed. جوابك ما يلزمك بشيء."
+        choices={BANK_CHOICES}
+        value={form.wantsBankFinancing}
+        onChange={(value) => update("wantsBankFinancing", value)}
+      />
     </div>
   );
 }
@@ -825,10 +894,10 @@ function ReviewStep({
   scenarios,
   treeCounts,
   desiredAreas,
-  priorities,
   goals,
   downPayments,
-  installments,
+  durations,
+  budgets,
   contactTimes,
   consentText,
 }: StepProps & RegisterWizardProps & { setStep: (step: number) => void }) {
@@ -864,9 +933,13 @@ function ReviewStep({
       : []),
     ...(desiredAreas.length > 0 ? [{ step: 4, label: "المساحة", value: label(desiredAreas, form.desiredAreaOptionId) }] : []),
     { step: 5, label: "الهدف", value: label(goals, form.goalOptionId) },
-    ...(priorities.length > 0 ? [{ step: 6, label: "الأهم بالنسبة ليك", value: label(priorities, form.priorityOptionId) }] : []),
-    { step: 7, label: "التسبقة", value: label(downPayments, form.downPaymentOptionId) },
-    { step: 7, label: "القسط الشهري", value: `${label(installments, form.installmentOptionId)} شهرياً` },
+    { step: 6, label: "التسبقة", value: label(downPayments, form.downPaymentOptionId) },
+    ...(durations.length > 0 ? [{ step: 6, label: "مدة الدفع", value: label(durations, form.durationOptionId) }] : []),
+    ...(budgets.length > 0
+      ? [{ step: 6, label: "الميزانية", value: form.budgetOptionId ? label(budgets, form.budgetOptionId) : BUDGET_NONE }]
+      : []),
+    { step: 7, label: "زيارة الأرض", value: yesNoLabel(VISIT_CHOICES, form.wantsVisit) },
+    { step: 7, label: "تمويل بنكي", value: yesNoLabel(BANK_CHOICES, form.wantsBankFinancing) },
     {
       step: 8,
       label: "التواصل",
@@ -1001,13 +1074,14 @@ function ChipGrid({
   options,
   value,
   onChange,
-  suffix,
+  noneLabel,
 }: {
   name: string;
   options: Option[];
   value: string | null;
-  onChange: (id: string) => void;
-  suffix?: string;
+  onChange: (id: string | null) => void;
+  /** Adds a chip for an optional question that clears the answer. */
+  noneLabel?: string;
 }) {
   return (
     <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
@@ -1016,11 +1090,47 @@ function ChipGrid({
           <input type="radio" name={name} className="sr-only" checked={value === option.id} onChange={() => onChange(option.id)} />
           <span className="text-center">
             <span className="block font-semibold tabular-nums">{option.label_ar}</span>
-            {suffix ? <span className="block text-xs text-muted">{suffix}</span> : null}
           </span>
         </label>
       ))}
+      {noneLabel ? (
+        <label className="choice justify-center">
+          <input type="radio" name={name} className="sr-only" checked={value === null} onChange={() => onChange(null)} />
+          <span className="text-center font-semibold">{noneLabel}</span>
+        </label>
+      ) : null}
     </div>
+  );
+}
+
+function YesNoGroup({
+  name,
+  legend,
+  hint,
+  choices,
+  value,
+  onChange,
+}: {
+  name: string;
+  legend: string;
+  hint: string;
+  choices: YesNoChoice[];
+  value: boolean | null;
+  onChange: (value: boolean) => void;
+}) {
+  return (
+    <fieldset>
+      <legend className="label text-base">{legend}</legend>
+      <p className="hint mb-3">{hint}</p>
+      <div className="grid grid-cols-2 gap-2">
+        {choices.map((choice) => (
+          <label key={String(choice.value)} className="choice">
+            <input type="radio" name={name} checked={value === choice.value} onChange={() => onChange(choice.value)} />
+            <span className="font-semibold">{choice.label}</span>
+          </label>
+        ))}
+      </div>
+    </fieldset>
   );
 }
 

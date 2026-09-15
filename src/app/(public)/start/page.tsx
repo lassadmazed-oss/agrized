@@ -35,7 +35,8 @@ export default async function StartPage({ searchParams }: PageProps<"/start">) {
 
   const treeCounts = optionsFor(config, "tree_count");
   const downPayments = optionsFor(config, "down_payment");
-  const installments = optionsFor(config, "monthly_installment");
+  // Report v3 §6, §12: a down payment and a duration; the monthly amount is computed, never chosen.
+  const durations = optionsFor(config, "duration");
   const scenarios = config.scenarios;
   const customMin = settingInt(config, "million.custom_trees_min", 1);
   const customMax = settingInt(config, "million.custom_trees_max", 5000);
@@ -67,8 +68,8 @@ export default async function StartPage({ searchParams }: PageProps<"/start">) {
     rowTypeFr: settingText(config, "start.row_type_fr"),
     rowDown: settingText(config, "start.row_down", "التسبقة"),
     rowDownFr: settingText(config, "start.row_down_fr"),
-    rowInstallment: settingText(config, "start.row_installment", "القسط الشهري"),
-    rowInstallmentFr: settingText(config, "start.row_installment_fr"),
+    rowDuration: settingText(config, "start.row_duration", "مدة الدفع"),
+    rowDurationFr: settingText(config, "start.row_duration_fr"),
     continue: settingText(config, "start.continue", "متابعة"),
     continueFr: settingText(config, "start.continue_fr"),
     continueHint: settingText(config, "start.continue_hint", "اختر عدد الزيتونات باش تكمّل."),
@@ -83,8 +84,6 @@ export default async function StartPage({ searchParams }: PageProps<"/start">) {
     customHintFr: settingText(config, "start.custom_hint_fr"),
     treesUnit: settingText(config, "start.trees_unit", "زيتونة"),
     treesUnitFr: settingText(config, "start.trees_unit_fr"),
-    perMonth: settingText(config, "start.per_month", "شهرياً"),
-    perMonthFr: settingText(config, "start.per_month_fr"),
   };
 
   return (
@@ -94,7 +93,7 @@ export default async function StartPage({ searchParams }: PageProps<"/start">) {
         treeCounts={treeCounts}
         scenarios={scenarios}
         downPayments={downPayments}
-        installments={installments}
+        durations={durations}
         copy={copy}
         taglines={settingJson<Taglines>(config, "start.tier_taglines", {})}
         values={settingJson<ValueItem[]>(config, "start.values", [])}
@@ -104,7 +103,7 @@ export default async function StartPage({ searchParams }: PageProps<"/start">) {
         initialCustom={initialCustom}
         initialScenarioId={pick(scenarios, params.scenario)}
         initialDownId={pick(downPayments, params.down)}
-        initialInstallmentId={pick(installments, params.installment)}
+        initialDurationId={pick(durations, params.duration)}
         breadcrumb={
           <Breadcrumb
             items={[

@@ -1,5 +1,5 @@
 // Parsing of CRM filters from the URL, shared by the list page, the CSV export and bulk transfer
-// (CRM-01..03, PARC-12, spec v2 §47).
+// (CRM-01..03, PARC-12, spec v2 §47, report v3 §44).
 
 type SearchParams = Record<string, string | string[] | undefined>;
 
@@ -23,6 +23,12 @@ export type LeadFilters = {
   down_max?: string;
   installment_min?: string;
   installment_max?: string;
+  /** Months, compared with the duration snapshot of each demand. */
+  duration_min?: string;
+  duration_max?: string;
+  /** "true" or "false" as text: a boolean false would be dropped as «no filter» below. */
+  wants_visit?: YesNo;
+  wants_bank_financing?: YesNo;
   goal_code?: string;
   status_id?: string;
   assigned_to?: string;
@@ -34,9 +40,12 @@ export type LeadFilters = {
   people?: boolean;
 };
 
+type YesNo = "true" | "false";
+
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const INTEGER = /^\d{1,13}$/;
 const TREES = /^\d{1,7}$/;
+const MONTHS = /^\d{1,3}$/;
 const DATE = /^\d{4}-\d{2}-\d{2}$/;
 const CODE = /^[a-z0-9_-]{1,50}$/i;
 
@@ -49,6 +58,11 @@ function first(value: string | string[] | undefined): string | undefined {
 function matching(value: string | string[] | undefined, pattern: RegExp): string | undefined {
   const candidate = first(value);
   return candidate && pattern.test(candidate) ? candidate : undefined;
+}
+
+function yesNo(value: string | string[] | undefined): YesNo | undefined {
+  const candidate = first(value);
+  return candidate === "true" || candidate === "false" ? candidate : undefined;
 }
 
 export function parseLeadFilters(params: SearchParams): LeadFilters {
@@ -73,6 +87,10 @@ export function parseLeadFilters(params: SearchParams): LeadFilters {
     down_max: matching(params.down_max, INTEGER),
     installment_min: matching(params.installment_min, INTEGER),
     installment_max: matching(params.installment_max, INTEGER),
+    duration_min: matching(params.duration_min, MONTHS),
+    duration_max: matching(params.duration_max, MONTHS),
+    wants_visit: yesNo(params.wants_visit),
+    wants_bank_financing: yesNo(params.wants_bank_financing),
     goal_code: matching(params.goal_code, CODE),
     status_id: matching(params.status_id, UUID),
     assigned_to: assigned === "none" || (assigned && UUID.test(assigned)) ? assigned : undefined,

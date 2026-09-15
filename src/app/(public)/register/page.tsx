@@ -26,7 +26,8 @@ export default async function RegisterPage({ searchParams }: PageProps<"/registe
   }
 
   const downPayments = optionsFor(config, "down_payment");
-  const installments = optionsFor(config, "monthly_installment");
+  // Report v3 §6: a down payment and a duration; the monthly amount is computed per offer, never asked.
+  const durations = optionsFor(config, "duration");
   const treeCounts = optionsFor(config, "tree_count");
 
   // The simulator and the home page chooser link here with what the visitor already picked
@@ -53,17 +54,18 @@ export default async function RegisterPage({ searchParams }: PageProps<"/registe
         scenarios={config.scenarios}
         treeCounts={treeCounts}
         desiredAreas={optionsFor(config, "desired_area")}
-        priorities={optionsFor(config, "priority")}
         goals={optionsFor(config, "goal")}
         downPayments={downPayments}
-        installments={installments}
+        durations={durations}
+        budgets={optionsFor(config, "budget")}
         contactTimes={optionsFor(config, "contact_time")}
         allowMultipleScenarios={settingBool(config, "lead.project_types_multi", true)}
         allowInternationalPhone={settingBool(config, "lead.allow_international_phone")}
         notice={settingText(config, "site.free_interest_notice")}
         consentText={settingText(config, "legal.consent_text")}
         initialDownPaymentId={pick(downPayments, params.down)}
-        initialInstallmentId={pick(installments, params.installment)}
+        initialDurationId={pick(durations, params.duration)}
+        initialWantsVisit={params.visit === "1"}
         initialTreeCountId={initialTreeCountId}
         initialTreeCountCustom={pickCustomTrees(params.trees_custom)}
         customTreesMin={customTreesMin}

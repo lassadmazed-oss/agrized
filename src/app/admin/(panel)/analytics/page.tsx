@@ -165,7 +165,27 @@ export default async function AnalyticsPage({ searchParams }: PageProps<"/admin/
             total={mode === "people" ? stats.persons : stats.requests}
           />
         </ChartCard>
-        <ChartCard title="القسط الشهري">
+        {/* Report v3 §49: which of 3, 5 or 7 years is chosen most. */}
+        <ChartCard title="مدة الدفع" subtitle={`عدد ${mode === "people" ? "الأشخاص" : "المطالب"} حسب المدة المختارة.`}>
+          <BarList
+            items={stats.by_duration.map((d) => ({ key: d.id ?? "none", label: d.label, count: d.count }))}
+            total={mode === "people" ? stats.persons : stats.requests}
+          />
+        </ChartCard>
+      </div>
+
+      <div className="grid gap-4 xl:grid-cols-2">
+        <ChartCard title="الزيارة والتمويل البنكي" subtitle="اللي جاوبوا بنعم. السؤالين اختياريين في الاستمارة.">
+          <BarList
+            items={[
+              { key: "visit", label: "يحب يزور الأرض", count: stats.visit_yes },
+              { key: "bank", label: "يحب حل تمويل بنكي", count: stats.bank_financing_yes },
+            ]}
+            total={mode === "people" ? stats.persons : stats.requests}
+            emptyText="حتى حدّ ما جاوب بنعم في هذه الفترة."
+          />
+        </ChartCard>
+        <ChartCard title="القسط الشهري (المطالب القديمة)" subtitle="قبل اعتماد مدة الدفع، كان الحريف يختار القسط.">
           <BarList
             items={stats.by_installment.map((d) => ({ key: d.label, label: d.label, count: d.count }))}
             total={mode === "people" ? stats.persons : stats.requests}
@@ -174,7 +194,7 @@ export default async function AnalyticsPage({ searchParams }: PageProps<"/admin/
       </div>
 
       <p className="text-sm text-muted">
-        لسؤال أدق، مثلاً عدد الزيتونات مع الولاية ونظام الغراسة والقسط معاً، استعمل{" "}
+        لسؤال أدق، مثلاً عدد الزيتونات مع الولاية ونظام الغراسة ومدة الدفع معاً، استعمل{" "}
         <Link href="/admin/leads" className="font-semibold text-forest underline-offset-4 hover:underline">
           فلاتر مطالب الاستثمار
         </Link>

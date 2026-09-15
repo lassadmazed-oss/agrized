@@ -3,7 +3,7 @@
 import { headers } from "next/headers";
 import { z } from "zod";
 
-import { flagState, getPublicConfig, settingBool, settingText } from "@/lib/config";
+import { flagState, getPublicConfig, optionsFor, settingBool, settingText } from "@/lib/config";
 import { intakeErrorMessage, isKnownIntakeError } from "@/lib/errors";
 import { getStaffSession } from "@/lib/auth";
 import { normalizePhone } from "@/lib/phone";
@@ -26,10 +26,17 @@ const interestSchema = z.object({
   // /start also lets the visitor type a number; the database enforces the limits (invalid_tree_custom).
   treeCountCustom: z.number().int().positive().nullable(),
   desiredAreaOptionId: z.uuid().nullable(),
-  priorityOptionId: z.uuid().nullable(),
+  // Priority is not in report v3 §40 and the wizard no longer asks it; the database still accepts one.
+  priorityOptionId: z.uuid().nullable().optional(),
   goalOptionId: z.uuid(),
   downPaymentOptionId: z.uuid(),
-  installmentOptionId: z.uuid(),
+  // Report v3 §6: the client picks a duration, never a monthly amount; kept only for older callers.
+  installmentOptionId: z.uuid().nullable().optional(),
+  durationOptionId: z.uuid().nullable(),
+  budgetOptionId: z.uuid().nullable(),
+  // Report v3 §40 and §14 (decision N-9): optional yes/no answers, null when skipped.
+  wantsVisit: z.boolean().nullable(),
+  wantsBankFinancing: z.boolean().nullable(),
   contactChannel: z.enum(["phone", "whatsapp", "both"]),
   contactTimeOptionId: z.uuid().nullable(),
   consent: z.literal(true),
@@ -61,9 +68,10 @@ const ERROR_STEP: Record<string, number> = {
   invalid_tree_custom: 4,
   invalid_desired_area: 4,
   invalid_goal: 5,
-  invalid_priority: 6,
-  invalid_down_payment: 7,
-  invalid_installment: 7,
+  invalid_down_payment: 6,
+  invalid_installment: 6,
+  invalid_duration: 6,
+  invalid_budget: 6,
   invalid_contact_time: 8,
   contact_channel_required: 8,
   consent_required: 9,
@@ -87,6 +95,10 @@ export async function submitInterest(input: InterestInput): Promise<SubmitIntere
   const data = parsed.data;
   if (data.website) {
     return { ok: false, message: intakeErrorMessage(null) };
+  }
+  // The database keeps the duration optional for other callers; this form requires it once AgriZed lists durations.
+  if (!data.durationOptionId && optionsFor(config, "duration").length > 0) {
+    return { ok: false, message: intakeErrorMessage("invalid_duration"), step: ERROR_STEP.invalid_duration };
   }
 
   const phone = normalizePhone(data.phone, settingBool(config, "lead.allow_international_phone"));
@@ -122,10 +134,14 @@ export async function submitInterest(input: InterestInput): Promise<SubmitIntere
       tree_count_option_id: data.treeCountOptionId,
       tree_count_custom: data.treeCountCustom === null ? null : String(data.treeCountCustom),
       desired_area_option_id: data.desiredAreaOptionId,
-      priority_option_id: data.priorityOptionId,
+      priority_option_id: data.priorityOptionId ?? null,
       goal_option_id: data.goalOptionId,
       down_payment_option_id: data.downPaymentOptionId,
-      installment_option_id: data.installmentOptionId,
+      installment_option_id: data.installmentOptionId ?? null,
+      duration_option_id: data.durationOptionId,
+      budget_option_id: data.budgetOptionId,
+      wants_visit: data.wantsVisit,
+      wants_bank_financing: data.wantsBankFinancing,
       contact_channel: data.contactChannel,
       contact_time_option_id: data.contactTimeOptionId,
       consent_text: settingText(config, "legal.consent_text", "موافقة على التواصل ومعالجة المعطيات"),

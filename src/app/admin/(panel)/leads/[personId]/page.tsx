@@ -199,13 +199,27 @@ export default async function LeadDetailPage({ params }: PageProps<"/admin/leads
                     ) : null}
                   </Item>
                   <Item label="المساحة المطلوبة">{request.desired_area_label_ar ?? "بدون تفضيل"}</Item>
-                  <Item label="الأهم بالنسبة إليه">{request.priority_label_ar ?? "—"}</Item>
+                  {/* Priority left the public form with report v3 §40; older demands still carry it. */}
+                  {request.priority_label_ar ? <Item label="الأهم بالنسبة إليه">{request.priority_label_ar}</Item> : null}
                   <Item label="الهدف">{request.goal_label_ar}</Item>
-                  <Item label="التسبقة / القسط">
-                    <span className="tabular-nums">
-                      {request.down_payment_label_ar} / {request.installment_label_ar} شهرياً
-                    </span>
+                  <Item label="التسبقة">
+                    <span className="tabular-nums">{request.down_payment_label_ar}</span>
                   </Item>
+                  <Item label="مدة الدفع">
+                    <span className="tabular-nums">{request.duration_label_ar ?? "بدون إجابة"}</span>
+                  </Item>
+                  {request.installment_label_ar ? (
+                    <Item label="القسط الشهري (قبل اعتماد المدة)">
+                      <span className="tabular-nums">{request.installment_label_ar} شهرياً</span>
+                    </Item>
+                  ) : null}
+                  {request.budget_label_ar ? (
+                    <Item label="الميزانية">
+                      <span className="tabular-nums">{request.budget_label_ar}</span>
+                    </Item>
+                  ) : null}
+                  <Item label="يحب يزور الأرض">{answerLabel(request.wants_visit, "لا، مازال")}</Item>
+                  <Item label="يحب حل تمويل بنكي">{answerLabel(request.wants_bank_financing, "لا")}</Item>
                   <Item label="التواصل">
                     {CHANNEL_LABELS[request.contact_channel]}
                     {request.contact_time_label_ar ? ` · ${request.contact_time_label_ar}` : " · أي وقت"}
@@ -326,6 +340,11 @@ export default async function LeadDetailPage({ params }: PageProps<"/admin/leads
       </div>
     </div>
   );
+}
+
+/** An optional yes/no answer of the public form (report v3 §14, §40). */
+function answerLabel(value: boolean | null, no: string): string {
+  return value === true ? "نعم" : value === false ? no : "بدون إجابة";
 }
 
 function Item({ label, children }: { label: string; children: React.ReactNode }) {

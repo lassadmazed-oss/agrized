@@ -15,6 +15,11 @@ function csvCell(value: unknown): string {
   return `"${safe.replace(/"/g, '""')}"`;
 }
 
+/** Optional yes/no answers (report v3 §14, §40): an empty cell means the question was not answered. */
+function answer(value: boolean | null): string {
+  return value === true ? "نعم" : value === false ? "لا" : "";
+}
+
 /** CRM-05: export is reserved to Admin and Super Admin, enforced here on the server, and logged. */
 export async function GET(request: Request) {
   const session = await getStaffSession();
@@ -34,7 +39,9 @@ export async function GET(request: Request) {
     "رقم المطلب", "التاريخ", "الاسم", "الهاتف", "ولاية الإقامة", "المعتمدية", "ولايات الاستثمار", "أنواع المشاريع",
     "يحب يملك", "عدد الزيتونات", "الزيتونات (الحد الأدنى)", "الزيتونات (الحد الأقصى)",
     "نظام الغراسة", "حالة الإنتاج", "المساحة المطلوبة", "الأهم بالنسبة إليه",
-    "الهدف", "التسبقة", "القسط الشهري", "طريقة التواصل", "الوقت المفضل", "الحالة", "المسؤول", "مكرّر", "المصدر",
+    "الهدف", "التسبقة", "القسط الشهري", "مدة الدفع", "مدة الدفع (بالأشهر)", "الميزانية",
+    "يحب يزور الأرض", "يحب حل تمويل بنكي",
+    "طريقة التواصل", "الوقت المفضل", "الحالة", "المسؤول", "مكرّر", "المصدر",
   ];
   const lines = [header.map(csvCell).join(",")];
 
@@ -72,7 +79,12 @@ export async function GET(request: Request) {
           row.priority_label_ar ?? "",
           row.goal_label_ar,
           row.down_payment_label_ar,
-          row.installment_label_ar,
+          row.installment_label_ar ?? "",
+          row.duration_label_ar ?? "",
+          row.duration_months ?? "",
+          row.budget_label_ar ?? "",
+          answer(row.wants_visit),
+          answer(row.wants_bank_financing),
           row.contact_channel,
           row.contact_time_label_ar ?? "",
           row.status_label_ar,

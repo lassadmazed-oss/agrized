@@ -25,6 +25,8 @@ const MESSAGES: Record<string, string> = {
   invalid_goal: "اختر هدفك من القائمة.",
   invalid_down_payment: "اختر التسبقة من القائمة.",
   invalid_installment: "اختر القسط الشهري من القائمة.",
+  invalid_duration: "اختر مدة الدفع من القائمة.",
+  invalid_budget: "اختر الميزانية من القائمة.",
   invalid_contact_time: "اختر الوقت المفضل من القائمة.",
   contact_channel_required: "اختر كيف تحب نتصلوا بيك.",
   rate_limited: "وصلنا عدد كبير من الطلبات من نفس المصدر. حاول مرة أخرى بعد ساعة.",

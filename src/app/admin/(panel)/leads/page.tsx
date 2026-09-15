@@ -58,6 +58,7 @@ export default async function LeadsPage({ searchParams }: PageProps<"/admin/lead
   const delegationName = new Map(config.delegations.map((d) => [d.id, d.name_ar]));
   const downPayments = optionsFor(config, "down_payment");
   const installments = optionsFor(config, "monthly_installment");
+  const durations = optionsFor(config, "duration").filter((option) => option.min_number !== null);
   const goals = optionsFor(config, "goal");
   const areas = optionsFor(config, "desired_area").filter((option) => option.min_number !== null);
   const priorities = optionsFor(config, "priority");
@@ -236,8 +237,17 @@ export default async function LeadsPage({ searchParams }: PageProps<"/admin/lead
               .filter((option) => option.min_millimes !== null)
               .map((option) => ({ id: option.id, label_ar: option.label_ar, value: String(option.min_millimes) }))}
           />
+          {/* Report v3 §44: the duration replaces the installment; older demands still carry an installment. */}
           <RangeField
-            label="القسط الشهري"
+            label="مدة الدفع"
+            nameMin="duration_min"
+            nameMax="duration_max"
+            min={filters.duration_min}
+            max={filters.duration_max}
+            options={durations.map((option) => ({ id: option.id, label_ar: option.label_ar, value: String(option.min_number) }))}
+          />
+          <RangeField
+            label="القسط الشهري (المطالب القديمة)"
             nameMin="installment_min"
             nameMax="installment_max"
             min={filters.installment_min}
@@ -246,6 +256,22 @@ export default async function LeadsPage({ searchParams }: PageProps<"/admin/lead
               .filter((option) => option.min_millimes !== null)
               .map((option) => ({ id: option.id, label_ar: option.label_ar, value: String(option.min_millimes) }))}
           />
+
+          <FilterField label="يحب يزور الأرض">
+            <select name="wants_visit" defaultValue={filters.wants_visit ?? ""} className="field">
+              <option value="">الكل</option>
+              <option value="true">نعم</option>
+              <option value="false">لا، مازال</option>
+            </select>
+          </FilterField>
+
+          <FilterField label="يحب حل تمويل بنكي">
+            <select name="wants_bank_financing" defaultValue={filters.wants_bank_financing ?? ""} className="field">
+              <option value="">الكل</option>
+              <option value="true">نعم</option>
+              <option value="false">لا</option>
+            </select>
+          </FilterField>
 
           <FilterField label="الهدف">
             <select name="goal_code" defaultValue={filters.goal_code ?? ""} className="field">
@@ -374,7 +400,7 @@ export default async function LeadsPage({ searchParams }: PageProps<"/admin/lead
 
           {/* Desktop table */}
           <div className="hidden overflow-x-auto rounded-2xl border border-line bg-surface md:block">
-            <table className="w-full min-w-[82rem] text-sm">
+            <table className="w-full min-w-[88rem] text-sm">
               <thead className="bg-paper text-xs text-muted">
                 <tr className="text-start">
                   {isAdmin ? (
@@ -390,7 +416,8 @@ export default async function LeadsPage({ searchParams }: PageProps<"/admin/lead
                   <Th>الاستثمار</Th>
                   <Th>يحب يملك</Th>
                   <Th>المساحة</Th>
-                  <Th>التسبقة / القسط</Th>
+                  <Th>التسبقة</Th>
+                  <Th>مدة الدفع</Th>
                   <Th>الأهم</Th>
                   <Th>الحالة</Th>
                   <Th>المسؤول</Th>
@@ -444,8 +471,11 @@ export default async function LeadsPage({ searchParams }: PageProps<"/admin/lead
                     <Td className="whitespace-nowrap tabular-nums">{row.desired_area_label_ar ?? "—"}</Td>
                     <Td className="whitespace-nowrap tabular-nums">
                       {row.down_payment_label_ar}
-                      <div className="text-xs text-muted">{row.installment_label_ar} شهرياً</div>
+                      {row.installment_label_ar ? (
+                        <div className="text-xs text-muted">قسط {row.installment_label_ar} شهرياً</div>
+                      ) : null}
                     </Td>
+                    <Td className="whitespace-nowrap tabular-nums">{row.duration_label_ar ?? "—"}</Td>
                     <Td className="max-w-36">{row.priority_label_ar ?? "—"}</Td>
                     <Td>
                       <StatusChip stage={row.stage} label={row.status_label_ar} />
@@ -477,7 +507,12 @@ export default async function LeadsPage({ searchParams }: PageProps<"/admin/lead
                   </p>
                   <p className="mt-1 text-sm tabular-nums">
                     {row.desired_area_label_ar ? `${row.desired_area_label_ar} · ` : ""}
-                    {row.down_payment_label_ar} تسبقة · {row.installment_label_ar} شهرياً
+                    {row.down_payment_label_ar} تسبقة
+                    {row.duration_label_ar
+                      ? ` · ${row.duration_label_ar}`
+                      : row.installment_label_ar
+                        ? ` · ${row.installment_label_ar} شهرياً`
+                        : ""}
                   </p>
                   <p dir="ltr" className="mt-2 text-end text-xs text-muted tabular-nums">
                     {row.request_no} · {formatDateTime(row.created_at)}

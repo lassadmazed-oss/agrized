@@ -23,7 +23,7 @@ type Scenario = {
   image_alt_ar: string | null;
   image_alt_fr: string | null;
 };
-type MoneyOption = { id: string; label_ar: string; label_fr: string | null };
+type ChoiceOption = { id: string; label_ar: string; label_fr: string | null };
 
 /** `start.tier_taglines`: one line per tree_count code, plus "custom" for the free-number card. */
 export type Tagline = { ar: string; fr?: string };
@@ -52,8 +52,8 @@ export type StartCopy = {
   rowTypeFr: string;
   rowDown: string;
   rowDownFr: string;
-  rowInstallment: string;
-  rowInstallmentFr: string;
+  rowDuration: string;
+  rowDurationFr: string;
   continue: string;
   continueFr: string;
   continueHint: string;
@@ -68,15 +68,14 @@ export type StartCopy = {
   customHintFr: string;
   treesUnit: string;
   treesUnitFr: string;
-  perMonth: string;
-  perMonthFr: string;
 };
 
 export type StartChooserProps = {
   treeCounts: TreeOption[];
   scenarios: Scenario[];
-  downPayments: MoneyOption[];
-  installments: MoneyOption[];
+  downPayments: ChoiceOption[];
+  /** Report v3 §8: payment durations; the visitor never picks a monthly amount (§6). */
+  durations: ChoiceOption[];
   copy: StartCopy;
   taglines: Taglines;
   values: ValueItem[];
@@ -86,7 +85,7 @@ export type StartChooserProps = {
   initialCustom?: number;
   initialScenarioId?: string;
   initialDownId?: string;
-  initialInstallmentId?: string;
+  initialDurationId?: string;
   /** Server-rendered nodes (next/image, breadcrumb links) kept out of the client bundle. */
   breadcrumb: ReactNode;
   photo: ReactNode;
@@ -128,7 +127,7 @@ export function StartChooser({
   treeCounts,
   scenarios,
   downPayments,
-  installments,
+  durations,
   copy,
   taglines,
   values,
@@ -138,7 +137,7 @@ export function StartChooser({
   initialCustom,
   initialScenarioId,
   initialDownId,
-  initialInstallmentId,
+  initialDurationId,
   breadcrumb,
   photo,
 }: StartChooserProps) {
@@ -146,7 +145,7 @@ export function StartChooser({
   const [custom, setCustom] = useState(initialCustom ? String(initialCustom) : "");
   const [scenarioId, setScenarioId] = useState<string | null>(initialScenarioId ?? null);
   const [downId, setDownId] = useState<string | null>(initialDownId ?? null);
-  const [installmentId, setInstallmentId] = useState<string | null>(initialInstallmentId ?? null);
+  const [durationId, setDurationId] = useState<string | null>(initialDurationId ?? null);
   const [announcement, setAnnouncement] = useState("");
   const groupId = useId();
   const customInputId = `${groupId}-custom`;
@@ -161,7 +160,7 @@ export function StartChooser({
   const chosenScenario = scenarioId ? scenarios.find((option) => option.id === scenarioId) : undefined;
   const withPictures = scenarios.some((option) => Boolean(option.image_url));
   const chosenDown = downId ? downPayments.find((option) => option.id === downId) : undefined;
-  const chosenInstallment = installmentId ? installments.find((option) => option.id === installmentId) : undefined;
+  const chosenDuration = durationId ? durations.find((option) => option.id === durationId) : undefined;
   const hasChoice = Boolean(chosenTree) || customSelected;
 
   const pickTier = (id: string) => {
@@ -181,7 +180,7 @@ export function StartChooser({
   else if (customSelected && customNumber !== null) params.set("trees_custom", String(customNumber));
   if (scenarioId) params.set("scenario", scenarioId);
   if (downId) params.set("down", downId);
-  if (installmentId) params.set("installment", installmentId);
+  if (durationId) params.set("duration", durationId);
   const href = `/register?${params}`;
 
   const customHintAr = fillLimits(copy.customHint, customMin, customMax);
@@ -202,7 +201,7 @@ export function StartChooser({
       : null;
 
   // Read the summary out once the visitor pauses, not on every digit typed.
-  const summaryText = [treesValueAr, chosenScenario?.label_ar, chosenDown?.label_ar, chosenInstallment?.label_ar]
+  const summaryText = [treesValueAr, chosenScenario?.label_ar, chosenDown?.label_ar, chosenDuration?.label_ar]
     .filter(Boolean)
     .join("، ");
   useEffect(() => {
@@ -354,14 +353,12 @@ export function StartChooser({
                   onChange={setDownId}
                 />
                 <ChipGroup
-                  name={`${groupId}-installment`}
-                  labelAr={copy.rowInstallment}
-                  labelFr={copy.rowInstallmentFr}
-                  options={installments}
-                  value={installmentId}
-                  onChange={setInstallmentId}
-                  suffixAr={copy.perMonth}
-                  suffixFr={copy.perMonthFr}
+                  name={`${groupId}-duration`}
+                  labelAr={copy.rowDuration}
+                  labelFr={copy.rowDurationFr}
+                  options={durations}
+                  value={durationId}
+                  onChange={setDurationId}
                 />
               </fieldset>
             </>
@@ -396,10 +393,10 @@ export function StartChooser({
                 valueFr={chosenDown?.label_fr ?? null}
               />
               <SummaryRow
-                labelAr={copy.rowInstallment}
-                labelFr={copy.rowInstallmentFr}
-                valueAr={chosenInstallment?.label_ar ?? null}
-                valueFr={chosenInstallment?.label_fr ?? null}
+                labelAr={copy.rowDuration}
+                labelFr={copy.rowDurationFr}
+                valueAr={chosenDuration?.label_ar ?? null}
+                valueFr={chosenDuration?.label_fr ?? null}
               />
             </dl>
 
@@ -476,17 +473,13 @@ function ChipGroup({
   options,
   value,
   onChange,
-  suffixAr,
-  suffixFr,
 }: {
   name: string;
   labelAr: string;
   labelFr: string;
-  options: MoneyOption[];
+  options: ChoiceOption[];
   value: string | null;
   onChange: (id: string) => void;
-  suffixAr?: string;
-  suffixFr?: string;
 }) {
   return (
     <fieldset className="mt-5">
@@ -508,11 +501,6 @@ function ChipGroup({
               <span className="block font-semibold tabular-nums">
                 <Bi ar={option.label_ar} fr={option.label_fr} frClassName="text-[0.78em] text-muted tabular-nums" />
               </span>
-              {suffixAr ? (
-                <span className="block text-xs text-muted">
-                  <Bi ar={suffixAr} fr={suffixFr} frClassName="text-[0.95em] opacity-85" />
-                </span>
-              ) : null}
             </span>
           </label>
         ))}
