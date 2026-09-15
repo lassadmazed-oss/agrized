@@ -6,6 +6,8 @@ import { z } from "zod";
 import type { ActionResult } from "@/components/admin/action-form";
 import { ADMIN_ROLES, requireStaff } from "@/lib/auth";
 import { PUBLIC_CONFIG_TAG } from "@/lib/config";
+import { readPricingForm } from "@/lib/pricing-form";
+import { PUBLIC_PROJECTS_TAG } from "@/lib/public-projects";
 import type { Json } from "@/lib/supabase/database.types";
 import { createClient } from "@/lib/supabase/server";
 
@@ -93,6 +95,10 @@ function parseValue(key: string, type: string, formData: FormData): Parsed {
         }
         return { ok: true, value: [...new Set(months)].sort((a, b) => a - b) };
       }
+      if (key === "pricing.default") {
+        const pricing = readPricingForm(formData, { allowInherit: false });
+        return pricing.ok ? { ok: true, value: pricing.value as Json } : pricing;
+      }
       const rule = JSON_SCHEMAS[key];
       if (!rule) return { ok: false, message: "هذا الإعداد لا يُعدَّل من هذه الصفحة." };
       try {
@@ -123,6 +129,8 @@ export async function updateSetting(key: string, _previous: ActionResult, formDa
   }
 
   updateTag(PUBLIC_CONFIG_TAG);
+  // The offer cards on /projects are computed with this formula and cached on their own tag.
+  if (key === "pricing.default") updateTag(PUBLIC_PROJECTS_TAG);
   revalidatePath("/admin/settings");
   return { ok: true, message: "تم الحفظ." };
 }

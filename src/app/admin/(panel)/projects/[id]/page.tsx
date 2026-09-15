@@ -3,17 +3,18 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import { ActionForm } from "@/components/admin/action-form";
+import { PricingEditor } from "@/components/admin/pricing-editor";
 import { ParcelPlan } from "@/components/site/parcel-plan";
 import { hasRole, requireStaff, type StaffRole } from "@/lib/auth";
 import { getPublicConfig, optionsFor } from "@/lib/config";
 import { PLANTATION_LABELS, PRODUCTION_LABELS } from "@/lib/crm";
 import { formatCount, formatMillimes } from "@/lib/format";
+import { describePricing } from "@/lib/pricing-form";
 import {
   COST_KIND_LABELS,
   COST_KINDS_OFFERED,
   PARCEL_STATUS_LABELS,
   PARCEL_STATUS_TONES,
-  PRICING_MODEL_LABELS,
   PROJECT_STATUS_LABELS,
   PROJECT_STATUS_TONES,
   PROPERTY_TYPE_LABELS,
@@ -48,8 +49,19 @@ export default async function ProjectDetailPage({ params }: PageProps<"/admin/pr
   const supabase = await createClient();
   const config = await getPublicConfig();
 
-  const { data: project } = await supabase.from("projects").select("*").eq("id", id).maybeSingle();
+  const [{ data: project }, { data: defaultSetting }] = await Promise.all([
+    supabase.from("projects").select("*").eq("id", id).maybeSingle(),
+    supabase.from("settings").select("value").eq("key", "pricing.default").maybeSingle(),
+  ]);
   if (!project) notFound();
+  const defaultPricing = defaultSetting?.value ?? null;
+  const projectHasPricing = describePricing(project.pricing).length > 0;
+  // What a parcel without its own formula uses: the project's, else the default.
+  const parcelInherit = {
+    label: "نفس صيغة المشروع",
+    hint: projectHasPricing ? "الصيغة المضبوطة في بيانات المشروع." : "المشروع يستعمل الصيغة الافتراضية من الإعدادات.",
+    lines: describePricing(projectHasPricing ? project.pricing : defaultPricing),
+  };
 
   const [parcels, costs, media] = await Promise.all([
     supabase.from("parcels").select("*").eq("project_id", id).order("sort_order").order("code"),
@@ -219,7 +231,7 @@ export default async function ProjectDetailPage({ params }: PageProps<"/admin/pr
                 className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4"
                 buttonClassName="btn btn-primary sm:col-span-2 lg:col-span-4 lg:w-48"
               >
-                <ParcelFields parcel={null} nextOrder={(rows.at(-1)?.sort_order ?? 0) + 10} nextCode={`P${String(rows.length + 1).padStart(2, "0")}`} />
+                <ParcelFields parcel={null} pricingInherit={parcelInherit} nextOrder={(rows.at(-1)?.sort_order ?? 0) + 10} nextCode={`P${String(rows.length + 1).padStart(2, "0")}`} />
               </ActionForm>
             </div>
           </details>
@@ -483,22 +495,14 @@ export default async function ProjectDetailPage({ params }: PageProps<"/admin/pr
               />
 
               <div className="sm:col-span-2 lg:col-span-3">
-                <Labeled label="صيغة التسعير (JSON)">
-                  <textarea
-                    name="pricing"
-                    rows={4}
-                    dir="ltr"
-                    className="field min-h-28 text-left font-mono text-xs"
-                    defaultValue={project.pricing && Object.keys(project.pricing).length > 0 ? JSON.stringify(project.pricing, null, 2) : ""}
-                  />
-                </Labeled>
-                <p className="hint mt-1">
-                  اتركها فارغة لاستعمال الصيغة الافتراضية من الإعدادات. النماذج:{" "}
-                  {Object.entries(PRICING_MODEL_LABELS)
-                    .map(([code, label]) => `${label} (${code})`)
-                    .join(" · ")}
-                  . كل المبالغ بالمليم.
-                </p>
+                <PricingEditor
+                  initial={project.pricing}
+                  inherit={{
+                    label: "الصيغة الافتراضية",
+                    hint: "نفس الصيغة المضبوطة في الإعدادات ← التسعير.",
+                    lines: describePricing(defaultPricing),
+                  }}
+                />
               </div>
             </ActionForm>
           </div>
@@ -571,9 +575,12 @@ export default async function ProjectDetailPage({ params }: PageProps<"/admin/pr
 
 export function ParcelFields({
   parcel,
+  pricingInherit,
   nextOrder = 0,
   nextCode = "",
 }: {
+  /** The formula this parcel uses when it has none of its own. */
+  pricingInherit: { label: string; hint: string; lines: string[] };
   parcel: {
     code: string;
     area_m2: number | string;
@@ -680,15 +687,7 @@ export function ParcelFields({
         </Labeled>
       </div>
       <div className="sm:col-span-2 lg:col-span-4">
-        <Labeled label="صيغة تسعير خاصة بالقطعة (JSON، اختيارية)">
-          <textarea
-            name="pricing"
-            rows={3}
-            dir="ltr"
-            className="field min-h-20 text-left font-mono text-xs"
-            defaultValue={parcel?.pricing ? JSON.stringify(parcel.pricing, null, 2) : ""}
-          />
-        </Labeled>
+        <PricingEditor initial={parcel?.pricing ?? null} inherit={pricingInherit} />
       </div>
     </>
   );

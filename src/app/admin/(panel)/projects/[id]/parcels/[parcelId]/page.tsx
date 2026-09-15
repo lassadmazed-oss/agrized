@@ -9,6 +9,7 @@ import { PLANTATION_LABELS, PRODUCTION_LABELS } from "@/lib/crm";
 import { formatCount, formatDateTime, formatMillimes } from "@/lib/format";
 import { IRRIGATION_LABELS } from "@/lib/land";
 import { formatPhone } from "@/lib/phone";
+import { describePricing } from "@/lib/pricing-form";
 import {
   PLAN_REASON_LABELS,
   PROPERTY_TYPE_LABELS,
@@ -57,8 +58,18 @@ export default async function ParcelPage({ params, searchParams }: PageProps<"/a
   const supabase = await createClient();
   const config = await getPublicConfig();
 
-  const { data: parcel } = await supabase.from("parcels").select("*, project:projects(id, code, name)").eq("id", parcelId).maybeSingle();
+  const [{ data: parcel }, { data: defaultSetting }] = await Promise.all([
+    supabase.from("parcels").select("*, project:projects(id, code, name, pricing)").eq("id", parcelId).maybeSingle(),
+    supabase.from("settings").select("value").eq("key", "pricing.default").maybeSingle(),
+  ]);
   if (!parcel || parcel.project_id !== id) notFound();
+  // What this parcel uses without a formula of its own: its project's, else the default (app.parcel_pricing).
+  const projectLines = describePricing(parcel.project?.pricing);
+  const pricingInherit = {
+    label: "نفس صيغة المشروع",
+    hint: projectLines.length > 0 ? "الصيغة المضبوطة في بيانات المشروع." : "المشروع يستعمل الصيغة الافتراضية من الإعدادات.",
+    lines: projectLines.length > 0 ? projectLines : describePricing(defaultSetting?.value),
+  };
 
   // One call builds the card in Postgres with the formula the public page uses (0020), whatever the
   // parcel's status, so staff always see the numbers a visitor would. Choices are option ids only.
@@ -250,7 +261,7 @@ export default async function ParcelPage({ params, searchParams }: PageProps<"/a
                   className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4"
                   buttonClassName="btn btn-secondary sm:col-span-2 lg:col-span-4 lg:w-48"
                 >
-                  <ParcelFields parcel={parcel} />
+                  <ParcelFields parcel={parcel} pricingInherit={pricingInherit} />
                 </ActionForm>
               </div>
             </section>

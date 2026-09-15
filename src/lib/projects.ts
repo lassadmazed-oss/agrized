@@ -116,12 +116,6 @@ export const COST_KINDS = Object.keys(COST_KIND_LABELS) as [string, ...string[]]
 /** Offered in the form: the v3 categories only. */
 export const COST_KINDS_OFFERED = COST_KINDS.filter((kind) => kind !== "development" && kind !== "fees");
 
-export const PRICING_MODEL_LABELS: Record<string, string> = {
-  markup_brackets: "هامش حسب المدة",
-  monthly_rate: "هامش شهري على الرصيد",
-  scenarios: "سيناريوهات محددة",
-};
-
 export type InstallmentPlan =
   | {
       ok: true;

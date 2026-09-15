@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 
 import { ActionForm } from "@/components/admin/action-form";
+import { PricingEditor } from "@/components/admin/pricing-editor";
 import { ADMIN_ROLES, requireStaff } from "@/lib/auth";
 import { formatDateTime } from "@/lib/format";
 import { createClient } from "@/lib/supabase/server";
@@ -23,6 +24,11 @@ const GROUPS: { key: string; title: string; note?: string }[] = [
     key: "projects",
     title: "المشاريع والقطع",
     note: "نصوص وحدود صفحات المشاريع العمومية. ممنوع أي رقم أو كلمة توحي بمردود أو ربح.",
+  },
+  {
+    key: "pricing",
+    title: "التسعير",
+    note: "الصيغة اللي تتطبّق على كل مشروع وقطعة ما عندهمش صيغة خاصة. الأرقام تحتاج مصادقة Finance قبل النشر.",
   },
   { key: "antispam", title: "الحماية والملفات المرفقة" },
 ];
@@ -117,6 +123,10 @@ function SettingInput({ settingKey, type, value, label }: { settingKey: string; 
         placeholder="36، 48، 60"
       />
     );
+  }
+
+  if (settingKey === "pricing.default") {
+    return <PricingEditor initial={value} inherit={null} />;
   }
 
   if (settingKey === "site.how_it_works") {

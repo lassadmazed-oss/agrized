@@ -6,6 +6,7 @@ import { z } from "zod";
 import type { ActionResult } from "@/components/admin/action-form";
 import { requireStaff, type StaffRole } from "@/lib/auth";
 import { getPublicConfig, settingInt } from "@/lib/config";
+import { readPricingForm } from "@/lib/pricing-form";
 import { COST_KINDS } from "@/lib/projects";
 import { PUBLIC_PROJECTS_TAG } from "@/lib/public-projects";
 import type { Json } from "@/lib/supabase/database.types";
@@ -44,53 +45,13 @@ const PLANTATION = ["", "traditional", "intensive", "other"] as const;
 const PRODUCTION = ["", "none", "starting", "producing"] as const;
 const IRRIGATION = ["", "rainfed", "irrigated"] as const;
 
-/** Pricing formulas are data, never code (PRN-02 / SIM-06). Empty means "use the project or global default". */
-const pricingSchema = z.union([
-  z.object({
-    model: z.literal("markup_brackets"),
-    brackets: z.array(z.object({ max_months: z.number().int().positive().max(600), markup_pct: z.number().min(0).max(500) })).min(1),
-    max_months: z.number().int().positive().max(600).optional(),
-    min_down_pct: z.number().min(0).max(100).optional(),
-    min_installment_millimes: z.number().int().min(0).optional(),
-  }),
-  z.object({
-    model: z.literal("monthly_rate"),
-    monthly_rate_pct: z.number().min(0).max(20),
-    max_months: z.number().int().positive().max(600).optional(),
-    min_down_pct: z.number().min(0).max(100).optional(),
-    min_installment_millimes: z.number().int().min(0).optional(),
-  }),
-  z.object({
-    model: z.literal("scenarios"),
-    scenarios: z
-      .array(
-        z.object({
-          down_millimes: z.number().int().min(0),
-          installment_millimes: z.number().int().positive(),
-          months: z.number().int().positive().max(600),
-          total_millimes: z.number().int().positive(),
-        }),
-      )
-      .min(1),
-  }),
-]);
-
-function parsePricing(raw: string): { ok: true; value: Json } | { ok: false; message: string } {
-  if (!raw.trim()) return { ok: true, value: {} as Json };
-  let parsed: unknown;
-  try {
-    parsed = JSON.parse(raw);
-  } catch {
-    return { ok: false, message: "صيغة التسعير يجب أن تكون JSON صحيحاً." };
-  }
-  const result = pricingSchema.safeParse(parsed);
-  if (!result.success) {
-    return {
-      ok: false,
-      message: "صيغة التسعير غير مقبولة. النماذج المتاحة: markup_brackets، monthly_rate، scenarios.",
-    };
-  }
-  return { ok: true, value: result.data as Json };
+/**
+ * Pricing formulas are data, never code (PRN-02 / SIM-06), and are edited with plain fields (PricingEditor).
+ * value null = no formula of its own: the project uses the default, the parcel uses its project's.
+ */
+function parsePricing(formData: FormData): { ok: true; value: Json | null } | { ok: false; message: string } {
+  const result = readPricingForm(formData, { allowInherit: true });
+  return result.ok ? { ok: true, value: result.value as Json | null } : result;
 }
 
 function coordinate(formData: FormData, name: string, limit: number): number | null | undefined {
@@ -161,7 +122,7 @@ export async function saveProject(projectId: string | null, _previous: ActionRes
   const governorateId = Number(formData.get("governorate_id"));
   if (!Number.isInteger(governorateId) || governorateId <= 0) return { ok: false, message: "اختر الولاية." };
 
-  const pricing = parsePricing(String(formData.get("pricing") ?? ""));
+  const pricing = parsePricing(formData);
   if (!pricing.ok) return pricing;
 
   const totalArea = optionalNumber(formData, "total_area_m2");
@@ -199,7 +160,8 @@ export async function saveProject(projectId: string | null, _previous: ActionRes
     production_status: production.data || null,
     irrigation: irrigation.data || null,
     annual_costs_millimes: dinarsToMillimes(annualCosts) ?? null,
-    pricing: pricing.value,
+    // {} = no formula of its own: app.parcel_pricing() falls back to the default setting.
+    pricing: pricing.value ?? {},
     status: status.data,
     ...(page?.ok ? page.value : {}),
   };
@@ -262,7 +224,7 @@ export async function saveParcel(
     .safeParse(formData.get("status") ?? "available");
   if (!plantation.success || !production.success || !irrigation.success || !status.success) return FAILED;
 
-  const pricing = parsePricing(String(formData.get("pricing") ?? ""));
+  const pricing = parsePricing(formData);
   if (!pricing.ok) return pricing;
   const parcelPricing = pricing.value && Object.keys(pricing.value as object).length > 0 ? pricing.value : null;
 
