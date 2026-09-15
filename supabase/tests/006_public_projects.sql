@@ -215,11 +215,12 @@ end $$;
 
 do $$
 begin
+  -- Whole words only (\m…\M): «on_tree_pricing» (0035) is a flag, not the pricing formula.
   assert pg_get_function_result('public.public_projects()'::regprocedure)
-         !~ 'pricing|legal_notes|land_offer|plan_storage|latitude|longitude|updated_by|annual_costs|notes',
+         !~ '\m(pricing|legal_notes|land_offer|plan_storage|latitude|longitude|updated_by|annual_costs|notes)\M',
     'public_projects() exposes no internal column';
   assert pg_get_function_result('public.public_parcels()'::regprocedure)
-         !~ 'pricing|notes|updated_by|legal|land_offer|latitude|longitude',
+         !~ '\m(pricing|notes|updated_by|legal|land_offer|latitude|longitude)\M',
     'public_parcels() exposes no internal column';
   assert pg_get_function_result('public.public_coverage()'::regprocedure) !~ 'millimes|price',
     'public_coverage() carries no money';

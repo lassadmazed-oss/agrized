@@ -4,6 +4,7 @@ import { unstable_cache } from "next/cache";
 
 import type { ModuleAccess } from "@/lib/modules";
 import type { ParcelOffer } from "@/lib/projects";
+import { toTreeQuote, type PaymentMode, type TreeQuote } from "@/lib/tree-pricing";
 import { createPublicClient } from "@/lib/supabase/public";
 import { createClient } from "@/lib/supabase/server";
 
@@ -38,9 +39,15 @@ export type PublicProject = {
   irrigation: string | null;
   status: string;
   offered: boolean;
+  /** Plan P5-4: the project sells trees with their area (it lists spacing classes). */
+  on_tree_pricing: boolean;
   parcels_total: number;
   parcels_offered: number;
   min_cash_price_millimes: number | null;
+  /** Smallest price of one tree over the project's classes; null unless published and pricing is open. */
+  min_price_per_tree_millimes: number | null;
+  area_per_tree_min_m2: number | null;
+  area_per_tree_max_m2: number | null;
   min_area_m2: number | null;
   max_area_m2: number | null;
   parcel_trees: number | null;
@@ -67,6 +74,12 @@ export type PublicParcel = {
   irrigation: string | null;
   status: string;
   offered: boolean;
+  /** Plan P5-3: area = trees × area per tree, price = trees × price per tree (app.parcel_price). */
+  on_tree_pricing: boolean;
+  spacing_class_id: string | null;
+  spacing_label_ar: string | null;
+  area_per_tree_m2: number | null;
+  price_per_tree_millimes: number | null;
   cash_price_millimes: number | null;
   /** Smallest down payment this parcel accepts (report v3 §19); null until the listing returns it. */
   down_from_millimes: number | null;
@@ -144,9 +157,13 @@ export async function getPublicProjects(mode: PublicMode): Promise<PublicProject
     irrigation: (row.irrigation as string | null) ?? null,
     status: String(row.status),
     offered: Boolean(row.offered),
+    on_tree_pricing: row.on_tree_pricing === true,
     parcels_total: num(row.parcels_total),
     parcels_offered: num(row.parcels_offered),
     min_cash_price_millimes: numOrNull(row.min_cash_price_millimes),
+    min_price_per_tree_millimes: numOrNull(row.min_price_per_tree_millimes),
+    area_per_tree_min_m2: numOrNull(row.area_per_tree_min_m2),
+    area_per_tree_max_m2: numOrNull(row.area_per_tree_max_m2),
     min_area_m2: numOrNull(row.min_area_m2),
     max_area_m2: numOrNull(row.max_area_m2),
     parcel_trees: numOrNull(row.parcel_trees),
@@ -176,6 +193,11 @@ export async function getPublicParcels(mode: PublicMode): Promise<PublicParcel[]
     irrigation: (row.irrigation as string | null) ?? null,
     status: String(row.status),
     offered: Boolean(row.offered),
+    on_tree_pricing: row.on_tree_pricing === true,
+    spacing_class_id: (row.spacing_class_id as string | null) ?? null,
+    spacing_label_ar: (row.spacing_label_ar as string | null) ?? null,
+    area_per_tree_m2: numOrNull(row.area_per_tree_m2),
+    price_per_tree_millimes: numOrNull(row.price_per_tree_millimes),
     cash_price_millimes: numOrNull(row.cash_price_millimes),
     down_from_millimes: numOrNull(row.down_from_millimes),
     annual_costs_millimes: numOrNull(row.annual_costs_millimes),
@@ -240,6 +262,91 @@ export async function getProjectPage(code: string, mode: PublicMode): Promise<Pr
       is_cover: Boolean(picture.is_cover),
     })),
   };
+}
+
+export type ProjectQuotePricing = "closed" | "not_offered" | "legacy" | "unavailable" | "ok";
+
+type QuoteChoice = { id: string; label_ar: string; label_fr: string | null };
+
+/** public_project_quote (migration 0034): the /start quote on one project's rules and classes. */
+export type ProjectQuote = Omit<TreeQuote, "pricing"> & {
+  project_id: string;
+  project_code: string;
+  on_tree_pricing: boolean;
+  spacing_status: "ok" | "required" | "not_allowed" | null;
+  trees_max: number | null;
+  pricing: ProjectQuotePricing;
+  choices: {
+    spacing_classes: (QuoteChoice & { area_m2: number; price_per_tree_millimes: number | null })[];
+    down_percents: (QuoteChoice & { percent: number })[];
+    durations: (QuoteChoice & { months: number })[];
+  };
+};
+
+export type ProjectQuoteRequest = {
+  spacingClassId?: string | null;
+  trees?: number | null;
+  paymentMode?: PaymentMode | null;
+  downPercentOptionId?: string | null;
+  durationOptionId?: string | null;
+};
+
+const QUOTE_PRICING: readonly ProjectQuotePricing[] = ["closed", "not_offered", "legacy", "unavailable", "ok"];
+
+function toChoice(value: unknown): QuoteChoice & Record<string, unknown> {
+  const row = (value && typeof value === "object" ? value : {}) as Record<string, unknown>;
+  return { ...row, id: String(row.id ?? ""), label_ar: String(row.label_ar ?? ""), label_fr: (row.label_fr as string | null) ?? null };
+}
+
+export function toProjectQuote(data: unknown): ProjectQuote | null {
+  const base = toTreeQuote(data);
+  if (!base || !data || typeof data !== "object") return null;
+  const row = data as Record<string, unknown>;
+  const pricing = QUOTE_PRICING.includes(row.pricing as ProjectQuotePricing) ? (row.pricing as ProjectQuotePricing) : "closed";
+  const choices = (row.choices && typeof row.choices === "object" ? row.choices : {}) as Record<string, unknown>;
+  const list = (value: unknown) => (Array.isArray(value) ? value.map(toChoice) : []);
+  const spacing = row.spacing_status;
+
+  return {
+    ...base,
+    project_id: String(row.project_id ?? ""),
+    project_code: String(row.project_code ?? ""),
+    on_tree_pricing: row.on_tree_pricing === true,
+    spacing_status: spacing === "ok" || spacing === "required" || spacing === "not_allowed" ? spacing : null,
+    trees_max: numOrNull(row.trees_max),
+    pricing,
+    // toTreeQuote already drops the figures unless its own reading of pricing is "ok".
+    price_per_tree_millimes: pricing === "ok" ? base.price_per_tree_millimes : null,
+    total_price_millimes: pricing === "ok" ? base.total_price_millimes : null,
+    choices: {
+      spacing_classes: list(choices.spacing_classes).map((choice) => ({
+        ...choice,
+        area_m2: num(choice.area_m2),
+        price_per_tree_millimes: pricing === "ok" ? numOrNull(choice.price_per_tree_millimes) : null,
+      })),
+      down_percents: list(choices.down_percents).map((choice) => ({ ...choice, percent: num(choice.percent) })),
+      durations: list(choices.durations).map((choice) => ({ ...choice, months: num(choice.months) })),
+    },
+  };
+}
+
+/**
+ * One project's quote (plan P5-4). Null when the project is not visible, or when the quote cannot be read
+ * (for instance before migration 0034), so pages fall back to what they showed before.
+ */
+export async function getProjectQuote(projectId: string, mode: PublicMode, request: ProjectQuoteRequest = {}): Promise<ProjectQuote | null> {
+  const args: Record<string, unknown> = { p_project: projectId };
+  if (request.spacingClassId) args.p_spacing_class = request.spacingClassId;
+  if (request.trees) args.p_trees = request.trees;
+  if (request.paymentMode) args.p_payment_mode = request.paymentMode;
+  if (request.downPercentOptionId) args.p_down_percent_option_id = request.downPercentOptionId;
+  if (request.durationOptionId) args.p_duration_option_id = request.durationOptionId;
+  try {
+    return toProjectQuote(await load(mode, "public_project_quote", args));
+  } catch (error) {
+    console.error(error);
+    return null;
+  }
 }
 
 export function findProject(projects: PublicProject[], code: string): PublicProject | undefined {

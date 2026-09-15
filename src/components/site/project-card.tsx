@@ -3,7 +3,7 @@ import Link from "next/link";
 import { ParcelRow } from "@/components/site/parcel-row";
 import { RemotePhoto } from "@/components/site/site-photo";
 import { PLANTATION_LABELS, PRODUCTION_LABELS } from "@/lib/crm";
-import { formatCount, formatMillimes } from "@/lib/format";
+import { formatArea, formatCount, formatMillimes } from "@/lib/format";
 import { projectStatusLabel, projectStatusTone } from "@/lib/projects";
 import type { PublicProject } from "@/lib/public-projects";
 
@@ -40,6 +40,9 @@ export function ProjectCard({ project, href, place }: { project: PublicProject; 
           <dl className="mt-4 space-y-2 text-sm">
             {project.total_area_m2 ? <ParcelRow label="المساحة الجملية">{formatCount(project.total_area_m2)} م²</ParcelRow> : null}
             {project.tree_count ? <ParcelRow label="عدد الأشجار">{formatCount(project.tree_count)}</ParcelRow> : null}
+            {project.on_tree_pricing && project.area_per_tree_min_m2 ? (
+              <ParcelRow label="مساحة كل زيتونة">{areaPerTree(project.area_per_tree_min_m2, project.area_per_tree_max_m2)}</ParcelRow>
+            ) : null}
             <ParcelRow label="نوع الغراسة">
               {project.plantation_system ? (PLANTATION_LABELS[project.plantation_system] ?? project.plantation_system) : "—"}
             </ParcelRow>
@@ -49,7 +52,17 @@ export function ProjectCard({ project, href, place }: { project: PublicProject; 
           </dl>
 
           <div className="mt-4 flex flex-wrap items-baseline justify-between gap-2 border-t border-line pt-3 text-sm">
-            {project.offered && project.min_cash_price_millimes ? (
+            {project.offered && project.on_tree_pricing ? (
+              project.min_price_per_tree_millimes ? (
+                <p>
+                  <span className="text-muted">ابتداءً من </span>
+                  <span className="font-display text-xl font-bold text-forest tabular-nums">
+                    {formatMillimes(project.min_price_per_tree_millimes)}
+                  </span>
+                  <span className="text-muted"> للزيتونة</span>
+                </p>
+              ) : null
+            ) : project.offered && project.min_cash_price_millimes ? (
               <p>
                 <span className="text-muted">ابتداءً من </span>
                 <span className="font-display text-xl font-bold text-forest tabular-nums">
@@ -65,4 +78,9 @@ export function ProjectCard({ project, href, place }: { project: PublicProject; 
       </Link>
     </li>
   );
+}
+
+/** «35 م²» for one class, «25 – 49 م²» when the project plants several. */
+function areaPerTree(min: number, max: number | null): string {
+  return max && max !== min ? `${formatCount(min)} – ${formatArea(max)}` : formatArea(min);
 }

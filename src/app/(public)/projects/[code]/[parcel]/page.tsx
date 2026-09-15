@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 
 import { ComingSoon, PreviewBanner } from "@/components/site/module-gate";
 import { OfferBlock } from "@/components/site/offer-block";
+import { TreeOfferBlock } from "@/components/site/tree-offer-block";
 import { ParcelRow } from "@/components/site/parcel-row";
 import { RemotePhoto } from "@/components/site/site-photo";
 import { flagState, getPublicConfig, settingText } from "@/lib/config";
@@ -12,8 +13,17 @@ import { formatCount } from "@/lib/format";
 import { IRRIGATION_LABELS } from "@/lib/land";
 import { moduleAccess } from "@/lib/modules";
 import { parcelStatusLabel, parcelStatusTone, PROPERTY_TYPE_LABELS } from "@/lib/projects";
-import { interestHref, projectHref } from "@/lib/public-hrefs";
-import { findParcel, findProject, getParcelOffer, getPublicParcels, getPublicProjects, publicMode } from "@/lib/public-projects";
+import { interestHref, parcelHref, projectHref } from "@/lib/public-hrefs";
+import {
+  findParcel,
+  findProject,
+  getParcelOffer,
+  getProjectQuote,
+  getPublicParcels,
+  getPublicProjects,
+  publicMode,
+} from "@/lib/public-projects";
+import { parsePaymentMode } from "@/lib/tree-pricing";
 
 export const metadata: Metadata = { title: "قطعة" };
 
@@ -42,23 +52,45 @@ export default async function ParcelPage({ params, searchParams }: PageProps<"/p
 
   const query = await searchParams;
   const pick = (value: string | string[] | undefined) => (typeof value === "string" && UUID.test(value) ? value : undefined);
-  const offer = await getParcelOffer(parcel.id, mode, { down: pick(query.down), installment: pick(query.installment) });
-  if (!offer) notFound();
+  // Plan P5-4: a parcel of a tree-priced project is quoted on its own trees and class; others keep the 0020 offer.
+  const payment = parsePaymentMode(query.payment) ?? null;
+  const downPercentId = payment === "installments" ? (pick(query.down_pct) ?? null) : null;
+  const durationId = payment === "installments" ? (pick(query.duration) ?? null) : null;
+  const treeQuote = parcel.on_tree_pricing
+    ? await getProjectQuote(parcel.project_id, mode, {
+        spacingClassId: parcel.spacing_class_id,
+        trees: parcel.olive_tree_count,
+        paymentMode: payment,
+        downPercentOptionId: downPercentId,
+        durationOptionId: durationId,
+      })
+    : null;
+  const offer = treeQuote ? null : await getParcelOffer(parcel.id, mode, { down: pick(query.down), installment: pick(query.installment) });
+  if (!treeQuote && !offer) notFound();
 
   const governorate = config.governorates.find((g) => g.id === parcel.governorate_id)?.name_ar;
   const irrigation = parcel.irrigation ? (IRRIGATION_LABELS as Record<string, string>)[parcel.irrigation] : null;
   const interestOpen = flagState(config, "interest_form") === "public";
-  const canAsk = interestOpen && offer.offered && offer.priced;
+  // A tree parcel can be asked for while its price is still hidden; a legacy parcel needs its offer priced.
+  const canAsk = interestOpen && (treeQuote ? parcel.offered : Boolean(offer?.offered && offer.priced));
 
   const cta = canAsk
     ? {
-        // The old down payment and monthly installment choices are no longer questions (plan P2-6): the calculator
-        // asks the payment once, with its own down-payment percentages and durations.
-        href: interestHref({
-          parcelId: parcel.id,
-          trees: pick(query.trees) ?? offer.suggested_tree_count_option_id,
-          scenario: pick(query.scenario) ?? offer.suggested_scenario_id,
-        }),
+        // The choices made here travel to the form, which never asks them again (plan P2-6).
+        href: treeQuote
+          ? interestHref({
+              parcelId: parcel.id,
+              treesCustom: parcel.olive_tree_count,
+              spacing: parcel.spacing_class_id,
+              payment,
+              downPercent: downPercentId,
+              duration: durationId,
+            })
+          : interestHref({
+              parcelId: parcel.id,
+              trees: pick(query.trees) ?? offer?.suggested_tree_count_option_id,
+              scenario: pick(query.scenario) ?? offer?.suggested_scenario_id,
+            }),
         label: settingText(config, "projects.parcel_cta", "أنا مهتم بهذه القطعة"),
       }
     : interestOpen
@@ -114,7 +146,16 @@ export default async function ParcelPage({ params, searchParams }: PageProps<"/p
           </div>
 
           <div className="space-y-5">
-            <OfferBlock offer={offer} config={config} />
+            {treeQuote ? (
+              <TreeOfferBlock
+                quote={treeQuote}
+                config={config}
+                baseHref={parcelHref(project.code, parcel.code)}
+                choice={{ payment, downPercent: downPercentId, duration: durationId }}
+              />
+            ) : offer ? (
+              <OfferBlock offer={offer} config={config} />
+            ) : null}
 
             {cta ? (
               <div className="hidden md:block">

@@ -7,9 +7,10 @@ import { treePricingReady } from "@/components/admin/legacy-pricing-notice";
 import { hasRole, requireStaff, type StaffRole } from "@/lib/auth";
 import { getPublicConfig, settingText } from "@/lib/config";
 import { PLANTATION_LABELS, PRODUCTION_LABELS } from "@/lib/crm";
-import { formatCount, formatDateTime, formatMillimes } from "@/lib/format";
+import { formatArea, formatCount, formatDateTime, formatMillimes } from "@/lib/format";
 import { IRRIGATION_LABELS } from "@/lib/land";
 import { formatPhone } from "@/lib/phone";
+import { getStaffParcelPrices, PARCEL_PRICE_REASONS } from "@/lib/parcel-prices";
 import { describePricing } from "@/lib/pricing-form";
 import {
   PLAN_REASON_LABELS,
@@ -72,6 +73,15 @@ export default async function ParcelPage({ params, searchParams }: PageProps<"/a
     lines: projectLines.length > 0 ? projectLines : describePricing(defaultSetting?.value),
   };
 
+  // Plan P5-3: a parcel of a tree-priced project is priced from its trees (app.parcel_price), not by the 0020 matrix.
+  const treePrice = (await getStaffParcelPrices(supabase, id)).get(parcelId) ?? null;
+  const onTree = treePrice?.on_tree_pricing === true;
+  const { data: classRows } = await supabase
+    .from("project_spacing_classes")
+    .select("spacing:tree_spacing_classes(id, label_ar, area_m2)")
+    .eq("project_id", id);
+  const treeClasses = (classRows ?? []).flatMap((row) => (row.spacing ? [row.spacing] : []));
+
   // One call builds the card in Postgres with the formula the public page uses (0020), whatever the
   // parcel's status, so staff always see the numbers a visitor would. Choices are option ids only.
   const query = await searchParams;
@@ -124,15 +134,32 @@ export default async function ParcelPage({ params, searchParams }: PageProps<"/a
                 {parcel.production_status ? (PRODUCTION_LABELS[parcel.production_status] ?? parcel.production_status) : "—"}
               </Row>
               <Row label="الري">{parcel.irrigation ? (IRRIGATION_LABELS as Record<string, string>)[parcel.irrigation] : "—"}</Row>
-              <Row label="السعر حاضر">
-                {parcel.cash_price_millimes > 0 ? formatMillimes(parcel.cash_price_millimes) : settingText(config, "projects.price_pending", "السعر يُعلن لاحقاً.")}
-              </Row>
-              <Row label="التسبقة">{offer?.down_from_millimes ? `من ${formatMillimes(offer.down_from_millimes)}` : "—"}</Row>
-              <Row label="القسط">
-                {entry?.ok && entry.months
-                  ? `من ${formatMillimes(entry.installment_millimes)} في الشهر · ${formatCount(entry.months)} شهراً`
-                  : "غير متاح بالقيم الحالية"}
-              </Row>
+              {onTree && treePrice ? (
+                <>
+                  <Row label="مساحة كل زيتونة">{treePrice.area_per_tree_m2 ? formatArea(treePrice.area_per_tree_m2) : "—"}</Row>
+                  <Row label="المساحة الجملية">{treePrice.total_area_m2 ? formatArea(treePrice.total_area_m2) : "—"}</Row>
+                  <Row label="السعر للزيتونة">
+                    {treePrice.price_per_tree_millimes ? formatMillimes(treePrice.price_per_tree_millimes) : "—"}
+                  </Row>
+                  <Row label="السعر الجملي">
+                    {treePrice.cash_total_millimes
+                      ? formatMillimes(treePrice.cash_total_millimes)
+                      : ((treePrice.reason && PARCEL_PRICE_REASONS[treePrice.reason]) ?? "السعر ما تحسبش.")}
+                  </Row>
+                </>
+              ) : (
+                <>
+                  <Row label="السعر حاضر">
+                    {parcel.cash_price_millimes > 0 ? formatMillimes(parcel.cash_price_millimes) : settingText(config, "projects.price_pending", "السعر يُعلن لاحقاً.")}
+                  </Row>
+                  <Row label="التسبقة">{offer?.down_from_millimes ? `من ${formatMillimes(offer.down_from_millimes)}` : "—"}</Row>
+                  <Row label="القسط">
+                    {entry?.ok && entry.months
+                      ? `من ${formatMillimes(entry.installment_millimes)} في الشهر · ${formatCount(entry.months)} شهراً`
+                      : "غير متاح بالقيم الحالية"}
+                  </Row>
+                </>
+              )}
               <Row label="المصاريف السنوية التقديرية">
                 {parcel.annual_costs_millimes !== null ? formatMillimes(parcel.annual_costs_millimes) : "—"}
               </Row>
@@ -148,7 +175,19 @@ export default async function ParcelPage({ params, searchParams }: PageProps<"/a
         </aside>
 
         <div className="space-y-6">
-          {/* Installment simulator, using the same server function as contracts will (SIM-06) */}
+          {onTree ? (
+            <section className="rounded-2xl border border-line bg-surface p-5">
+              <h2 className="font-semibold">التسعير بالزيتونة</h2>
+              <p className="mt-1 text-sm leading-6 text-muted">
+                هذه القطعة من مشروع يتباع بالزيتونة: المساحة والسعر يتحسبو من عدد الزيتونات وفئة المساحة. التسبقة والمدة والقسط
+                الشهري، والتفاصيل الداخلية (الأرض، الغراسة، المصاريف، الهامش)، تلقاهم في محاكي صفحة التسعير.
+              </p>
+              <Link href={`/admin/pricing?project=${id}`} className="btn btn-secondary mt-4">
+                محاكي التسعير لهذا المشروع
+              </Link>
+            </section>
+          ) : (
+          /* Installment simulator of legacy parcels, using the same server function as contracts will (SIM-06) */
           <section className="rounded-2xl border border-line bg-surface p-5">
             <h2 className="font-semibold">محاكي التقسيط</h2>
             <p className="mt-1 text-sm text-muted">نفس دالة الحساب المستعملة في الموقع والحجز والعقود وجدول الأقساط.</p>
@@ -205,6 +244,7 @@ export default async function ParcelPage({ params, searchParams }: PageProps<"/a
               )
             ) : null}
           </section>
+          )}
 
           {/* Matching (8.3 / 25.5) */}
           <section className="space-y-3">
@@ -266,6 +306,8 @@ export default async function ParcelPage({ params, searchParams }: PageProps<"/a
                     parcel={parcel}
                     pricingInherit={pricingInherit}
                     legacyNoticeHref={treePricingReady(config) ? `/admin/pricing?project=${id}` : null}
+                    treeClasses={treeClasses}
+                    computed={treePrice}
                   />
                 </ActionForm>
               </div>

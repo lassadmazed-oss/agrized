@@ -6,6 +6,7 @@ import { z } from "zod";
 import type { ActionResult } from "@/components/admin/action-form";
 import { requireStaff, type StaffRole } from "@/lib/auth";
 import { getPublicConfig, settingInt } from "@/lib/config";
+import { intakeErrorMessage, isKnownIntakeError } from "@/lib/errors";
 import { readPricingForm } from "@/lib/pricing-form";
 import { COST_KINDS } from "@/lib/projects";
 import { PUBLIC_PROJECTS_TAG } from "@/lib/public-projects";
@@ -189,8 +190,16 @@ export async function saveProject(projectId: string | null, _previous: ActionRes
   return { ok: true, message: `تم إنشاء المشروع ${code.data}.` };
 }
 
+/** A parcel write refused by the database, in words: a taken code, or a class the project does not list (0034). */
+function parcelError(error: { code?: string; message: string }): ActionResult {
+  if (error.code === "23505") return { ok: false, message: "رمز القطعة مستعمل في هذا المشروع." };
+  return isKnownIntakeError(error.message) ? { ok: false, message: intakeErrorMessage(error.message) } : FAILED;
+}
+
 /**
  * PARC-01 / PARC-02: every parcel field is stored exactly as entered. Nothing is derived from the area.
+ * Plan P5-3 (owner, 2026-09-15): on a project that lists spacing classes, a parcel is a number of trees of one class,
+ * so its area follows from the trees and its price is computed (app.parcel_price); neither is typed there.
  */
 export async function saveParcel(
   projectId: string,
@@ -203,16 +212,38 @@ export async function saveParcel(
   const code = text(formData, "code", 20);
   if (!code) return { ok: false, message: "اكتب رمز القطعة، مثال: P07." };
 
-  const area = optionalNumber(formData, "area_m2");
+  const supabase = await createClient();
+  const { data: classRows } = await supabase
+    .from("project_spacing_classes")
+    .select("spacing_class_id, spacing:tree_spacing_classes(area_m2)")
+    .eq("project_id", projectId);
+  const projectClasses = classRows ?? [];
+  const onTree = projectClasses.length > 0;
+
+  const area = onTree ? null : optionalNumber(formData, "area_m2");
   const trees = optionalNumber(formData, "olive_tree_count");
   const age = optionalNumber(formData, "tree_age_years");
-  const price = optionalNumber(formData, "cash_price_dinars");
+  const price = onTree ? null : optionalNumber(formData, "cash_price_dinars");
   const annual = optionalNumber(formData, "annual_costs_dinars");
   if (area === undefined || trees === undefined || age === undefined || price === undefined || annual === undefined) {
     return { ok: false, message: "المساحة وعدد الزيتونات والعمر والأسعار تُكتب بالأرقام." };
   }
-  if (!area || area <= 0) return { ok: false, message: "اكتب مساحة القطعة بالمتر المربع." };
-  if (price === null) return { ok: false, message: "اكتب سعر الحاضر بالدينار." };
+
+  let spacingClassId: string | null = null;
+  let treeArea = 0;
+  if (onTree) {
+    if (!trees || trees <= 0) return { ok: false, message: "اكتب عدد الزيتونات: مساحة القطعة وسعرها يتحسبو منو." };
+    const chosen = String(formData.get("spacing_class_id") ?? "");
+    const match =
+      projectClasses.find((row) => row.spacing_class_id === chosen) ?? (projectClasses.length === 1 ? projectClasses[0] : undefined);
+    if (!match) return { ok: false, message: "اختر فئة المساحة للقطعة من فئات المشروع." };
+    spacingClassId = match.spacing_class_id;
+    // The database keeps the same value in sync (0035); computing it here keeps the row valid on its own.
+    treeArea = Math.round(trees) * Number(match.spacing?.area_m2 ?? 0);
+  } else {
+    if (!area || area <= 0) return { ok: false, message: "اكتب مساحة القطعة بالمتر المربع." };
+    if (price === null) return { ok: false, message: "اكتب سعر الحاضر بالدينار." };
+  }
 
   const propertyType = z.enum(["bare_land", "planted"]).safeParse(formData.get("property_type"));
   if (!propertyType.success) return { ok: false, message: "اختر نوع العقار." };
@@ -224,33 +255,36 @@ export async function saveParcel(
     .safeParse(formData.get("status") ?? "available");
   if (!plantation.success || !production.success || !irrigation.success || !status.success) return FAILED;
 
-  const pricing = parsePricing(formData);
-  if (!pricing.ok) return pricing;
-  const parcelPricing = pricing.value && Object.keys(pricing.value as object).length > 0 ? pricing.value : null;
+  // A tree-priced parcel has no jsonb formula: its price comes from the project's tree pricing.
+  const pricing = onTree ? null : parsePricing(formData);
+  if (pricing && !pricing.ok) return pricing;
+  const parcelPricing = pricing?.ok && pricing.value && Object.keys(pricing.value as object).length > 0 ? pricing.value : null;
 
   const sortOrder = Number(formData.get("sort_order"));
   const row = {
     project_id: projectId,
     code,
-    area_m2: area,
+    area_m2: onTree ? treeArea : (area as number),
     property_type: propertyType.data,
     plantation_system: plantation.data || null,
     olive_tree_count: trees === null ? null : Math.round(trees),
     tree_age_years: age,
     production_status: production.data || null,
     irrigation: irrigation.data || null,
-    cash_price_millimes: dinarsToMillimes(price) as number,
+    // 0 on a tree-priced parcel: app.parcel_price computes its price and never shows a stored 0 (0034).
+    cash_price_millimes: onTree ? 0 : (dinarsToMillimes(price) as number),
     annual_costs_millimes: dinarsToMillimes(annual) ?? null,
     pricing: parcelPricing,
+    ...(onTree ? { spacing_class_id: spacingClassId } : {}),
     status: status.data,
     notes: text(formData, "notes", 2000) || null,
     sort_order: Number.isInteger(sortOrder) && sortOrder >= 0 ? sortOrder : 0,
   };
 
-  const supabase = await createClient();
   if (parcelId) {
     const { data, error } = await supabase.from("parcels").update(row).eq("id", parcelId).eq("project_id", projectId).select("id");
-    if (error || !data?.length) return FAILED;
+    if (error) return parcelError(error);
+    if (!data?.length) return FAILED;
     revalidatePath(`/admin/projects/${projectId}`);
     revalidatePath(`/admin/projects/${projectId}/parcels/${parcelId}`);
     expirePublicProjects();
@@ -258,9 +292,7 @@ export async function saveParcel(
   }
 
   const { error } = await supabase.from("parcels").insert(row);
-  if (error) {
-    return error.code === "23505" ? { ok: false, message: "رمز القطعة مستعمل في هذا المشروع." } : FAILED;
-  }
+  if (error) return parcelError(error);
   revalidatePath(`/admin/projects/${projectId}`);
   expirePublicProjects();
   return { ok: true, message: `تمت إضافة القطعة ${code}.` };

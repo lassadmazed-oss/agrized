@@ -66,7 +66,8 @@ begin
   assert r.cash_price_millimes is null and r.down_from_millimes is null, 'a reserved parcel shows no money';
 
   -- the pricing formula still never leaves Postgres
-  assert pg_get_function_result('public.public_parcels()'::regprocedure) !~ 'pricing|notes|updated_by|legal|land_offer|latitude|longitude',
+  -- Whole words only (\m…\M): «on_tree_pricing» (0035) is a flag, not the pricing formula.
+  assert pg_get_function_result('public.public_parcels()'::regprocedure) !~ '\m(pricing|notes|updated_by|legal|land_offer|latitude|longitude)\M',
     'the listing signature stays whitelisted';
   assert not has_function_privilege('anon', 'app.parcel_down_from(uuid,bigint)', 'execute'), 'the helper is closed to visitors';
 end $$;

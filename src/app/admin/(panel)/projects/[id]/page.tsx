@@ -9,7 +9,8 @@ import { ParcelPlan } from "@/components/site/parcel-plan";
 import { hasRole, requireStaff, type StaffRole } from "@/lib/auth";
 import { getPublicConfig, optionsFor } from "@/lib/config";
 import { PLANTATION_LABELS, PRODUCTION_LABELS } from "@/lib/crm";
-import { formatCount, formatMillimes } from "@/lib/format";
+import { formatArea, formatCount, formatMillimes } from "@/lib/format";
+import { effectiveParcelFigures, getStaffParcelPrices, PARCEL_PRICE_REASONS, type ParcelPrice } from "@/lib/parcel-prices";
 import { describePricing } from "@/lib/pricing-form";
 import {
   COST_KIND_LABELS,
@@ -56,6 +57,12 @@ export default async function ProjectDetailPage({ params }: PageProps<"/admin/pr
   ]);
   if (!project) notFound();
   const defaultPricing = defaultSetting?.value ?? null;
+  // Plan P5-3: a project that lists spacing classes sells trees with their area; each parcel picks one of them.
+  const { data: classRows } = await supabase
+    .from("project_spacing_classes")
+    .select("spacing:tree_spacing_classes(id, label_ar, area_m2)")
+    .eq("project_id", id);
+  const treeClasses = (classRows ?? []).flatMap((row) => (row.spacing ? [row.spacing] : []));
   const projectHasPricing = describePricing(project.pricing).length > 0;
   // Once the tree pricing exists, the jsonb formulas on this page only price parcels still on the legacy path.
   const newPricing = treePricingReady(config);
@@ -79,17 +86,20 @@ export default async function ProjectDetailPage({ params }: PageProps<"/admin/pr
   ]);
 
   const rows = parcels.data ?? [];
+  // Plan P5-3: on a tree-priced project a parcel's area and price follow from its trees (app.parcel_price).
+  const prices = await getStaffParcelPrices(supabase, id);
+  const figures = (parcel: (typeof rows)[number]) => effectiveParcelFigures(parcel, prices);
   const pictures = media.data ?? [];
   // Without a chosen cover the site uses the first picture in order.
   const hasChosenCover = pictures.some((picture) => picture.is_cover);
-  const parcelArea = rows.reduce((sum, parcel) => sum + Number(parcel.area_m2 ?? 0), 0);
+  const parcelArea = rows.reduce((sum, parcel) => sum + figures(parcel).area, 0);
   const parcelTrees = rows.reduce((sum, parcel) => sum + (parcel.olive_tree_count ?? 0), 0);
-  const parcelValue = rows.reduce((sum, parcel) => sum + (parcel.cash_price_millimes ?? 0), 0);
+  const parcelValue = rows.reduce((sum, parcel) => sum + (figures(parcel).cash ?? 0), 0);
   const costTotal = (costs.data ?? []).reduce((sum, cost) => sum + (cost.amount_millimes ?? 0), 0);
   // Report v3 §35: what the parcels not withdrawn would bring at their cash price, against the recorded costs.
   const expectedRevenue = rows
     .filter((parcel) => parcel.status !== "withdrawn")
-    .reduce((sum, parcel) => sum + (parcel.cash_price_millimes ?? 0), 0);
+    .reduce((sum, parcel) => sum + (figures(parcel).cash ?? 0), 0);
   const expectedMargin = expectedRevenue - costTotal;
   const governorate = config.governorates.find((g) => g.id === project.governorate_id)?.name_ar;
 
@@ -102,7 +112,7 @@ export default async function ProjectDetailPage({ params }: PageProps<"/admin/pr
     warnings.push(`مجموع زيتونات القطع (${formatCount(parcelTrees)}) أكبر من عدد أشجار المشروع.`);
   }
   // An available parcel priced at 0 is shown on the site as «السعر يُعلن لاحقاً», never as «0 د.ت».
-  const unpriced = rows.filter((parcel) => parcel.status === "available" && !parcel.cash_price_millimes).length;
+  const unpriced = rows.filter((parcel) => parcel.status === "available" && !figures(parcel).cash).length;
   if (unpriced > 0) {
     warnings.push(`فيه قطع متاحة بلا سعر (${formatCount(unpriced)}). لن تُعرض بسعر على الموقع.`);
   }
@@ -173,7 +183,7 @@ export default async function ProjectDetailPage({ params }: PageProps<"/admin/pr
             code: parcel.code,
             status: parcel.status,
             href: `/admin/projects/${id}/parcels/${parcel.id}`,
-            detail: `${formatCount(Number(parcel.area_m2))} م²`,
+            detail: `${formatCount(figures(parcel).area)} م²`,
           }))}
         />
 
@@ -203,14 +213,16 @@ export default async function ProjectDetailPage({ params }: PageProps<"/admin/pr
                 {rows.map((parcel) => (
                   <tr key={parcel.id} className="hover:bg-paper/60">
                     <Td className="font-semibold">{parcel.code}</Td>
-                    <Td className="tabular-nums">{formatCount(Number(parcel.area_m2))} م²</Td>
+                    <Td className="tabular-nums">{formatCount(figures(parcel).area)} م²</Td>
                     <Td>{PROPERTY_TYPE_LABELS[parcel.property_type] ?? parcel.property_type}</Td>
                     <Td>{parcel.plantation_system ? (PLANTATION_LABELS[parcel.plantation_system] ?? parcel.plantation_system) : "—"}</Td>
                     <Td className="tabular-nums">{parcel.olive_tree_count ?? "—"}</Td>
                     <Td className="tabular-nums">{parcel.tree_age_years ?? "—"}</Td>
                     <Td>{parcel.production_status ? (PRODUCTION_LABELS[parcel.production_status] ?? parcel.production_status) : "—"}</Td>
                     <Td>{parcel.irrigation === "irrigated" ? "مروية" : parcel.irrigation === "rainfed" ? "بعلية" : "—"}</Td>
-                    <Td className="tabular-nums">{formatMillimes(parcel.cash_price_millimes)}</Td>
+                    <Td className="tabular-nums">
+                      <ParcelPriceCell cash={figures(parcel).cash} price={figures(parcel).price} />
+                    </Td>
                     <Td>
                       <span className={`rounded-full px-2 py-0.5 text-xs font-semibold ring-1 ring-inset ${PARCEL_STATUS_TONES[parcel.status as ParcelStatus]}`}>
                         {PARCEL_STATUS_LABELS[parcel.status as ParcelStatus]}
@@ -240,7 +252,7 @@ export default async function ProjectDetailPage({ params }: PageProps<"/admin/pr
                 className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4"
                 buttonClassName="btn btn-primary sm:col-span-2 lg:col-span-4 lg:w-48"
               >
-                <ParcelFields parcel={null} pricingInherit={parcelInherit} legacyNoticeHref={newPricing ? newPricingHref : null} nextOrder={(rows.at(-1)?.sort_order ?? 0) + 10} nextCode={`P${String(rows.length + 1).padStart(2, "0")}`} />
+                <ParcelFields parcel={null} pricingInherit={parcelInherit} legacyNoticeHref={newPricing ? newPricingHref : null} treeClasses={treeClasses} nextOrder={(rows.at(-1)?.sort_order ?? 0) + 10} nextCode={`P${String(rows.length + 1).padStart(2, "0")}`} />
               </ActionForm>
             </div>
           </details>
@@ -587,6 +599,8 @@ export function ParcelFields({
   parcel,
   pricingInherit,
   legacyNoticeHref = null,
+  treeClasses = [],
+  computed = null,
   nextOrder = 0,
   nextCode = "",
 }: {
@@ -594,6 +608,11 @@ export function ParcelFields({
   pricingInherit: { label: string; hint: string; lines: string[] };
   /** Set once the tree pricing exists: this parcel's jsonb formula is then the legacy path only. */
   legacyNoticeHref?: string | null;
+  /** Plan P5-3: the project's spacing classes; empty for a legacy project. */
+  // area_m2 is a generated column, so the generated types allow null.
+  treeClasses?: { id: string; label_ar: string; area_m2: number | null }[];
+  /** The parcel's computed area and price (app.parcel_price), shown read-only on a tree-priced project. */
+  computed?: ParcelPrice | null;
   parcel: {
     code: string;
     area_m2: number | string;
@@ -609,18 +628,33 @@ export function ParcelFields({
     sort_order: number;
     notes: string | null;
     pricing: unknown;
+    spacing_class_id?: string | null;
   } | null;
   nextOrder?: number;
   nextCode?: string;
 }) {
+  const onTree = treeClasses.length > 0;
+
   return (
     <>
       <Labeled label="رمز القطعة">
         <input name="code" defaultValue={parcel?.code ?? nextCode} required dir="ltr" className="field text-left" />
       </Labeled>
-      <Labeled label="المساحة (م²)">
-        <input name="area_m2" defaultValue={parcel?.area_m2 ?? ""} required inputMode="decimal" dir="ltr" className="field text-left" />
-      </Labeled>
+      {onTree ? (
+        <Labeled label="فئة المساحة">
+          <select name="spacing_class_id" defaultValue={parcel?.spacing_class_id ?? treeClasses[0]?.id ?? ""} required className="field">
+            {treeClasses.map((spacing) => (
+              <option key={spacing.id} value={spacing.id}>
+                {spacing.label_ar} · {formatArea(Number(spacing.area_m2))} للزيتونة
+              </option>
+            ))}
+          </select>
+        </Labeled>
+      ) : (
+        <Labeled label="المساحة (م²)">
+          <input name="area_m2" defaultValue={parcel?.area_m2 ?? ""} required inputMode="decimal" dir="ltr" className="field text-left" />
+        </Labeled>
+      )}
       <Labeled label="نوع العقار">
         <select name="property_type" defaultValue={parcel?.property_type ?? "planted"} className="field">
           {Object.entries(PROPERTY_TYPE_LABELS).map(([value, label]) => (
@@ -641,7 +675,14 @@ export function ParcelFields({
         </select>
       </Labeled>
       <Labeled label="عدد الزيتونات">
-        <input name="olive_tree_count" defaultValue={parcel?.olive_tree_count ?? ""} inputMode="numeric" dir="ltr" className="field text-left" />
+        <input
+          name="olive_tree_count"
+          defaultValue={parcel?.olive_tree_count ?? ""}
+          required={onTree}
+          inputMode="numeric"
+          dir="ltr"
+          className="field text-left"
+        />
       </Labeled>
       <Labeled label="عمر الزيتونات (سنوات)">
         <input name="tree_age_years" defaultValue={parcel?.tree_age_years ?? ""} inputMode="decimal" dir="ltr" className="field text-left" />
@@ -663,16 +704,26 @@ export function ParcelFields({
           <option value="irrigated">مروية</option>
         </select>
       </Labeled>
-      <Labeled label="سعر الحاضر (د.ت)">
-        <input
-          name="cash_price_dinars"
-          defaultValue={parcel ? parcel.cash_price_millimes / 1000 : ""}
-          required
-          inputMode="decimal"
-          dir="ltr"
-          className="field text-left"
-        />
-      </Labeled>
+      {onTree ? (
+        <div className="space-y-1.5">
+          <span className="block text-sm font-semibold">المساحة والسعر</span>
+          <p className="rounded-xl bg-paper px-3 py-2.5 text-sm tabular-nums">
+            {computed?.on_tree_pricing && computed.total_area_m2 ? formatArea(computed.total_area_m2) : "تتحسب من عدد الزيتونات"}
+            {computed?.cash_total_millimes ? ` · ${formatMillimes(computed.cash_total_millimes)}` : ""}
+          </p>
+        </div>
+      ) : (
+        <Labeled label="سعر الحاضر (د.ت)">
+          <input
+            name="cash_price_dinars"
+            defaultValue={parcel ? parcel.cash_price_millimes / 1000 : ""}
+            required
+            inputMode="decimal"
+            dir="ltr"
+            className="field text-left"
+          />
+        </Labeled>
+      )}
       <Labeled label="المصاريف السنوية (د.ت)">
         <input
           name="annual_costs_dinars"
@@ -699,10 +750,12 @@ export function ParcelFields({
           <input name="notes" defaultValue={parcel?.notes ?? ""} className="field" />
         </Labeled>
       </div>
-      <div className="space-y-3 sm:col-span-2 lg:col-span-4">
-        {legacyNoticeHref ? <LegacyPricingNotice href={legacyNoticeHref} /> : null}
-        <PricingEditor initial={parcel?.pricing ?? null} inherit={pricingInherit} />
-      </div>
+      {onTree ? null : (
+        <div className="space-y-3 sm:col-span-2 lg:col-span-4">
+          {legacyNoticeHref ? <LegacyPricingNotice href={legacyNoticeHref} /> : null}
+          <PricingEditor initial={parcel?.pricing ?? null} inherit={pricingInherit} />
+        </div>
+      )}
     </>
   );
 }
@@ -735,6 +788,21 @@ function OptionChecks({
         </div>
       )}
     </fieldset>
+  );
+}
+
+/** A tree parcel shows its computed price, or what blocks it; a legacy parcel its typed price. */
+function ParcelPriceCell({ cash, price }: { cash: number | null; price: ParcelPrice | null }) {
+  if (price?.on_tree_pricing && !cash) {
+    return <span className="text-xs text-danger">{(price.reason && PARCEL_PRICE_REASONS[price.reason]) ?? "السعر ما تحسبش."}</span>;
+  }
+  return (
+    <>
+      {formatMillimes(cash ?? 0)}
+      {price?.on_tree_pricing && price.price_per_tree_millimes ? (
+        <span className="block text-xs text-muted">{formatMillimes(price.price_per_tree_millimes)} للزيتونة</span>
+      ) : null}
+    </>
   );
 }
 

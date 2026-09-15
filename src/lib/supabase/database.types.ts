@@ -2574,6 +2574,7 @@ export type Database = {
         Returns: {
           annual_costs_millimes: number
           area_m2: number
+          area_per_tree_m2: number
           cash_price_millimes: number
           code: string
           delegation_id: number
@@ -2583,10 +2584,12 @@ export type Database = {
           irrigation: Database["public"]["Enums"]["irrigation_type"]
           offered: boolean
           olive_tree_count: number
+          on_tree_pricing: boolean
           photo_alt_ar: string
           photo_aspect: string
           photo_url: string
           plantation_system: string
+          price_per_tree_millimes: number
           production_status: string
           project_code: string
           project_id: string
@@ -2595,6 +2598,8 @@ export type Database = {
           project_type_id: string
           property_type: string
           sort_order: number
+          spacing_class_id: string
+          spacing_label_ar: string
           status: Database["public"]["Enums"]["parcel_status"]
           tree_age_years: number
         }[]
@@ -2614,6 +2619,8 @@ export type Database = {
       public_projects: {
         Args: never
         Returns: {
+          area_per_tree_max_m2: number
+          area_per_tree_min_m2: number
           code: string
           cover_alt_ar: string
           cover_aspect: string
@@ -2626,9 +2633,11 @@ export type Database = {
           max_area_m2: number
           min_area_m2: number
           min_cash_price_millimes: number
+          min_price_per_tree_millimes: number
           name: string
           offered: boolean
           olive_variety: string
+          on_tree_pricing: boolean
           parcel_trees: number
           parcels_offered: number
           parcels_total: number
@@ -2680,6 +2689,13 @@ export type Database = {
           p_parcel: string
         }
         Returns: Json
+      }
+      staff_project_parcel_prices: {
+        Args: { p_project: string }
+        Returns: {
+          parcel_id: string
+          price: Json
+        }[]
       }
       staff_project_quote: {
         Args: {

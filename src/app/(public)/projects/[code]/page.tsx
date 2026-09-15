@@ -12,7 +12,7 @@ import { ProjectVideo } from "@/components/site/project-video";
 import { RemotePhoto } from "@/components/site/site-photo";
 import { flagState, getPublicConfig, optionsFor, settingText, type PublicConfig } from "@/lib/config";
 import { PLANTATION_LABELS, PRODUCTION_LABELS } from "@/lib/crm";
-import { formatCount, formatMillimes } from "@/lib/format";
+import { formatArea, formatCount, formatMillimes } from "@/lib/format";
 import { IRRIGATION_LABELS } from "@/lib/land";
 import { moduleAccess } from "@/lib/modules";
 import { projectStatusLabel, projectStatusTone } from "@/lib/projects";
@@ -128,7 +128,18 @@ export default async function ProjectPage({ params }: PageProps<"/projects/[code
               <ParcelRow label="القطع">
                 {formatCount(project.parcels_total)} · {formatCount(project.parcels_offered)} متبقية
               </ParcelRow>
-              {project.offered && project.min_cash_price_millimes ? (
+              {project.on_tree_pricing && project.area_per_tree_min_m2 ? (
+                <ParcelRow label="مساحة كل زيتونة">
+                  {project.area_per_tree_max_m2 && project.area_per_tree_max_m2 !== project.area_per_tree_min_m2
+                    ? `${formatCount(project.area_per_tree_min_m2)} – ${formatArea(project.area_per_tree_max_m2)}`
+                    : formatArea(project.area_per_tree_min_m2)}
+                </ParcelRow>
+              ) : null}
+              {project.offered && project.on_tree_pricing ? (
+                project.min_price_per_tree_millimes ? (
+                  <ParcelRow label="السعر للزيتونة">ابتداءً من {formatMillimes(project.min_price_per_tree_millimes)}</ParcelRow>
+                ) : null
+              ) : project.offered && project.min_cash_price_millimes ? (
                 <ParcelRow label="السعر حاضر">ابتداءً من {formatMillimes(project.min_cash_price_millimes)}</ParcelRow>
               ) : null}
             </dl>
