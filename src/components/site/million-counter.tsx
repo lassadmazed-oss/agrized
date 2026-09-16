@@ -1,15 +1,22 @@
 import { Fragment, type ReactNode } from "react";
 
-import { settingText, type PublicConfig } from "@/lib/config";
+import { settingJson, settingText, type PublicConfig } from "@/lib/config";
 import { formatCount } from "@/lib/format";
 import type { MillionProgress } from "@/lib/million";
 
 type TileKey = "requested" | "reserved" | "contracted" | "planted" | "participants" | "projects";
 type TileCopy = { label: string; hint: string };
 
+/** `million.people_bands`: the word «وين وصلنا؟» uses once this many people have taken part. */
+export type PeopleBand = { min: number; text: string };
+
 export type MillionCounterCopy = {
   title: string;
   note: string;
+  /** `{people}` is replaced by the band word for the live participant count. */
+  peopleLead: string;
+  peopleBands: PeopleBand[];
+  peopleEncourage: string;
   /** `{goal}` is replaced by the goal. */
   goalLabel: string;
   /** `{count}`, `{goal}` and `{share}` are replaced by the figures. */
@@ -30,6 +37,13 @@ export function millionCounterCopy(config: PublicConfig): MillionCounterCopy {
   return {
     title: settingText(config, "site.progress_title", "وين وصلنا؟"),
     note: settingText(config, "site.progress_note"),
+    peopleLead: settingText(config, "million.people_lead", "{people} بدات تبني أصل زيتوني مع AgriZed"),
+    peopleBands: settingJson<PeopleBand[]>(config, "million.people_bands", []),
+    peopleEncourage: settingText(
+      config,
+      "million.people_encourage",
+      "إنت زادة تنجم تبدأ بزيتونة وتكبر على قد إمكانياتك.",
+    ),
     goalLabel: settingText(config, "million.goal_label", "الهدف: {goal} زيتونة"),
     barCaption: settingText(config, "million.bar_caption", "{count} زيتونة مطلوبة من {goal} · {share}"),
     barEmpty: settingText(
@@ -76,6 +90,12 @@ export function MillionCounter({ progress, copy }: MillionCounterProps) {
   const figures = { count: formatCount(treesRequested), goal: formatCount(goal), share: formatShare(share, copy.shareBelow) };
   const caption = treesRequested > 0 ? copy.barCaption : copy.barEmpty;
 
+  // Owner, 2026-09-16: the section leads with the people who started, not with the number of trees. The count is
+  // the real one (MIL-01); the word describing it lives in the Back Office, so «عشرات» becomes «مئات» on its own.
+  const reached = copy.peopleBands.filter((band) => Number.isFinite(band.min) && progress.participants >= band.min);
+  const band = reached.length > 0 ? reached.reduce((best, item) => (item.min > best.min ? item : best)) : null;
+  const peopleLine = band && copy.peopleLead ? fillText(copy.peopleLead, { people: band.text }) : "";
+
   const stages = [
     { key: "requested", value: progress.treesRequested },
     { key: "reserved", value: progress.treesReserved },
@@ -98,6 +118,11 @@ export function MillionCounter({ progress, copy }: MillionCounterProps) {
             </p>
           ) : null}
         </div>
+
+        {peopleLine ? (
+          <p className="mt-6 font-display text-2xl font-bold leading-snug text-forest sm:text-3xl">{peopleLine}</p>
+        ) : null}
+        {copy.peopleEncourage ? <p className="mt-3 max-w-2xl leading-7 text-ink/80">{copy.peopleEncourage}</p> : null}
 
         <div className="mt-6">
           <div
