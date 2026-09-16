@@ -1,4 +1,4 @@
--- Welcome and encouragement on the confirmation screen (owner, 2026-09-16). Migration 0036_success_welcome.sql.
+-- Welcome and encouragement on the confirmation screen (owner, 2026-09-16). Migration 0038_success_welcome.sql.
 
 do $$
 declare

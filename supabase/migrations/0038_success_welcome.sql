@@ -1,4 +1,4 @@
--- 0036 · Welcome and encouragement on the confirmation screen (owner, 2026-09-16: «اعمل ترحيب و تحفيز»).
+-- 0038 · Welcome and encouragement on the confirmation screen (owner, 2026-09-16: «اعمل ترحيب و تحفيز»).
 --
 -- After «تم تسجيل مطلبك» the visitor reads a welcome, what happens next, and one encouraging line that points at the
 -- public counter. HOME-02: every line is a setting. PRN-01: nothing here promises a return, a profit or a purchase;
