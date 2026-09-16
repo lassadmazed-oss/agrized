@@ -410,7 +410,7 @@ export function RegisterWizard(props: RegisterWizardProps) {
         </div>
 
         {/* Honeypot for bots; hidden from people and assistive technology */}
-        <div aria-hidden="true" style={{ position: "absolute", left: "-10000px", width: 1, height: 1, overflow: "hidden" }}>
+        <div aria-hidden="true" style={{ position: "absolute", width: 1, height: 1, padding: 0, margin: -1, overflow: "hidden", clipPath: "inset(50%)", whiteSpace: "nowrap", border: 0 }}>
           <label>
             Website
             <input tabIndex={-1} autoComplete="off" value={honeypot} onChange={(event) => setHoneypot(event.target.value)} />

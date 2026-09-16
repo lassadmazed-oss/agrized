@@ -501,8 +501,9 @@ export function StartChooser({
         </p>
       ) : null}
 
-      {/* A question with two chips is short: the screen keeps its height so answering does not leave an empty page. */}
-      <div className={`mt-8 ${isSummary ? "" : "min-h-[52vh]"}`}>
+      {/* On a wide screen a two-chip question is short, and the page shrinking under it looks broken; a phone shows the
+          question full width and needs no filler, which would only push the buttons below the fold. */}
+      <div className={`mt-8 ${isSummary ? "" : "sm:min-h-[52vh]"}`}>
         {/* 1 · The tiers, as the Back Office wrote them (LEAD-01), plus a free number. */}
         {activeStep === "trees" ? (
           <fieldset>
