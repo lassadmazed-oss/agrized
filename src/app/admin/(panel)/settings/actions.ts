@@ -48,6 +48,13 @@ function parseText(key: string, raw: string): Parsed {
   if ((key === "request_no.prefix" || key === "land_offer_no.prefix") && !/^[A-Z0-9-]{2,12}$/.test(text)) {
     return { ok: false, message: "البادئة من 2 إلى 12 حرفاً: أحرف لاتينية كبيرة وأرقام و«-» فقط." };
   }
+  // The operator registers this name; a shape it refuses would silently block every message.
+  if (key === "sms.sender_id" && !/^[A-Z0-9]{2,11}$/.test(text)) {
+    return {
+      ok: false,
+      message: "اسم المرسل من 2 إلى 11: أحرف لاتينية كبيرة وأرقام فقط، بلا فراغات. ولازم يكون مقبولاً عند المزوّد.",
+    };
+  }
   if (key === "crm.auto_assign_mode" && !["manual", "round_robin"].includes(text)) {
     return { ok: false, message: "اختر طريقة الإسناد من القائمة." };
   }
