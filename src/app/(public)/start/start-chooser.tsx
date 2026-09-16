@@ -359,9 +359,11 @@ export function StartChooser({
         ? { ar: copy.continueHintInstallments, fr: copy.continueHintInstallmentsFr || null }
         : null;
 
-  // A reload, a shared link or the browser's back button keep the answers: they live in the address.
+  // A reload, a shared link or the browser's back button keep the answers: they live in the address. The router's own
+  // history state travels along: replacing it with null loses what the App Router keeps there, and the next click on a
+  // link («سجّل اهتمامك») lands on a blank screen.
   useEffect(() => {
-    window.history.replaceState(null, "", query ? `/start?${query}` : "/start");
+    window.history.replaceState(window.history.state, "", query ? `/start?${query}` : "/start");
   }, [query, activeStep]);
 
   // Each screen is a new question: bring the visitor to its title.
