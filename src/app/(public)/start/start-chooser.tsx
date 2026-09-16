@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useId, useRef, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useId, useMemo, useRef, useState, type ReactNode } from "react";
 
 import { Bi } from "@/components/site/bilingual";
 import { GrowthIcon } from "@/components/site/growth-icon";
@@ -119,6 +119,11 @@ export type StartChooserProps = {
 };
 
 const QUOTE_DEBOUNCE_MS = 250;
+/** Long enough to see the card tick, short enough not to feel like waiting (owner: one question, then the next). */
+const ADVANCE_MS = 220;
+
+/** One question per screen, in this order; the ones without data or without installments drop out. */
+type StepKey = "trees" | "spacing" | "type" | "payment" | "down" | "duration" | "summary";
 
 /** Rows read out in the status announcement; the rest stay visual so it remains short. */
 const ANNOUNCED: Partial<Record<SummaryRowKey, "value" | "labelled">> = {
@@ -160,8 +165,10 @@ function fillLimits(text: string, min: number, max: number): string {
 
 /**
  * The calculator (MIL-01, P2-6): tree count, area per tree, offer type, then cash or installments with a
- * down payment percentage and a duration. The answers continue to /register in the URL, so nothing is asked
- * twice. Choices come from the Back Office lists (LEAD-01); areas and prices come from the database quote.
+ * down payment percentage and a duration. Owner, 2026-09-16: one question per screen, and answering it carries
+ * the visitor to the next one; the figures wait on the last screen. The answers continue to /register in the
+ * URL, so nothing is asked twice. Choices come from the Back Office lists (LEAD-01); areas and prices come
+ * from the database quote.
  */
 export function StartChooser({
   treeCounts,
@@ -182,6 +189,7 @@ export function StartChooser({
   const [treeId, setTreeId] = useState<string | null>(initial.treeId);
   const [custom, setCustom] = useState(initial.treesCustom !== null ? String(initial.treesCustom) : "");
   const [spacingId, setSpacingId] = useState<string | null>(initial.spacingId);
+  const [spacingAnswered, setSpacingAnswered] = useState(initial.spacingId !== null);
   const [scenarioId, setScenarioId] = useState<string | null>(initial.scenarioId);
   const [paymentMode, setPaymentMode] = useState<PaymentMode | null>(initial.paymentMode);
   const [downId, setDownId] = useState<string | null>(initial.downPercentId);
@@ -194,6 +202,8 @@ export function StartChooser({
   const customInputId = `${groupId}-custom`;
   const spacingHintId = `${groupId}-spacing-hint`;
   const continueHintId = `${groupId}-continue-hint`;
+  const headingRef = useRef<HTMLHeadingElement>(null);
+  const advanceTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const customNumber = custom === "" ? null : Number(custom);
   const customValid =
@@ -207,12 +217,78 @@ export function StartChooser({
   const chosenSpacing = spacingId ? spacingClasses.find((option) => option.id === spacingId) : undefined;
   const chosenDown = downId ? downPercents.find((option) => option.id === downId) : undefined;
   const chosenDuration = durationId ? durations.find((option) => option.id === durationId) : undefined;
-  const hasChoice = Boolean(chosenTree) || customSelected;
+  const hasTrees = Boolean(chosenTree) || customSelected;
   const installments = paymentMode === "installments";
+
+  // Only the questions this site actually asks: an empty Back Office list removes its screen.
+  const steps = useMemo<StepKey[]>(() => {
+    const list: StepKey[] = ["trees"];
+    if (spacingClasses.length > 0) list.push("spacing");
+    if (scenarios.length > 0) list.push("type");
+    list.push("payment");
+    if (installments && downPercents.length > 0) list.push("down");
+    if (installments && durations.length > 0) list.push("duration");
+    list.push("summary");
+    return list;
+  }, [spacingClasses.length, scenarios.length, installments, downPercents.length, durations.length]);
+
+  // Coming back from /register with every answer in the URL lands on the figures, not on question one.
+  const [step, setStep] = useState<StepKey>(() => {
+    const answered = calculatorGap(
+      {
+        treeId: initial.treeId,
+        treesCustom: initial.treesCustom,
+        scenarioId: initial.scenarioId,
+        spacingId: initial.spacingId,
+        paymentMode: initial.paymentMode,
+        downPercentId: initial.downPercentId,
+        durationId: initial.durationId,
+      },
+      { downPercents: downPercents.length, durations: durations.length },
+    );
+    if (answered === null) return "summary";
+    if (initial.treeId === null && initial.treesCustom === null) return "trees";
+    if (initial.paymentMode === null) return spacingClasses.length > 0 && initial.spacingId === null ? "spacing" : "payment";
+    return answered === "duration_required" ? "duration" : "down";
+  });
+
+  // Switching back to cash removes the two installment screens, so a screen that no longer exists reads as the summary.
+  const activeStep: StepKey = steps.includes(step) ? step : "summary";
+  const index = Math.max(steps.indexOf(activeStep), 0);
+  const isSummary = activeStep === "summary";
+
+  // An answer can add screens: choosing installments brings its own two questions. The move therefore reads the
+  // list as it is when it happens, not as it was while the question was on screen.
+  const stepsRef = useRef(steps);
+  useEffect(() => {
+    stepsRef.current = steps;
+  }, [steps]);
+
+  const go = useCallback((next: StepKey) => {
+    if (advanceTimer.current) clearTimeout(advanceTimer.current);
+    setStep(next);
+  }, []);
+
+  /** Answering carries the visitor on; the pause lets the chosen card show its tick first. */
+  const advance = useCallback(() => {
+    if (advanceTimer.current) clearTimeout(advanceTimer.current);
+    advanceTimer.current = setTimeout(() => {
+      setStep((current) => {
+        const list = stepsRef.current;
+        const position = list.indexOf(list.includes(current) ? current : "summary");
+        return position >= 0 && position + 1 < list.length ? list[position + 1] : current;
+      });
+    }, ADVANCE_MS);
+  }, []);
+
+  useEffect(() => () => (advanceTimer.current ? clearTimeout(advanceTimer.current) : undefined), []);
+
+  const goBack = () => go(steps[Math.max(index - 1, 0)]);
 
   const pickTier = (id: string) => {
     setTreeId(id);
     setCustom("");
+    advance();
   };
 
   const typeCustom = (raw: string) => {
@@ -223,7 +299,15 @@ export function StartChooser({
 
   const pickSpacing = (id: string | null) => {
     setSpacingId(id);
+    setSpacingAnswered(true);
     if (id === null) setQuote(null);
+    advance();
+  };
+
+  const pickPayment = (mode: PaymentMode) => {
+    setPaymentMode(mode);
+    // Cash skips the two installment questions; the step list above rebuilds before the move.
+    advance();
   };
 
   // «اقترحولي» has no lower bound, so the quote then carries per-tree figures only.
@@ -266,13 +350,30 @@ export function StartChooser({
   };
   // /register cannot ask these again, so the button waits until the database would accept the answers.
   const gap = calculatorGap(choices, { downPercents: downPercents.length, durations: durations.length });
-  const href = `/register?${calculatorQuery(choices, wantsVisit)}`;
+  const query = calculatorQuery(choices, wantsVisit);
+  const href = `/register?${query}`;
   const gapHint: Line | null =
     gap === "invalid_payment_mode"
       ? { ar: copy.continueHintPayment, fr: copy.continueHintPaymentFr || null }
       : gap === "down_payment_percent_required" || gap === "duration_required"
         ? { ar: copy.continueHintInstallments, fr: copy.continueHintInstallmentsFr || null }
         : null;
+
+  // A reload, a shared link or the browser's back button keep the answers: they live in the address.
+  useEffect(() => {
+    window.history.replaceState(null, "", query ? `/start?${query}` : "/start");
+  }, [query, activeStep]);
+
+  // Each screen is a new question: bring the visitor to its title.
+  const firstRender = useRef(true);
+  useEffect(() => {
+    if (firstRender.current) {
+      firstRender.current = false;
+      return;
+    }
+    headingRef.current?.focus();
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }, [activeStep]);
 
   const customHintAr = fillLimits(copy.customHint, customMin, customMax);
   const customHintFr = fillLimits(copy.customHintFr, customMin, customMax);
@@ -301,7 +402,7 @@ export function StartChooser({
     quote: shownQuote,
   });
 
-  // Read the summary out once the visitor pauses, not on every digit typed.
+  // Read the summary out once the visitor reaches it, not on every question.
   const summaryText = [
     ...summary.rows.map((row) => {
       const mode = ANNOUNCED[row.key];
@@ -313,26 +414,94 @@ export function StartChooser({
     .filter(Boolean)
     .join("، ");
   useEffect(() => {
+    if (!isSummary) return;
     const timer = setTimeout(() => setAnnouncement(summaryText ? `${copy.summaryTitle}: ${summaryText}` : ""), 900);
     return () => clearTimeout(timer);
-  }, [summaryText, copy.summaryTitle]);
+  }, [summaryText, copy.summaryTitle, isSummary]);
+
+  // The answers so far, each one a way back to its question.
+  const trail: { key: StepKey; value: Line }[] = [];
+  const treesLine = summary.rows.find((row) => row.key === "trees")?.value ?? null;
+  if (treesLine) trail.push({ key: "trees", value: treesLine });
+  if (chosenSpacing) {
+    trail.push({
+      key: "spacing",
+      value: { ar: formatArea(chosenSpacing.area_m2), fr: formatArea(chosenSpacing.area_m2, "m²") },
+    });
+  } else if (spacingAnswered && spacingClasses.length > 0) {
+    trail.push({ key: "spacing", value: { ar: copy.spacingAny, fr: copy.spacingAnyFr || null } });
+  }
+  if (chosenScenario) trail.push({ key: "type", value: { ar: chosenScenario.label_ar, fr: chosenScenario.label_fr } });
+  if (paymentMode) {
+    const option = paymentOptions.find((item) => item.id === paymentMode);
+    if (option) trail.push({ key: "payment", value: { ar: option.label_ar, fr: option.label_fr } });
+  }
+  if (installments && chosenDown) trail.push({ key: "down", value: { ar: chosenDown.label_ar, fr: chosenDown.label_fr } });
+  if (installments && chosenDuration) {
+    trail.push({ key: "duration", value: { ar: chosenDuration.label_ar, fr: chosenDuration.label_fr } });
+  }
+
+  const questionTitle: Record<StepKey, Line> = {
+    trees: { ar: copy.title, fr: copy.titleFr || null },
+    spacing: { ar: copy.spacingTitle, fr: copy.spacingTitleFr || null },
+    type: { ar: copy.styleQuestion, fr: copy.styleQuestionFr || null },
+    payment: { ar: copy.paymentTitle, fr: copy.paymentTitleFr || null },
+    down: { ar: copy.downPercentTitle, fr: copy.downPercentTitleFr || null },
+    duration: { ar: copy.rowDuration, fr: copy.rowDurationFr || null },
+    summary: { ar: copy.summaryTitle, fr: copy.summaryTitleFr || null },
+  };
 
   return (
-    <div className="mx-auto max-w-6xl px-4 py-8 sm:px-6">
+    <div className={`mx-auto px-4 py-8 sm:px-6 ${isSummary ? "max-w-6xl" : "max-w-3xl"}`}>
       <div className="mb-6">{breadcrumb}</div>
 
-      <h1 className="font-display text-4xl font-bold text-balance text-forest sm:text-5xl">
-        <Bi ar={copy.title} fr={copy.titleFr} frClassName="mt-1 text-[0.6em] text-muted" />
+      <Progress step={index + 1} total={steps.length} />
+
+      {trail.length > 0 && !isSummary ? (
+        <ul className="mt-4 flex flex-wrap gap-2">
+          {trail
+            .filter((item) => item.key !== activeStep)
+            .map((item) => (
+              <li key={item.key}>
+                <button
+                  type="button"
+                  onClick={() => go(item.key)}
+                  className="choice min-h-9 w-auto px-3 py-1.5 text-sm font-semibold text-ink"
+                >
+                  <Bi ar={item.value.ar} fr={item.value.fr} frClassName="text-[0.8em] text-muted" />
+                </button>
+              </li>
+            ))}
+        </ul>
+      ) : null}
+
+      <h1
+        ref={headingRef}
+        tabIndex={-1}
+        className="mt-6 font-display text-3xl font-bold text-balance text-forest outline-none sm:text-4xl"
+      >
+        <Bi ar={questionTitle[activeStep].ar} fr={questionTitle[activeStep].fr} frClassName="mt-1 text-[0.6em] text-muted" />
       </h1>
-      {copy.subtitle ? (
+
+      {activeStep === "trees" && copy.subtitle ? (
         <p className="mt-3 max-w-2xl text-lg leading-8 text-muted">
           <Bi ar={copy.subtitle} fr={copy.subtitleFr} frClassName="text-[0.85em] leading-6 opacity-85" />
         </p>
       ) : null}
+      {activeStep === "spacing" && copy.spacingHint ? (
+        <p id={spacingHintId} className="hint mt-2">
+          <Bi ar={copy.spacingHint} fr={copy.spacingHintFr} frClassName="text-[0.9em] opacity-85" />
+        </p>
+      ) : null}
+      {activeStep === "down" && copy.downPercentHint ? (
+        <p className="hint mt-2">
+          <Bi ar={copy.downPercentHint} fr={copy.downPercentHintFr} frClassName="text-[0.9em] opacity-85" />
+        </p>
+      ) : null}
 
-      <div className="mt-8 grid gap-8 lg:grid-cols-[minmax(0,1fr)_22rem] lg:items-start">
-        <div>
-          {/* 1 · The tiers, as the Back Office wrote them (LEAD-01), plus a free number. */}
+      <div className="mt-8">
+        {/* 1 · The tiers, as the Back Office wrote them (LEAD-01), plus a free number. */}
+        {activeStep === "trees" ? (
           <fieldset>
             <legend className="sr-only">{copy.title}</legend>
             <ul className="grid grid-cols-2 gap-4 sm:grid-cols-3">
@@ -363,7 +532,7 @@ export function StartChooser({
               })}
 
               <li>
-                {/* The whole card focuses the field; the title alone names it for assistive tech. */}
+                {/* A typed number is not a click, so this card moves on with the button below. */}
                 <label htmlFor={customInputId} id="custom" className={`${treeCardClass(customSelected, "light")} scroll-mt-24`}>
                   <OliveMark trees={customValid && customNumber !== null ? customNumber : 1} className="text-leaf" />
                   <span id={`${customInputId}-label`} className="font-display text-2xl font-bold leading-tight text-forest">
@@ -378,6 +547,12 @@ export function StartChooser({
                     maxLength={9}
                     value={custom}
                     onChange={(event) => typeCustom(event.target.value)}
+                    onKeyDown={(event) => {
+                      if (event.key === "Enter" && customValid) {
+                        event.preventDefault();
+                        advance();
+                      }
+                    }}
                     placeholder={customPlaceholder}
                     aria-labelledby={`${customInputId}-label`}
                     aria-describedby={`${customInputId}-hint`}
@@ -399,215 +574,228 @@ export function StartChooser({
               </li>
             </ul>
           </fieldset>
+        ) : null}
 
-          {!hasChoice && copy.continueHint ? (
-            <p className="mt-4 text-muted">
-              <Bi ar={copy.continueHint} fr={copy.continueHintFr} frClassName="text-[0.85em] opacity-85" />
-            </p>
-          ) : null}
+        {/* 2 · The area that goes with each tree. */}
+        {activeStep === "spacing" ? (
+          <fieldset aria-describedby={copy.spacingHint ? spacingHintId : undefined}>
+            <legend className="sr-only">{copy.spacingTitle}</legend>
+            <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+              {spacingClasses.map((option) => (
+                <li key={option.id}>
+                  <label className="choice h-full flex-col items-start justify-start gap-1">
+                    <input
+                      type="radio"
+                      name={`${groupId}-spacing`}
+                      value={option.id}
+                      checked={spacingId === option.id}
+                      onChange={() => pickSpacing(option.id)}
+                      className="sr-only"
+                    />
+                    <span className="block font-semibold leading-snug text-ink">
+                      <Bi ar={option.label_ar} fr={option.label_fr} frClassName="text-[0.85em] text-muted" />
+                    </span>
+                    <span className="block text-sm text-muted tabular-nums">
+                      <Bi
+                        ar={formatSpacing(option.row_spacing_m, option.tree_spacing_m)}
+                        fr={formatSpacing(option.row_spacing_m, option.tree_spacing_m, "m")}
+                        frClassName="text-[0.95em] opacity-85"
+                      />
+                    </span>
+                    <span className="mt-auto block pt-1 font-display text-xl font-bold text-forest tabular-nums">
+                      <Bi ar={formatArea(option.area_m2)} fr={formatArea(option.area_m2, "m²")} frClassName="text-[0.7em] text-muted" />
+                    </span>
+                  </label>
+                </li>
+              ))}
+              <li>
+                <label className="choice h-full justify-center text-center">
+                  <input
+                    type="radio"
+                    name={`${groupId}-spacing`}
+                    value=""
+                    checked={spacingAnswered && spacingId === null}
+                    onChange={() => pickSpacing(null)}
+                    className="sr-only"
+                  />
+                  <span className="font-semibold text-ink">
+                    <Bi ar={copy.spacingAny} fr={copy.spacingAnyFr} frClassName="text-[0.85em] text-muted" />
+                  </span>
+                </label>
+              </li>
+            </ul>
+          </fieldset>
+        ) : null}
 
-          {/* The rest only appears once the first question is answered, so the page never looks like a form.
-              It stays while a typed number is being corrected, so earlier answers do not vanish mid-edit. */}
-          {hasChoice || custom !== "" ? (
-            <>
-              {/* 2 · The area that goes with each tree. */}
-              {spacingClasses.length > 0 ? (
-                <fieldset className="mt-10" aria-describedby={copy.spacingHint ? spacingHintId : undefined}>
-                  <legend className="font-display text-2xl font-bold text-forest">
-                    <Bi ar={copy.spacingTitle} fr={copy.spacingTitleFr} />
-                  </legend>
-                  {copy.spacingHint ? (
-                    <p id={spacingHintId} className="hint mt-1">
-                      <Bi ar={copy.spacingHint} fr={copy.spacingHintFr} frClassName="text-[0.9em] opacity-85" />
+        {/* 3 · The offer type, optional (Q-6): «اقترحولي الأنسب» is one of the cards. */}
+        {activeStep === "type" ? (
+          <fieldset>
+            <legend className="sr-only">{copy.styleQuestion}</legend>
+            <ul className="grid gap-3 sm:grid-cols-2">
+              {scenarios.map((option) => (
+                <li key={option.id}>
+                  <label className={`choice h-full items-start ${withPictures ? "sm:flex-col sm:items-stretch" : ""}`}>
+                    <input
+                      type="radio"
+                      name={`${groupId}-scenario`}
+                      value={option.id}
+                      checked={scenarioId === option.id}
+                      onChange={() => {
+                        setScenarioId(option.id);
+                        advance();
+                      }}
+                      className="sr-only"
+                    />
+                    <ScenarioVisual scenario={option} framed={withPictures} />
+                    <span className="min-w-0">
+                      <span className="block font-semibold text-ink">
+                        <Bi ar={option.label_ar} fr={option.label_fr} />
+                      </span>
+                      {option.description_ar ? (
+                        <span className="mt-1 block text-sm leading-6 text-muted">
+                          <Bi ar={option.description_ar} fr={option.description_fr} frClassName="text-[0.9em] opacity-85" />
+                        </span>
+                      ) : null}
+                    </span>
+                  </label>
+                </li>
+              ))}
+            </ul>
+          </fieldset>
+        ) : null}
+
+        {/* 4 · Cash or installments; installments add their own two screens (report v3 §12). */}
+        {activeStep === "payment" ? (
+          <ChoiceGrid
+            name={`${groupId}-payment`}
+            legend={copy.paymentTitle}
+            options={paymentOptions}
+            value={paymentMode}
+            onChange={(id) => pickPayment(id === "cash" ? "cash" : "installments")}
+            twoColumns
+          />
+        ) : null}
+
+        {activeStep === "down" ? (
+          <ChoiceGrid
+            name={`${groupId}-down`}
+            legend={copy.downPercentTitle}
+            options={downPercents}
+            value={downId}
+            onChange={(id) => {
+              setDownId(id);
+              advance();
+            }}
+          />
+        ) : null}
+
+        {activeStep === "duration" ? (
+          <ChoiceGrid
+            name={`${groupId}-duration`}
+            legend={copy.rowDuration}
+            options={durations}
+            value={durationId}
+            onChange={(id) => {
+              setDurationId(id);
+              advance();
+            }}
+          />
+        ) : null}
+
+        {/* 5 · The figures, once every question is answered. */}
+        {isSummary ? (
+          <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_22rem] lg:items-start">
+            <section className="rounded-2xl border border-line bg-surface p-5 sm:p-6">
+              <p role="status" className="sr-only">
+                {announcement}
+              </p>
+              {/* What the visitor picked, plus the areas and prices the database quoted for it (docs/tree-area-and-cost.md). */}
+              <dl aria-busy={busy || undefined} className={`divide-y divide-line transition-opacity ${busy ? "opacity-60" : ""}`}>
+                {summary.rows.map((row) => (
+                  <SummaryItem key={row.key} label={row.label} value={row.value} notes={row.notes} onEdit={rowStep(row.key, steps) ? () => go(rowStep(row.key, steps) as StepKey) : undefined} />
+                ))}
+              </dl>
+
+              {summary.notice?.ar ? (
+                <p className="mt-3 rounded-xl bg-leaf-soft px-3 py-2 text-sm leading-6 text-forest">
+                  <Bi ar={summary.notice.ar} fr={summary.notice.fr} frClassName="text-[0.9em] opacity-85" />
+                </p>
+              ) : null}
+              {summary.priced && copy.estimateNote ? (
+                <p className="mt-3 text-xs leading-5 text-muted">
+                  <Bi ar={copy.estimateNote} fr={copy.estimateNoteFr} frClassName="text-[0.95em] opacity-85" />
+                </p>
+              ) : null}
+
+              {gap === null ? (
+                <Link href={href} className="btn mt-6 min-h-14 w-full bg-gold-bright text-lg text-forest-700 hover:bg-gold-soft">
+                  <span>
+                    <Bi ar={copy.continue} fr={copy.continueFr} frClassName="text-[0.7em] text-forest-700/80" />
+                  </span>
+                </Link>
+              ) : (
+                <>
+                  <span
+                    aria-disabled="true"
+                    aria-describedby={gapHint?.ar ? continueHintId : undefined}
+                    className="btn mt-6 min-h-14 w-full cursor-not-allowed bg-line text-lg text-muted"
+                  >
+                    <span>
+                      <Bi ar={copy.continue} fr={copy.continueFr} frClassName="text-[0.7em] text-muted" />
+                    </span>
+                  </span>
+                  {gapHint?.ar ? (
+                    <p id={continueHintId} className="mt-2 text-sm leading-6 text-muted">
+                      <Bi ar={gapHint.ar} fr={gapHint.fr} frClassName="text-[0.9em] opacity-85" />
                     </p>
                   ) : null}
-                  <ul className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3">
-                    {spacingClasses.map((option) => (
-                      <li key={option.id}>
-                        <label className="choice h-full flex-col items-start justify-start gap-1">
-                          <input
-                            type="radio"
-                            name={`${groupId}-spacing`}
-                            value={option.id}
-                            checked={spacingId === option.id}
-                            onChange={() => pickSpacing(option.id)}
-                            className="sr-only"
-                          />
-                          <span className="block font-semibold leading-snug text-ink">
-                            <Bi ar={option.label_ar} fr={option.label_fr} frClassName="text-[0.85em] text-muted" />
-                          </span>
-                          <span className="block text-sm text-muted tabular-nums">
-                            <Bi
-                              ar={formatSpacing(option.row_spacing_m, option.tree_spacing_m)}
-                              fr={formatSpacing(option.row_spacing_m, option.tree_spacing_m, "m")}
-                              frClassName="text-[0.95em] opacity-85"
-                            />
-                          </span>
-                          <span className="mt-auto block pt-1 font-display text-xl font-bold text-forest tabular-nums">
-                            <Bi ar={formatArea(option.area_m2)} fr={formatArea(option.area_m2, "m²")} frClassName="text-[0.7em] text-muted" />
-                          </span>
-                        </label>
-                      </li>
-                    ))}
-                    <li>
-                      <label className="choice h-full justify-center text-center">
-                        <input
-                          type="radio"
-                          name={`${groupId}-spacing`}
-                          value=""
-                          checked={spacingId === null}
-                          onChange={() => pickSpacing(null)}
-                          className="sr-only"
-                        />
-                        <span className="font-semibold text-ink">
-                          <Bi ar={copy.spacingAny} fr={copy.spacingAnyFr} frClassName="text-[0.85em] text-muted" />
-                        </span>
-                      </label>
-                    </li>
-                  </ul>
-                </fieldset>
-              ) : null}
+                </>
+              )}
 
-              {/* 3 · The offer type, optional (Q-6). */}
-              {scenarios.length > 0 ? (
-                <fieldset className="mt-10">
-                  <legend className="font-display text-2xl font-bold text-forest">
-                    <Bi ar={copy.styleQuestion} fr={copy.styleQuestionFr} />
-                  </legend>
-                  <ul className="mt-4 grid gap-3 sm:grid-cols-2">
-                    {scenarios.map((option) => (
-                      <li key={option.id}>
-                        <label className={`choice h-full items-start ${withPictures ? "sm:flex-col sm:items-stretch" : ""}`}>
-                          <input
-                            type="radio"
-                            name={`${groupId}-scenario`}
-                            value={option.id}
-                            checked={scenarioId === option.id}
-                            onChange={() => setScenarioId(option.id)}
-                            className="sr-only"
-                          />
-                          <ScenarioVisual scenario={option} framed={withPictures} />
-                          <span className="min-w-0">
-                            <span className="block font-semibold text-ink">
-                              <Bi ar={option.label_ar} fr={option.label_fr} />
-                            </span>
-                            {option.description_ar ? (
-                              <span className="mt-1 block text-sm leading-6 text-muted">
-                                <Bi ar={option.description_ar} fr={option.description_fr} frClassName="text-[0.9em] opacity-85" />
-                              </span>
-                            ) : null}
-                          </span>
-                        </label>
-                      </li>
-                    ))}
-                  </ul>
-                </fieldset>
-              ) : null}
-
-              {/* 4 · Cash or installments; installments add a down payment percentage and a duration (report v3 §12). */}
-              <ChipGroup
-                name={`${groupId}-payment`}
-                title={{ ar: copy.paymentTitle, fr: copy.paymentTitleFr || null }}
-                options={paymentOptions}
-                value={paymentMode}
-                onChange={(id) => setPaymentMode(id === "cash" ? "cash" : "installments")}
-                prominent
-                twoColumns
-              />
-              {installments && downPercents.length > 0 ? (
-                <ChipGroup
-                  name={`${groupId}-down`}
-                  title={{ ar: copy.downPercentTitle, fr: copy.downPercentTitleFr || null }}
-                  hint={{ ar: copy.downPercentHint, fr: copy.downPercentHintFr || null }}
-                  options={downPercents}
-                  value={downId}
-                  onChange={setDownId}
-                />
-              ) : null}
-              {installments && durations.length > 0 ? (
-                <ChipGroup
-                  name={`${groupId}-duration`}
-                  title={{ ar: copy.rowDuration, fr: copy.rowDurationFr || null }}
-                  options={durations}
-                  value={durationId}
-                  onChange={setDurationId}
-                />
-              ) : null}
-            </>
-          ) : null}
-        </div>
-
-        {/* 5 · The result follows the visitor down the page. */}
-        <div className="space-y-4 lg:sticky lg:top-24">
-          {/* Only where the photo and the summary both fit above the fold, so the button never hides below it. */}
-          <div className="hidden [@media(min-width:64rem)_and_(min-height:64rem)]:block">{photo}</div>
-
-          <section className="rounded-2xl border border-line bg-surface p-5 sm:p-6">
-            <h2 className="font-display text-2xl font-bold text-forest">
-              <Bi ar={copy.summaryTitle} fr={copy.summaryTitleFr} />
-            </h2>
-            <p role="status" className="sr-only">
-              {announcement}
-            </p>
-            {/* What the visitor picked, plus the areas and prices the database quoted for it (docs/tree-area-and-cost.md). */}
-            <dl aria-busy={busy || undefined} className={`mt-3 divide-y divide-line transition-opacity ${busy ? "opacity-60" : ""}`}>
-              {summary.rows.map((row) => (
-                <SummaryItem key={row.key} label={row.label} value={row.value} notes={row.notes} />
-              ))}
-            </dl>
-
-            {summary.notice?.ar ? (
-              <p className="mt-3 rounded-xl bg-leaf-soft px-3 py-2 text-sm leading-6 text-forest">
-                <Bi ar={summary.notice.ar} fr={summary.notice.fr} frClassName="text-[0.9em] opacity-85" />
-              </p>
-            ) : null}
-            {summary.priced && copy.estimateNote ? (
-              <p className="mt-3 text-xs leading-5 text-muted">
-                <Bi ar={copy.estimateNote} fr={copy.estimateNoteFr} frClassName="text-[0.95em] opacity-85" />
-              </p>
-            ) : null}
-
-            {gap === null ? (
-              <Link href={href} className="btn mt-6 min-h-14 w-full bg-gold-bright text-lg text-forest-700 hover:bg-gold-soft">
-                <span>
-                  <Bi ar={copy.continue} fr={copy.continueFr} frClassName="text-[0.7em] text-forest-700/80" />
-                </span>
-              </Link>
-            ) : (
-              <>
-                <span
-                  aria-disabled="true"
-                  aria-describedby={gapHint?.ar ? continueHintId : undefined}
-                  className="btn mt-6 min-h-14 w-full cursor-not-allowed bg-line text-lg text-muted"
-                >
+              {copy.secureNote ? (
+                <p className="mt-3 flex items-start gap-1.5 text-xs leading-5 text-muted">
+                  <LockIcon />
                   <span>
-                    <Bi ar={copy.continue} fr={copy.continueFr} frClassName="text-[0.7em] text-muted" />
+                    <Bi ar={copy.secureNote} fr={copy.secureNoteFr} frClassName="text-[0.95em] opacity-85" />
                   </span>
-                </span>
-                {gapHint?.ar ? (
-                  <p id={continueHintId} className="mt-2 text-sm leading-6 text-muted">
-                    <Bi ar={gapHint.ar} fr={gapHint.fr} frClassName="text-[0.9em] opacity-85" />
-                  </p>
-                ) : null}
-              </>
-            )}
+                </p>
+              ) : null}
+            </section>
 
-            {copy.secureNote ? (
-              <p className="mt-3 flex items-start gap-1.5 text-xs leading-5 text-muted">
-                <LockIcon />
-                <span>
-                  <Bi ar={copy.secureNote} fr={copy.secureNoteFr} frClassName="text-[0.95em] opacity-85" />
-                </span>
-              </p>
-            ) : null}
-          </section>
-        </div>
+            <div className="hidden lg:block">{photo}</div>
+          </div>
+        ) : null}
       </div>
 
-      {values.length > 0 ? (
+      {/* Back is always there; forward belongs to the answer itself, except for a typed number. */}
+      <div className="sticky bottom-0 -mx-4 mt-8 flex gap-3 border-t border-line bg-paper/95 px-4 py-3 backdrop-blur sm:static sm:mx-0 sm:border-0 sm:bg-transparent sm:px-0 sm:py-0">
+        {index > 0 ? (
+          <button type="button" onClick={goBack} className="btn btn-secondary">
+            رجوع
+          </button>
+        ) : null}
+        {activeStep === "trees" ? (
+          <button
+            type="button"
+            onClick={() => advance()}
+            disabled={!hasTrees}
+            className="btn btn-primary flex-1 sm:min-w-48 sm:flex-none"
+          >
+            التالي
+          </button>
+        ) : null}
+      </div>
+
+      {activeStep === "trees" && !hasTrees && copy.continueHint ? (
+        <p className="mt-3 text-muted">
+          <Bi ar={copy.continueHint} fr={copy.continueHintFr} frClassName="text-[0.85em] opacity-85" />
+        </p>
+      ) : null}
+
+      {isSummary && values.length > 0 ? (
         <ul className="mt-12 grid gap-6 border-t border-line pt-8 sm:grid-cols-2 lg:grid-cols-4">
-          {values.map((item, index) => (
-            <li key={`${index}-${item.ar}`} className="flex items-start gap-3">
+          {values.map((item, itemIndex) => (
+            <li key={`${itemIndex}-${item.ar}`} className="flex items-start gap-3">
               <ValueIcon icon={item.icon} />
               <p className="text-sm leading-6 text-ink">
                 <Bi ar={item.ar} fr={item.fr} frClassName="text-[0.9em] text-muted" />
@@ -620,7 +808,52 @@ export function StartChooser({
   );
 }
 
-function SummaryItem({ label, value, notes }: { label: Line; value: Line | null; notes: Line[] }) {
+/** The screen that answers a summary row, when the visitor may still change it. */
+function rowStep(key: SummaryRowKey, steps: StepKey[]): StepKey | null {
+  const target: Partial<Record<SummaryRowKey, StepKey>> = {
+    trees: "trees",
+    type: "type",
+    area_per_tree: "spacing",
+    total_area: "spacing",
+    payment: "payment",
+    down: "down",
+    duration: "duration",
+  };
+  const step = target[key];
+  return step && steps.includes(step) ? step : null;
+}
+
+function Progress({ step, total }: { step: number; total: number }) {
+  return (
+    <div>
+      <p className="text-sm font-medium text-muted">
+        الخطوة <span className="tabular-nums">{step}</span> من <span className="tabular-nums">{total}</span>
+      </p>
+      <div
+        role="progressbar"
+        aria-valuemin={1}
+        aria-valuemax={total}
+        aria-valuenow={step}
+        aria-label="التقدم في الحاسبة"
+        className="mt-2 h-1.5 overflow-hidden rounded-full bg-line"
+      >
+        <div className="h-full rounded-full bg-leaf transition-[width] duration-300" style={{ width: `${(step / total) * 100}%` }} />
+      </div>
+    </div>
+  );
+}
+
+function SummaryItem({
+  label,
+  value,
+  notes,
+  onEdit,
+}: {
+  label: Line;
+  value: Line | null;
+  notes: Line[];
+  onEdit?: () => void;
+}) {
   return (
     <div className="flex items-start justify-between gap-4 py-2.5">
       <dt className="text-sm text-muted">
@@ -634,45 +867,41 @@ function SummaryItem({ label, value, notes }: { label: Line; value: Line | null;
             <Bi ar={note.ar} fr={note.fr} frClassName="text-[0.95em] text-start" />
           </span>
         ))}
+        {onEdit ? (
+          <button
+            type="button"
+            onClick={onEdit}
+            className="mt-0.5 block w-full text-end text-xs font-semibold text-forest underline-offset-4 hover:underline"
+          >
+            تبديل
+          </button>
+        ) : null}
       </dd>
     </div>
   );
 }
 
-function ChipGroup({
+function ChoiceGrid({
   name,
-  title,
-  hint,
+  legend,
   options,
   value,
   onChange,
-  prominent = false,
   twoColumns = false,
 }: {
   name: string;
-  title: Line;
-  hint?: Line;
+  legend: string;
   options: ChoiceOption[];
   value: string | null;
   onChange: (id: string) => void;
-  /** A main question of the page rather than a follow-up of the one above. */
-  prominent?: boolean;
   twoColumns?: boolean;
 }) {
-  const hintId = `${name}-hint`;
   return (
-    <fieldset className={prominent ? "mt-10" : "mt-5"} aria-describedby={hint?.ar ? hintId : undefined}>
-      <legend className={prominent ? "font-display text-2xl font-bold text-forest" : "label"}>
-        <Bi ar={title.ar} fr={title.fr} frClassName={prominent ? undefined : "text-[0.85em] text-muted"} />
-      </legend>
-      {hint?.ar ? (
-        <p id={hintId} className="hint mt-1 mb-2">
-          <Bi ar={hint.ar} fr={hint.fr} frClassName="text-[0.9em] opacity-85" />
-        </p>
-      ) : null}
-      <div className={`grid grid-cols-2 gap-2 ${prominent ? "mt-4" : ""} ${twoColumns ? "" : "sm:grid-cols-3"}`}>
+    <fieldset>
+      <legend className="sr-only">{legend}</legend>
+      <div className={`grid gap-3 ${twoColumns ? "grid-cols-1 sm:grid-cols-2" : "grid-cols-2 sm:grid-cols-3"}`}>
         {options.map((option) => (
-          <label key={option.id} className="choice justify-center">
+          <label key={option.id} className="choice min-h-16 justify-center">
             <input
               type="radio"
               name={name}
@@ -682,8 +911,8 @@ function ChipGroup({
               onChange={() => onChange(option.id)}
             />
             <span className="text-center">
-              <span className="block font-semibold tabular-nums">
-                <Bi ar={option.label_ar} fr={option.label_fr} frClassName="text-[0.78em] text-muted tabular-nums" />
+              <span className="block text-lg font-semibold tabular-nums">
+                <Bi ar={option.label_ar} fr={option.label_fr} frClassName="text-[0.7em] text-muted tabular-nums" />
               </span>
             </span>
           </label>
