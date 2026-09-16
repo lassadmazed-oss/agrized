@@ -19,8 +19,9 @@ export function StickyCta({ label, href, note }: { label: string; href: string; 
   return (
     <>
       {/* Room for the bar, so it never covers the end of the footer. Sized with the bar, removed with it. */}
-      <div aria-hidden="true" className="h-28 md:hidden" />
-      <div className="pointer-events-none fixed inset-x-0 bottom-0 z-40 md:hidden">
+      {/* data-sticky-cta lets a page that already asked (the confirmation screen) hide the bar. */}
+      <div aria-hidden="true" data-sticky-cta="" className="h-28 md:hidden" />
+      <div data-sticky-cta="" className="pointer-events-none fixed inset-x-0 bottom-0 z-40 md:hidden">
         <div className="pointer-events-auto border-t border-line bg-paper/95 px-4 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-3 backdrop-blur">
           <Link href={href} className="btn btn-primary min-h-13 w-full text-lg">
             {label}

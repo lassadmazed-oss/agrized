@@ -79,6 +79,18 @@ export default async function RegisterPage({ searchParams }: PageProps<"/registe
           editHref: `/start?${calculatorQuery(choices, wantsVisit)}`,
         }}
         successNote={settingText(config, "register.success_note", "التسجيل مجاني ولا يلزمك بالشراء.")}
+        successWelcomeTitle={settingText(config, "register.success_welcome_title", "مرحباً بيك في مشروع المليون زيتونة")}
+        successWelcomeText={settingText(
+          config,
+          "register.success_welcome_text",
+          "مطلبك وصلنا وتسجّل باسمك. من هنا للأمام نرافقوك: نراجعو اختياراتك، نتصلو بيك، ونعرضو عليك المشروع اللي يناسبك كي يتوفّر.",
+        )}
+        successMotivation={settingText(
+          config,
+          "register.success_motivation",
+          "كل مطلب يقرّب المشروع خطوة من المليون زيتونة. زيتوناتك تولّي جزء من العدّاد كي يتم التعاقد.",
+        )}
+        successProgressLabel={settingText(config, "register.success_progress_label", "شوف وين وصل المشروع")}
       />
     </>
   );

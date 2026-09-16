@@ -43,6 +43,11 @@ export type RegisterWizardProps = {
   recap: CalculatorRecap;
   /** Closing line of the success screen. */
   successNote: string;
+  /** Owner 2026-09-16 «اعمل ترحيب و تحفيز»: the welcome, what happens next and one encouraging line. */
+  successWelcomeTitle: string;
+  successWelcomeText: string;
+  successMotivation: string;
+  successProgressLabel: string;
 };
 
 type ContactChannel = "phone" | "whatsapp" | "both";
@@ -336,6 +341,10 @@ export function RegisterWizard(props: RegisterWizardProps) {
         contactTimes={props.contactTimes}
         rows={recap.rows}
         note={props.successNote}
+        welcomeTitle={props.successWelcomeTitle}
+        welcomeText={props.successWelcomeText}
+        motivation={props.successMotivation}
+        progressLabel={props.successProgressLabel}
         headingRef={headingRef}
       />
     );
@@ -888,6 +897,10 @@ function Success({
   contactTimes,
   rows,
   note,
+  welcomeTitle,
+  welcomeText,
+  motivation,
+  progressLabel,
   headingRef,
 }: {
   requestNo: string;
@@ -895,6 +908,10 @@ function Success({
   contactTimes: Option[];
   rows: RecapRow[];
   note: string;
+  welcomeTitle: string;
+  welcomeText: string;
+  motivation: string;
+  progressLabel: string;
   headingRef: React.RefObject<HTMLHeadingElement | null>;
 }) {
   const [copied, setCopied] = useState(false);
@@ -910,9 +927,14 @@ function Success({
           <path d="M5 12.5l4.5 4.5L19 7.5" strokeLinecap="round" strokeLinejoin="round" />
         </svg>
       </div>
+      {/* The site-wide «سجّل اهتمامك» bar has no place here: this visitor just registered. */}
+      <style>{`[data-sticky-cta]{display:none !important}`}</style>
+
       <h1 ref={headingRef} tabIndex={-1} className="mt-6 font-display text-4xl font-bold text-forest outline-none">
         تم تسجيل مطلبك
       </h1>
+      {welcomeTitle ? <p className="mt-3 font-display text-2xl font-bold text-gold">{welcomeTitle}</p> : null}
+      {welcomeText ? <p className="mx-auto mt-3 max-w-md leading-7 text-ink/80">{welcomeText}</p> : null}
 
       <p className="mt-6 text-sm text-muted">رقم مطلبك</p>
       <p dir="ltr" className="mt-1 font-display text-4xl font-bold tracking-wide text-ink tabular-nums sm:text-5xl">
@@ -951,9 +973,22 @@ function Success({
       </p>
       {note ? <p className="mt-3 text-sm font-medium text-leaf">{note}</p> : null}
 
-      <Link href="/" className="btn btn-secondary mt-8">
-        العودة للصفحة الرئيسية
-      </Link>
+      {motivation ? (
+        <p className="mx-auto mt-8 max-w-md rounded-2xl bg-leaf-soft/70 px-5 py-4 font-medium leading-7 text-forest">
+          {motivation}
+        </p>
+      ) : null}
+
+      <div className="mt-8 flex flex-wrap justify-center gap-3">
+        {progressLabel ? (
+          <Link href="/#million" className="btn btn-primary">
+            {progressLabel}
+          </Link>
+        ) : null}
+        <Link href="/" className="btn btn-secondary">
+          العودة للصفحة الرئيسية
+        </Link>
+      </div>
     </div>
   );
 }
