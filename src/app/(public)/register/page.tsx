@@ -83,7 +83,7 @@ export default async function RegisterPage({ searchParams }: PageProps<"/registe
         successWelcomeText={settingText(
           config,
           "register.success_welcome_text",
-          "مطلبك وصلنا وتسجّل باسمك. من هنا للأمام نرافقوك: نراجعو اختياراتك، نتصلو بيك، ونعرضو عليك المشروع اللي يناسبك كي يتوفّر.",
+          "مطلبك وصلنا وتسجّل باسمك. من هنا للأمام نرافقوك: نراجعو اختياراتك، نتصلو بيك، ونعرضو عليك المشروع اللي يناسبك.",
         )}
         successMotivation={settingText(
           config,
