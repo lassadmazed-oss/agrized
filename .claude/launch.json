@@ -5,7 +5,15 @@
       "name": "agrized-web",
       "runtimeExecutable": "npm",
       "runtimeArgs": ["run", "dev"],
-      "port": 3000
+      "port": 3000,
+      "autoPort": true
+    },
+    {
+      "name": "agrized-committed",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "dev", "--prefix", "C:/Users/saif/AppData/Local/Temp/claude/C--Users-saif-Desktop-agrized/169ce0c8-f726-41d9-8e61-85c6330dc3c6/scratchpad/agrized-1f96a66"],
+      "port": 3100,
+      "autoPort": true
     }
   ]
 }
