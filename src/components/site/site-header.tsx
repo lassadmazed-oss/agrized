@@ -25,7 +25,7 @@ export function primaryCta(config: PublicConfig): { label: string; href: "/start
 export async function SiteHeader({ tagline, showInterestCta, showProjects, showZitounti }: SiteHeaderProps) {
   const cta = primaryCta(await getPublicConfig());
   const links = [
-    { href: "/#million", label: "مشروع المليون زيتونة" },
+    { href: "/#million", label: "وين وصلنا" },
     { href: "/#how", label: "كيفاش تخدم" },
     ...(showProjects ? [{ href: "/projects", label: "المشاريع" }] : []),
     ...(showZitounti ? [{ href: "/zitounti", label: "زيتونتي" }] : []),

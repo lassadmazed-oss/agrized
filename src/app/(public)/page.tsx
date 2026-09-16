@@ -34,6 +34,9 @@ export default async function HomePage() {
   // docs/plan-zitouna.md P3-2: the unit section shows once its copy exists and the Back Office has spacing classes.
   const unitTitle = settingText(config, "site.unit_title");
   const spacingClasses = unitTitle ? await getSpacingClasses() : [];
+  // The follow-up AgriZed sells after the sale (report v3 §36). No title in settings, no section.
+  const servicesTitle = settingText(config, "site.services_title");
+  const services = servicesTitle ? optionsFor(config, "agrized_service") : [];
   // Report v3 §17: the main button opens the tree question first (v2 §5). «شوف العروض» replaces the steps link
   // only once offers are public, so it never leads to a «قريباً» page.
   const cta = primaryCta(config);
@@ -189,6 +192,38 @@ export default async function HomePage() {
                 <p className="text-sm leading-6 text-muted">{settingText(config, "site.unit_note")}</p>
               ) : null}
             </div>
+          </div>
+        </section>
+      ) : null}
+
+      {/* 06b · What AgriZed does after the sale: follow-up and farming services for a known fee (report v3 §36).
+          The names come from the agrized_service list; prices belong to the contract, never to this page. */}
+      {servicesTitle ? (
+        <section id="services" className="scroll-mt-20 bg-leaf-soft/40">
+          <div className="mx-auto max-w-6xl px-4 py-16 sm:px-6">
+            <div className="max-w-2xl">
+              <h2 className="font-display text-3xl font-bold text-forest sm:text-4xl">{servicesTitle}</h2>
+              {settingText(config, "site.services_text") ? (
+                <p className="mt-3 leading-7 text-muted">{settingText(config, "site.services_text")}</p>
+              ) : null}
+            </div>
+
+            {services.length > 0 ? (
+              <ul className="mt-7 flex flex-wrap gap-2">
+                {services.map((service) => (
+                  <li
+                    key={service.id}
+                    className="rounded-full border border-line bg-paper px-3.5 py-1.5 text-sm text-ink"
+                  >
+                    {service.label_ar}
+                  </li>
+                ))}
+              </ul>
+            ) : null}
+
+            {settingText(config, "site.services_note") ? (
+              <p className="mt-5 text-sm leading-6 text-muted">{settingText(config, "site.services_note")}</p>
+            ) : null}
           </div>
         </section>
       ) : null}
