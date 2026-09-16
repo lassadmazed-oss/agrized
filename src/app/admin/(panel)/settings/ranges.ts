@@ -3,6 +3,9 @@
  * Integer settings not listed here accept 0 to 1,000,000.
  */
 export const INTEGER_RANGES: Record<string, [number, number]> = {
+  // The progress bar divides by this, and an emptied number field saves as 0: a zero denominator makes the bar
+  // meaningless and its ARIA range invalid. To stop showing the section, close the public_statistics module.
+  "million.goal": [1, 10_000_000],
   "projects.installment_examples": [1, 5],
   "projects.listing_limit": [20, 1000],
   "projects.gallery_max": [1, 60],
