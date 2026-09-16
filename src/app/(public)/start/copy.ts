@@ -53,6 +53,9 @@ export function startCopy(config: PublicConfig): StartCopy {
     spacingAnyFr: text("start.spacing_any_fr"),
     paymentTitle: text("start.payment_title", "كيفاش تحب تخلّص؟"),
     paymentTitleFr: text("start.payment_title_fr"),
+    // No fallback: the line under the payment question shows only once the Back Office has written it.
+    paymentHint: text("start.payment_hint"),
+    paymentHintFr: text("start.payment_hint_fr"),
     paymentCash: text("start.payment_cash", "بالحاضر"),
     paymentCashFr: text("start.payment_cash_fr"),
     paymentInstallments: text("start.payment_installments", "بالتقسيط"),

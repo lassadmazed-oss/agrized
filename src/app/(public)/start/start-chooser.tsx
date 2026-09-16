@@ -86,6 +86,8 @@ export type StartCopy = SummaryCopy & {
   spacingAnyFr: string;
   paymentTitle: string;
   paymentTitleFr: string;
+  paymentHint: string;
+  paymentHintFr: string;
   downPercentTitle: string;
   downPercentTitleFr: string;
   downPercentHint: string;
@@ -493,6 +495,11 @@ export function StartChooser({
       {activeStep === "spacing" && copy.spacingHint ? (
         <p id={spacingHintId} className="hint mt-2">
           <Bi ar={copy.spacingHint} fr={copy.spacingHintFr} frClassName="text-[0.9em] opacity-85" />
+        </p>
+      ) : null}
+      {activeStep === "payment" && copy.paymentHint ? (
+        <p className="hint mt-2">
+          <Bi ar={copy.paymentHint} fr={copy.paymentHintFr} frClassName="text-[0.9em] opacity-85" />
         </p>
       ) : null}
       {activeStep === "down" && copy.downPercentHint ? (
