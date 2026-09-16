@@ -25,9 +25,13 @@ begin
   assert (select s.value #>> '{}' from public.settings s where s.key = 'site.home_subheadline') like '%على قدّ إمكانياتك%',
     'the hero says the asset is built to the visitor''s means';
 
-  -- §53 and PRN-01: the asset «can» strengthen an income; nothing is ever owed to anyone.
-  assert (select s.value #>> '{}' from public.settings s where s.key = 'site.home_subheadline') like '%ينجم%',
-    'the income line stays conditional';
+  -- §53 and PRN-01: an income can be strengthened, never owed. The owner's own slogan «قوّي دخلك بزيتونتك»
+  -- says it plainly, so the guard is that no leading line turns it into something guaranteed.
+  assert not exists (
+    select 1 from public.settings s
+    where s.key in ('site.hero_eyebrow', 'site.home_headline', 'site.home_subheadline')
+      and (s.value #>> '{}') ~ '(مضمون|نضمن|أكيد)'
+  ), 'no leading line promises the income it speaks about';
 
   assert (select s.value #>> '{}' from public.settings s where s.key = 'site.services_text') like '%بمقابل معلوم%',
     'the follow-up is sold at a known fee, not given';
