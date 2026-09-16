@@ -20,6 +20,9 @@ const supabaseHost = (() => {
 const nextConfig: NextConfig = {
   // A package-lock.json in the parent home folder would otherwise be picked as the workspace root.
   turbopack: { root: process.cwd() },
+  // The development badge sits bottom-left, exactly where the sticky button is on a narrow window, and there is
+  // no corner free of it: the bar spans the full width. Compile and runtime errors are still shown.
+  devIndicators: false,
   poweredByHeader: false,
   images: {
     remotePatterns: supabaseHost
