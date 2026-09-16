@@ -768,8 +768,14 @@ export function StartChooser({
         ) : null}
       </div>
 
-      {/* Back is always there; forward belongs to the answer itself, except for a typed number. */}
-      <div className="sticky bottom-0 -mx-4 mt-8 flex gap-3 border-t border-line bg-paper/95 px-4 py-3 backdrop-blur sm:static sm:mx-0 sm:border-0 sm:bg-transparent sm:px-0 sm:py-0">
+      {/* Back is always there; forward belongs to the answer itself, except for a typed number. On the last screen the
+          bar holds nothing but «رجوع», and pinned to the bottom of a phone it swallowed the taps meant for
+          «سجّل اهتمامك» underneath it, so there it scrolls with the page. */}
+      <div
+        className={`-mx-4 mt-8 flex gap-3 border-t border-line bg-paper/95 px-4 py-3 backdrop-blur sm:static sm:mx-0 sm:border-0 sm:bg-transparent sm:px-0 sm:py-0 ${
+          isSummary ? "" : "sticky bottom-0"
+        }`}
+      >
         {index > 0 ? (
           <button type="button" onClick={goBack} className="btn btn-secondary">
             رجوع
