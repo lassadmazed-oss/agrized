@@ -555,49 +555,49 @@ begin
   assert v_i->>'status' = 'ok'
      and (v_i->>'down_payment_percent')::numeric = 10
      and (v_i->>'down_payment_millimes')::bigint = 1000000
-     and (v_i->>'total_financed_millimes')::bigint = 11800000
-     and (v_i->>'remaining_millimes')::bigint = 10800000
-     and (v_i->>'monthly_millimes')::bigint = 180000
+     and (v_i->>'total_financed_millimes')::bigint = 11620000
+     and (v_i->>'remaining_millimes')::bigint = 10620000
+     and (v_i->>'monthly_millimes')::bigint = 177000
      and (v_i->>'months')::integer = 60
      and (v_i->>'installments_count')::integer = 60
-     and (v_i->>'last_installment_millimes')::bigint = 180000
+     and (v_i->>'last_installment_millimes')::bigint = 177000
      and (v_i->>'shortened')::boolean = false,
-    '10% of 10,000 د over 60 months: 1,000 د down, 11,800 د financed, 10,800 د remaining, 180 د × 60, got ' || v_q::text;
+    '10% of 10,000 د over 60 months: 1,000 د down, the 9,000 د left at +18% = 10,620 د, 177 د × 60, got ' || v_q::text;
 
   v_q := public.public_tree_quote(v_class, 20, 'installments', v_dpp_10, current_setting('test.tp_dur_48')::uuid);
   v_quotes := v_quotes || v_q::text;
   v_i := v_q->'installments';
-  assert (v_i->>'total_financed_millimes')::bigint = 11400000
-     and (v_i->>'remaining_millimes')::bigint = 10400000
-     and (v_i->>'monthly_millimes')::bigint = 217000
+  assert (v_i->>'total_financed_millimes')::bigint = 11260000
+     and (v_i->>'remaining_millimes')::bigint = 10260000
+     and (v_i->>'monthly_millimes')::bigint = 214000
      and (v_i->>'installments_count')::integer = 48
-     and (v_i->>'last_installment_millimes')::bigint = 201000,
-    '10% over 48 months at +14%: 11,400 د financed, 217 د × 47 then 201 د, got ' || v_q::text;
+     and (v_i->>'last_installment_millimes')::bigint = 202000,
+    '10% over 48 months at +14%: the 9,000 د left become 10,260 د, 214 د × 47 then 202 د, got ' || v_q::text;
 
   v_q := public.public_tree_quote(v_class, 20, 'installments', v_dpp_30, current_setting('test.tp_dur_84')::uuid);
   v_quotes := v_quotes || v_q::text;
   v_i := v_q->'installments';
   assert (v_i->>'down_payment_percent')::numeric = 30
      and (v_i->>'down_payment_millimes')::bigint = 3000000
-     and (v_i->>'total_financed_millimes')::bigint = 12500000
-     and (v_i->>'remaining_millimes')::bigint = 9500000
-     and (v_i->>'monthly_millimes')::bigint = 114000
+     and (v_i->>'total_financed_millimes')::bigint = 11750000
+     and (v_i->>'remaining_millimes')::bigint = 8750000
+     and (v_i->>'monthly_millimes')::bigint = 105000
      and (v_i->>'installments_count')::integer = 84
-     and (v_i->>'last_installment_millimes')::bigint = 38000,
-    '30% over 84 months at +25%: 3,000 د down, 114 د × 83 then 38 د, got ' || v_q::text;
+     and (v_i->>'last_installment_millimes')::bigint = 35000,
+    '30% over 84 months at +25%: 3,000 د down, the 7,000 د left become 8,750 د, 105 د × 83 then 35 د, got ' || v_q::text;
 
   -- Plan Q-11: rounding the monthly amount up can shorten the plan
   v_i := public.public_tree_quote(v_class, 1, 'installments', v_dpp_10, current_setting('test.tp_dur_84')::uuid)->'installments';
-  assert (v_i->>'down_payment_millimes')::bigint = 50000 and (v_i->>'remaining_millimes')::bigint = 575000
-     and (v_i->>'monthly_millimes')::bigint = 7000 and (v_i->>'installments_count')::integer = 83
-     and (v_i->>'last_installment_millimes')::bigint = 1000 and (v_i->>'shortened')::boolean,
-    'one tree over 84 months: 7 د × 82 then 1 د, 83 installments, got ' || v_i::text;
+  assert (v_i->>'down_payment_millimes')::bigint = 50000 and (v_i->>'remaining_millimes')::bigint = 563000
+     and (v_i->>'monthly_millimes')::bigint = 7000 and (v_i->>'installments_count')::integer = 81
+     and (v_i->>'last_installment_millimes')::bigint = 3000 and (v_i->>'shortened')::boolean,
+    'one tree over 84 months: 7 د × 80 then 3 د, 81 installments, got ' || v_i::text;
 
   -- The down payment is rounded up to the price step: 10% of 414 د = 41.4 د → 42 د
   v_i := public.public_tree_quote(current_setting('test.tp_4x15')::uuid, 3, 'installments', v_dpp_10,
                                   current_setting('test.tp_dur_60')::uuid)->'installments';
-  assert (v_i->>'down_payment_millimes')::bigint = 42000 and (v_i->>'total_financed_millimes')::bigint = 489000,
-    '3 trees of 6 m² cost 414 د: 42 د down and 489 د financed, got ' || v_i::text;
+  assert (v_i->>'down_payment_millimes')::bigint = 42000 and (v_i->>'total_financed_millimes')::bigint = 481000,
+    '3 trees of 6 m² cost 414 د: 42 د down, the 372 د left become 439 د, 481 د in all, got ' || v_i::text;
 
   v_q := public.public_tree_quote(v_class, 20, 'installments', v_dpp_10, current_setting('test.tp_dur_72')::uuid);
   v_quotes := v_quotes || v_q::text;
@@ -627,10 +627,10 @@ begin
     assert position(v_word in v_quotes) = 0, 'the public quote never shows «' || v_word || '»';
   end loop;
 
-  -- A down payment at or above the financed total is reported by the engine, with the total only
+  -- The down payment is paid at the cash price, so one at or above it leaves nothing to finance
   v_q := app.financed_quote(1000000, 2000000, 60, null);
-  assert v_q->>'reason' = 'down_covers_total' and (v_q->>'total_financed_millimes')::bigint = 1180000,
-    'a down payment above the financed total is reported, got ' || v_q::text;
+  assert v_q->>'reason' = 'down_covers_total' and (v_q->>'total_financed_millimes')::bigint = 1000000,
+    'a down payment at or above the cash price is reported, got ' || v_q::text;
 end $$;
 
 -- ---------------------------------------------------------------------------
@@ -714,9 +714,9 @@ begin
   -- The staff preview carries the internal breakdown and the markup, unlike the public quote
   v_i := public.staff_tree_quote(v_class, 20, null, 20, 60)->'installments';
   assert (v_i->>'markup_bp')::integer = 1800 and (v_i->>'down_payment_percent')::numeric = 20
-     and (v_i->>'down_payment_millimes')::bigint = 2000000 and (v_i->>'total_financed_millimes')::bigint = 11800000
-     and (v_i->>'remaining_millimes')::bigint = 9800000 and (v_i->>'monthly_millimes')::bigint = 164000,
-    'the staff quote applies 20% of 10,000 د and shows the markup, got ' || v_i::text;
+     and (v_i->>'down_payment_millimes')::bigint = 2000000 and (v_i->>'total_financed_millimes')::bigint = 11440000
+     and (v_i->>'remaining_millimes')::bigint = 9440000 and (v_i->>'monthly_millimes')::bigint = 158000,
+    'the staff quote applies +18% to the 8,000 د left after 20% of 10,000 د, and shows the markup, got ' || v_i::text;
   assert public.staff_tree_quote(v_class, 20, null, 20, 120)->'installments'->>'reason' = 'too_many_months',
     'a duration above the cap is reported to staff';
   assert public.staff_tree_quote(v_class, 20, null, 0, 60)->'installments'->>'reason' = 'invalid_input'

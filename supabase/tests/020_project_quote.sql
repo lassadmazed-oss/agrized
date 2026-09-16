@@ -281,14 +281,14 @@ begin
      and v->'installments' = 'null'::jsonb,
     'the only class is implied: 25 × 500 د = 12,500 د on 875 m², got ' || v::text;
 
-  -- 20% of 12,500 د = 2,500 د down; +18% over 60 months = 14,750 د; 12,250 د left = 59 × 205 د + 155 د
+  -- 20% of 12,500 د = 2,500 د down; the 10,000 د left at +18% = 11,800 د, so 14,300 د in all = 59 × 197 د + 177 د
   v := public.public_project_quote(pg_temp.pq_id('po'), null, 25, 'installments', pg_temp.pq_id('dpp_20'), pg_temp.pq_id('dur_60'));
   assert v#>>'{installments,status}' = 'ok'
      and (v#>>'{installments,down_payment_millimes}')::bigint = 2500000
-     and (v#>>'{installments,total_financed_millimes}')::bigint = 14750000
-     and (v#>>'{installments,monthly_millimes}')::bigint = 205000
+     and (v#>>'{installments,total_financed_millimes}')::bigint = 14300000
+     and (v#>>'{installments,monthly_millimes}')::bigint = 197000
      and (v#>>'{installments,installments_count}')::integer = 60
-     and (v#>>'{installments,last_installment_millimes}')::bigint = 155000,
+     and (v#>>'{installments,last_installment_millimes}')::bigint = 177000,
     'the global markup applies to a project without its own, got ' || (v->'installments')::text;
 
   v := public.public_project_quote(pg_temp.pq_id('pt'), null, 20, 'cash');
@@ -304,11 +304,11 @@ begin
      and (v->>'total_price_millimes')::bigint = 18760000 and v#>>'{installments,status}' = 'invalid_choice',
     'the project land price applies and 10% is not one of its percentages, got ' || v::text;
 
-  -- 20% of 18,760 د = 3,752 د; the project''s +20% for 60 months = 22,512 د
+  -- 20% of 18,760 د = 3,752 د; the project''s +20% applies to the 15,008 د left = 18,010 د, so 21,762 د in all
   v := public.public_project_quote(pg_temp.pq_id('pt'), pg_temp.pq_id('c7x5'), 20, 'installments', pg_temp.pq_id('dpp_20'), pg_temp.pq_id('dur_60'));
   assert v#>>'{installments,status}' = 'ok'
      and (v#>>'{installments,down_payment_millimes}')::bigint = 3752000
-     and (v#>>'{installments,total_financed_millimes}')::bigint = 22512000,
+     and (v#>>'{installments,total_financed_millimes}')::bigint = 21762000,
     'the project markup replaces the global one, got ' || (v->'installments')::text;
 
   select array_agg(distinct k) into v_extra from unnest(pg_temp.pq_keys(v)) k where k <> all (v_allowed);

@@ -171,8 +171,8 @@ begin
   assert v_req.price_per_tree_millimes = 500000 and v_req.total_price_millimes = 10000000,
     '500 د per tree and 10,000 د for 20 trees, got ' || coalesce(v_req.price_per_tree_millimes::text, 'null')
     || ' / ' || coalesce(v_req.total_price_millimes::text, 'null');
-  assert v_req.down_payment_amount_millimes = 1000000 and v_req.total_financed_millimes = 11800000 and v_req.monthly_millimes = 180000,
-    '10% down and 18% over 60 months: 1,000 د down, 11,800 د financed and 180 د a month, got '
+  assert v_req.down_payment_amount_millimes = 1000000 and v_req.total_financed_millimes = 11620000 and v_req.monthly_millimes = 177000,
+    '10% down and 18% on the 9,000 د left over 60 months: 1,000 د down, 11,620 د in all and 177 د a month, got '
     || coalesce(v_req.down_payment_amount_millimes::text, 'null') || ' / '
     || coalesce(v_req.total_financed_millimes::text, 'null') || ' / ' || coalesce(v_req.monthly_millimes::text, 'null');
   assert (v_req.down_payment_amount_millimes, v_req.total_financed_millimes, v_req.monthly_millimes)
@@ -325,7 +325,7 @@ begin
      and v_row.area_per_tree_m2 = 35 and v_row.total_area_m2 = 700 and v_row.payment_mode = 'installments'
      and v_row.total_price_millimes = 10000000 and v_row.down_payment_percent = 10
      and v_row.down_payment_amount_millimes = 1000000
-     and v_row.total_financed_millimes = 11800000 and v_row.monthly_millimes = 180000,
+     and v_row.total_financed_millimes = 11620000 and v_row.monthly_millimes = 177000,
     'the search returns the tree pricing snapshot, got ' || row_to_json(v_row)::text;
 
   select count(*) into v_n from public.crm_search_requests(jsonb_build_object('q', v_phone1, 'down_payment_percent', 20), 500)
