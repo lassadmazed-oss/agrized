@@ -499,7 +499,8 @@ export function StartChooser({
         </p>
       ) : null}
 
-      <div className="mt-8">
+      {/* A question with two chips is short: the screen keeps its height so answering does not leave an empty page. */}
+      <div className={`mt-8 ${isSummary ? "" : "min-h-[52vh]"}`}>
         {/* 1 · The tiers, as the Back Office wrote them (LEAD-01), plus a free number. */}
         {activeStep === "trees" ? (
           <fieldset>
