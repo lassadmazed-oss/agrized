@@ -75,6 +75,12 @@ export function TreeOfferBlock({
     return `${baseHref}${query ? `?${query}` : ""}#offer`;
   };
   const installments = choice.payment === "installments" ? quote.installments : null;
+  // Owner 2026-09-16: the remaining amount carries the share of the CASH price left after the down payment
+  // («من المتبقي من الثمن بالحاضر»), so a 20 % down payment reads as 80 % left, like the down payment row.
+  const remainingPercent =
+    installments && installments.down_payment_millimes !== null && quote.total_price_millimes
+      ? Math.round(((quote.total_price_millimes - installments.down_payment_millimes) / quote.total_price_millimes) * 100)
+      : null;
 
   return (
     <section id="offer" className="scroll-mt-24 rounded-2xl border border-line bg-surface p-5 sm:p-6">
@@ -126,7 +132,10 @@ export function TreeOfferBlock({
                 </Row>
               ) : null}
               {installments.remaining_millimes !== null ? (
-                <Row label={settingText(config, "start.row_remaining", "المبلغ المتبقي")}>{formatMillimes(installments.remaining_millimes)}</Row>
+                <Row label={settingText(config, "start.row_remaining", "المبلغ المتبقي")}>
+                  {remainingPercent !== null ? `${formatCount(remainingPercent)}% · ` : ""}
+                  {formatMillimes(installments.remaining_millimes)}
+                </Row>
               ) : null}
               {installments.monthly_millimes !== null ? (
                 <Row label={settingText(config, "start.row_monthly", "القسط الشهري")}>

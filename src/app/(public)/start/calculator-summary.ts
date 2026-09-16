@@ -171,6 +171,24 @@ function labelled(option: Labelled | null): Line | null {
   return option ? { ar: option.label_ar, fr: option.label_fr } : null;
 }
 
+/**
+ * Owner, 2026-09-16: «المتبقي بعد التسبقة زيدو النسبة بالمئة … من المتبقي من الثمن بالحاضر» — the share of the
+ * CASH price left after the down payment, so 20 % paid reads as 80 % left. The amount beside it is what the client
+ * actually still pays, markup included, and it sits under the financed total.
+ */
+function remainingShare(cashTotalMillimes: number | null, downMillimes: number | null): number | null {
+  return cashTotalMillimes && downMillimes !== null
+    ? Math.round(((cashTotalMillimes - downMillimes) / cashTotalMillimes) * 100)
+    : null;
+}
+
+/** «83% · 9,800 د.ت», in the shape the down payment row already uses. */
+function withPercent(value: Line | null, percent: number | null): Line | null {
+  if (!value || percent === null) return value;
+  const share = `${formatCount(percent)}%`;
+  return { ar: `${share} · ${value.ar}`, fr: value.fr ? `${share} · ${value.fr}` : value.fr };
+}
+
 export function calculatorSummary(input: SummaryInput): CalculatorSummary {
   const { copy, tree, treesCustom, quote } = input;
   const installments = input.paymentMode === "installments";
@@ -276,7 +294,12 @@ export function calculatorSummary(input: SummaryInput): CalculatorSummary {
     }
     rows.push(
       { key: "total_financed", label: line(copy.rowTotalFinanced, copy.rowTotalFinancedFr), value: totalFinanced, notes: [] },
-      { key: "remaining", label: line(copy.rowRemaining, copy.rowRemainingFr), value: remaining, notes: [] },
+      {
+        key: "remaining",
+        label: line(copy.rowRemaining, copy.rowRemainingFr),
+        value: withPercent(remaining, remainingShare(quote?.total_price_millimes ?? null, okPlan.down_payment_millimes)),
+        notes: [],
+      },
       { key: "monthly", label: line(copy.rowMonthly, copy.rowMonthlyFr), value: monthly, notes },
     );
   }
