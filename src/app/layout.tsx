@@ -24,10 +24,10 @@ export async function generateMetadata(): Promise<Metadata> {
   const config = await getPublicConfig().catch(() => null);
   const text = (key: string, fallback: string) => (config ? settingText(config, key, fallback) : fallback) || fallback;
 
-  const title = text("site.meta_title", "AgriZed · مشروع المليون زيتونة");
+  const title = text("site.meta_title", "AgriZed · زيتونتك هي مشروعك");
   const description = text(
     "site.meta_description",
-    "كل واحد فينا ينجم يكون فاعل في مشروع المليون زيتونة حسب مقدرته. اختار قداش زيتونة تحب تبدأ بيهم، وإحنا نرافقوك في الباقي.",
+    "أصل حيّ على قدّ إمكانياتك: زيتونة مرتبطة بأرض، تكبر وتثمر مع الوقت، وAgriZed تتلهى بالمتابعة.",
   );
 
   return {

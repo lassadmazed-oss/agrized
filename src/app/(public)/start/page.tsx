@@ -10,10 +10,18 @@ import { getCalculatorLists, readCalculatorChoices } from "./calculator";
 import { startCopy } from "./copy";
 import { StartChooser, type Taglines, type ValueItem } from "./start-chooser";
 
-export const metadata: Metadata = {
-  title: "اختيار عدد الزيتونات",
-  description: "اختر عدد الزيتونات اللي تحب تبدا بيهم في مشروع المليون زيتونة. التسجيل مجاني ولا يمثل التزاماً.",
-};
+// MIL-02: the page's own copy comes from settings too, like /register's.
+export async function generateMetadata(): Promise<Metadata> {
+  const config = await getPublicConfig();
+  return {
+    title: settingText(config, "site.start_meta_title", "اختيار عدد الزيتونات"),
+    description: settingText(
+      config,
+      "site.start_meta_description",
+      "اختر قدّاش زيتونة تحب تبدا بيهم وكيفاش تحب تخلّص. التسجيل مجاني ولا يمثل التزاماً.",
+    ),
+  };
+}
 
 /**
  * The calculator (MIL-01, P2-6): the only place that asks the tree count, the area per tree, the offer type

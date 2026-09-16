@@ -101,7 +101,7 @@ export default async function HomePage() {
         <div className="grid gap-10 lg:grid-cols-[1fr_0.8fr] lg:items-center">
           <div>
             <h2 className="font-display text-3xl font-bold text-forest sm:text-4xl">
-              {settingText(config, "site.start_title", "المليون تبدأ بزيتونة")}
+              {settingText(config, "site.start_title", "تبدا بزيتونة، ويكبر مع الوقت")}
             </h2>
             <p className="mt-3 max-w-xl text-lg leading-8 text-muted">{settingText(config, "site.start_text")}</p>
 
@@ -295,7 +295,7 @@ export default async function HomePage() {
         <section className="mx-auto max-w-6xl px-4 pb-16 sm:px-6">
           <div className="rounded-3xl border border-line bg-surface px-6 py-12 text-center sm:px-10">
             <h2 className="font-display text-3xl font-bold text-balance text-forest sm:text-4xl">
-              {settingText(config, "site.final_cta_title", "سجّل مطلبك في مشروع المليون زيتونة")}
+              {settingText(config, "site.final_cta_title", "ابدا أصلك اليوم، على قدّ إمكانياتك")}
             </h2>
             {cta.label ? (
               <Link href={cta.href} className="btn btn-primary mt-7 min-h-14 px-10 text-lg">

@@ -18,7 +18,7 @@ export async function generateMetadata(): Promise<Metadata> {
     description: settingText(
       config,
       "site.register_meta_description",
-      "سجّل مطلبك في مشروع المليون زيتونة: قداش زيتونة، وين، وكيفاش. التسجيل مجاني ولا يمثل التزاماً بالشراء.",
+      "سجّل اهتمامك: قدّاش زيتونة تحب تبدا بيهم، وين، وكيفاش تحب تخلّص. التسجيل مجاني ولا يمثل التزاماً بالشراء.",
     ),
   };
 }
@@ -79,7 +79,7 @@ export default async function RegisterPage({ searchParams }: PageProps<"/registe
           editHref: `/start?${calculatorQuery(choices, wantsVisit)}`,
         }}
         successNote={settingText(config, "register.success_note", "التسجيل مجاني ولا يلزمك بالشراء.")}
-        successWelcomeTitle={settingText(config, "register.success_welcome_title", "مرحباً بيك في مشروع المليون زيتونة")}
+        successWelcomeTitle={settingText(config, "register.success_welcome_title", "مرحباً بيك، زيتونتك بدات")}
         successWelcomeText={settingText(
           config,
           "register.success_welcome_text",
@@ -88,7 +88,7 @@ export default async function RegisterPage({ searchParams }: PageProps<"/registe
         successMotivation={settingText(
           config,
           "register.success_motivation",
-          "كل مطلب يقرّب المشروع خطوة من المليون زيتونة. زيتوناتك تولّي جزء من العدّاد كي يتم التعاقد.",
+          "كل زيتونة تبدا بيها اليوم تولّي أصل باسمك يكبر مع الوقت، وإحنا نتلهاو بالمتابعة.",
         )}
         successProgressLabel={settingText(config, "register.success_progress_label", "شوف وين وصل المشروع")}
       />
