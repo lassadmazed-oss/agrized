@@ -124,65 +124,64 @@ export function MillionCounter({ progress, copy }: MillionCounterProps) {
         ) : null}
         {copy.peopleEncourage ? <p className="mt-3 max-w-2xl leading-7 text-ink/80">{copy.peopleEncourage}</p> : null}
 
-        <div className="mt-6">
-          <div
-            role="progressbar"
-            aria-valuemin={0}
-            aria-valuemax={goal}
-            aria-valuenow={treesRequested}
-            aria-label={fillText(caption, figures) || copy.title}
-            className="h-4 w-full overflow-hidden rounded-full bg-leaf-soft"
-          >
+        {/* The bar measures the count against a goal. With no goal set it is a permanent sliver that reads as
+            broken, and its ARIA range would be invalid, so the section simply leads with the figures instead. */}
+        {goal > 0 ? (
+          <div className="mt-roomy">
             <div
-              style={{ width: `${barWidth}%` }}
-              className="h-full rounded-full bg-linear-to-l from-leaf to-forest transition-[width] duration-700"
-            />
+              role="progressbar"
+              aria-valuemin={0}
+              aria-valuemax={goal}
+              aria-valuenow={treesRequested}
+              aria-label={fillText(caption, figures) || copy.title}
+              className="h-2.5 w-full overflow-hidden rounded-full bg-leaf-soft"
+            >
+              <div
+                style={{ width: `${barWidth}%` }}
+                className="h-full rounded-full bg-linear-to-l from-leaf to-forest transition-[width] duration-700"
+              />
+            </div>
+            {caption ? (
+              <p className="mt-3 text-sm text-muted">
+                {fill(caption, {
+                  count: <span className="font-semibold text-forest tabular-nums">{figures.count}</span>,
+                  goal: figures.goal,
+                  share: figures.share,
+                })}
+              </p>
+            ) : null}
           </div>
-          {caption ? (
-            <p className="mt-3 text-sm text-muted">
-              {fill(caption, {
-                count: <span className="font-semibold text-forest tabular-nums">{figures.count}</span>,
-                goal: figures.goal,
-                share: figures.share,
-              })}
-            </p>
-          ) : null}
-        </div>
+        ) : null}
 
+        {/* One surface holding the stages, split by hairlines, instead of four separate floating boxes: the
+            figure leads and its label follows it, which is the opposite of how this section used to read. */}
         {stages.length > 0 ? (
-          <dl className={`mt-roomy grid gap-4 sm:grid-cols-2 ${STAGE_COLUMNS[stages.length]}`}>
+          <dl className={`panel mt-roomy grid gap-px overflow-hidden bg-line sm:grid-cols-2 ${STAGE_COLUMNS[stages.length]}`}>
             {stages.map((tile) => (
-              <div key={tile.key} className="card bg-paper p-5">
-                <dt className="text-sm text-muted">{copy.tiles[tile.key].label}</dt>
-                <dd className="mt-1 font-display text-4xl font-bold text-forest tabular-nums">{formatCount(tile.value)}</dd>
+              <div key={tile.key} className="stat bg-surface p-5 sm:p-6">
+                <dt className="stat-label order-2">{copy.tiles[tile.key].label}</dt>
+                <dd className="stat-figure order-1 text-forest tabular-nums">{formatCount(tile.value)}</dd>
                 {copy.tiles[tile.key].hint ? (
-                  <dd className="mt-1 text-xs leading-5 text-muted">{copy.tiles[tile.key].hint}</dd>
+                  <dd className="order-3 text-xs leading-5 text-muted">{copy.tiles[tile.key].hint}</dd>
                 ) : null}
               </div>
             ))}
           </dl>
         ) : null}
 
+        {/* The two context counts are not stages, so they read as one quiet line rather than two more boxes. */}
         {context.length > 0 ? (
-          <dl className="mt-4 grid gap-4 sm:grid-cols-2">
+          <dl className="mt-snug flex flex-wrap items-baseline gap-x-6 gap-y-1 text-sm text-muted">
             {context.map((tile) => (
-              <div
-                key={tile.key}
-                className="card flex items-center justify-between gap-4 bg-paper px-5 py-4"
-              >
-                <div>
-                  <dt className="text-sm text-muted">{copy.tiles[tile.key].label}</dt>
-                  {copy.tiles[tile.key].hint ? (
-                    <dd className="mt-0.5 text-xs leading-5 text-muted">{copy.tiles[tile.key].hint}</dd>
-                  ) : null}
-                </div>
-                <dd className="font-display text-3xl font-bold text-forest tabular-nums">{formatCount(tile.value)}</dd>
+              <div key={tile.key} className="flex items-baseline gap-2">
+                <dt>{copy.tiles[tile.key].label}</dt>
+                <dd className="font-display text-lg font-bold text-forest tabular-nums">{formatCount(tile.value)}</dd>
               </div>
             ))}
           </dl>
         ) : null}
 
-        {copy.note ? <p className="mt-6 text-sm leading-6 text-muted">{copy.note}</p> : null}
+        {copy.note ? <p className="mt-roomy max-w-3xl text-xs leading-6 text-muted">{copy.note}</p> : null}
       </div>
     </section>
   );
