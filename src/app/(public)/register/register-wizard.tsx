@@ -99,6 +99,9 @@ const BANK_CHOICES: YesNoChoice[] = [
 ];
 const NO_ANSWER = "بدون إجابة";
 
+/** Owner, 2026-09-18: answering carries the visitor on, like the calculator. Long enough to see the tick. */
+const AUTO_NEXT_MS = 220;
+
 /** What the success screen recaps, in this order. */
 const SUCCESS_ROWS: SummaryRowKey[] = ["trees", "area_per_tree", "total_area", "payment", "total_price"];
 
@@ -209,6 +212,7 @@ export function RegisterWizard(props: RegisterWizardProps) {
   const [honeypot, setHoneypot] = useState("");
   const [pending, startTransition] = useTransition();
   const headingRef = useRef<HTMLHeadingElement>(null);
+  const advanceTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const draftLoaded = useRef(false);
   const firstRender = useRef(true);
 
@@ -268,8 +272,26 @@ export function RegisterWizard(props: RegisterWizardProps) {
   }
 
   function goBack() {
+    if (advanceTimer.current) clearTimeout(advanceTimer.current);
     setErrors({});
     setStep((current) => Math.max(current - 1, 1));
+  }
+
+  /**
+   * A screen that one click completes moves on by itself (owner, 2026-09-18). A list the visitor may pick several
+   * from still waits for «التالي». The answer travels with the call, so the move never validates a state React has
+   * not committed yet.
+   */
+  function advanceWith(patch: Partial<FormState>) {
+    const next = { ...form, ...patch };
+    setForm(next);
+    setErrors({});
+    if (advanceTimer.current) clearTimeout(advanceTimer.current);
+    advanceTimer.current = setTimeout(() => {
+      if (Object.keys(validateStep(step, next, props)).length === 0) {
+        setStep((current) => Math.min(current + 1, STEPS.length));
+      }
+    }, AUTO_NEXT_MS);
   }
 
   function submit() {
@@ -354,7 +376,9 @@ export function RegisterWizard(props: RegisterWizardProps) {
 
   return (
     <div className="mx-auto max-w-2xl px-4 pb-6 pt-6 sm:px-6 sm:pt-10">
-      <RecapCard recap={recap} />
+      {/* The calculator answers belong on the screen the visitor lands on, and wherever they block the request.
+          In between they only pushed the question off the phone (owner, 2026-09-18: «remove the table»). */}
+      {step === 1 || recap.error ? <RecapCard recap={recap} /> : null}
 
       <div className="mt-6">
         <Progress step={step} total={STEPS.length} />
@@ -393,14 +417,22 @@ export function RegisterWizard(props: RegisterWizardProps) {
 
         <div className="mt-6">
           {step === 1 ? <IdentityStep form={form} errors={errors} update={update} governorates={props.governorates} /> : null}
-          {step === 2 ? <LocationStep form={form} errors={errors} update={update} governorates={props.governorates} /> : null}
+          {step === 2 ? (
+            <LocationStep
+              form={form}
+              errors={errors}
+              update={update}
+              advanceWith={advanceWith}
+              governorates={props.governorates}
+            />
+          ) : null}
           {step === 3 ? (
             <SingleChoice
               name="goal"
               legend={STEPS[2]}
               options={props.goals}
               value={form.goalOptionId}
-              onChange={(id) => update("goalOptionId", id)}
+              onChange={(id) => advanceWith({ goalOptionId: id })}
               error={errors.goalOptionId}
             />
           ) : null}
@@ -583,7 +615,13 @@ function IdentityStep({ form, errors, update, governorates }: StepProps & { gove
   );
 }
 
-function LocationStep({ form, errors, update, governorates }: StepProps & { governorates: RegisterWizardProps["governorates"] }) {
+function LocationStep({
+  form,
+  errors,
+  update,
+  advanceWith,
+  governorates,
+}: StepProps & { advanceWith: (patch: Partial<FormState>) => void; governorates: RegisterWizardProps["governorates"] }) {
   function toggle(id: number, checked: boolean) {
     const next = checked ? [...form.investGovernorateIds, id] : form.investGovernorateIds.filter((g) => g !== id);
     update("investGovernorateIds", next);
@@ -598,8 +636,9 @@ function LocationStep({ form, errors, update, governorates }: StepProps & { gove
           type="checkbox"
           checked={form.investAnywhere}
           onChange={(event) => {
-            update("investAnywhere", event.target.checked);
-            if (event.target.checked) update("investGovernorateIds", []);
+            // One click answers the whole screen, so it carries on; picking governorates does not.
+            if (event.target.checked) advanceWith({ investAnywhere: true, investGovernorateIds: [] });
+            else update("investAnywhere", false);
           }}
         />
         <span className="font-semibold">المكان غير مهم</span>
