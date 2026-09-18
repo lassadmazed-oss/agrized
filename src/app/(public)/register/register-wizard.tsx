@@ -48,6 +48,23 @@ export type RegisterWizardProps = {
   successWelcomeText: string;
   successMotivation: string;
   successProgressLabel: string;
+  /** Owner 2026-09-18: «in the end show the current offers after the send». Empty while the module is closed. */
+  offers: SuccessOffer[];
+  offersTitle: string;
+  offersText: string;
+};
+
+/** One offer on the confirmation screen: everything already formatted on the server, Arabic only. */
+export type SuccessOffer = {
+  code: string;
+  name: string;
+  place: string;
+  href: string;
+  coverUrl: string | null;
+  coverAlt: string | null;
+  trees: string | null;
+  areaPerTree: string | null;
+  pricePerTree: string | null;
 };
 
 type ContactChannel = "phone" | "whatsapp" | "both";
@@ -380,6 +397,9 @@ export function RegisterWizard(props: RegisterWizardProps) {
         welcomeText={props.successWelcomeText}
         motivation={props.successMotivation}
         progressLabel={props.successProgressLabel}
+        offers={props.offers}
+        offersTitle={props.offersTitle}
+        offersText={props.offersText}
         headingRef={headingRef}
       />
     );
@@ -936,6 +956,9 @@ function Success({
   welcomeText,
   motivation,
   progressLabel,
+  offers,
+  offersTitle,
+  offersText,
   headingRef,
 }: {
   requestNo: string;
@@ -947,6 +970,9 @@ function Success({
   welcomeText: string;
   motivation: string;
   progressLabel: string;
+  offers: SuccessOffer[];
+  offersTitle: string;
+  offersText: string;
   headingRef: React.RefObject<HTMLHeadingElement | null>;
 }) {
   const [copied, setCopied] = useState(false);
@@ -1022,6 +1048,52 @@ function Success({
           العودة للصفحة الرئيسية
         </Link>
       </div>
+
+      {/* Owner 2026-09-18: «in the end show the current offers after the send». Each one opens its own page,
+          where it has its own form; this screen never mixes the two flows. */}
+      {offers.length > 0 && offersTitle ? (
+        <section className="mt-12 text-start">
+          <h2 className="text-center font-display text-2xl font-bold text-forest">{offersTitle}</h2>
+          {offersText ? <p className="mx-auto mt-2 max-w-md text-center leading-7 text-muted">{offersText}</p> : null}
+          <ul className="mt-6 grid gap-4 sm:grid-cols-2">
+            {offers.map((offer) => (
+              <li key={offer.code} className="overflow-hidden rounded-2xl border border-line bg-surface">
+                <Link href={offer.href} className="block h-full focus-visible:outline-offset-[-2px]">
+                  {offer.coverUrl ? (
+                    // eslint-disable-next-line @next/next/no-img-element -- remote cover, sized by its box
+                    <img src={offer.coverUrl} alt={offer.coverAlt ?? ""} className="aspect-3/2 w-full object-cover" />
+                  ) : null}
+                  <div className="p-4">
+                    <h3 className="font-semibold text-ink">{offer.name}</h3>
+                    <p className="mt-0.5 text-sm text-muted">{offer.place}</p>
+                    <dl className="mt-3 space-y-1.5 text-sm">
+                      {offer.trees ? (
+                        <div className="flex justify-between gap-3">
+                          <dt className="text-muted">عدد الزيتونات</dt>
+                          <dd className="font-semibold text-ink tabular-nums">{offer.trees}</dd>
+                        </div>
+                      ) : null}
+                      {offer.areaPerTree ? (
+                        <div className="flex justify-between gap-3">
+                          <dt className="text-muted">مساحة كل زيتونة</dt>
+                          <dd className="font-semibold text-ink tabular-nums">{offer.areaPerTree}</dd>
+                        </div>
+                      ) : null}
+                    </dl>
+                    {offer.pricePerTree ? (
+                      <p className="mt-3 border-t border-line pt-3 text-sm">
+                        <span className="text-muted">ابتداءً من </span>
+                        <span className="font-display text-xl font-bold text-forest tabular-nums">{offer.pricePerTree}</span>
+                        <span className="text-muted"> للزيتونة</span>
+                      </p>
+                    ) : null}
+                  </div>
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </section>
+      ) : null}
     </div>
   );
 }

@@ -23,11 +23,13 @@ export function primaryCta(config: PublicConfig): { label: string; href: "/start
 }
 
 export async function SiteHeader({ tagline, showInterestCta, showProjects, showZitounti }: SiteHeaderProps) {
-  const cta = primaryCta(await getPublicConfig());
+  const config = await getPublicConfig();
+  const cta = primaryCta(config);
   const links = [
     { href: "/#million", label: "وين وصلنا" },
     { href: "/#how", label: "كيفاش تخدم" },
-    ...(showProjects ? [{ href: "/projects", label: "المشاريع" }] : []),
+    // Owner 2026-09-18: the section is «عروضنا», named from settings so it can be renamed without a deploy.
+    ...(showProjects ? [{ href: "/projects", label: settingText(config, "offers.title", "المشاريع") }] : []),
     ...(showZitounti ? [{ href: "/zitounti", label: "زيتونتي" }] : []),
   ];
 

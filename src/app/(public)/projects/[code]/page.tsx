@@ -17,9 +17,17 @@ import { IRRIGATION_LABELS } from "@/lib/land";
 import { moduleAccess } from "@/lib/modules";
 import { projectStatusLabel, projectStatusTone } from "@/lib/projects";
 import { parcelHref } from "@/lib/public-hrefs";
-import { findProject, getProjectPage, getPublicParcels, getPublicProjects, publicMode } from "@/lib/public-projects";
+import {
+  findProject,
+  getProjectPage,
+  getProjectQuote,
+  getPublicParcels,
+  getPublicProjects,
+  publicMode,
+} from "@/lib/public-projects";
 
 import { LegalNotes, longestDuration } from "../page";
+import { OfferInterestForm } from "./offer-interest-form";
 
 export const metadata: Metadata = { title: "مشروع" };
 
@@ -47,6 +55,12 @@ export default async function ProjectPage({ params }: PageProps<"/projects/[code
   const project = findProject(projects, code);
   if (!project) notFound();
 
+  // An offer sold by the tree carries no parcel, so its own page showed no price and no way to ask for it
+  // (owner, 2026-09-18). One tree prices the offer; the form multiplies, and the database prices it again on
+  // submit. The figures are null while prices are closed, and the form then says so instead of an amount.
+  const offerTrees = project.on_tree_pricing ? (project.tree_count ?? 0) : 0;
+  const offerQuote = offerTrees > 0 ? await getProjectQuote(project.id, mode, { trees: 1 }) : null;
+
   const own = parcels.filter((parcel) => parcel.project_id === project.id);
   const governorate = config.governorates.find((g) => g.id === project.governorate_id)?.name_ar;
   const delegation = config.delegations.find((d) => d.id === project.delegation_id)?.name_ar;
@@ -65,7 +79,8 @@ export default async function ProjectPage({ params }: PageProps<"/projects/[code
       : null;
   // Payment and visits only concern a project that still sells parcels.
   const selling = project.status === "published" || project.status === "internal";
-  const visitOpen = selling && flagState(config, "interest_form") === "public";
+  const interestOpen = flagState(config, "interest_form") === "public";
+  const visitOpen = selling && interestOpen;
   const videoTitle = settingText(config, "projects.video_title", "فيديو المشروع");
 
   return (
@@ -190,6 +205,39 @@ export default async function ProjectPage({ params }: PageProps<"/projects/[code
               </div>
             </div>
           ) : null}
+        </section>
+      ) : null}
+
+      {/* «in the offers it's a separate form, not direct to the form of the other thing» (owner, 2026-09-18):
+          this offer's own form, with its own trees and its own price. It never reaches /register. */}
+      {selling && offerTrees > 0 && interestOpen ? (
+        <section className="mx-auto max-w-6xl px-4 pb-12 sm:px-6">
+          <OfferInterestForm
+            projectId={project.id}
+            projectName={project.name}
+            maxTrees={offerTrees}
+            figures={{
+              pricePerTreeMillimes: offerQuote?.price_per_tree_millimes ?? null,
+              annualFeePerTreeMillimes: offerQuote?.annual_fee_per_tree_millimes ?? null,
+              areaPerTreeM2: offerQuote?.area_per_tree_m2 ?? null,
+            }}
+            governorates={config.governorates}
+            contactTimes={optionsFor(config, "contact_time")}
+            title={settingText(config, "offers.form_title", "سجّل اهتمامك بهذا العرض")}
+            intro={settingText(config, "offers.form_intro")}
+            treesLabel={settingText(config, "offers.trees_label", "قدّاش زيتونة تحب من هذا العرض؟")}
+            treesHint={settingText(config, "offers.trees_hint", "من زيتونة وحدة إلى {max} زيتونة.")}
+            submitLabel={settingText(config, "offers.submit_label", "سجّل اهتمامك بهذا العرض")}
+            successTitle={settingText(config, "offers.success_title", "وصلنا طلبك على هذا العرض")}
+            successText={settingText(config, "offers.success_text")}
+            consentText={settingText(config, "legal.consent_text")}
+            estimateNote={settingText(config, "start.estimate_note")}
+            rowPricePerTree={settingText(config, "start.row_price_per_tree", "سعر الزيتونة")}
+            rowTotalPrice={settingText(config, "start.row_total_price", "السعر الجملي للطلب")}
+            rowAnnualFee={settingText(config, "start.row_annual_fee", "معاليم الصيانة والتقليم في العام")}
+            rowAreaPerTree={settingText(config, "start.row_area_per_tree", "المساحة لكل زيتونة")}
+            pricePending={settingText(config, "projects.price_pending", "السعر يُعلن لاحقاً.")}
+          />
         </section>
       ) : null}
 

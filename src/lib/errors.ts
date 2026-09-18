@@ -53,6 +53,9 @@ const MESSAGES: Record<string, string> = {
   duration_over_cap: "هذه المدة أطول من الحدّ الأقصى المسموح (إعداد pricing.max_months). قصّرها أو غيّر الحدّ.",
   parcel_spacing_not_in_project: "فئة التباعد هذه موش من فئات المشروع. اختر فئة من فئات المشروع، ولا زيدها للمشروع في صفحة التسعير.",
   spacing_used_by_parcels: "فما قطع في هذا المشروع مربوطة بهذه الفئة. بدّل فئة القطع هاذوما قبل ما تنحّيها من المشروع.",
+  // The offer form (0049): its own two answers, checked against the offer itself.
+  offer_not_available: "هذا العرض ما عادش متوفّر. شوف بقية العروض أو سجّل مطلبك من الحاسبة.",
+  invalid_offer_trees: "اكتب عدد الزيتونات بالأرقام، من زيتونة وحدة إلى العدد المتوفّر في العرض.",
 };
 
 const FALLBACK = "تعذّر إرسال الطلب. تحقق من اتصالك وحاول مرة أخرى.";

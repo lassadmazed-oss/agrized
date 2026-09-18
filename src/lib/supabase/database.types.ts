@@ -281,8 +281,8 @@ export type Database = {
           email: string | null
           full_name: string
           goal_code: string | null
-          goal_label_ar: string
-          goal_option_id: string
+          goal_label_ar: string | null
+          goal_option_id: string | null
           id: string
           installment_label_ar: string | null
           installment_max_millimes: number | null
@@ -292,6 +292,11 @@ export type Database = {
           invest_governorate_ids: number[]
           is_duplicate: boolean
           monthly_millimes: number | null
+          offer_annual_fee_per_tree_millimes: number | null
+          offer_annual_fee_total_millimes: number | null
+          offer_price_per_tree_millimes: number | null
+          offer_total_price_millimes: number | null
+          offer_trees: number | null
           parcel_area_m2: number | null
           parcel_captured_at: string | null
           parcel_cash_price_millimes: number | null
@@ -318,6 +323,7 @@ export type Database = {
           project_name: string | null
           project_type_ids: string[]
           project_type_unsure: boolean
+          request_kind: string
           request_no: string
           residence_delegation_id: number | null
           residence_governorate_id: number
@@ -366,8 +372,8 @@ export type Database = {
           email?: string | null
           full_name: string
           goal_code?: string | null
-          goal_label_ar: string
-          goal_option_id: string
+          goal_label_ar?: string | null
+          goal_option_id?: string | null
           id?: string
           installment_label_ar?: string | null
           installment_max_millimes?: number | null
@@ -377,6 +383,11 @@ export type Database = {
           invest_governorate_ids?: number[]
           is_duplicate?: boolean
           monthly_millimes?: number | null
+          offer_annual_fee_per_tree_millimes?: number | null
+          offer_annual_fee_total_millimes?: number | null
+          offer_price_per_tree_millimes?: number | null
+          offer_total_price_millimes?: number | null
+          offer_trees?: number | null
           parcel_area_m2?: number | null
           parcel_captured_at?: string | null
           parcel_cash_price_millimes?: number | null
@@ -403,6 +414,7 @@ export type Database = {
           project_name?: string | null
           project_type_ids?: string[]
           project_type_unsure?: boolean
+          request_kind?: string
           request_no: string
           residence_delegation_id?: number | null
           residence_governorate_id: number
@@ -451,8 +463,8 @@ export type Database = {
           email?: string | null
           full_name?: string
           goal_code?: string | null
-          goal_label_ar?: string
-          goal_option_id?: string
+          goal_label_ar?: string | null
+          goal_option_id?: string | null
           id?: string
           installment_label_ar?: string | null
           installment_max_millimes?: number | null
@@ -462,6 +474,11 @@ export type Database = {
           invest_governorate_ids?: number[]
           is_duplicate?: boolean
           monthly_millimes?: number | null
+          offer_annual_fee_per_tree_millimes?: number | null
+          offer_annual_fee_total_millimes?: number | null
+          offer_price_per_tree_millimes?: number | null
+          offer_total_price_millimes?: number | null
+          offer_trees?: number | null
           parcel_area_m2?: number | null
           parcel_captured_at?: string | null
           parcel_cash_price_millimes?: number | null
@@ -488,6 +505,7 @@ export type Database = {
           project_name?: string | null
           project_type_ids?: string[]
           project_type_unsure?: boolean
+          request_kind?: string
           request_no?: string
           residence_delegation_id?: number | null
           residence_governorate_id?: number
@@ -2751,6 +2769,7 @@ export type Database = {
       }
       submit_interest_request: { Args: { p: Json }; Returns: Json }
       submit_land_offer: { Args: { p: Json }; Returns: Json }
+      submit_offer_request: { Args: { p: Json }; Returns: Json }
     }
     Enums: {
       app_role:
