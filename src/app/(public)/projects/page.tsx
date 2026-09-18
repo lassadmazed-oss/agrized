@@ -10,10 +10,18 @@ import { OFFER_TYPE_LABELS, offerTypeOf, type OfferType } from "@/lib/projects";
 import { parcelHref, projectHref } from "@/lib/public-hrefs";
 import { getPublicParcels, getPublicProjects, publicMode, type PublicParcel } from "@/lib/public-projects";
 
-export const metadata: Metadata = {
-  title: "المشاريع المتوفّرة",
-  description: "قطع زيتون بمساحتها وعدد زيتوناتها ونوع غراستها وحالة إنتاجها. بلا وعود.",
-};
+// The name of the section belongs to the Back Office, the browser tab included (owner, 2026-09-18).
+export async function generateMetadata(): Promise<Metadata> {
+  const config = await getPublicConfig();
+  return {
+    title: offersTitle(config),
+    description: settingText(
+      config,
+      "projects.meta_description",
+      "قطع زيتون بمساحتها وعدد زيتوناتها ونوع غراستها وحالة إنتاجها. بلا وعود.",
+    ),
+  };
+}
 
 // The «internal» module state checks the staff session cookie, so this page renders per request.
 export const dynamic = "force-dynamic";
