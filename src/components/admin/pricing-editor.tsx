@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, type ReactNode } from "react";
+import { useState } from "react";
+import { FormField } from "@/components/ui";
 
 import {
   describePricing,
@@ -76,17 +77,17 @@ export function PricingEditor({ initial, inherit }: PricingEditorProps) {
       </fieldset>
 
       {draft.mode === "inherit" && inherit ? (
-        <Panel>
+        <div className="card space-y-3 rounded-xl bg-paper/40 p-4">
           {inherit.lines.length > 0 ? (
             <Lines title="الصيغة اللي باش تتطبّق:" lines={inherit.lines} />
           ) : (
             <p className="text-sm text-muted">ما فماش صيغة مضبوطة بعد. القطع باش تظهر بلا أمثلة تقسيط حتى تختار طريقة.</p>
           )}
-        </Panel>
+        </div>
       ) : null}
 
       {draft.mode === "markup_brackets" ? (
-        <Panel>
+        <div className="card space-y-3 rounded-xl bg-paper/40 p-4">
           <p className="text-sm leading-6 text-muted">
             كل سطر: إذا كمل الحريف الخلاص في هالمدة أو أقل، يتزاد الهامش هذا على سعر الحاضر. أقصر مدة تناسب الحريف هي اللي تتطبّق.
           </p>
@@ -130,11 +131,11 @@ export function PricingEditor({ initial, inherit }: PricingEditorProps) {
             </button>
           ) : null}
           <Limits draft={draft} update={update} />
-        </Panel>
+        </div>
       ) : null}
 
       {draft.mode === "monthly_rate" ? (
-        <Panel>
+        <div className="card space-y-3 rounded-xl bg-paper/40 p-4">
           <label className="flex flex-wrap items-center gap-2 text-sm">
             <span className="font-semibold">الهامش الشهري</span>
             <NumberField
@@ -148,17 +149,17 @@ export function PricingEditor({ initial, inherit }: PricingEditorProps) {
             <span>% في الشهر، من (سعر الحاضر − التسبقة)</span>
           </label>
           <Limits draft={draft} update={update} />
-        </Panel>
+        </div>
       ) : null}
 
       {draft.mode === "scenarios" ? (
-        <Panel>
+        <div className="card space-y-3 rounded-xl bg-paper/40 p-4">
           <p className="text-sm leading-6 text-muted">
             التسبقة والقسط في كل تركيبة لازم يكونو نفس القيم الموجودة في قوائم «التسبقة» و«القسط الشهري»، خاطر الحريف يختار منهم.
           </p>
           <ul className="space-y-3">
             {draft.scenarios.map((row, index) => (
-              <li key={index} className="rounded-xl border border-line bg-surface p-3">
+              <li key={index} className="card rounded-xl p-3">
                 <div className="mb-2 flex items-center justify-between text-xs">
                   <span className="font-semibold text-muted">التركيبة {index + 1}</span>
                   {draft.scenarios.length > 1 ? (
@@ -172,23 +173,23 @@ export function PricingEditor({ initial, inherit }: PricingEditorProps) {
                   ) : null}
                 </div>
                 <div className="grid gap-2 sm:grid-cols-4">
-                  <Labeled label="التسبقة (د.ت)">
+                  <FormField size="xs" label="التسبقة (د.ت)">
                     <NumberField name={F.scenarioDown} value={row.down} onChange={(value) => setScenario(index, { down: value })} placeholder="1000" />
-                  </Labeled>
-                  <Labeled label="القسط الشهري (د.ت)">
+                  </FormField>
+                  <FormField size="xs" label="القسط الشهري (د.ت)">
                     <NumberField
                       name={F.scenarioInstallment}
                       value={row.installment}
                       onChange={(value) => setScenario(index, { installment: value })}
                       placeholder="100"
                     />
-                  </Labeled>
-                  <Labeled label="عدد الأشهر">
+                  </FormField>
+                  <FormField size="xs" label="عدد الأشهر">
                     <NumberField name={F.scenarioMonths} value={row.months} onChange={(value) => setScenario(index, { months: value })} placeholder="60" />
-                  </Labeled>
-                  <Labeled label="السعر الجملي (د.ت)">
+                  </FormField>
+                  <FormField size="xs" label="السعر الجملي (د.ت)">
                     <NumberField name={F.scenarioTotal} value={row.total} onChange={(value) => setScenario(index, { total: value })} placeholder="7000" />
-                  </Labeled>
+                  </FormField>
                 </div>
               </li>
             ))}
@@ -198,7 +199,7 @@ export function PricingEditor({ initial, inherit }: PricingEditorProps) {
               + زيد تركيبة
             </button>
           ) : null}
-        </Panel>
+        </div>
       ) : null}
 
       {draft.mode !== "inherit" ? (
@@ -221,20 +222,20 @@ export function PricingEditor({ initial, inherit }: PricingEditorProps) {
 function Limits({ draft, update }: { draft: PricingDraft; update: (patch: Partial<PricingDraft>) => void }) {
   return (
     <div className="grid gap-3 border-t border-line pt-3 sm:grid-cols-3">
-      <Labeled label="أقصى مدة (شهر)">
+      <FormField size="xs" label="أقصى مدة (شهر)">
         <NumberField name={F.maxMonths} value={draft.maxMonths} onChange={(value) => update({ maxMonths: value })} placeholder="اختياري، مثال: 84" />
-      </Labeled>
-      <Labeled label="أدنى تسبقة (% من سعر الحاضر)">
+      </FormField>
+      <FormField size="xs" label="أدنى تسبقة (% من سعر الحاضر)">
         <NumberField name={F.minDownPct} value={draft.minDownPct} onChange={(value) => update({ minDownPct: value })} placeholder="اختياري، مثال: 10" />
-      </Labeled>
-      <Labeled label="أدنى قسط شهري (د.ت)">
+      </FormField>
+      <FormField size="xs" label="أدنى قسط شهري (د.ت)">
         <NumberField
           name={F.minInstallment}
           value={draft.minInstallment}
           onChange={(value) => update({ minInstallment: value })}
           placeholder="اختياري، مثال: 50"
         />
-      </Labeled>
+      </FormField>
     </div>
   );
 }
@@ -267,11 +268,6 @@ function NumberField({
     />
   );
 }
-
-function Panel({ children }: { children: ReactNode }) {
-  return <div className="space-y-3 rounded-xl border border-line bg-paper/40 p-4">{children}</div>;
-}
-
 function Lines({ title, lines }: { title: string; lines: string[] }) {
   return (
     <div className="text-sm">
@@ -282,14 +278,5 @@ function Lines({ title, lines }: { title: string; lines: string[] }) {
         ))}
       </ul>
     </div>
-  );
-}
-
-function Labeled({ label, children }: { label: string; children: ReactNode }) {
-  return (
-    <label className="block space-y-1">
-      <span className="block text-xs font-semibold text-muted">{label}</span>
-      {children}
-    </label>
   );
 }

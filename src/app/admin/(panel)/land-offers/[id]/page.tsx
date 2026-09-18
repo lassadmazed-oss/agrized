@@ -3,6 +3,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import { ActionForm } from "@/components/admin/action-form";
+import { DataRow, EmptyState, StatusPill } from "@/components/ui";
 import { ADMIN_ROLES, hasRole, LAND_OFFER_ROLES, requireStaff } from "@/lib/auth";
 import { getPublicConfig } from "@/lib/config";
 import { formatCount, formatDateTime, formatMillimes } from "@/lib/format";
@@ -68,13 +69,11 @@ export default async function LandOfferDetailPage({ params }: PageProps<"/admin/
         → عروض الأراضي
       </Link>
 
-      <header className="flex flex-wrap items-start justify-between gap-4 rounded-2xl border border-line bg-surface p-5 sm:p-6">
+      <header className="card flex flex-wrap items-start justify-between gap-4 p-5 sm:p-6">
         <div className="space-y-2">
           <div className="flex flex-wrap items-center gap-3">
-            <h1 className="font-display text-3xl font-bold text-forest sm:text-4xl">{offer.property_type_label_ar}</h1>
-            <span className={`rounded-full px-2.5 py-1 text-xs font-semibold ring-1 ring-inset ${LAND_STATUS_TONES[offer.status]}`}>
-              {LAND_STATUS_LABELS[offer.status]}
-            </span>
+            <h1 className="section-title">{offer.property_type_label_ar}</h1>
+            <StatusPill toneClass={LAND_STATUS_TONES[offer.status]}>{LAND_STATUS_LABELS[offer.status]}</StatusPill>
           </div>
           <p className="text-muted">
             {[delegation, governorate].filter(Boolean).join("، ")}
@@ -95,23 +94,23 @@ export default async function LandOfferDetailPage({ params }: PageProps<"/admin/
 
       <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_22rem]">
         <div className="space-y-6">
-          <section className="rounded-2xl border border-line bg-surface p-5">
+          <section className="card p-5">
             <h2 className="font-semibold">العقار</h2>
             <dl className="mt-4 grid gap-x-6 gap-y-3 text-sm sm:grid-cols-2">
-              <Item label="المساحة">
+              <DataRow layout="stacked" numeric={false} label="المساحة">
                 <span className="tabular-nums">{offer.area_value}</span> {offer.area_unit === "ha" ? "هكتار" : "م²"}
-              </Item>
-              <Item label="عدد الزيتونات">{offer.olive_tree_count ?? "غير مذكور"}</Item>
-              <Item label="عمر الأشجار">{offer.tree_age_label_ar ?? "غير مذكور"}</Item>
-              <Item label="الري">
+              </DataRow>
+              <DataRow layout="stacked" numeric={false} label="عدد الزيتونات">{offer.olive_tree_count ?? "غير مذكور"}</DataRow>
+              <DataRow layout="stacked" numeric={false} label="عمر الأشجار">{offer.tree_age_label_ar ?? "غير مذكور"}</DataRow>
+              <DataRow layout="stacked" numeric={false} label="الري">
                 {IRRIGATION_LABELS[offer.irrigation]}
                 {offer.water_source ? ` · ${offer.water_source}` : ""}
-              </Item>
-              <Item label="السعر المطلوب">
+              </DataRow>
+              <DataRow layout="stacked" numeric={false} label="السعر المطلوب">
                 {offer.asking_price_millimes !== null ? formatMillimes(offer.asking_price_millimes) : "غير محدد"}
                 {offer.price_negotiable ? " · قابل للتفاوض" : ""}
-              </Item>
-              <Item label="الموقع">
+              </DataRow>
+              <DataRow layout="stacked" numeric={false} label="الموقع">
                 {offer.latitude !== null && offer.longitude !== null ? (
                   <a
                     href={`https://www.google.com/maps?q=${offer.latitude},${offer.longitude}`}
@@ -124,16 +123,16 @@ export default async function LandOfferDetailPage({ params }: PageProps<"/admin/
                 ) : (
                   "بدون إحداثيات"
                 )}
-              </Item>
+              </DataRow>
               {offer.location_description ? (
                 <div className="sm:col-span-2">
-                  <Item label="وصف المكان">{offer.location_description}</Item>
+                  <DataRow layout="stacked" numeric={false} label="وصف المكان">{offer.location_description}</DataRow>
                 </div>
               ) : null}
             </dl>
           </section>
 
-          <section className="rounded-2xl border border-line bg-surface p-5">
+          <section className="card p-5">
             <h2 className="font-semibold">الوثائق</h2>
             <p className="mt-2 text-sm">
               <span className="text-muted">مصرّح بها: </span>
@@ -171,9 +170,9 @@ export default async function LandOfferDetailPage({ params }: PageProps<"/admin/
           <section className="space-y-3">
             <h2 className="text-lg font-semibold">سجل المراجعة</h2>
             {(reviews.data ?? []).length === 0 ? (
-              <p className="rounded-2xl border border-dashed border-line-strong bg-surface p-6 text-center text-muted">لم تبدأ المراجعة بعد.</p>
+              <EmptyState>لم تبدأ المراجعة بعد.</EmptyState>
             ) : (
-              <ol className="rounded-2xl border border-line bg-surface">
+              <ol className="panel">
                 {(reviews.data ?? []).map((review) => (
                   <li key={review.id} className="border-b border-line px-5 py-4 last:border-b-0">
                     <div className="flex flex-wrap items-baseline justify-between gap-2">
@@ -195,7 +194,7 @@ export default async function LandOfferDetailPage({ params }: PageProps<"/admin/
 
         <aside className="space-y-4">
           {demandData ? (
-            <section className="rounded-2xl border border-line bg-surface p-4">
+            <section className="card p-4">
               <h2 className="font-semibold">الطلب في {governorate}</h2>
               <p className="mt-1 text-xs text-muted">عدد الأشخاص المسجّلين، دون بيانات شخصية.</p>
               <p className="mt-3 text-3xl font-semibold">{formatCount(demandData.in_governorate)}</p>
@@ -212,7 +211,7 @@ export default async function LandOfferDetailPage({ params }: PageProps<"/admin/
           ) : null}
 
           {stageOptions.length > 0 ? (
-            <section className="rounded-2xl border border-line bg-surface p-4">
+            <section className="card p-4">
               <h2 className="mb-3 font-semibold">تسجيل مراجعة</h2>
               <ActionForm action={reviewLandOffer.bind(null, offer.id)} submitLabel="تسجيل">
                 <label className="block space-y-1">
@@ -252,19 +251,10 @@ export default async function LandOfferDetailPage({ params }: PageProps<"/admin/
               </ActionForm>
             </section>
           ) : (
-            <p className="rounded-2xl border border-line bg-surface p-4 text-sm text-muted">اطلاع فقط: المراجعة من اختصاص Legal وAgricultural Manager وAdmin.</p>
+            <p className="card p-4 text-sm text-muted">اطلاع فقط: المراجعة من اختصاص Legal وAgricultural Manager وAdmin.</p>
           )}
         </aside>
       </div>
-    </div>
-  );
-}
-
-function Item({ label, children }: { label: string; children: React.ReactNode }) {
-  return (
-    <div>
-      <dt className="text-muted">{label}</dt>
-      <dd className="mt-0.5 font-medium text-ink">{children}</dd>
     </div>
   );
 }

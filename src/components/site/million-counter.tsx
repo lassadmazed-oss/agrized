@@ -109,9 +109,9 @@ export function MillionCounter({ progress, copy }: MillionCounterProps) {
 
   return (
     <section id="million" className="scroll-mt-20 border-y border-line bg-surface">
-      <div className="mx-auto max-w-6xl px-4 py-14 sm:px-6">
+      <div className="mx-auto max-w-6xl px-4 py-section sm:px-6">
         <div className="flex flex-wrap items-end justify-between gap-4">
-          <h2 className="font-display text-3xl font-bold text-forest sm:text-4xl">{copy.title}</h2>
+          <h2 className="section-title">{copy.title}</h2>
           {copy.goalLabel ? (
             <p className="text-sm text-muted">
               {fill(copy.goalLabel, { goal: <span className="font-semibold text-ink tabular-nums">{figures.goal}</span> })}
@@ -150,9 +150,9 @@ export function MillionCounter({ progress, copy }: MillionCounterProps) {
         </div>
 
         {stages.length > 0 ? (
-          <dl className={`mt-8 grid gap-4 sm:grid-cols-2 ${STAGE_COLUMNS[stages.length]}`}>
+          <dl className={`mt-roomy grid gap-4 sm:grid-cols-2 ${STAGE_COLUMNS[stages.length]}`}>
             {stages.map((tile) => (
-              <div key={tile.key} className="rounded-2xl border border-line bg-paper p-5">
+              <div key={tile.key} className="card bg-paper p-5">
                 <dt className="text-sm text-muted">{copy.tiles[tile.key].label}</dt>
                 <dd className="mt-1 font-display text-4xl font-bold text-forest tabular-nums">{formatCount(tile.value)}</dd>
                 {copy.tiles[tile.key].hint ? (
@@ -168,7 +168,7 @@ export function MillionCounter({ progress, copy }: MillionCounterProps) {
             {context.map((tile) => (
               <div
                 key={tile.key}
-                className="flex items-center justify-between gap-4 rounded-2xl border border-line bg-paper px-5 py-4"
+                className="card flex items-center justify-between gap-4 bg-paper px-5 py-4"
               >
                 <div>
                   <dt className="text-sm text-muted">{copy.tiles[tile.key].label}</dt>

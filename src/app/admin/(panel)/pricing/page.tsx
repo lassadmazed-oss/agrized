@@ -127,7 +127,7 @@ export default async function PricingPage({ searchParams }: PageProps<"/admin/pr
   return (
     <div className="max-w-5xl space-y-12">
       <header className="space-y-3">
-        <h1 className="font-display text-4xl font-bold text-forest">التسعير</h1>
+        <h1 className="section-title">التسعير</h1>
         <p className="max-w-3xl leading-7 text-muted">
           سعر الزيتونة = قيمة الأرض (مساحة الزيتونة × ثمن المتر) + تكلفة الغراسة + المصاريف الإضافية، ثم يُضاف هامش AgriZed. كل رقم هنا
           يُقرأ من قاعدة البيانات، وكل تغيير يُسجَّل مع سببه في سجل العمليات. الزائر ما يشوفش هذه التفاصيل: يشوف كان سعر الزيتونة والسعر

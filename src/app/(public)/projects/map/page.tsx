@@ -52,7 +52,7 @@ export default async function CoveragePage() {
                 <li key={governorate.id}>
                   <Link
                     href={projectsHref({ gov: String(governorate.id) })}
-                    className="flex h-full items-center justify-between gap-4 rounded-2xl border border-line bg-surface p-5 transition-colors hover:border-leaf"
+                    className="card flex h-full items-center justify-between gap-4 p-5 transition-colors hover:border-leaf"
                   >
                     <span>
                       <span className="block text-lg font-semibold text-ink">{governorate.name_ar}</span>

@@ -119,11 +119,11 @@ export default async function AuditPage({ searchParams }: PageProps<"/admin/audi
   return (
     <div className="space-y-6">
       <header>
-        <h1 className="font-display text-4xl font-bold text-forest">سجل العمليات</h1>
+        <h1 className="section-title">سجل العمليات</h1>
         <p className="mt-2 max-w-2xl leading-7 text-muted">من قام بالعملية، متى، ماذا تغيّر، ولماذا. السجل لا يُعدَّل ولا يُحذف.</p>
       </header>
 
-      <form method="get" className="grid gap-3 rounded-2xl border border-line bg-surface p-4 sm:grid-cols-2 lg:grid-cols-6">
+      <form method="get" className="card grid gap-3 p-4 sm:grid-cols-2 lg:grid-cols-6">
         <select name="entity" defaultValue={entity ?? ""} className="field" aria-label="الكيان">
           <option value="">كل الكيانات</option>
           {Object.entries(ENTITY_LABELS).map(([value, label]) => (
@@ -169,7 +169,7 @@ export default async function AuditPage({ searchParams }: PageProps<"/admin/audi
           // Named events (e.g. a parcel status change) carry both values too, so they get the same table as updates.
           const changes = log.old_data && log.new_data ? changedFields(log.old_data, log.new_data) : [];
           return (
-            <li key={log.id} className="rounded-xl border border-line bg-surface px-4 py-3 text-sm">
+            <li key={log.id} className="card rounded-xl px-4 py-3 text-sm">
               <div className="flex flex-wrap items-baseline justify-between gap-2">
                 <p>
                   <span className="font-semibold">{ACTION_LABELS[log.action] ?? log.action}</span>

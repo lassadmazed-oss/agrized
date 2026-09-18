@@ -58,7 +58,7 @@ export default async function SettingsPage() {
   return (
     <div className="max-w-4xl space-y-10">
       <header>
-        <h1 className="font-display text-4xl font-bold text-forest">الإعدادات والنصوص</h1>
+        <h1 className="section-title">الإعدادات والنصوص</h1>
         <p className="mt-2 max-w-2xl leading-7 text-muted">
           كل قيمة هنا تُقرأ من قاعدة البيانات، لا من الكود. الحفظ يسري فوراً ويُسجَّل في سجل العمليات.
         </p>
@@ -75,7 +75,7 @@ export default async function SettingsPage() {
             </div>
             <ul className="space-y-3">
               {rows.map((setting) => (
-                <li key={setting.key} className="rounded-2xl border border-line bg-surface p-5">
+                <li key={setting.key} className="card p-5">
                   <div className="mb-3 flex flex-wrap items-baseline justify-between gap-2">
                     <div>
                       <h3 className="font-semibold">{setting.label_ar}</h3>

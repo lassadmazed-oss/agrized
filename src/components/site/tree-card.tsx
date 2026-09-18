@@ -32,7 +32,7 @@ export function OliveMark({ trees, className = "text-paper/70" }: { trees: numbe
 export function treeCardClass(selected: boolean, tone: TreeCardTone): string {
   // On /start the radio inside the card is visually hidden, so the card itself shows keyboard focus.
   const base =
-    "flex h-full min-h-52 cursor-pointer flex-col items-center justify-center gap-1 rounded-2xl border-2 px-3 py-6 text-center transition-colors has-[.sr-only:focus-visible]:outline-2 has-[.sr-only:focus-visible]:outline-offset-2 has-[.sr-only:focus-visible]:outline-gold-bright";
+    "flex h-full cursor-pointer flex-col items-center justify-center gap-1 rounded-2xl border-2 px-3 py-5 text-center transition-colors has-[.sr-only:focus-visible]:outline-2 has-[.sr-only:focus-visible]:outline-offset-2 has-[.sr-only:focus-visible]:outline-gold-bright";
   const state =
     tone === "dark"
       ? selected

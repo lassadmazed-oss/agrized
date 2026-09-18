@@ -41,7 +41,7 @@ export function RuleForm({
     <ActionForm
       action={savePricingRule.bind(null, projectId)}
       submitLabel={isProject ? "حفظ قواعد المشروع" : "حفظ القواعد العامة"}
-      className="space-y-5 rounded-2xl border border-line bg-surface p-5"
+      className="card space-y-5 p-5"
     >
       <div className="grid gap-4 sm:grid-cols-2">
         <DinarInput

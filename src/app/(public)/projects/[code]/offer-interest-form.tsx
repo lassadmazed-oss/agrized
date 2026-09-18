@@ -1,8 +1,9 @@
 "use client";
 
-import { useMemo, useRef, useState, useTransition, type ReactNode } from "react";
+import { useMemo, useRef, useState, useTransition } from "react";
 
 import { readVisitSource } from "@/components/site/source-capture";
+import { DataRow, FormField } from "@/components/ui";
 import { toWesternDigits } from "@/lib/digits";
 import { formatArea, formatCount, formatMillimes } from "@/lib/format";
 
@@ -175,7 +176,7 @@ export function OfferInterestForm(props: OfferInterestFormProps) {
   }
 
   return (
-    <section id="offer-form" className="scroll-mt-24 rounded-2xl border border-line bg-surface p-5 sm:p-6">
+    <section id="offer-form" className="card scroll-mt-24 p-5 sm:p-6">
       <h2 className="font-display text-2xl font-bold text-forest">{props.title}</h2>
       {props.intro ? <p className="mt-2 leading-7 text-muted">{props.intro}</p> : null}
 
@@ -192,9 +193,7 @@ export function OfferInterestForm(props: OfferInterestFormProps) {
                 type="button"
                 onClick={() => update("trees", String(count))}
                 aria-pressed={trees === count}
-                className={`rounded-full border px-3.5 py-1.5 text-sm font-semibold tabular-nums transition ${
-                  trees === count ? "border-forest bg-leaf-soft text-forest" : "border-line text-ink hover:border-line-strong"
-                }`}
+                className="chip tabular-nums"
               >
                 {formatCount(count)}
               </button>
@@ -204,9 +203,7 @@ export function OfferInterestForm(props: OfferInterestFormProps) {
                 type="button"
                 onClick={() => update("trees", String(props.maxTrees))}
                 aria-pressed={trees === props.maxTrees}
-                className={`rounded-full border px-3.5 py-1.5 text-sm font-semibold tabular-nums transition ${
-                  trees === props.maxTrees ? "border-forest bg-leaf-soft text-forest" : "border-line text-ink hover:border-line-strong"
-                }`}
+                className="chip tabular-nums"
               >
                 الكل ({formatCount(props.maxTrees)})
               </button>
@@ -239,18 +236,18 @@ export function OfferInterestForm(props: OfferInterestFormProps) {
         <dl className="divide-y divide-line rounded-xl bg-paper px-4 text-sm">
           {props.figures.pricePerTreeMillimes ? (
             <>
-              <Row label={props.rowPricePerTree}>
+              <DataRow label={props.rowPricePerTree}>
                 <span className="font-display text-2xl font-bold text-forest">
                   {formatMillimes(props.figures.pricePerTreeMillimes)}
                 </span>
-              </Row>
-              {area ? <Row label={props.rowAreaPerTree}>{formatArea(area)}</Row> : null}
+              </DataRow>
+              {area ? <DataRow label={props.rowAreaPerTree}>{formatArea(area)}</DataRow> : null}
               {total ? (
-                <Row label={props.rowTotalPrice}>
+                <DataRow label={props.rowTotalPrice}>
                   <span className="font-display text-2xl font-bold text-forest">{formatMillimes(total)}</span>
-                </Row>
+                </DataRow>
               ) : null}
-              {annualTotal ? <Row label={props.rowAnnualFee}>{formatMillimes(annualTotal)}</Row> : null}
+              {annualTotal ? <DataRow label={props.rowAnnualFee}>{formatMillimes(annualTotal)}</DataRow> : null}
             </>
           ) : (
             <p className="py-3 font-semibold text-forest">{props.pricePending}</p>
@@ -261,7 +258,7 @@ export function OfferInterestForm(props: OfferInterestFormProps) {
         ) : null}
 
         <div className="grid gap-4 sm:grid-cols-2">
-          <Field id="offer-name" label="الاسم واللقب" error={errors.fullName}>
+          <FormField id="offer-name" label="الاسم واللقب" error={errors.fullName}>
             <input
               id="offer-name"
               name="fullName"
@@ -271,8 +268,8 @@ export function OfferInterestForm(props: OfferInterestFormProps) {
               aria-invalid={Boolean(errors.fullName)}
               className="field"
             />
-          </Field>
-          <Field id="offer-phone" label="رقم الهاتف" hint="8 أرقام، مثال: 98 123 456" error={errors.phone}>
+          </FormField>
+          <FormField id="offer-phone" label="رقم الهاتف" hint="8 أرقام، مثال: 98 123 456" error={errors.phone}>
             <input
               id="offer-phone"
               name="phone"
@@ -284,7 +281,7 @@ export function OfferInterestForm(props: OfferInterestFormProps) {
               aria-invalid={Boolean(errors.phone)}
               className="field"
             />
-          </Field>
+          </FormField>
         </div>
 
         <label className="choice">
@@ -292,7 +289,7 @@ export function OfferInterestForm(props: OfferInterestFormProps) {
           <span>رقم WhatsApp هو نفس رقم الهاتف</span>
         </label>
         {!form.whatsappSame ? (
-          <Field id="offer-whatsapp" label="رقم WhatsApp" error={errors.whatsapp}>
+          <FormField id="offer-whatsapp" label="رقم WhatsApp" error={errors.whatsapp}>
             <input
               id="offer-whatsapp"
               name="whatsapp"
@@ -303,10 +300,10 @@ export function OfferInterestForm(props: OfferInterestFormProps) {
               aria-invalid={Boolean(errors.whatsapp)}
               className="field"
             />
-          </Field>
+          </FormField>
         ) : null}
 
-        <Field id="offer-governorate" label="ولاية إقامتك" error={errors.governorateId}>
+        <FormField id="offer-governorate" label="ولاية إقامتك" error={errors.governorateId}>
           <select
             id="offer-governorate"
             name="governorateId"
@@ -322,7 +319,7 @@ export function OfferInterestForm(props: OfferInterestFormProps) {
               </option>
             ))}
           </select>
-        </Field>
+        </FormField>
 
         <fieldset>
           <legend className="label">كيفاش تحب نتصلوا بيك؟</legend>
@@ -348,7 +345,7 @@ export function OfferInterestForm(props: OfferInterestFormProps) {
         </fieldset>
 
         {props.contactTimes.length > 0 ? (
-          <Field id="offer-time" label="الوقت المفضّل للمكالمة (اختياري)">
+          <FormField id="offer-time" label="الوقت المفضّل للمكالمة (اختياري)">
             <select
               id="offer-time"
               name="contactTime"
@@ -363,7 +360,7 @@ export function OfferInterestForm(props: OfferInterestFormProps) {
                 </option>
               ))}
             </select>
-          </Field>
+          </FormField>
         ) : null}
 
         <label className="choice items-start">
@@ -374,7 +371,7 @@ export function OfferInterestForm(props: OfferInterestFormProps) {
             onChange={(event) => update("consent", event.target.checked)}
             aria-invalid={Boolean(errors.consent)}
           />
-          <span className="text-[0.95rem] leading-7">{props.consentText}</span>
+          <span className="text-label leading-7">{props.consentText}</span>
         </label>
         {errors.consent ? <p className="error-text -mt-4">{errors.consent}</p> : null}
 
@@ -411,39 +408,5 @@ export function OfferInterestForm(props: OfferInterestFormProps) {
         </button>
       </form>
     </section>
-  );
-}
-
-function Field({
-  id,
-  label,
-  hint,
-  error,
-  children,
-}: {
-  id: string;
-  label: string;
-  hint?: string;
-  error?: string;
-  children: ReactNode;
-}) {
-  return (
-    <div>
-      <label htmlFor={id} className="label">
-        {label}
-      </label>
-      {children}
-      {hint && !error ? <p className="hint mt-1.5">{hint}</p> : null}
-      {error ? <p className="error-text">{error}</p> : null}
-    </div>
-  );
-}
-
-function Row({ label, children }: { label: string; children: ReactNode }) {
-  return (
-    <div className="flex items-center justify-between gap-4 py-2.5">
-      <dt className="text-muted">{label}</dt>
-      <dd className="text-end font-semibold text-ink tabular-nums">{children}</dd>
-    </div>
   );
 }

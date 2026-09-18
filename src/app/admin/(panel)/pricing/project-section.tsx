@@ -1,5 +1,6 @@
 import Link from "next/link";
 
+import { EmptyState } from "@/components/ui";
 import { formatArea, formatSpacing } from "@/lib/format";
 
 import { deletePricingRule, saveProjectDownPercents, saveProjectSpacingClasses } from "./actions";
@@ -58,13 +59,13 @@ export function ProjectSection({
 
   return (
     <div className="space-y-4">
-      <form method="get" action="/admin/pricing#project-rules" className="flex flex-wrap items-end gap-3 rounded-2xl border border-line bg-surface p-4">
+      <form method="get" action="/admin/pricing#project-rules" className="card flex flex-wrap items-end gap-3 p-4">
         {Object.entries(keep).map(([name, value]) => (
           <input key={name} type="hidden" name={name} value={value} />
         ))}
         <label className="block min-w-64 flex-1 space-y-1">
           <span className="block text-sm font-semibold">المشروع</span>
-          <select name="project" defaultValue={project?.id ?? ""} className="field min-h-11">
+          <select name="project" defaultValue={project?.id ?? ""} className="field field-sm">
             <option value="">اختر مشروعاً</option>
             {projects.map((candidate) => (
               <option key={candidate.id} value={candidate.id}>
@@ -74,21 +75,21 @@ export function ProjectSection({
             ))}
           </select>
         </label>
-        <button type="submit" className="btn btn-secondary min-h-11">
+        <button type="submit" className="btn btn-secondary btn-sm">
           عرض قواعد المشروع
         </button>
       </form>
 
       {!project ? (
-        <p className="rounded-2xl border border-dashed border-line-strong bg-surface px-4 py-6 text-center text-sm text-muted">
+        <EmptyState size="sm">
           {requestedId
             ? "هذا المشروع غير موجود أو ما عندكش صلاحية الاطلاع عليه. اختر مشروعاً من القائمة."
             : projects.length === 0
               ? "ما فماش مشاريع بعد. أنشئ المشروع في «المشاريع والقطع» ثم ارجع هنا."
               : "اختر مشروعاً باش تشوف قواعده. مشروع بلا قواعد خاصة يتبع القواعد العامة كاملة."}
-        </p>
+        </EmptyState>
       ) : (
-        <div className="space-y-8 rounded-2xl border border-line bg-paper/60 p-4 sm:p-5">
+        <div className="card space-y-8 bg-paper/60 p-4 sm:p-5">
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div>
               <p dir="ltr" className="text-end text-xs text-muted">
@@ -102,10 +103,10 @@ export function ProjectSection({
               </p>
             </div>
             <div className="flex flex-wrap gap-2">
-              <Link href={`/admin/pricing?project=${project.id}&sim_project=${project.id}#simulator`} className="btn btn-ghost min-h-11">
+              <Link href={`/admin/pricing?project=${project.id}&sim_project=${project.id}#simulator`} className="btn btn-ghost btn-sm">
                 جرّب في المحاكاة
               </Link>
-              <Link href={`/admin/projects/${project.id}`} className="btn btn-ghost min-h-11">
+              <Link href={`/admin/projects/${project.id}`} className="btn btn-ghost btn-sm">
                 صفحة المشروع
               </Link>
             </div>

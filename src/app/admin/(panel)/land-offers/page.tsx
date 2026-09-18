@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 
+import { DataRow, EmptyState, StatusPill } from "@/components/ui";
 import { LAND_OFFER_ROLES, requireStaff } from "@/lib/auth";
 import { getPublicConfig } from "@/lib/config";
 import { formatCount, formatDateTime, formatMillimes } from "@/lib/format";
@@ -50,13 +51,13 @@ export default async function LandOffersPage({ searchParams }: PageProps<"/admin
   return (
     <div className="space-y-6">
       <header>
-        <h1 className="font-display text-4xl font-bold text-forest">عروض الأراضي</h1>
+        <h1 className="section-title">عروض الأراضي</h1>
         <p className="mt-2 max-w-2xl leading-7 text-muted">
           عروض أصحاب الأراضي والضيعات. لا يُنشر أي عرض، وكل عرض يمر بالمراجعة القانونية والفنية والميدانية.
         </p>
       </header>
 
-      <form method="get" className="flex flex-wrap items-end gap-3 rounded-2xl border border-line bg-surface p-4">
+      <form method="get" className="card flex flex-wrap items-end gap-3 p-4">
         <label className="block space-y-1.5">
           <span className="text-sm font-semibold">الحالة</span>
           <select name="status" defaultValue={status ?? ""} className="field min-w-44">
@@ -92,12 +93,12 @@ export default async function LandOffersPage({ searchParams }: PageProps<"/admin
       </p>
 
       {(offers ?? []).length === 0 ? (
-        <p className="rounded-2xl border border-dashed border-line-strong bg-surface px-6 py-12 text-center text-muted">لا توجد عروض مطابقة.</p>
+        <EmptyState>لا توجد عروض مطابقة.</EmptyState>
       ) : (
         <ul className="grid gap-3 lg:grid-cols-2">
           {(offers ?? []).map((offer) => (
             <li key={offer.id}>
-              <Link href={`/admin/land-offers/${offer.id}`} className="block h-full rounded-2xl border border-line bg-surface p-5 transition-colors hover:border-forest">
+              <Link href={`/admin/land-offers/${offer.id}`} className="card block h-full p-5 transition-colors hover:border-forest">
                 <div className="flex flex-wrap items-start justify-between gap-2">
                   <div>
                     <p className="font-semibold">
@@ -107,20 +108,18 @@ export default async function LandOffersPage({ searchParams }: PageProps<"/admin
                       {offer.reference_no} · {formatDateTime(offer.created_at)}
                     </p>
                   </div>
-                  <span className={`rounded-full px-2.5 py-1 text-xs font-semibold ring-1 ring-inset ${LAND_STATUS_TONES[offer.status]}`}>
-                    {LAND_STATUS_LABELS[offer.status]}
-                  </span>
+                  <StatusPill toneClass={LAND_STATUS_TONES[offer.status]}>{LAND_STATUS_LABELS[offer.status]}</StatusPill>
                 </div>
                 <dl className="mt-4 grid grid-cols-2 gap-x-4 gap-y-2 text-sm sm:grid-cols-4">
-                  <Fact label="المساحة">
+                  <DataRow layout="stacked" label="المساحة">
                     {offer.area_value} {offer.area_unit === "ha" ? "هكتار" : "م²"}
-                  </Fact>
-                  <Fact label="الزيتون">{offer.olive_tree_count ?? "—"}</Fact>
-                  <Fact label="الري">{IRRIGATION_LABELS[offer.irrigation]}</Fact>
-                  <Fact label="السعر">
+                  </DataRow>
+                  <DataRow layout="stacked" label="الزيتون">{offer.olive_tree_count ?? "—"}</DataRow>
+                  <DataRow layout="stacked" label="الري">{IRRIGATION_LABELS[offer.irrigation]}</DataRow>
+                  <DataRow layout="stacked" label="السعر">
                     {offer.asking_price_millimes !== null ? formatMillimes(offer.asking_price_millimes) : "غير محدد"}
                     {offer.price_negotiable ? " · قابل للتفاوض" : ""}
-                  </Fact>
+                  </DataRow>
                 </dl>
                 <p className="mt-3 text-xs text-muted">
                   {offer.contact_name} · {offer.files[0]?.count ?? 0} ملفات
@@ -152,15 +151,6 @@ export default async function LandOffersPage({ searchParams }: PageProps<"/admin
           )}
         </nav>
       ) : null}
-    </div>
-  );
-}
-
-function Fact({ label, children }: { label: string; children: React.ReactNode }) {
-  return (
-    <div>
-      <dt className="text-xs text-muted">{label}</dt>
-      <dd className="font-medium tabular-nums">{children}</dd>
     </div>
   );
 }

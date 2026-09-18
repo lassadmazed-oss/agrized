@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 
 import { ActionForm } from "@/components/admin/action-form";
 import { formatPercent } from "@/components/admin/tree-pricing-inputs";
+import { DataRow, EmptyState, SectionHeader, StatusPill } from "@/components/ui";
 import { ADMIN_ROLES, CRM_READ_ROLES, hasRole, requireStaff } from "@/lib/auth";
 import { getPublicConfig } from "@/lib/config";
 import {
@@ -125,14 +126,12 @@ export default async function LeadDetailPage({ params }: PageProps<"/admin/leads
         → مطالب الاستثمار
       </Link>
 
-      <header className="flex flex-wrap items-start justify-between gap-4 rounded-2xl border border-line bg-surface p-5 sm:p-6">
+      <header className="card flex flex-wrap items-start justify-between gap-4 p-5 sm:p-6">
         <div className="min-w-0 space-y-2">
           <div className="flex flex-wrap items-center gap-3">
-            <h1 className="font-display text-3xl font-bold text-forest sm:text-4xl">{person.full_name}</h1>
+            <h1 className="section-title">{person.full_name}</h1>
             {person.status ? (
-              <span className={`rounded-full px-2.5 py-1 text-xs font-semibold ring-1 ring-inset ${STAGE_TONES[person.status.stage]}`}>
-                {person.status.label_ar}
-              </span>
+              <StatusPill toneClass={STAGE_TONES[person.status.stage]}>{person.status.label_ar}</StatusPill>
             ) : null}
           </div>
           <p className="text-muted">
@@ -166,7 +165,7 @@ export default async function LeadDetailPage({ params }: PageProps<"/admin/leads
             {(requests.data ?? []).map((request) => {
               const legacy = legacyAnswers(request);
               return (
-              <article key={request.id} className="rounded-2xl border border-line bg-surface p-5">
+              <article key={request.id} className="card p-5">
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <p dir="ltr" className="font-semibold text-forest tabular-nums">
                     {request.request_no}
@@ -177,15 +176,15 @@ export default async function LeadDetailPage({ params }: PageProps<"/admin/leads
                   </p>
                 </div>
                 <dl className="mt-4 grid gap-x-6 gap-y-3 text-sm sm:grid-cols-2">
-                  <Item label="عدد الزيتونات">
+                  <DataRow layout="stacked" numeric={false} label="عدد الزيتونات">
                     <span className="tabular-nums">{request.tree_count_label_ar ?? "بدون إجابة"}</span>
-                  </Item>
-                  <Item label="مكان الاستثمار">
+                  </DataRow>
+                  <DataRow layout="stacked" numeric={false} label="مكان الاستثمار">
                     {request.invest_anywhere
                       ? "المكان غير مهم"
                       : request.invest_governorate_ids.map((id) => governorateName.get(id) ?? id).join("، ")}
-                  </Item>
-                  <Item label="يحب يملك">
+                  </DataRow>
+                  <DataRow layout="stacked" numeric={false} label="يحب يملك">
                     {request.scenario_labels.length > 0
                       ? request.scenario_labels.join("، ")
                       : request.project_type_unsure
@@ -201,73 +200,73 @@ export default async function LeadDetailPage({ params }: PageProps<"/admin/leads
                           .join(" · ")}
                       </span>
                     ) : null}
-                  </Item>
+                  </DataRow>
                   {/* Tree pricing addendum: what the visitor chose and the estimate shown at that moment. */}
-                  {request.spacing_label_ar ? <Item label="فئة المساحة">{request.spacing_label_ar}</Item> : null}
+                  {request.spacing_label_ar ? <DataRow layout="stacked" numeric={false} label="فئة المساحة">{request.spacing_label_ar}</DataRow> : null}
                   {typeof request.area_per_tree_m2 === "number" ? (
-                    <Item label="المساحة لكل زيتونة">
+                    <DataRow layout="stacked" numeric={false} label="المساحة لكل زيتونة">
                       <span className="tabular-nums">{formatArea(request.area_per_tree_m2)}</span>
-                    </Item>
+                    </DataRow>
                   ) : null}
                   {typeof request.total_area_m2 === "number" ? (
-                    <Item label="المساحة الجملية">
+                    <DataRow layout="stacked" numeric={false} label="المساحة الجملية">
                       <span className="tabular-nums">{formatArea(request.total_area_m2)}</span>
-                    </Item>
+                    </DataRow>
                   ) : null}
-                  {request.payment_mode ? <Item label="طريقة الدفع">{PAYMENT_MODE_LABELS[request.payment_mode] ?? request.payment_mode}</Item> : null}
+                  {request.payment_mode ? <DataRow layout="stacked" numeric={false} label="طريقة الدفع">{PAYMENT_MODE_LABELS[request.payment_mode] ?? request.payment_mode}</DataRow> : null}
                   {typeof request.price_per_tree_millimes === "number" ? (
-                    <Item label="سعر الزيتونة المقدّر">
+                    <DataRow layout="stacked" numeric={false} label="سعر الزيتونة المقدّر">
                       <span className="tabular-nums">{estimate(request.price_per_tree_millimes)}</span>
-                    </Item>
+                    </DataRow>
                   ) : null}
                   {typeof request.total_price_millimes === "number" ? (
-                    <Item label="السعر الجملي المقدّر">
+                    <DataRow layout="stacked" numeric={false} label="السعر الجملي المقدّر">
                       <span className="tabular-nums">{estimate(request.total_price_millimes)}</span>
-                    </Item>
+                    </DataRow>
                   ) : null}
                   {/* Plan Q-1, Q-2: the percentage of the cash total and the amount it gave when the demand was sent. */}
                   {request.down_payment_percent !== null && request.down_payment_percent !== undefined ? (
-                    <Item label="نسبة التسبقة">
+                    <DataRow layout="stacked" numeric={false} label="نسبة التسبقة">
                       <span className="tabular-nums">{formatPercent(request.down_payment_percent)}</span>
-                    </Item>
+                    </DataRow>
                   ) : null}
                   {typeof request.down_payment_amount_millimes === "number" ? (
-                    <Item label="مبلغ التسبقة المقدّر">
+                    <DataRow layout="stacked" numeric={false} label="مبلغ التسبقة المقدّر">
                       <span className="tabular-nums">{estimate(request.down_payment_amount_millimes)}</span>
-                    </Item>
+                    </DataRow>
                   ) : null}
-                  <Item label="مدة الدفع">
+                  <DataRow layout="stacked" numeric={false} label="مدة الدفع">
                     <span className="tabular-nums">{request.duration_label_ar ?? "بدون إجابة"}</span>
-                  </Item>
+                  </DataRow>
                   {typeof request.total_financed_millimes === "number" ? (
-                    <Item label="السعر بالتقسيط">
+                    <DataRow layout="stacked" numeric={false} label="السعر بالتقسيط">
                       <span className="tabular-nums">{estimate(request.total_financed_millimes)}</span>
-                    </Item>
+                    </DataRow>
                   ) : null}
                   {typeof request.monthly_millimes === "number" ? (
-                    <Item label="القسط الشهري المقدّر">
+                    <DataRow layout="stacked" numeric={false} label="القسط الشهري المقدّر">
                       <span className="tabular-nums">{estimate(request.monthly_millimes)} شهرياً</span>
-                    </Item>
+                    </DataRow>
                   ) : null}
-                  <Item label="الهدف">{request.goal_label_ar}</Item>
-                  <Item label="يحب يزور الأرض">{answerLabel(request.wants_visit, "لا، مازال")}</Item>
-                  <Item label="يحب حل تمويل بنكي">{answerLabel(request.wants_bank_financing, "لا")}</Item>
-                  <Item label="التواصل">
+                  <DataRow layout="stacked" numeric={false} label="الهدف">{request.goal_label_ar}</DataRow>
+                  <DataRow layout="stacked" numeric={false} label="يحب يزور الأرض">{answerLabel(request.wants_visit, "لا، مازال")}</DataRow>
+                  <DataRow layout="stacked" numeric={false} label="يحب حل تمويل بنكي">{answerLabel(request.wants_bank_financing, "لا")}</DataRow>
+                  <DataRow layout="stacked" numeric={false} label="التواصل">
                     {CHANNEL_LABELS[request.contact_channel]}
                     {request.contact_time_label_ar ? ` · ${request.contact_time_label_ar}` : " · أي وقت"}
-                  </Item>
-                  <Item label="الإقامة المصرّح بها">
+                  </DataRow>
+                  <DataRow layout="stacked" numeric={false} label="الإقامة المصرّح بها">
                     {[
                       request.residence_delegation_id ? delegationName.get(request.residence_delegation_id) : null,
                       governorateName.get(request.residence_governorate_id),
                     ]
                       .filter(Boolean)
                       .join("، ")}
-                  </Item>
-                  {request.full_name !== person.full_name ? <Item label="الاسم في هذا المطلب">{request.full_name}</Item> : null}
-                  <Item label="المصدر">
+                  </DataRow>
+                  {request.full_name !== person.full_name ? <DataRow layout="stacked" numeric={false} label="الاسم في هذا المطلب">{request.full_name}</DataRow> : null}
+                  <DataRow layout="stacked" numeric={false} label="المصدر">
                     <span dir="ltr">{(request.source as { utm_source?: string } | null)?.utm_source ?? "direct"}</span>
-                  </Item>
+                  </DataRow>
                 </dl>
                 {legacy.length > 0 ? (
                   <div className="mt-4 border-t border-line pt-4">
@@ -275,9 +274,9 @@ export default async function LeadDetailPage({ params }: PageProps<"/admin/leads
                     <p className="text-xs text-muted">أسئلة ما عادتش في الاستمارة. القيم محفوظة كيما سجّلها الحريف.</p>
                     <dl className="mt-3 grid gap-x-6 gap-y-3 text-sm sm:grid-cols-2">
                       {legacy.map((answer) => (
-                        <Item key={answer.label} label={answer.label}>
+                        <DataRow layout="stacked" numeric={false} key={answer.label} label={answer.label}>
                           <span className="tabular-nums">{answer.value}</span>
-                        </Item>
+                        </DataRow>
                       ))}
                     </dl>
                   </div>
@@ -290,9 +289,9 @@ export default async function LeadDetailPage({ params }: PageProps<"/admin/leads
           <section className="space-y-3">
             <h2 className="text-lg font-semibold">سجل الملف</h2>
             {timeline.length === 0 ? (
-              <p className="rounded-2xl border border-dashed border-line-strong bg-surface p-6 text-center text-muted">لا توجد عمليات بعد.</p>
+              <EmptyState>لا توجد عمليات بعد.</EmptyState>
             ) : (
-              <ol className="space-y-0 rounded-2xl border border-line bg-surface">
+              <ol className="panel space-y-0">
                 {timeline.map((entry, index) => (
                   <li key={`${entry.kind}-${entry.at}-${index}`} className="border-b border-line px-5 py-4 last:border-b-0">
                     <div className="flex flex-wrap items-baseline justify-between gap-2">
@@ -314,7 +313,8 @@ export default async function LeadDetailPage({ params }: PageProps<"/admin/leads
         <aside className="space-y-4">
           {canEdit ? (
             <>
-              <Panel title="تسجيل محاولة تواصل">
+              <section className="card p-4">
+                <SectionHeader as="h2" level={3} title="تسجيل محاولة تواصل" className="mb-3" />
                 <ActionForm action={addContactAttempt.bind(null, person.id)} submitLabel="تسجيل">
                   <div className="grid grid-cols-2 gap-2">
                     <select name="channel" className="field" defaultValue="phone" aria-label="القناة">
@@ -341,9 +341,10 @@ export default async function LeadDetailPage({ params }: PageProps<"/admin/leads
                     <input type="datetime-local" name="next_follow_up_at" className="field" dir="ltr" />
                   </label>
                 </ActionForm>
-              </Panel>
+              </section>
 
-              <Panel title="الحالة">
+              <section className="card p-4">
+                <SectionHeader as="h2" level={3} title="الحالة" className="mb-3" />
                 <ActionForm action={updateStatus.bind(null, person.id)} submitLabel="حفظ الحالة" buttonClassName="btn btn-secondary">
                   <select name="status_id" defaultValue={person.status?.id ?? ""} className="field" aria-label="حالة الملف">
                     {(statuses.data ?? []).map((status) => (
@@ -353,20 +354,22 @@ export default async function LeadDetailPage({ params }: PageProps<"/admin/leads
                     ))}
                   </select>
                 </ActionForm>
-              </Panel>
+              </section>
 
-              <Panel title="ملاحظة">
+              <section className="card p-4">
+                <SectionHeader as="h2" level={3} title="ملاحظة" className="mb-3" />
                 <ActionForm action={addNote.bind(null, person.id)} submitLabel="إضافة" buttonClassName="btn btn-secondary">
                   <textarea name="body" rows={3} maxLength={5000} required className="field min-h-24" aria-label="الملاحظة" />
                 </ActionForm>
-              </Panel>
+              </section>
             </>
           ) : (
-            <p className="rounded-2xl border border-line bg-surface p-4 text-sm text-muted">اطلاع فقط: لا يمكنك تعديل هذا الملف.</p>
+            <p className="card p-4 text-sm text-muted">اطلاع فقط: لا يمكنك تعديل هذا الملف.</p>
           )}
 
           {isAdmin ? (
-            <Panel title="تحويل الملف">
+            <section className="card p-4">
+              <SectionHeader as="h2" level={3} title="تحويل الملف" className="mb-3" />
               <ActionForm action={assignPerson.bind(null, person.id)} submitLabel="تحويل" buttonClassName="btn btn-secondary">
                 <select name="to_user" defaultValue={person.assigned_to ?? "none"} className="field" aria-label="الـCommercial">
                   <option value="none">بدون مسؤول</option>
@@ -380,7 +383,7 @@ export default async function LeadDetailPage({ params }: PageProps<"/admin/leads
                 </select>
                 <input name="reason" maxLength={500} placeholder="السبب (مثال: مغادرة الموظف)" className="field" />
               </ActionForm>
-            </Panel>
+            </section>
           ) : null}
         </aside>
       </div>
@@ -419,22 +422,4 @@ function legacyAnswers(request: LegacySnapshot): { label: string; value: string 
     { label: "الميزانية", value: request.budget_label_ar },
   ];
   return answers.flatMap((answer) => (answer.value ? [{ label: answer.label, value: answer.value }] : []));
-}
-
-function Item({ label, children }: { label: string; children: React.ReactNode }) {
-  return (
-    <div>
-      <dt className="text-muted">{label}</dt>
-      <dd className="mt-0.5 font-medium text-ink">{children}</dd>
-    </div>
-  );
-}
-
-function Panel({ title, children }: { title: string; children: React.ReactNode }) {
-  return (
-    <section className="rounded-2xl border border-line bg-surface p-4">
-      <h2 className="mb-3 font-semibold">{title}</h2>
-      {children}
-    </section>
-  );
 }

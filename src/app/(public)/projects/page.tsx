@@ -4,6 +4,7 @@ import Link from "next/link";
 import { ComingSoon, PreviewBanner } from "@/components/site/module-gate";
 import { ParcelCard } from "@/components/site/parcel-card";
 import { ProjectCard } from "@/components/site/project-card";
+import { EmptyState } from "@/components/ui";
 import { getPublicConfig, optionsFor, settingText, type PublicConfig } from "@/lib/config";
 import { moduleAccess } from "@/lib/modules";
 import { OFFER_TYPE_LABELS, offerTypeOf, type OfferType } from "@/lib/projects";
@@ -105,18 +106,20 @@ export default async function ProjectsPage({ searchParams }: PageProps<"/project
           <FilterForm filters={filters} config={config} />
 
           {shown.length === 0 ? (
-            <div className="mt-8 rounded-2xl border border-dashed border-line-strong bg-paper px-6 py-12 text-center">
-              <p className="leading-7 text-muted">
-                {settingText(
-                  config,
-                  "projects.empty_text",
-                  "ما فماش قطع متاحة بهذه المعايير توّا. سجّل مطلبك ونعلموك أول ما تتوفر قطعة تشبه اللي تحب.",
-                )}
-              </p>
-              <Link href="/register" className="btn btn-primary mt-5">
-                سجّل مطلبك
-              </Link>
-            </div>
+            <EmptyState
+              className="mt-8 bg-paper"
+              action={
+                <Link href="/register" className="btn btn-primary">
+                  سجّل مطلبك
+                </Link>
+              }
+            >
+              {settingText(
+                config,
+                "projects.empty_text",
+                "ما فماش قطع متاحة بهذه المعايير توّا. سجّل مطلبك ونعلموك أول ما تتوفر قطعة تشبه اللي تحب.",
+              )}
+            </EmptyState>
           ) : (
             <ul className="mt-8 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
               {shown.map((parcel) => (

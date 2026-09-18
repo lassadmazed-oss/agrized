@@ -25,7 +25,7 @@ export default async function MediaPage() {
   return (
     <div className="max-w-4xl space-y-8">
       <header>
-        <h1 className="font-display text-4xl font-bold text-forest">صور الموقع</h1>
+        <h1 className="section-title">صور الموقع</h1>
         <p className="mt-2 max-w-2xl leading-7 text-muted">
           كل موضع هنا هو صورة في الصفحة الرئيسية. الصور تُنشر فوراً، ومادام الموضع فارغاً يعرض الموقع رسماً بألوان
           العلامة بدل إطار مكسور.
@@ -37,7 +37,7 @@ export default async function MediaPage() {
 
       <ul className="space-y-4">
         {(slots ?? []).map((slot) => (
-          <li key={slot.slot} className="rounded-2xl border border-line bg-surface p-5">
+          <li key={slot.slot} className="card p-5">
             <div className="grid gap-5 sm:grid-cols-[12rem_1fr]">
               <div>
                 <div

@@ -503,7 +503,7 @@ export function StartChooser({
       <h1
         ref={headingRef}
         tabIndex={-1}
-        className="mt-6 font-display text-3xl font-bold text-balance text-forest outline-none sm:text-4xl"
+        className="section-title mt-6 outline-none"
       >
         <Bi ar={questionTitle[activeStep].ar} fr={questionTitle[activeStep].fr} frClassName="mt-1 text-[0.6em] text-muted" />
       </h1>
@@ -529,10 +529,11 @@ export function StartChooser({
         </p>
       ) : null}
 
-      {/* On a wide screen a two-chip question is short, and the page shrinking under it looks broken; a phone shows the
-          question full width and needs no filler, which would only push the buttons below the fold. */}
-      <div className="mt-8 grid gap-8 lg:grid-cols-[minmax(0,1fr)_22rem] lg:items-start">
-        <div className={isSummary ? "" : "sm:min-h-[52vh]"}>
+      {/* A two-chip question is short, and it used to reserve half a viewport under itself so the page would not
+          shrink between steps. The height was never the problem: beside the tall figures card a short question simply
+          looked stranded at the top. It now centres itself against that column and reserves nothing. */}
+      <div className="mt-roomy grid gap-roomy lg:grid-cols-[minmax(0,1fr)_22rem] lg:items-start">
+        <div className="lg:self-center">
         {/* 1 · The tiers, as the Back Office wrote them (LEAD-01), plus a free number. */}
         {activeStep === "trees" ? (
           <fieldset>
@@ -740,7 +741,7 @@ export function StartChooser({
         {/* 5 · The figures, beside the questions on every screen, following each answer. */}
         {showFigures ? (
           <aside className="lg:sticky lg:top-24">
-            <section className="rounded-2xl border border-line bg-surface p-5 sm:p-6">
+            <section className="card card-estimate p-5 sm:p-6">
               <p role="status" className="sr-only">
                 {announcement}
               </p>
@@ -764,7 +765,7 @@ export function StartChooser({
 
               {/* The button belongs to the last screen: earlier the card only reports what the answers cost. */}
               {!isSummary ? null : gap === null ? (
-                <Link href={href} className="btn mt-6 min-h-14 w-full bg-gold-bright text-lg text-forest-700 hover:bg-gold-soft">
+                <Link href={href} className="btn mt-6 w-full bg-gold-bright text-lg text-forest-700 hover:bg-gold-soft">
                   <span>
                     <Bi ar={copy.continue} fr={copy.continueFr} frClassName="text-[0.7em] text-forest-700/80" />
                   </span>
@@ -774,7 +775,7 @@ export function StartChooser({
                   <span
                     aria-disabled="true"
                     aria-describedby={gapHint?.ar ? continueHintId : undefined}
-                    className="btn mt-6 min-h-14 w-full cursor-not-allowed bg-line text-lg text-muted"
+                    className="btn mt-6 w-full cursor-not-allowed bg-line text-lg text-muted"
                   >
                     <span>
                       <Bi ar={copy.continue} fr={copy.continueFr} frClassName="text-[0.7em] text-muted" />
@@ -943,7 +944,7 @@ function ChoiceGrid({
       <legend className="sr-only">{legend}</legend>
       <div className={`grid gap-3 ${twoColumns ? "grid-cols-1 sm:grid-cols-2" : "grid-cols-2 sm:grid-cols-3"}`}>
         {options.map((option) => (
-          <label key={option.id} className="choice min-h-16 justify-center">
+          <label key={option.id} className="choice justify-center">
             <input
               type="radio"
               name={name}

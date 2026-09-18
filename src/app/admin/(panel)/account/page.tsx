@@ -13,13 +13,13 @@ export default async function AccountPage() {
   return (
     <div className="max-w-lg space-y-6">
       <header>
-        <h1 className="font-display text-4xl font-bold text-forest">كلمة السر</h1>
+        <h1 className="section-title">كلمة السر</h1>
         <p className="mt-2 text-muted">
           {session.fullName} · <span dir="ltr">{session.email}</span> · {session.roles.map((role) => ROLE_LABELS[role]).join("، ")}
         </p>
       </header>
 
-      <section className="rounded-2xl border border-line bg-surface p-5 sm:p-6">
+      <section className="card p-5 sm:p-6">
         <ActionForm action={changePassword} submitLabel="تغيير كلمة السر" className="space-y-4">
           <label className="block space-y-1.5">
             <span className="text-sm font-semibold">كلمة السر الحالية</span>

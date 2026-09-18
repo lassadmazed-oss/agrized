@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 
 import { ActionForm } from "@/components/admin/action-form";
+import { DataRow, EmptyState, FormField, StatusPill } from "@/components/ui";
 import { hasRole, requireStaff, type StaffRole } from "@/lib/auth";
 import { getPublicConfig } from "@/lib/config";
 import { formatCount, formatMillimes } from "@/lib/format";
@@ -44,14 +45,14 @@ export default async function ProjectsPage() {
   return (
     <div className="space-y-6">
       <header>
-        <h1 className="font-display text-4xl font-bold text-forest">المشاريع والقطع</h1>
+        <h1 className="section-title">المشاريع والقطع</h1>
         <p className="mt-2 max-w-2xl leading-7 text-muted">
           كل قطعة لها مساحتها وعدد زيتوناتها ونظام غراستها وسعرها، وكلها مستقلة عن بعضها. لا شيء يُحسب آلياً من المساحة.
         </p>
       </header>
 
       {canWrite ? (
-        <details className="rounded-2xl border border-line bg-surface">
+        <details className="panel">
           <summary className="cursor-pointer list-none px-5 py-4 font-semibold [&::-webkit-details-marker]:hidden">+ مشروع جديد</summary>
           <div className="border-t border-line px-5 py-5">
             <ActionForm
@@ -60,13 +61,13 @@ export default async function ProjectsPage() {
               className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3"
               buttonClassName="btn btn-primary sm:col-span-2 lg:col-span-3 lg:w-48"
             >
-              <Labeled label="رمز المشروع">
+              <FormField size="sm" label="رمز المشروع">
                 <input name="code" required placeholder="SFX-01" dir="ltr" className="field text-left" />
-              </Labeled>
-              <Labeled label="الاسم">
+              </FormField>
+              <FormField size="sm" label="الاسم">
                 <input name="name" required className="field" />
-              </Labeled>
-              <Labeled label="الولاية">
+              </FormField>
+              <FormField size="sm" label="الولاية">
                 <select name="governorate_id" required defaultValue="" className="field">
                   <option value="" disabled>
                     اختر
@@ -77,8 +78,8 @@ export default async function ProjectsPage() {
                     </option>
                   ))}
                 </select>
-              </Labeled>
-              <Labeled label="نوع المشروع">
+              </FormField>
+              <FormField size="sm" label="نوع المشروع">
                 <select name="project_type_id" defaultValue="" className="field">
                   <option value="">بدون</option>
                   {config.projectTypes.map((type) => (
@@ -87,11 +88,11 @@ export default async function ProjectsPage() {
                     </option>
                   ))}
                 </select>
-              </Labeled>
-              <Labeled label="المساحة الجملية (م²)">
+              </FormField>
+              <FormField size="sm" label="المساحة الجملية (م²)">
                 <input name="total_area_m2" inputMode="decimal" dir="ltr" className="field text-left" />
-              </Labeled>
-              <Labeled label="الحالة">
+              </FormField>
+              <FormField size="sm" label="الحالة">
                 <select name="status" defaultValue="draft" className="field">
                   {Object.entries(PROJECT_STATUS_LABELS).map(([value, label]) => (
                     <option key={value} value={value}>
@@ -99,16 +100,14 @@ export default async function ProjectsPage() {
                     </option>
                   ))}
                 </select>
-              </Labeled>
+              </FormField>
             </ActionForm>
           </div>
         </details>
       ) : null}
 
       {(projects.data ?? []).length === 0 ? (
-        <p className="rounded-2xl border border-dashed border-line-strong bg-surface px-6 py-12 text-center text-muted">
-          لا توجد مشاريع بعد.
-        </p>
+        <EmptyState>لا توجد مشاريع بعد.</EmptyState>
       ) : (
         <ul className="grid gap-3 lg:grid-cols-2">
           {(projects.data ?? []).map((project) => {
@@ -117,7 +116,7 @@ export default async function ProjectsPage() {
               <li key={project.id}>
                 <Link
                   href={`/admin/projects/${project.id}`}
-                  className="block h-full rounded-2xl border border-line bg-surface p-5 transition-colors hover:border-forest"
+                  className="card block h-full p-5 transition-colors hover:border-forest"
                 >
                   <div className="flex flex-wrap items-start justify-between gap-2">
                     <div>
@@ -126,22 +125,20 @@ export default async function ProjectsPage() {
                         {project.code} · {governorateName.get(project.governorate_id)}
                       </p>
                     </div>
-                    <span
-                      className={`rounded-full px-2.5 py-1 text-xs font-semibold ring-1 ring-inset ${PROJECT_STATUS_TONES[project.status as ProjectStatus]}`}
-                    >
+                    <StatusPill toneClass={PROJECT_STATUS_TONES[project.status as ProjectStatus]}>
                       {PROJECT_STATUS_LABELS[project.status as ProjectStatus]}
-                    </span>
+                    </StatusPill>
                   </div>
                   <dl className="mt-4 grid grid-cols-2 gap-x-4 gap-y-2 text-sm sm:grid-cols-4">
-                    <Fact label="القطع">
+                    <DataRow layout="stacked" label="القطع">
                       {formatCount(stats.count)}
                       {stats.count > 0 ? (
                         <span className="text-xs text-muted"> · {formatCount(stats.available)} {PARCEL_STATUS_LABELS.available as string}</span>
                       ) : null}
-                    </Fact>
-                    <Fact label="مساحة القطع">{formatCount(Math.round(stats.area))} م²</Fact>
-                    <Fact label="زيتونات القطع">{formatCount(stats.trees)}</Fact>
-                    <Fact label="قيمة القطع">{formatMillimes(stats.value)}</Fact>
+                    </DataRow>
+                    <DataRow layout="stacked" label="مساحة القطع">{formatCount(Math.round(stats.area))} م²</DataRow>
+                    <DataRow layout="stacked" label="زيتونات القطع">{formatCount(stats.trees)}</DataRow>
+                    <DataRow layout="stacked" label="قيمة القطع">{formatMillimes(stats.value)}</DataRow>
                   </dl>
                 </Link>
               </li>
@@ -152,23 +149,4 @@ export default async function ProjectsPage() {
     </div>
   );
 }
-
-function Labeled({ label, children }: { label: string; children: React.ReactNode }) {
-  return (
-    <label className="block space-y-1.5">
-      <span className="block text-sm font-semibold">{label}</span>
-      {children}
-    </label>
-  );
-}
-
-function Fact({ label, children }: { label: string; children: React.ReactNode }) {
-  return (
-    <div>
-      <dt className="text-xs text-muted">{label}</dt>
-      <dd className="font-medium tabular-nums">{children}</dd>
-    </div>
-  );
-}
-
 export type { ParcelStatus };

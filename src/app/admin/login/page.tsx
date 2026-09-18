@@ -26,7 +26,7 @@ export default async function AdminLoginPage({ searchParams }: PageProps<"/admin
           <h1 className="mt-4 text-lg font-semibold text-ink">دخول فريق AgriZed</h1>
           <p className="mt-1 text-sm text-muted">الـBack Office مخصص لموظفي AgriZed فقط.</p>
         </div>
-        <div className="mt-8 rounded-2xl border border-line bg-surface p-6">
+        <div className="card mt-8 p-6">
           <LoginForm next={typeof next === "string" ? next : "/admin"} />
         </div>
       </div>

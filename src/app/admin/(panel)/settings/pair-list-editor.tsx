@@ -36,7 +36,7 @@ export function PairListEditor({ initial, firstKey, secondKey, firstLabel, secon
     <div className="space-y-3">
       <input type="hidden" name="value" value={JSON.stringify(items)} />
       {items.map((item, index) => (
-        <div key={index} className="space-y-2 rounded-xl border border-line bg-paper/50 p-3">
+        <div key={index} className="card space-y-2 rounded-xl bg-paper/50 p-3">
           <div className="flex items-center justify-between gap-2 text-xs">
             <span className="font-semibold text-muted tabular-nums">{index + 1}</span>
             <div className="flex gap-3">

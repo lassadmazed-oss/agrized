@@ -1,7 +1,7 @@
 import Link from "next/link";
 
-import { ParcelRow } from "@/components/site/parcel-row";
 import { RemotePhoto } from "@/components/site/site-photo";
+import { DataRow } from "@/components/ui";
 import { PLANTATION_LABELS, PRODUCTION_LABELS } from "@/lib/crm";
 import { formatArea, formatCount, formatMillimes } from "@/lib/format";
 import { durationLabel, OFFER_TYPE_LABELS, offerTypeOf, parcelStatusLabel, parcelStatusTone, PROPERTY_TYPE_LABELS } from "@/lib/projects";
@@ -25,7 +25,7 @@ export function ParcelCard({ parcel, href, place, pricePending, maxMonths }: Par
   const trees = parcel.property_type === "bare_land" ? PROPERTY_TYPE_LABELS.bare_land : formatCount(parcel.olive_tree_count ?? 0);
 
   return (
-    <li className="overflow-hidden rounded-2xl border border-line bg-surface transition-shadow hover:shadow-[0_18px_40px_-28px_rgba(31,74,44,0.45)]">
+    <li className="card overflow-hidden transition-shadow hover:shadow-[0_18px_40px_-28px_rgba(31,74,44,0.45)]">
       <Link href={href} className="block h-full focus-visible:outline-offset-[-2px]">
         <RemotePhoto
           url={parcel.photo_url}
@@ -41,23 +41,23 @@ export function ParcelCard({ parcel, href, place, pricePending, maxMonths }: Par
               <h3 className="mt-0.5 font-semibold text-ink">القطعة {parcel.code}</h3>
               <p className="mt-0.5 truncate text-sm text-muted">{place ?? parcel.project_name}</p>
             </div>
-            <span className={`shrink-0 rounded-full px-2.5 py-1 text-xs font-semibold ring-1 ring-inset ${parcelStatusTone(parcel.status)}`}>
+            <span className={`pill shrink-0 ring-1 ring-inset ${parcelStatusTone(parcel.status)}`}>
               {parcelStatusLabel(parcel.status)}
             </span>
           </div>
 
           <dl className="mt-4 space-y-2 text-sm">
-            <ParcelRow label="المساحة">{formatCount(parcel.area_m2)} م²</ParcelRow>
-            <ParcelRow label="عدد الزيتونات">{trees}</ParcelRow>
+            <DataRow padded={false} label="المساحة">{formatCount(parcel.area_m2)} م²</DataRow>
+            <DataRow padded={false} label="عدد الزيتونات">{trees}</DataRow>
             {parcel.on_tree_pricing && parcel.area_per_tree_m2 ? (
-              <ParcelRow label="مساحة كل زيتونة">{formatArea(parcel.area_per_tree_m2)}</ParcelRow>
+              <DataRow padded={false} label="مساحة كل زيتونة">{formatArea(parcel.area_per_tree_m2)}</DataRow>
             ) : null}
-            <ParcelRow label="نوع الغراسة">
+            <DataRow padded={false} label="نوع الغراسة">
               {parcel.plantation_system ? (PLANTATION_LABELS[parcel.plantation_system] ?? parcel.plantation_system) : "—"}
-            </ParcelRow>
-            <ParcelRow label="حالة الإنتاج">
+            </DataRow>
+            <DataRow padded={false} label="حالة الإنتاج">
               {parcel.production_status ? (PRODUCTION_LABELS[parcel.production_status] ?? parcel.production_status) : "—"}
-            </ParcelRow>
+            </DataRow>
           </dl>
 
           {parcel.offered ? (

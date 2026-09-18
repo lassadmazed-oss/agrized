@@ -35,7 +35,7 @@ export default async function SetupPage({ searchParams }: PageProps<"/admin/setu
           </p>
         </div>
 
-        <div className="mt-8 rounded-2xl border border-line bg-surface p-6">
+        <div className="card mt-8 p-6">
           {emails.length === 0 ? (
             <p className="text-sm text-danger">
               ما فماش حساب Super Admin. أنشئ واحداً أولاً بالأمر:{" "}

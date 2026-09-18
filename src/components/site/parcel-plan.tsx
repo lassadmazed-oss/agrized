@@ -22,7 +22,7 @@ export function ParcelPlan({ tiles, title }: { tiles: PlanTile[]; title: string 
   for (const tile of tiles) counts.set(tile.status, (counts.get(tile.status) ?? 0) + 1);
 
   return (
-    <section aria-label={title} className="rounded-2xl border border-line bg-surface p-4 sm:p-5">
+    <section aria-label={title} className="panel p-4 sm:p-5">
       <div className="flex flex-wrap items-baseline justify-between gap-3">
         <h3 className="font-semibold text-ink">{title}</h3>
         <ul className="flex flex-wrap gap-1.5 text-xs">

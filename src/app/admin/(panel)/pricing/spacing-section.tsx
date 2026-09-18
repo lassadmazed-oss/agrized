@@ -16,7 +16,7 @@ export function SpacingSection({ classes, reasonMin }: { classes: SpacingClass[]
       title="فئات المساحة"
       note="كل فئة = التباعد بين الصفوف × التباعد بين الزيتونات، ومنه المساحة المرتبطة بزيتونة واحدة (مثال: 9 × 9 م = 81 م²). الفئة المستعملة في مطالب مسجّلة ما تتفسخش: عطّلها باش ما تظهرش للزوار."
     >
-      <div className="overflow-hidden rounded-2xl border border-line bg-surface">
+      <div className="panel overflow-hidden">
         <div className={`hidden gap-3 border-b border-line bg-paper px-4 py-2 text-xs font-semibold text-muted md:grid ${COLUMNS}`} aria-hidden="true">
           <span>الفئة</span>
           <span>التباعد</span>
@@ -54,7 +54,7 @@ export function SpacingSection({ classes, reasonMin }: { classes: SpacingClass[]
                       action={saveSpacingClass.bind(null, spacing.id)}
                       submitLabel="حفظ الفئة"
                       className="space-y-3"
-                      buttonClassName="btn btn-secondary min-h-11"
+                      buttonClassName="btn btn-secondary btn-sm"
                     >
                       <SpacingClassFields spacing={spacing} idPrefix={`spacing-${spacing.id}`} />
                       <ReasonField minLength={reasonMin} id={`spacing-${spacing.id}-reason`} />

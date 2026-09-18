@@ -5,6 +5,7 @@ import { DinarInput, formatMoney } from "@/components/admin/tree-pricing-inputs"
 import { deleteCostItem, saveCostItem } from "./actions";
 import { ActiveBadge, DeleteForm } from "./fields";
 import { BASIS_LABELS, type CostBasis, type CostItem } from "./types";
+import { EmptyState } from "@/components/ui";
 
 /** Extra cost lines of one scope: the global list (projectId null) or a project's own list. */
 export function CostItemsList({
@@ -23,9 +24,9 @@ export function CostItemsList({
   return (
     <div className="space-y-3">
       {items.length === 0 ? (
-        <p className="rounded-2xl border border-dashed border-line-strong bg-surface px-4 py-6 text-center text-sm text-muted">{emptyText}</p>
+        <EmptyState size="sm">{emptyText}</EmptyState>
       ) : (
-        <ul className="divide-y divide-line overflow-hidden rounded-2xl border border-line bg-surface">
+        <ul className="panel divide-y divide-line overflow-hidden">
           {items.map((item) => (
             <li key={item.id} className="px-4 py-3">
               <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1">
@@ -49,7 +50,7 @@ export function CostItemsList({
               <details className="mt-2">
                 <summary className="cursor-pointer text-sm font-semibold text-forest">تعديل أو حذف</summary>
                 <div className="mt-3 space-y-4 border-t border-line pt-4">
-                  <ActionForm action={saveCostItem.bind(null, item.id, projectId)} submitLabel="حفظ البند" buttonClassName="btn btn-secondary min-h-11">
+                  <ActionForm action={saveCostItem.bind(null, item.id, projectId)} submitLabel="حفظ البند" buttonClassName="btn btn-secondary btn-sm">
                     <CostItemFields item={item} />
                     <ReasonField minLength={reasonMin} id={`${idPrefix}-${item.id}-reason`} />
                   </ActionForm>
@@ -85,11 +86,11 @@ function CostItemFields({ item, nextOrder = 0 }: { item: CostItem | null; nextOr
       <div className="grid gap-3 sm:grid-cols-2">
         <label className="block space-y-1">
           <span className="block text-sm font-semibold">اسم البند</span>
-          <input name="label_ar" defaultValue={item?.label_ar ?? ""} required maxLength={120} placeholder="مثال: الري قطرة قطرة" className="field min-h-11" />
+          <input name="label_ar" defaultValue={item?.label_ar ?? ""} required maxLength={120} placeholder="مثال: الري قطرة قطرة" className="field field-sm" />
         </label>
         <label className="block space-y-1">
           <span className="block text-sm font-semibold">الاسم بالفرنسية</span>
-          <input name="label_fr" defaultValue={item?.label_fr ?? ""} maxLength={120} dir="ltr" className="field min-h-11 text-left" />
+          <input name="label_fr" defaultValue={item?.label_fr ?? ""} maxLength={120} dir="ltr" className="field field-sm text-left" />
         </label>
       </div>
       <div className="grid gap-3 sm:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)] sm:items-end">
@@ -109,7 +110,7 @@ function CostItemFields({ item, nextOrder = 0 }: { item: CostItem | null; nextOr
       <div className="flex flex-wrap items-end gap-x-6 gap-y-3">
         <label className="block w-28 space-y-1">
           <span className="block text-sm font-semibold">الترتيب</span>
-          <input type="number" name="sort_order" min={0} step={1} defaultValue={item?.sort_order ?? nextOrder} dir="ltr" className="field min-h-11 text-left" />
+          <input type="number" name="sort_order" min={0} step={1} defaultValue={item?.sort_order ?? nextOrder} dir="ltr" className="field field-sm text-left" />
         </label>
         <label className="flex min-h-11 items-center gap-2 text-sm">
           <input type="checkbox" name="is_active" defaultChecked={item?.is_active ?? true} className="size-4 accent-forest" />

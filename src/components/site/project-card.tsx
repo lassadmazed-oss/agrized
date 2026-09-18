@@ -1,7 +1,7 @@
 import Link from "next/link";
 
-import { ParcelRow } from "@/components/site/parcel-row";
 import { RemotePhoto } from "@/components/site/site-photo";
+import { DataRow } from "@/components/ui";
 import { PLANTATION_LABELS, PRODUCTION_LABELS } from "@/lib/crm";
 import { formatArea, formatCount, formatMillimes } from "@/lib/format";
 import { projectStatusLabel, projectStatusTone } from "@/lib/projects";
@@ -13,7 +13,7 @@ import type { PublicProject } from "@/lib/public-projects";
  */
 export function ProjectCard({ project, href, place }: { project: PublicProject; href: string; place: string }) {
   return (
-    <li className="overflow-hidden rounded-2xl border border-line bg-surface">
+    <li className="card overflow-hidden">
       <Link href={href} className="block h-full focus-visible:outline-offset-[-2px]">
         <RemotePhoto
           url={project.cover_url}
@@ -31,24 +31,24 @@ export function ProjectCard({ project, href, place }: { project: PublicProject; 
               </p>
             </div>
             {project.status !== "published" ? (
-              <span className={`shrink-0 rounded-full px-2.5 py-1 text-xs font-semibold ring-1 ring-inset ${projectStatusTone(project.status)}`}>
+              <span className={`pill shrink-0 ring-1 ring-inset ${projectStatusTone(project.status)}`}>
                 {projectStatusLabel(project.status)}
               </span>
             ) : null}
           </div>
 
           <dl className="mt-4 space-y-2 text-sm">
-            {project.total_area_m2 ? <ParcelRow label="المساحة الجملية">{formatCount(project.total_area_m2)} م²</ParcelRow> : null}
-            {project.tree_count ? <ParcelRow label="عدد الأشجار">{formatCount(project.tree_count)}</ParcelRow> : null}
+            {project.total_area_m2 ? <DataRow padded={false} label="المساحة الجملية">{formatCount(project.total_area_m2)} م²</DataRow> : null}
+            {project.tree_count ? <DataRow padded={false} label="عدد الأشجار">{formatCount(project.tree_count)}</DataRow> : null}
             {project.on_tree_pricing && project.area_per_tree_min_m2 ? (
-              <ParcelRow label="مساحة كل زيتونة">{areaPerTree(project.area_per_tree_min_m2, project.area_per_tree_max_m2)}</ParcelRow>
+              <DataRow padded={false} label="مساحة كل زيتونة">{areaPerTree(project.area_per_tree_min_m2, project.area_per_tree_max_m2)}</DataRow>
             ) : null}
-            <ParcelRow label="نوع الغراسة">
+            <DataRow padded={false} label="نوع الغراسة">
               {project.plantation_system ? (PLANTATION_LABELS[project.plantation_system] ?? project.plantation_system) : "—"}
-            </ParcelRow>
-            <ParcelRow label="حالة الإنتاج">
+            </DataRow>
+            <DataRow padded={false} label="حالة الإنتاج">
               {project.production_status ? (PRODUCTION_LABELS[project.production_status] ?? project.production_status) : "—"}
-            </ParcelRow>
+            </DataRow>
           </dl>
 
           <div className="mt-4 flex flex-wrap items-baseline justify-between gap-2 border-t border-line pt-3 text-sm">

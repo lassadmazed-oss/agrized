@@ -1,6 +1,9 @@
 // Dashboard charts, rendered on the server with plain HTML and CSS.
 // Single series each: one mark color, labels in text tokens, hairline grid, table view for columns.
 
+import type { ReactNode } from "react";
+
+import { SectionHeader } from "@/components/ui";
 import { formatCount, formatDate } from "@/lib/format";
 
 const MARK = "#5f7f2f"; // olive, >= 3:1 on the white card
@@ -148,12 +151,26 @@ export function DailyColumns({ days }: { days: { day: string; count: number }[] 
   );
 }
 
-export function StatTile({ label, value, note }: { label: string; value: number; note?: string }) {
+/**
+ * One chart on its own card. The dashboard and /admin/analytics each held a byte-identical private
+ * copy of this; the box is now .card and the heading is a SectionHeader.
+ */
+export function ChartCard({
+  title,
+  subtitle,
+  children,
+  as = "h3",
+}: {
+  title: string;
+  subtitle?: string;
+  children: ReactNode;
+  /** The dashboard's charts sit inside an <h2> section; the analytics page's sit under its <h1>. */
+  as?: "h2" | "h3";
+}) {
   return (
-    <div className="rounded-2xl border border-line bg-surface p-5">
-      <p className="text-sm text-muted">{label}</p>
-      <p className="mt-2 text-4xl font-semibold text-ink">{formatCount(value)}</p>
-      {note ? <p className="mt-1 text-xs text-muted">{note}</p> : null}
-    </div>
+    <section className="card p-5">
+      <SectionHeader as={as} level={3} title={title} description={subtitle} />
+      <div className="mt-4">{children}</div>
+    </section>
   );
 }

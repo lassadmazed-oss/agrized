@@ -1,5 +1,6 @@
 import { ActionForm, type ActionResult } from "@/components/admin/action-form";
 import { ReasonField } from "@/components/admin/reason-field";
+import { EmptyState } from "@/components/ui";
 import { formatCount } from "@/lib/format";
 
 export type AllowedChoice = { id: string; label: string; detail?: string };
@@ -30,7 +31,7 @@ export function AllowedChoicesForm({
   idPrefix: string;
 }) {
   if (choices.length === 0) {
-    return <p className="rounded-2xl border border-dashed border-line-strong bg-surface px-4 py-6 text-center text-sm text-muted">{emptyText}</p>;
+    return <EmptyState size="sm">{emptyText}</EmptyState>;
   }
 
   const picked = new Set(selected);
@@ -39,7 +40,7 @@ export function AllowedChoicesForm({
   const retired = selected.filter((id) => !activeIds.has(id)).length;
 
   return (
-    <ActionForm action={action} submitLabel={submitLabel} className="space-y-4 rounded-2xl border border-line bg-surface p-5" buttonClassName="btn btn-secondary min-h-11">
+    <ActionForm action={action} submitLabel={submitLabel} className="card space-y-4 p-5" buttonClassName="btn btn-secondary btn-sm">
       <p className="text-sm font-semibold text-forest">
         {pickedActive === 0
           ? "توّا: كل القائمة النشطة مسموحة لهذا المشروع."

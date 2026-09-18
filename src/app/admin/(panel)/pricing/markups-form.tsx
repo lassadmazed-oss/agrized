@@ -1,6 +1,7 @@
 import { ActionForm } from "@/components/admin/action-form";
 import { ReasonField } from "@/components/admin/reason-field";
 import { bpToInput, formatBp, PercentInput } from "@/components/admin/tree-pricing-inputs";
+import { EmptyState } from "@/components/ui";
 import { formatCount } from "@/lib/format";
 
 import { saveMarkups } from "./actions";
@@ -56,9 +57,7 @@ export function MarkupsForm({
     return (
       <div className="space-y-3">
         <NoteCallout note={note} inherited={noteInherited} />
-        <p className="rounded-2xl border border-dashed border-line-strong bg-surface px-4 py-6 text-center text-sm text-muted">
-          ما فماش مدد دفع نشطة. زيد المدد في «القوائم» (قائمة مدة الدفع) ثم ارجع هنا.
-        </p>
+        <EmptyState size="sm">ما فماش مدد دفع نشطة. زيد المدد في «القوائم» (قائمة مدة الدفع) ثم ارجع هنا.</EmptyState>
       </div>
     );
   }
@@ -69,7 +68,7 @@ export function MarkupsForm({
       <ActionForm
         action={saveMarkups.bind(null, projectId)}
         submitLabel={projectId ? "حفظ نسب المشروع" : "حفظ نسب الزيادة"}
-        className="space-y-4 rounded-2xl border border-line bg-surface p-5"
+        className="card space-y-4 p-5"
       >
         {unpricedCount > 0 ? (
           <p role="status" className="rounded-xl border border-gold bg-gold-soft px-4 py-2 text-sm font-semibold text-forest-700">

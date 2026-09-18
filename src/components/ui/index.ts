@@ -6,8 +6,10 @@
 //   import { DataTable, EmptyState } from "@/components/ui";
 //   import { DataTable } from "@/components/ui/data-table";
 //
-// Nothing has been migrated yet: the private copies these replace are still in place, each named in the
-// comment at the top of its file, so the migration can be done one call site at a time.
+// The private copies these replace have all been deleted; the per-file comments below still name where
+// each one used to live, as a record of what a given component had to absorb. Two shapes stayed behind
+// on purpose: the leads filter form's FilterField (its space-y-1.5 also gaps a <select> from a sibling
+// checkbox, which FormField does not do) and tree-pricing-quote's Row (a four-cell <tr>, not a DataRow).
 
 export { DataRow, DataList } from "./data-row";
 export type { DataRowProps, DataRowLayout, DataRowSize, DataListProps, DataListVariant, DataListColumns } from "./data-row";

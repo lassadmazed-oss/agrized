@@ -1,5 +1,4 @@
-import type { ReactNode } from "react";
-
+import { DataRow } from "@/components/ui";
 import { settingText, type PublicConfig } from "@/lib/config";
 import { formatCount, formatMillimes } from "@/lib/format";
 import type { OfferPlan, ParcelOffer, PlanOption } from "@/lib/projects";
@@ -19,7 +18,7 @@ export function OfferBlock({ offer, config }: { offer: ParcelOffer; config: Publ
 
   if (!offer.offered) {
     return (
-      <section className="rounded-2xl border border-line bg-surface p-5 sm:p-6">
+      <section className="card p-5 sm:p-6">
         <p className="leading-7 text-ink/80">
           {settingText(
             config,
@@ -34,7 +33,7 @@ export function OfferBlock({ offer, config }: { offer: ParcelOffer; config: Publ
 
   if (!offer.priced || !offer.cash_price_millimes) {
     return (
-      <section className="rounded-2xl border border-line bg-surface p-5 sm:p-6">
+      <section className="card p-5 sm:p-6">
         <p className="font-semibold text-forest">{settingText(config, "projects.price_pending", "السعر يُعلن لاحقاً.")}</p>
         {notes}
       </section>
@@ -49,19 +48,19 @@ export function OfferBlock({ offer, config }: { offer: ParcelOffer; config: Publ
   const downFrom = validDowns.length > 0 ? Math.min(...validDowns) : null;
 
   return (
-    <section className="rounded-2xl border border-line bg-surface p-5 sm:p-6">
+    <section className="card p-5 sm:p-6">
       <dl className="divide-y divide-line text-sm">
-        <Row label="السعر حاضر">
+        <DataRow label="السعر حاضر">
           <span className="font-display text-3xl font-bold text-forest">{formatMillimes(cash)}</span>
-        </Row>
-        {downFrom ? <Row label="التسبقة">من {formatMillimes(downFrom)}</Row> : null}
-        <Row label="القسط">
+        </DataRow>
+        {downFrom ? <DataRow label="التسبقة">من {formatMillimes(downFrom)}</DataRow> : null}
+        <DataRow label="القسط">
           {entry?.ok && entry.months
             ? `من ${formatMillimes(entry.installment_millimes)} في الشهر · ${formatCount(entry.months)} شهراً`
             : "غير متاح بالقيم الحالية"}
-        </Row>
+        </DataRow>
         {offer.annual_costs_millimes !== null ? (
-          <Row label="المصاريف السنوية التقديرية">{formatMillimes(offer.annual_costs_millimes)}</Row>
+          <DataRow label="المصاريف السنوية التقديرية">{formatMillimes(offer.annual_costs_millimes)}</DataRow>
         ) : null}
       </dl>
 
@@ -95,36 +94,18 @@ function Example({ plan, offer, cash }: { plan: OfferPlan; offer: ParcelOffer; c
   const total = plan.total_millimes ?? cash;
 
   return (
-    <li className="rounded-xl border border-line bg-paper p-4">
+    <li className="card card-estimate rounded-xl p-4">
       <p className="text-xs font-semibold text-gold">مثال</p>
       <p className="mt-1 text-sm text-ink">
         تسبقة {label(offer.down_options, plan.down_option_id, plan.down_millimes)} + قسط{" "}
         {label(offer.installment_options, plan.installment_option_id, plan.installment_millimes)} في الشهر
       </p>
       <dl className="mt-3 space-y-1.5 text-xs">
-        <Fact label="عدد الأشهر">{formatCount(plan.months ?? 0)}</Fact>
-        <Fact label="السعر الجملي">{formatMillimes(total)}</Fact>
-        <Fact label="آخر قسط">{formatMillimes(plan.last_installment_millimes ?? 0)}</Fact>
-        <Fact label="الفارق عن الحاضر">{formatMillimes(total - cash)}</Fact>
+        <DataRow padded={false} label="عدد الأشهر">{formatCount(plan.months ?? 0)}</DataRow>
+        <DataRow padded={false} label="السعر الجملي">{formatMillimes(total)}</DataRow>
+        <DataRow padded={false} label="آخر قسط">{formatMillimes(plan.last_installment_millimes ?? 0)}</DataRow>
+        <DataRow padded={false} label="الفارق عن الحاضر">{formatMillimes(total - cash)}</DataRow>
       </dl>
     </li>
-  );
-}
-
-function Row({ label, children }: { label: string; children: ReactNode }) {
-  return (
-    <div className="flex items-center justify-between gap-4 py-2.5">
-      <dt className="text-muted">{label}</dt>
-      <dd className="text-end font-semibold text-ink tabular-nums">{children}</dd>
-    </div>
-  );
-}
-
-function Fact({ label, children }: { label: string; children: ReactNode }) {
-  return (
-    <div className="flex items-center justify-between gap-3">
-      <dt className="text-muted">{label}</dt>
-      <dd className="font-semibold text-ink tabular-nums">{children}</dd>
-    </div>
   );
 }

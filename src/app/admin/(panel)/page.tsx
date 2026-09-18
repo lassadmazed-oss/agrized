@@ -1,7 +1,8 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 
-import { BarList, DailyColumns, StatTile } from "@/components/admin/charts";
+import { BarList, ChartCard, DailyColumns } from "@/components/admin/charts";
+import { StatTile } from "@/components/ui";
 import { ADMIN_ROLES, CRM_READ_ROLES, hasRole, LAND_OFFER_ROLES, requireStaff } from "@/lib/auth";
 import { formatCount } from "@/lib/format";
 import { createClient } from "@/lib/supabase/server";
@@ -61,7 +62,7 @@ export default async function DashboardPage({ searchParams }: PageProps<"/admin"
       ) : null}
 
       <header>
-        <h1 className="font-display text-4xl font-bold text-forest">لوحة القيادة</h1>
+        <h1 className="section-title">لوحة القيادة</h1>
         <p className="mt-1 text-muted">
           مرحباً {session.fullName || ""}.{ownFilesOnly ? " الأرقام تخص الملفات المسندة إليك." : ""}
         </p>
@@ -77,7 +78,7 @@ export default async function DashboardPage({ searchParams }: PageProps<"/admin"
               <li key={item.label}>
                 <Link
                   href={item.href}
-                  className={`flex items-center justify-between gap-3 rounded-2xl border bg-surface px-5 py-4 transition-colors hover:border-forest ${
+                  className={`card flex items-center justify-between gap-3 px-5 py-4 transition-colors hover:border-forest ${
                     item.value > 0 ? "border-gold/40" : "border-line"
                   }`}
                 >
@@ -101,7 +102,7 @@ export default async function DashboardPage({ searchParams }: PageProps<"/admin"
             <StatTile label="آخر 7 أيام" value={stats.last_7_days} />
           </section>
 
-          <section className="rounded-2xl border border-line bg-surface p-5 sm:p-6">
+          <section className="card p-5 sm:p-6">
             <h2 className="font-semibold">المطالب اليومية</h2>
             <p className="mb-5 text-sm text-muted">آخر 30 يوماً</p>
             <DailyColumns days={stats.daily} />
@@ -111,7 +112,7 @@ export default async function DashboardPage({ searchParams }: PageProps<"/admin"
             <section className="space-y-4">
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <h2 className="text-lg font-semibold">تحليل الطلب</h2>
-                <nav aria-label="الفترة" className="flex flex-wrap gap-1 rounded-xl border border-line bg-surface p-1">
+                <nav aria-label="الفترة" className="card flex flex-wrap gap-1 rounded-xl p-1">
                   {RANGES.map((option) => (
                     <Link
                       key={option.key}
@@ -231,20 +232,10 @@ export default async function DashboardPage({ searchParams }: PageProps<"/admin"
           ) : null}
         </>
       ) : (
-        <p className="rounded-2xl border border-line bg-surface p-6 text-muted">
+        <p className="card p-6 text-muted">
           لوحة القيادة لدورك ستُكمَّل مع تفعيل موديولات المراحل القادمة.
         </p>
       )}
     </div>
-  );
-}
-
-function ChartCard({ title, subtitle, children }: { title: string; subtitle?: string; children: React.ReactNode }) {
-  return (
-    <section className="rounded-2xl border border-line bg-surface p-5">
-      <h3 className="font-semibold">{title}</h3>
-      {subtitle ? <p className="mt-0.5 text-sm text-muted">{subtitle}</p> : null}
-      <div className="mt-4">{children}</div>
-    </section>
   );
 }

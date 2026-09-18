@@ -32,6 +32,13 @@ export type DataRowProps = {
   size?: DataRowSize;
   /** Figures line up digit by digit. Turn it off for values that are prose. */
   numeric?: boolean;
+  /**
+   * Inline only. The row carries its own vertical padding, which is what a divided list wants: the
+   * hairline then sits midway between two values. A list that spaces its rows from the outside
+   * instead (`space-y-2` on the <dl>, as the parcel and project cards do) would get that padding on
+   * top of its own gap, so it passes padded={false} and keeps the spacing it already had.
+   */
+  padded?: boolean;
   className?: string;
 };
 
@@ -47,7 +54,7 @@ const LABEL_SIZE: Record<DataRowSize, string> = {
   lg: "text-xs",
 };
 
-export function DataRow({ label, children, layout = "inline", size = "md", numeric = true, className = "" }: DataRowProps) {
+export function DataRow({ label, children, layout = "inline", size = "md", numeric = true, padded = true, className = "" }: DataRowProps) {
   const digits = numeric ? "tabular-nums" : "";
 
   if (layout === "stacked") {
@@ -61,7 +68,7 @@ export function DataRow({ label, children, layout = "inline", size = "md", numer
   }
 
   return (
-    <div className={`flex items-center justify-between gap-4 py-2.5 ${className}`}>
+    <div className={`flex items-center justify-between gap-4 ${padded ? "py-2.5" : ""} ${className}`.replace(/\s+/g, " ").trim()}>
       <dt className={`text-muted ${LABEL_SIZE[size]}`}>{label}</dt>
       <dd className={`text-end font-semibold text-ink ${VALUE_SIZE[size]} ${digits}`}>{children}</dd>
     </div>

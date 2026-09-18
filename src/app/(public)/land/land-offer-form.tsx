@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRef, useState, useTransition, type ReactNode } from "react";
 
 import { readVisitSource } from "@/components/site/source-capture";
+import { FormField } from "@/components/ui";
 import { toWesternDigits } from "@/lib/digits";
 import { getStorageUploadClient, LAND_OFFER_BUCKET } from "@/lib/supabase/storage-upload";
 
@@ -270,7 +271,7 @@ export function LandOfferForm(props: LandOfferFormProps) {
 
         <Section title="الموقع">
           <div className="grid gap-5 sm:grid-cols-2">
-            <Field id="governorate" label="الولاية" error={errors.governorate}>
+            <FormField id="governorate" label="الولاية" error={errors.governorate}>
               <select
                 id="governorate"
                 className="field"
@@ -289,8 +290,8 @@ export function LandOfferForm(props: LandOfferFormProps) {
                   </option>
                 ))}
               </select>
-            </Field>
-            <Field id="delegation" label="المعتمدية" error={errors.delegation}>
+            </FormField>
+            <FormField id="delegation" label="المعتمدية" error={errors.delegation}>
               <select
                 id="delegation"
                 className="field disabled:opacity-60"
@@ -309,10 +310,10 @@ export function LandOfferForm(props: LandOfferFormProps) {
                   </option>
                 ))}
               </select>
-            </Field>
+            </FormField>
           </div>
 
-          <Field id="locationDescription" label="وصف المكان (اختياري)" hint="مثال: قرب الطريق الجهوية، 3 كم بعد القرية.">
+          <FormField id="locationDescription" label="وصف المكان (اختياري)" hint="مثال: قرب الطريق الجهوية، 3 كم بعد القرية.">
             <textarea
               id="locationDescription"
               rows={3}
@@ -321,7 +322,7 @@ export function LandOfferForm(props: LandOfferFormProps) {
               value={locationDescription}
               onChange={(event) => setLocationDescription(event.target.value)}
             />
-          </Field>
+          </FormField>
 
           <div>
             {coords ? (
@@ -366,7 +367,7 @@ export function LandOfferForm(props: LandOfferFormProps) {
           </fieldset>
 
           <div className="grid gap-5 sm:grid-cols-[1fr_auto]">
-            <Field id="area" label="المساحة" error={errors.area}>
+            <FormField id="area" label="المساحة" error={errors.area}>
               <input
                 id="area"
                 inputMode="decimal"
@@ -380,7 +381,7 @@ export function LandOfferForm(props: LandOfferFormProps) {
                 }}
                 aria-invalid={Boolean(errors.area)}
               />
-            </Field>
+            </FormField>
             <fieldset>
               <legend className="label">الوحدة</legend>
               <div className="flex gap-2">
@@ -396,7 +397,7 @@ export function LandOfferForm(props: LandOfferFormProps) {
 
           {hasTrees ? (
             <div className="grid gap-5 sm:grid-cols-2">
-              <Field id="treeCount" label="عدد الزيتونات (تقريبي)" error={errors.treeCount}>
+              <FormField id="treeCount" label="عدد الزيتونات (تقريبي)" error={errors.treeCount}>
                 <input
                   id="treeCount"
                   inputMode="numeric"
@@ -409,8 +410,8 @@ export function LandOfferForm(props: LandOfferFormProps) {
                   }}
                   aria-invalid={Boolean(errors.treeCount)}
                 />
-              </Field>
-              <Field id="treeAge" label="عمر الأشجار">
+              </FormField>
+              <FormField id="treeAge" label="عمر الأشجار">
                 <select id="treeAge" className="field" value={treeAgeId} onChange={(event) => setTreeAgeId(event.target.value)}>
                   <option value="">لا أعرف</option>
                   {props.treeAges.map((age) => (
@@ -419,7 +420,7 @@ export function LandOfferForm(props: LandOfferFormProps) {
                     </option>
                   ))}
                 </select>
-              </Field>
+              </FormField>
             </div>
           ) : null}
 
@@ -445,14 +446,14 @@ export function LandOfferForm(props: LandOfferFormProps) {
           </fieldset>
 
           {irrigation === "irrigated" ? (
-            <Field id="waterSource" label="مصدر الماء (اختياري)" hint="مثال: بئر، منطقة سقوية عمومية.">
+            <FormField id="waterSource" label="مصدر الماء (اختياري)" hint="مثال: بئر، منطقة سقوية عمومية.">
               <input id="waterSource" className="field" maxLength={200} value={waterSource} onChange={(event) => setWaterSource(event.target.value)} />
-            </Field>
+            </FormField>
           ) : null}
         </Section>
 
         <Section title="السعر المطلوب">
-          <Field id="price" label="السعر بالدينار (اختياري)" error={errors.price}>
+          <FormField id="price" label="السعر بالدينار (اختياري)" error={errors.price}>
             <input
               id="price"
               inputMode="decimal"
@@ -465,8 +466,8 @@ export function LandOfferForm(props: LandOfferFormProps) {
               }}
               aria-invalid={Boolean(errors.price)}
             />
-          </Field>
-          <label className="flex items-center gap-3 text-[0.95rem]">
+          </FormField>
+          <label className="flex items-center gap-3 text-label">
             <input type="checkbox" className="size-5 accent-forest" checked={negotiable} onChange={(event) => setNegotiable(event.target.checked)} />
             السعر قابل للتفاوض
           </label>
@@ -511,7 +512,7 @@ export function LandOfferForm(props: LandOfferFormProps) {
               إضافة ملفات
             </label>
             {files.length > 0 ? (
-              <ul className="mt-3 divide-y divide-line rounded-xl border border-line bg-surface">
+              <ul className="panel mt-3 divide-y divide-line rounded-xl">
                 {files.map((file, index) => (
                   <li key={`${file.name}-${index}`} className="flex items-center justify-between gap-3 px-4 py-2.5 text-sm">
                     <span dir="auto" className="min-w-0 truncate">
@@ -539,7 +540,7 @@ export function LandOfferForm(props: LandOfferFormProps) {
 
         <Section title="معلومات الاتصال">
           <div className="grid gap-5 sm:grid-cols-2">
-            <Field id="contactName" label="الاسم واللقب" error={errors.contactName}>
+            <FormField id="contactName" label="الاسم واللقب" error={errors.contactName}>
               <input
                 id="contactName"
                 className="field"
@@ -551,8 +552,8 @@ export function LandOfferForm(props: LandOfferFormProps) {
                 }}
                 aria-invalid={Boolean(errors.contactName)}
               />
-            </Field>
-            <Field id="contactPhone" label="رقم الهاتف" error={errors.contactPhone}>
+            </FormField>
+            <FormField id="contactPhone" label="رقم الهاتف" error={errors.contactPhone}>
               <input
                 id="contactPhone"
                 type="tel"
@@ -568,7 +569,7 @@ export function LandOfferForm(props: LandOfferFormProps) {
                 }}
                 aria-invalid={Boolean(errors.contactPhone)}
               />
-            </Field>
+            </FormField>
           </div>
           <fieldset>
             <legend className="label">صفتك</legend>
@@ -604,7 +605,7 @@ export function LandOfferForm(props: LandOfferFormProps) {
               }}
               aria-invalid={Boolean(errors.consent)}
             />
-            <span className="text-[0.95rem] leading-7">{props.consentText}</span>
+            <span className="text-label leading-7">{props.consentText}</span>
           </label>
           {errors.consent ? <p className="error-text -mt-2">{errors.consent}</p> : null}
           {props.notice ? <p className="text-sm leading-6 text-muted">{props.notice}</p> : null}
@@ -635,20 +636,6 @@ function Section({ title, children }: { title: string; children: ReactNode }) {
     </section>
   );
 }
-
-function Field({ id, label, hint, error, children }: { id: string; label: string; hint?: string; error?: string; children: ReactNode }) {
-  return (
-    <div>
-      <label htmlFor={id} className="label">
-        {label}
-      </label>
-      {children}
-      {hint && !error ? <p className="hint mt-1.5">{hint}</p> : null}
-      {error ? <p className="error-text">{error}</p> : null}
-    </div>
-  );
-}
-
 function GroupError({ message }: { message?: string }) {
   if (!message) return null;
   return (

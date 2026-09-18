@@ -97,7 +97,7 @@ export default async function ListsPage() {
   return (
     <div className="max-w-5xl space-y-10">
       <header>
-        <h1 className="font-display text-4xl font-bold text-forest">القوائم</h1>
+        <h1 className="section-title">القوائم</h1>
         <p className="mt-2 max-w-2xl leading-7 text-muted">
           القيم التي يختار منها الزوار والفريق. تعديل قيمة لا يغيّر المطالب المسجّلة سابقاً، لأن كل مطلب يحتفظ بالقيمة كما كانت.
           لإخفاء قيمة، ألغِ «نشط» بدل حذفها.
@@ -114,7 +114,7 @@ export default async function ListsPage() {
         </div>
         <ul className="space-y-3">
           {scenarioRows.map((scenario) => (
-            <li key={scenario.id} className="rounded-2xl border border-line bg-surface p-4">
+            <li key={scenario.id} className="card p-4">
               <div className="grid gap-4 md:grid-cols-[10rem_1fr]">
                 <div>
                   <ScenarioPreview scenario={scenario} />
@@ -133,7 +133,7 @@ export default async function ListsPage() {
                   action={saveScenario.bind(null, scenario.id)}
                   submitLabel="حفظ"
                   className="space-y-3"
-                  buttonClassName="btn btn-secondary min-h-11"
+                  buttonClassName="btn btn-secondary btn-sm"
                 >
                   <ScenarioFields scenario={scenario} types={types} />
                 </ActionForm>
@@ -147,7 +147,7 @@ export default async function ListsPage() {
               submitLabel="إضافة"
               pendingLabel="جارٍ الإضافة…"
               className="space-y-3"
-              buttonClassName="btn btn-primary min-h-11"
+              buttonClassName="btn btn-primary btn-sm"
             >
               <ScenarioFields scenario={null} types={types} nextOrder={(scenarioRows.at(-1)?.sort_order ?? 0) + 10} />
             </ActionForm>
@@ -165,12 +165,12 @@ export default async function ListsPage() {
             </div>
             <ul className="space-y-2">
               {rows.map((item) => (
-                <li key={item.id} className="rounded-2xl border border-line bg-surface p-4">
+                <li key={item.id} className="card p-4">
                   <ActionForm
                     action={saveOptionItem.bind(null, item.id, list.key)}
                     submitLabel="حفظ"
                     className="flex flex-wrap items-end gap-3"
-                    buttonClassName="btn btn-secondary min-h-11"
+                    buttonClassName="btn btn-secondary btn-sm"
                   >
                     <OptionFields kind={list.value_kind} item={item} />
                   </ActionForm>
@@ -184,7 +184,7 @@ export default async function ListsPage() {
                     submitLabel="إضافة"
                     pendingLabel="جارٍ الإضافة…"
                     className="flex flex-wrap items-end gap-3"
-                    buttonClassName="btn btn-primary min-h-11"
+                    buttonClassName="btn btn-primary btn-sm"
                   >
                     <OptionFields kind={list.value_kind} item={null} nextOrder={(rows.at(-1)?.sort_order ?? 0) + 10} />
                   </ActionForm>
@@ -202,12 +202,12 @@ export default async function ListsPage() {
         </div>
         <ul className="space-y-2">
           {types.map((type) => (
-            <li key={type.id} className="rounded-2xl border border-line bg-surface p-4">
+            <li key={type.id} className="card p-4">
               <ActionForm
                 action={saveProjectType.bind(null, type.id)}
                 submitLabel="حفظ"
                 className="grid gap-3 sm:grid-cols-[1fr_1fr_6rem_auto_auto] sm:items-end"
-                buttonClassName="btn btn-secondary min-h-11"
+                buttonClassName="btn btn-secondary btn-sm"
               >
                 <TextInput name="label_ar" label="الاسم" defaultValue={type.label_ar} required />
                 <TextInput name="label_fr" label="بالفرنسية" defaultValue={type.label_fr ?? ""} ltr />
@@ -228,7 +228,7 @@ export default async function ListsPage() {
               action={saveProjectType.bind(null, null)}
               submitLabel="إضافة"
               className="grid gap-3 sm:grid-cols-[1fr_1fr_1fr_6rem_auto] sm:items-end"
-              buttonClassName="btn btn-primary min-h-11"
+              buttonClassName="btn btn-primary btn-sm"
             >
               <TextInput name="label_ar" label="الاسم" required />
               <TextInput name="label_fr" label="بالفرنسية" ltr />
@@ -252,12 +252,12 @@ export default async function ListsPage() {
         </div>
         <ul className="space-y-2">
           {(statuses.data ?? []).map((status) => (
-            <li key={status.id} className="rounded-2xl border border-line bg-surface p-4">
+            <li key={status.id} className="card p-4">
               <ActionForm
                 action={saveLeadStatus.bind(null, status.id)}
                 submitLabel="حفظ"
                 className="grid gap-3 sm:grid-cols-[9rem_1fr_1fr_6rem_auto_auto] sm:items-end"
-                buttonClassName="btn btn-secondary min-h-11"
+                buttonClassName="btn btn-secondary btn-sm"
               >
                 <div>
                   <span className="block text-xs text-muted">المرحلة</span>
@@ -276,7 +276,7 @@ export default async function ListsPage() {
               action={saveLeadStatus.bind(null, null)}
               submitLabel="إضافة"
               className="grid gap-3 sm:grid-cols-[10rem_1fr_1fr_6rem_auto_auto] sm:items-end"
-              buttonClassName="btn btn-primary min-h-11"
+              buttonClassName="btn btn-primary btn-sm"
             >
               <label className="block space-y-1">
                 <span className="block text-xs text-muted">المرحلة</span>
@@ -378,7 +378,7 @@ function ScenarioFields({
             name="image"
             type="file"
             accept="image/jpeg,image/png,image/webp,image/avif"
-            className="field min-h-11 py-2 file:me-3 file:rounded-lg file:border-0 file:bg-leaf-soft file:px-3 file:py-1 file:text-sm file:font-semibold file:text-forest"
+            className="field field-sm py-2 file:me-3 file:rounded-lg file:border-0 file:bg-leaf-soft file:px-3 file:py-1 file:text-sm file:font-semibold file:text-forest"
           />
           <p className="hint">JPG أو PNG أو WEBP أو AVIF، 5 ميغا كحد أقصى. اتركه فارغاً للإبقاء على الصورة الحالية.</p>
         </div>
@@ -499,7 +499,7 @@ function TextInput({
         required={required}
         placeholder={placeholder}
         dir={ltr ? "ltr" : undefined}
-        className={`field min-h-11 ${ltr ? "text-left" : ""}`}
+        className={`field field-sm ${ltr ? "text-left" : ""}`}
       />
     </label>
   );
@@ -519,7 +519,7 @@ function SelectInput({
   return (
     <label className="block space-y-1">
       <span className="block text-xs text-muted">{label}</span>
-      <select name={name} defaultValue={defaultValue} className="field min-h-11">
+      <select name={name} defaultValue={defaultValue} className="field field-sm">
         {options.map((option) => (
           <option key={option.value} value={option.value}>
             {option.label}
@@ -534,7 +534,7 @@ function NumberInput({ name, label, defaultValue }: { name: string; label: strin
   return (
     <label className="block space-y-1">
       <span className="block text-xs text-muted">{label}</span>
-      <input type="number" name={name} defaultValue={defaultValue} min={0} dir="ltr" className="field min-h-11 text-left" />
+      <input type="number" name={name} defaultValue={defaultValue} min={0} dir="ltr" className="field field-sm text-left" />
     </label>
   );
 }

@@ -102,11 +102,11 @@ export async function SimulatorSection({
       title="محاكاة السعر"
       note="تحسب بالقواعد المحفوظة، بنفس الحساب اللي يستعملو الموقع. احفظ التعديلات فوق قبل ما تجرّب. مثال: زيتونة بـ35 م² وثمن المتر 10 د ← قيمة الأرض 350 د."
     >
-      <form method="get" action="/admin/pricing#simulator" className="grid gap-4 rounded-2xl border border-line bg-surface p-5 sm:grid-cols-2 lg:grid-cols-3">
+      <form method="get" action="/admin/pricing#simulator" className="card grid gap-4 p-5 sm:grid-cols-2 lg:grid-cols-3">
         {keepProjectId ? <input type="hidden" name="project" value={keepProjectId} /> : null}
         <label className="block space-y-1">
           <span className="block text-sm font-semibold">فئة المساحة</span>
-          <select name="class" defaultValue={simulation.classId ?? ""} required className="field min-h-11">
+          <select name="class" defaultValue={simulation.classId ?? ""} required className="field field-sm">
             <option value="" disabled>
               اختر الفئة
             </option>
@@ -129,12 +129,12 @@ export async function SimulatorSection({
             defaultValue={simulation.trees ?? ""}
             placeholder="مثال: 25"
             dir="ltr"
-            className="field min-h-11 text-left"
+            className="field field-sm text-left"
           />
         </label>
         <label className="block space-y-1">
           <span className="block text-sm font-semibold">المشروع (اختياري)</span>
-          <select name="sim_project" defaultValue={simulation.projectId ?? ""} className="field min-h-11">
+          <select name="sim_project" defaultValue={simulation.projectId ?? ""} className="field field-sm">
             <option value="">بدون مشروع: القواعد العامة</option>
             {projects.map((project) => (
               <option key={project.id} value={project.id}>
@@ -145,7 +145,7 @@ export async function SimulatorSection({
         </label>
         <label className="block space-y-1">
           <span className="block text-sm font-semibold">نسبة التسبقة (للتقسيط)</span>
-          <select name="down" defaultValue={simulation.down?.id ?? ""} className="field min-h-11">
+          <select name="down" defaultValue={simulation.down?.id ?? ""} className="field field-sm">
             <option value="">بلا تقسيط</option>
             {percents.map((option) => (
               <option key={option.id} value={option.id}>
@@ -157,7 +157,7 @@ export async function SimulatorSection({
         </label>
         <label className="block space-y-1">
           <span className="block text-sm font-semibold">مدة التقسيط</span>
-          <select name="duration" defaultValue={simulation.duration?.id ?? ""} className="field min-h-11">
+          <select name="duration" defaultValue={simulation.duration?.id ?? ""} className="field field-sm">
             <option value="">بالحاضر، بلا تقسيط</option>
             {durations.map((option) => (
               <option key={option.id} value={option.id}>
@@ -167,10 +167,10 @@ export async function SimulatorSection({
           </select>
         </label>
         <div className="flex items-end gap-2">
-          <button type="submit" className="btn btn-primary min-h-11 flex-1">
+          <button type="submit" className="btn btn-primary btn-sm flex-1">
             احسب
           </button>
-          <Link href={keepProjectId ? `/admin/pricing?project=${keepProjectId}#simulator` : "/admin/pricing#simulator"} className="btn btn-ghost min-h-11">
+          <Link href={keepProjectId ? `/admin/pricing?project=${keepProjectId}#simulator` : "/admin/pricing#simulator"} className="btn btn-ghost btn-sm">
             مسح
           </Link>
         </div>

@@ -47,7 +47,7 @@ export async function SiteHeader({ tagline, showInterestCta, showProjects, showZ
               <li key={link.href}>
                 <Link
                   href={link.href}
-                  className="rounded-lg px-3 py-2 text-[0.95rem] font-medium text-muted transition-colors hover:bg-leaf-soft hover:text-forest"
+                  className="rounded-lg px-3 py-2 text-label font-medium text-muted transition-colors hover:bg-leaf-soft hover:text-forest"
                 >
                   {link.label}
                 </Link>
@@ -58,7 +58,7 @@ export async function SiteHeader({ tagline, showInterestCta, showProjects, showZ
 
         {/* Always reachable while scrolling; on a phone the fixed bar at the bottom takes over. */}
         {showInterestCta && cta.label ? (
-          <Link href={cta.href} className="btn btn-primary ms-auto hidden min-h-11 px-4 text-[0.95rem] md:ms-0 md:inline-flex">
+          <Link href={cta.href} className="btn btn-primary btn-sm ms-auto hidden md:ms-0 md:inline-flex">
             {cta.label}
           </Link>
         ) : null}

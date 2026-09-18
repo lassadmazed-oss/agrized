@@ -67,7 +67,7 @@ function RateTable({
   linkLabel: string;
 }) {
   return (
-    <div className="flex flex-col overflow-hidden rounded-2xl border border-line bg-surface">
+    <div className="panel flex flex-col overflow-hidden">
       {rows.length === 0 ? (
         <>
           <h3 className="px-4 pt-4 font-semibold">{title}</h3>

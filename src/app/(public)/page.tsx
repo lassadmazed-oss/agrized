@@ -48,11 +48,11 @@ export default async function HomePage() {
   return (
     <>
       {/* 01 · One wide, quiet olive grove, the name of the project, and one thing to do (HOME-01) */}
-      <section className="relative isolate grid min-h-[30rem] items-center overflow-hidden sm:min-h-[34rem]">
+      <section className="relative isolate grid min-h-96 items-center overflow-hidden">
         <SitePhoto config={config} slot="home.hero" fill priority sizes="100vw" />
         <div className="absolute inset-0 bg-linear-to-t from-forest-700/85 via-forest-700/60 to-forest-700/35" />
         <div className="relative">
-          <div className="mx-auto w-full max-w-6xl px-4 py-16 sm:px-6">
+          <div className="mx-auto w-full max-w-6xl px-4 py-section sm:px-6">
             <div className="max-w-2xl text-paper">
               {settingText(config, "site.hero_eyebrow") ? (
                 <p className="mb-3 inline-flex items-center gap-2 rounded-full bg-paper/15 px-3.5 py-1.5 text-sm font-semibold backdrop-blur-sm">
@@ -61,18 +61,18 @@ export default async function HomePage() {
                 </p>
               ) : null}
 
-              <h1 className="font-display text-[2.75rem] font-bold leading-[1.1] text-balance sm:text-7xl">
+              <h1 className="font-display text-display font-bold text-balance">
                 {settingText(config, "site.home_headline")}
               </h1>
               <p className="mt-4 max-w-xl text-lg leading-8 text-paper/90 sm:text-xl">
                 {settingText(config, "site.home_subheadline")}
               </p>
 
-              <div className="mt-8 flex flex-wrap items-center gap-3">
+              <div className="mt-roomy flex flex-wrap items-center gap-3">
                 {interestOpen && cta.label ? (
                   <Link
                     href={cta.href}
-                    className="btn min-h-14 bg-gold-bright px-8 text-lg text-forest-700 hover:bg-gold-soft"
+                    className="btn bg-gold-bright px-8 text-lg text-forest-700 hover:bg-gold-soft"
                   >
                     {cta.label}
                   </Link>
@@ -80,7 +80,7 @@ export default async function HomePage() {
                 {secondaryCta.label ? (
                   <Link
                     href={secondaryCta.href}
-                    className="btn min-h-14 border-2 border-paper/40 px-6 text-paper hover:border-paper hover:bg-paper/10"
+                    className="btn border-2 border-paper/40 px-6 text-paper hover:border-paper hover:bg-paper/10"
                   >
                     {secondaryCta.label}
                   </Link>
@@ -97,16 +97,16 @@ export default async function HomePage() {
       {progress ? <MillionCounter progress={progress} copy={millionCounterCopy(config)} /> : null}
 
       {/* 03 · The million starts with one olive tree */}
-      <section className="mx-auto max-w-6xl px-4 py-16 sm:px-6">
-        <div className="grid gap-10 lg:grid-cols-[1fr_0.8fr] lg:items-center">
+      <section className="mx-auto max-w-6xl px-4 py-section sm:px-6">
+        <div className="grid gap-roomy lg:grid-cols-[1fr_0.8fr] lg:items-center">
           <div>
-            <h2 className="font-display text-3xl font-bold text-forest sm:text-4xl">
+            <h2 className="section-title">
               {settingText(config, "site.start_title", "تبدا بزيتونة، ويكبر مع الوقت")}
             </h2>
             <p className="mt-3 max-w-xl text-lg leading-8 text-muted">{settingText(config, "site.start_text")}</p>
 
             {facts.length > 0 ? (
-              <ul className="mt-7 grid gap-4 sm:grid-cols-3">
+              <ul className="mt-roomy grid gap-4 sm:grid-cols-3">
                 {facts.map((fact) => (
                   <li key={fact.label}>
                     <p className="font-display text-3xl font-bold leading-none text-forest">{fact.value}</p>
@@ -138,13 +138,13 @@ export default async function HomePage() {
 
       {/* 05 · How it works */}
       {steps.length > 0 ? (
-        <section id="how" className="mx-auto max-w-6xl scroll-mt-20 px-4 py-16 sm:px-6">
-          <h2 className="font-display text-3xl font-bold text-forest sm:text-4xl">كيفاش تخدم AgriZed؟</h2>
+        <section id="how" className="mx-auto max-w-6xl scroll-mt-20 px-4 py-section sm:px-6">
+          <h2 className="section-title">كيفاش تخدم AgriZed؟</h2>
           <p className="mt-3 max-w-2xl leading-7 text-muted">مسار واضح، خطوة بخطوة، بدون أي دفع في البداية.</p>
           {/* Four steps fit one row on a wide screen; any other count wraps three per row. */}
-          <ol className={`mt-8 grid gap-3 sm:grid-cols-2 ${steps.length === 4 ? "lg:grid-cols-4" : "lg:grid-cols-3"}`}>
+          <ol className={`mt-roomy grid gap-3 sm:grid-cols-2 ${steps.length === 4 ? "lg:grid-cols-4" : "lg:grid-cols-3"}`}>
             {steps.map((step, index) => (
-              <li key={step.title} className="rounded-2xl border border-line bg-surface p-5">
+              <li key={step.title} className="card p-5">
                 <span className="grid size-10 place-items-center rounded-full bg-gold-soft font-display text-xl font-bold text-gold tabular-nums">
                   {index + 1}
                 </span>
@@ -160,17 +160,17 @@ export default async function HomePage() {
           spacing classes; no price and none of the internal formula is shown here. Asking happens on /start only. */}
       {unitTitle && spacingClasses.length > 0 ? (
         <section id="unit" className="scroll-mt-20 border-y border-line bg-surface">
-          <div className="mx-auto max-w-6xl px-4 py-16 sm:px-6">
+          <div className="mx-auto max-w-6xl px-4 py-section sm:px-6">
             <div className="max-w-2xl">
-              <h2 className="font-display text-3xl font-bold text-forest sm:text-4xl">{unitTitle}</h2>
+              <h2 className="section-title">{unitTitle}</h2>
               {settingText(config, "site.unit_text") ? (
                 <p className="mt-3 leading-7 text-muted">{settingText(config, "site.unit_text")}</p>
               ) : null}
             </div>
 
-            <ul className="mt-8 grid grid-cols-2 gap-3 sm:grid-cols-4">
+            <ul className="mt-roomy grid grid-cols-2 gap-3 sm:grid-cols-4">
               {spacingClasses.map((spacing) => (
-                <li key={spacing.id} className="rounded-2xl border border-line bg-paper p-4 sm:p-5">
+                <li key={spacing.id} className="card bg-paper p-4 sm:p-5">
                   <p className="text-sm leading-5 text-muted">{spacing.label_ar}</p>
                   <p className="mt-2 font-display text-3xl font-bold leading-none text-forest tabular-nums">
                     {formatArea(spacing.area_m2)}
@@ -200,16 +200,16 @@ export default async function HomePage() {
           The names come from the agrized_service list; prices belong to the contract, never to this page. */}
       {servicesTitle ? (
         <section id="services" className="scroll-mt-20 bg-leaf-soft/40">
-          <div className="mx-auto max-w-6xl px-4 py-16 sm:px-6">
+          <div className="mx-auto max-w-6xl px-4 py-section sm:px-6">
             <div className="max-w-2xl">
-              <h2 className="font-display text-3xl font-bold text-forest sm:text-4xl">{servicesTitle}</h2>
+              <h2 className="section-title">{servicesTitle}</h2>
               {settingText(config, "site.services_text") ? (
                 <p className="mt-3 leading-7 text-muted">{settingText(config, "site.services_text")}</p>
               ) : null}
             </div>
 
             {services.length > 0 ? (
-              <ul className="mt-7 flex flex-wrap gap-2">
+              <ul className="mt-roomy flex flex-wrap gap-2">
                 {services.map((service) => (
                   <li
                     key={service.id}
@@ -229,10 +229,10 @@ export default async function HomePage() {
       ) : null}
 
       {/* 07 · Where. Every governorate is open; demand decides where AgriZed searches next. */}
-      <section id="where" className="mx-auto max-w-6xl scroll-mt-20 px-4 py-16 sm:px-6">
-        <div className="grid gap-10 lg:grid-cols-[1fr_0.8fr] lg:items-center">
+      <section id="where" className="mx-auto max-w-6xl scroll-mt-20 px-4 py-section sm:px-6">
+        <div className="grid gap-roomy lg:grid-cols-[1fr_0.8fr] lg:items-center">
           <div>
-            <h2 className="font-display text-3xl font-bold text-forest sm:text-4xl">
+            <h2 className="section-title">
               {settingText(config, "site.coverage_title")}
             </h2>
             <p className="mt-3 max-w-xl leading-7 text-muted">{settingText(config, "site.coverage_text")}</p>
@@ -253,8 +253,8 @@ export default async function HomePage() {
 
       {/* 08 · Landowners */}
       {landOpen ? (
-        <section className="mx-auto max-w-6xl px-4 pb-16 sm:px-6">
-          <div className="grid items-center gap-8 rounded-3xl border border-gold/25 bg-gold-soft/50 p-6 sm:p-10 lg:grid-cols-[1fr_0.9fr]">
+        <section className="mx-auto max-w-6xl px-4 pb-section sm:px-6">
+          <div className="grid items-center gap-roomy rounded-3xl border border-gold/25 bg-gold-soft/50 p-6 sm:p-10 lg:grid-cols-[1fr_0.9fr]">
             <div>
               <h2 className="font-display text-2xl font-bold text-forest sm:text-3xl">عندك أرض أو ضيعة زيتون؟</h2>
               <p className="mt-3 max-w-xl leading-7 text-ink/80">{settingText(config, "site.land_section_text")}</p>
@@ -269,11 +269,11 @@ export default async function HomePage() {
 
       {/* FAQ */}
       {faq.length > 0 ? (
-        <section className="mx-auto max-w-3xl px-4 pb-16 sm:px-6">
-          <h2 className="font-display text-3xl font-bold text-forest sm:text-4xl">أسئلة شائعة</h2>
+        <section className="mx-auto max-w-3xl px-4 pb-section sm:px-6">
+          <h2 className="section-title">أسئلة شائعة</h2>
           <div className="mt-6 divide-y divide-line border-y border-line">
             {faq.map((item) => (
-              <details key={item.q} className="group py-4">
+              <details key={item.q} className="group py-snug">
                 <summary className="flex cursor-pointer list-none items-center justify-between gap-4 font-semibold text-ink [&::-webkit-details-marker]:hidden">
                   {item.q}
                   <span
@@ -292,13 +292,13 @@ export default async function HomePage() {
 
       {/* 09 · Ask once more, plainly */}
       {interestOpen ? (
-        <section className="mx-auto max-w-6xl px-4 pb-16 sm:px-6">
-          <div className="rounded-3xl border border-line bg-surface px-6 py-12 text-center sm:px-10">
-            <h2 className="font-display text-3xl font-bold text-balance text-forest sm:text-4xl">
+        <section className="mx-auto max-w-6xl px-4 pb-section sm:px-6">
+          <div className="card rounded-3xl px-6 py-section text-center sm:px-10">
+            <h2 className="section-title">
               {settingText(config, "site.final_cta_title", "ابدا أصلك اليوم، على قدّ إمكانياتك")}
             </h2>
             {cta.label ? (
-              <Link href={cta.href} className="btn btn-primary mt-7 min-h-14 px-10 text-lg">
+              <Link href={cta.href} className="btn btn-primary mt-roomy px-10 text-lg">
                 {cta.label}
               </Link>
             ) : null}
@@ -308,7 +308,7 @@ export default async function HomePage() {
       ) : null}
 
       {/* Closing band */}
-      <section className="relative isolate grid min-h-[22rem] place-items-center overflow-hidden sm:min-h-[26rem]">
+      <section className="relative isolate grid min-h-72 place-items-center overflow-hidden">
         <SitePhoto
           config={config}
           slot="home.closing"
@@ -317,7 +317,7 @@ export default async function HomePage() {
           className="[&_img]:brightness-[0.45] [&_svg]:brightness-[0.55]"
         />
         <div className="absolute inset-0 bg-forest-700/45" />
-        <div className="relative px-4 py-16 text-center">
+        <div className="relative px-4 py-section text-center">
           <div>
             <Wordmark onDark className="text-4xl sm:text-6xl" />
             <p className="mt-4 font-display text-3xl font-bold text-paper sm:text-5xl">

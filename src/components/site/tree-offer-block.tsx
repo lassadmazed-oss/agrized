@@ -1,6 +1,7 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
 
+import { DataRow } from "@/components/ui";
 import { settingText, type PublicConfig } from "@/lib/config";
 import { formatArea, formatCount, formatMillimes } from "@/lib/format";
 import type { ProjectQuote } from "@/lib/public-projects";
@@ -34,7 +35,7 @@ export function TreeOfferBlock({
 
   if (quote.pricing === "not_offered") {
     return (
-      <section className="rounded-2xl border border-line bg-surface p-5 sm:p-6">
+      <section className="card p-5 sm:p-6">
         <p className="leading-7 text-ink/80">
           {settingText(config, "projects.taken_text", "هذه القطعة ما عادش معروضة. تنجم تسجّل اهتمامك بقطعة مشابهة ونعلموك أول ما تتوفر.")}
         </p>
@@ -45,15 +46,15 @@ export function TreeOfferBlock({
 
   const facts = (
     <>
-      {quote.trees ? <Row label="عدد الزيتونات">{formatCount(quote.trees)}</Row> : null}
-      {quote.area_per_tree_m2 ? <Row label="مساحة كل زيتونة">{formatArea(quote.area_per_tree_m2)}</Row> : null}
-      {quote.total_area_m2 ? <Row label="المساحة الجملية">{formatArea(quote.total_area_m2)}</Row> : null}
+      {quote.trees ? <DataRow label="عدد الزيتونات">{formatCount(quote.trees)}</DataRow> : null}
+      {quote.area_per_tree_m2 ? <DataRow label="مساحة كل زيتونة">{formatArea(quote.area_per_tree_m2)}</DataRow> : null}
+      {quote.total_area_m2 ? <DataRow label="المساحة الجملية">{formatArea(quote.total_area_m2)}</DataRow> : null}
     </>
   );
 
   if (quote.pricing !== "ok" || !quote.price_per_tree_millimes || !quote.total_price_millimes) {
     return (
-      <section className="rounded-2xl border border-line bg-surface p-5 sm:p-6">
+      <section className="card p-5 sm:p-6">
         <dl className="divide-y divide-line text-sm">{facts}</dl>
         <p className="mt-4 font-semibold text-forest">
           {settingText(config, "projects.price_pending", settingText(config, "start.price_unavailable", "السعر يُعلن لاحقاً."))}
@@ -83,13 +84,13 @@ export function TreeOfferBlock({
       : null;
 
   return (
-    <section id="offer" className="scroll-mt-24 rounded-2xl border border-line bg-surface p-5 sm:p-6">
+    <section id="offer" className="card scroll-mt-24 p-5 sm:p-6">
       <dl className="divide-y divide-line text-sm">
-        <Row label={settingText(config, "start.row_price_per_tree", "سعر الزيتونة")}>
+        <DataRow label={settingText(config, "start.row_price_per_tree", "سعر الزيتونة")}>
           <span className="font-display text-3xl font-bold text-forest">{formatMillimes(quote.price_per_tree_millimes)}</span>
-        </Row>
+        </DataRow>
         {facts}
-        <Row label={settingText(config, "start.row_total_price", "السعر الجملي")}>{formatMillimes(quote.total_price_millimes)}</Row>
+        <DataRow label={settingText(config, "start.row_total_price", "السعر الجملي")}>{formatMillimes(quote.total_price_millimes)}</DataRow>
       </dl>
 
       <Chips title="طريقة الدفع">
@@ -121,29 +122,29 @@ export function TreeOfferBlock({
           {installments?.status === "ok" ? (
             <dl className="mt-5 divide-y divide-line rounded-xl bg-paper px-4 text-sm">
               {installments.down_payment_millimes !== null ? (
-                <Row label={settingText(config, "start.row_down", "التسبقة")}>
+                <DataRow label={settingText(config, "start.row_down", "التسبقة")}>
                   {formatMillimes(installments.down_payment_millimes)}
                   {installments.down_payment_percent !== null ? ` (${formatCount(installments.down_payment_percent)}%)` : ""}
-                </Row>
+                </DataRow>
               ) : null}
               {installments.total_financed_millimes !== null ? (
-                <Row label={settingText(config, "start.row_total_financed", "السعر الجملي بالتقسيط")}>
+                <DataRow label={settingText(config, "start.row_total_financed", "السعر الجملي بالتقسيط")}>
                   {formatMillimes(installments.total_financed_millimes)}
-                </Row>
+                </DataRow>
               ) : null}
               {installments.remaining_millimes !== null ? (
-                <Row label={settingText(config, "start.row_remaining", "المبلغ المتبقي")}>
+                <DataRow label={settingText(config, "start.row_remaining", "المبلغ المتبقي")}>
                   {remainingPercent !== null ? `${formatCount(remainingPercent)}% · ` : ""}
                   {formatMillimes(installments.remaining_millimes)}
-                </Row>
+                </DataRow>
               ) : null}
               {installments.monthly_millimes !== null ? (
-                <Row label={settingText(config, "start.row_monthly", "القسط الشهري")}>
+                <DataRow label={settingText(config, "start.row_monthly", "القسط الشهري")}>
                   <span className="font-display text-2xl font-bold text-forest">{formatMillimes(installments.monthly_millimes)}</span>
                   {installments.installments_count ? (
                     <span className="block text-xs font-medium text-muted">{formatCount(installments.installments_count)} قسطاً</span>
                   ) : null}
-                </Row>
+                </DataRow>
               ) : null}
               {installments.last_installment_millimes !== null &&
               installments.last_installment_millimes !== installments.monthly_millimes ? (
@@ -198,20 +199,9 @@ function Chip({ href, active, children }: { href: string; active: boolean; child
       href={href}
       scroll={false}
       aria-current={active ? "true" : undefined}
-      className={`rounded-full border px-3.5 py-1.5 text-sm font-semibold transition ${
-        active ? "border-forest bg-leaf-soft text-forest" : "border-line text-ink hover:border-line-strong"
-      }`}
+      className="chip"
     >
       {children}
     </Link>
-  );
-}
-
-function Row({ label, children }: { label: string; children: ReactNode }) {
-  return (
-    <div className="flex items-center justify-between gap-4 py-2.5">
-      <dt className="text-muted">{label}</dt>
-      <dd className="text-end font-semibold text-ink tabular-nums">{children}</dd>
-    </div>
   );
 }

@@ -32,6 +32,12 @@ export type SectionHeaderProps = {
   badge?: ReactNode;
   /** Sits at the far end of the title line — buttons, a period switcher, a view switcher. */
   actions?: ReactNode;
+  /**
+   * The heading element, when the outline and the type scale disagree. The chart cards of
+   * /admin/analytics sit directly under the page's <h1>, so they are <h2>, but they are typed at
+   * level 3 like every other card heading. Defaults to the element that matches `level`.
+   */
+  as?: "h1" | "h2" | "h3" | "h4";
   /** Put on the heading, so a section can point at it with aria-labelledby. */
   id?: string;
   className?: string;
@@ -43,8 +49,15 @@ const TITLE_CLASS: Record<SectionHeaderLevel, string> = {
   3: "font-semibold",
 };
 
-export function SectionHeader({ title, description, level = 2, badge, actions, id, className = "" }: SectionHeaderProps) {
-  const Heading: "h1" | "h2" | "h3" = level === 1 ? "h1" : level === 2 ? "h2" : "h3";
+/** The description follows the heading it belongs to: a page's opening sentence is not a card's subtitle. */
+const DESCRIPTION_CLASS: Record<SectionHeaderLevel, string> = {
+  1: "mt-1 max-w-2xl leading-7 text-muted",
+  2: "mt-1 max-w-2xl leading-7 text-muted",
+  3: "mt-0.5 text-sm text-muted",
+};
+
+export function SectionHeader({ title, description, level = 2, badge, actions, as, id, className = "" }: SectionHeaderProps) {
+  const Heading: "h1" | "h2" | "h3" | "h4" = as ?? (level === 1 ? "h1" : level === 2 ? "h2" : "h3");
 
   return (
     <header className={className}>
@@ -57,7 +70,7 @@ export function SectionHeader({ title, description, level = 2, badge, actions, i
         </div>
         {actions ? <div className="flex flex-wrap items-center gap-2">{actions}</div> : null}
       </div>
-      {description ? <p className="mt-1 max-w-2xl leading-7 text-muted">{description}</p> : null}
+      {description ? <p className={DESCRIPTION_CLASS[level]}>{description}</p> : null}
     </header>
   );
 }

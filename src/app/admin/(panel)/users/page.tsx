@@ -35,13 +35,13 @@ export default async function UsersPage() {
   return (
     <div className="max-w-5xl space-y-8">
       <header>
-        <h1 className="font-display text-4xl font-bold text-forest">المستخدمون</h1>
+        <h1 className="section-title">المستخدمون</h1>
         <p className="mt-2 max-w-2xl leading-7 text-muted">
           حسابات فريق AgriZed وأدوارهم. إيقاف حساب يقطع الوصول فوراً ولا يحذف أي ملف أو عملية.
         </p>
       </header>
 
-      <section className="rounded-2xl border border-line bg-surface p-5 sm:p-6">
+      <section className="card p-5 sm:p-6">
         <h2 className="text-lg font-semibold">إضافة موظف</h2>
         <ActionForm action={createStaffUser} submitLabel="إنشاء الحساب" pendingLabel="جارٍ الإنشاء…" className="mt-4 space-y-4">
           <div className="grid gap-4 sm:grid-cols-2">
@@ -68,7 +68,7 @@ export default async function UsersPage() {
             const targetIsSuper = roles.includes("super_admin");
             const canManage = isSuper || !targetIsSuper;
             return (
-              <li key={profile.id} className="rounded-2xl border border-line bg-surface p-5">
+              <li key={profile.id} className="card p-5">
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div className="min-w-0">
                     <div className="flex flex-wrap items-center gap-2">
@@ -86,7 +86,7 @@ export default async function UsersPage() {
                   <p className="flex flex-wrap gap-1">
                     {roles.length ? (
                       roles.map((role) => (
-                        <span key={role} className="rounded-full bg-paper px-2.5 py-1 text-xs font-semibold text-forest ring-1 ring-line">
+                        <span key={role} className="pill bg-paper text-forest ring-1 ring-line">
                           {ROLE_LABELS[role]}
                         </span>
                       ))

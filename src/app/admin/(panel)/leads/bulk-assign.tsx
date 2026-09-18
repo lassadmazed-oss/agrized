@@ -65,7 +65,7 @@ export function BulkAssignBar({ formId, action, commercials, filtersQuery, match
           event.preventDefault();
         }
       }}
-      className="hidden flex-wrap items-end gap-4 rounded-2xl border border-line bg-surface px-5 py-4 md:flex"
+      className="card hidden flex-wrap items-end gap-4 px-5 py-4 md:flex"
     >
       <input type="hidden" name="filters" value={filtersQuery} />
       <fieldset className="space-y-1.5">

@@ -57,7 +57,7 @@ export function CapacitySimulator({ downPayments, installments, durations, legal
           />
         </div>
 
-        <section aria-live="polite" className="rounded-2xl border border-line bg-surface p-5 sm:p-6">
+        <section aria-live="polite" className="card p-5 sm:p-6">
           <h2 className="font-semibold text-ink">قدرتك التقديرية</h2>
           {results.length === 0 ? (
             <p className="mt-3 text-muted">اختر التسبقة والقسط لعرض النتيجة.</p>

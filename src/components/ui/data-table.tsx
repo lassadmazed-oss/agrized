@@ -40,6 +40,13 @@ export type Column<Row> = {
   mobile?: MobileSlot;
   /** Label for this value inside the phone card, when the column heading is too terse. */
   mobileLabel?: ReactNode;
+  /**
+   * false makes the column feed the phone card only, never the table. The leads list needs it twice
+   * over: the reference line of a card («رقم المطلب · التاريخ», one dir="ltr" island) is not a
+   * thirteenth column, and under rowHref the whole card is already one <a>, so the cell that carries
+   * a <Link> on desktop must not be rendered into it again as a nested anchor.
+   */
+  desktop?: boolean;
 };
 
 export type DataTableProps<Row> = {
@@ -79,6 +86,7 @@ export function DataTable<Row>({ caption, columns, rows, rowKey, rowHref, minWid
     return empty ? <>{empty}</> : null;
   }
 
+  const tableColumns = columns.filter((column) => column.desktop !== false);
   const titleColumns = columns.filter((column) => column.mobile === "title");
   const asideColumns = columns.filter((column) => column.mobile === "aside");
   const metaColumns = columns.filter((column) => column.mobile === "meta");
@@ -92,7 +100,7 @@ export function DataTable<Row>({ caption, columns, rows, rowKey, rowHref, minWid
           <caption className="sr-only">{caption}</caption>
           <thead className="bg-paper text-xs text-muted">
             <tr>
-              {columns.map((column) => (
+              {tableColumns.map((column) => (
                 <TableHeadCell key={column.key} className={`${ALIGN[column.align ?? "start"]} ${column.headClassName ?? ""}`.trim()}>
                   {column.header}
                 </TableHeadCell>
@@ -102,7 +110,7 @@ export function DataTable<Row>({ caption, columns, rows, rowKey, rowHref, minWid
           <tbody className="divide-y divide-line">
             {rows.map((row) => (
               <tr key={rowKey(row)} className="align-top hover:bg-paper/60">
-                {columns.map((column) => (
+                {tableColumns.map((column) => (
                   <TableCell key={column.key} className={cellClasses(column)}>
                     {column.cell(row)}
                   </TableCell>

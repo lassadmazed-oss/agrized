@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useRef, useState, useTransition, type ReactNode } from "react";
 
 import { readVisitSource } from "@/components/site/source-capture";
+import { FormField } from "@/components/ui";
 import { toWesternDigits } from "@/lib/digits";
 
 import type { CalculatorChoices, SummaryRowKey } from "../start/calculator-summary";
@@ -440,7 +441,7 @@ export function RegisterWizard(props: RegisterWizardProps) {
         }}
         className="mt-6"
       >
-        <h1 ref={headingRef} tabIndex={-1} className="font-display text-3xl font-bold text-balance text-forest outline-none sm:text-4xl">
+        <h1 ref={headingRef} tabIndex={-1} className="section-title outline-none">
           {STEPS[step - 1]}
         </h1>
 
@@ -535,7 +536,7 @@ type StepProps = {
 function IdentityStep({ form, errors, update, governorates }: StepProps & { governorates: RegisterWizardProps["governorates"] }) {
   return (
     <div className="space-y-5">
-      <Field id="fullName" label="الاسم واللقب" error={errors.fullName}>
+      <FormField id="fullName" label="الاسم واللقب" error={errors.fullName}>
         <input
           id="fullName"
           className="field"
@@ -545,9 +546,9 @@ function IdentityStep({ form, errors, update, governorates }: StepProps & { gove
           aria-invalid={Boolean(errors.fullName)}
           aria-describedby={errors.fullName ? "fullName-error" : undefined}
         />
-      </Field>
+      </FormField>
 
-      <Field id="phone" label="رقم الهاتف" hint="8 أرقام، مثال: 98 123 456" error={errors.phone}>
+      <FormField id="phone" label="رقم الهاتف" hint="8 أرقام، مثال: 98 123 456" error={errors.phone}>
         <input
           id="phone"
           type="tel"
@@ -561,10 +562,10 @@ function IdentityStep({ form, errors, update, governorates }: StepProps & { gove
           aria-invalid={Boolean(errors.phone)}
           aria-describedby={errors.phone ? "phone-error" : "phone-hint"}
         />
-      </Field>
+      </FormField>
 
       <div className="space-y-3">
-        <label className="flex items-center gap-3 text-[0.95rem]">
+        <label className="flex items-center gap-3 text-label">
           <input
             type="checkbox"
             className="size-5 accent-forest"
@@ -574,7 +575,7 @@ function IdentityStep({ form, errors, update, governorates }: StepProps & { gove
           رقم WhatsApp هو نفس رقم الهاتف
         </label>
         {!form.whatsappSame ? (
-          <Field id="whatsapp" label="رقم WhatsApp" error={errors.whatsapp}>
+          <FormField id="whatsapp" label="رقم WhatsApp" error={errors.whatsapp}>
             <input
               id="whatsapp"
               type="tel"
@@ -587,11 +588,11 @@ function IdentityStep({ form, errors, update, governorates }: StepProps & { gove
               aria-invalid={Boolean(errors.whatsapp)}
               aria-describedby={errors.whatsapp ? "whatsapp-error" : undefined}
             />
-          </Field>
+          </FormField>
         ) : null}
       </div>
 
-      <Field id="email" label="البريد الإلكتروني (اختياري)" error={errors.email}>
+      <FormField id="email" label="البريد الإلكتروني (اختياري)" error={errors.email}>
         <input
           id="email"
           type="email"
@@ -604,9 +605,9 @@ function IdentityStep({ form, errors, update, governorates }: StepProps & { gove
           aria-invalid={Boolean(errors.email)}
           aria-describedby={errors.email ? "email-error" : undefined}
         />
-      </Field>
+      </FormField>
 
-      <Field id="governorate" label="الولاية" hint="ولاية إقامتك." error={errors.governorateId}>
+      <FormField id="governorate" label="الولاية" hint="ولاية إقامتك." error={errors.governorateId}>
         <select
           id="governorate"
           className="field"
@@ -622,7 +623,7 @@ function IdentityStep({ form, errors, update, governorates }: StepProps & { gove
             </option>
           ))}
         </select>
-      </Field>
+      </FormField>
     </div>
   );
 }
@@ -798,7 +799,7 @@ function ReviewStep({
 
   return (
     <div className="space-y-6">
-      <dl className="divide-y divide-line rounded-2xl border border-line bg-surface px-4">
+      <dl className="panel divide-y divide-line px-4">
         {rows.map((row) => (
           <div key={row.label} className="flex items-start justify-between gap-4 py-3">
             <div className="min-w-0">
@@ -821,7 +822,7 @@ function ReviewStep({
           aria-invalid={Boolean(errors.consent)}
           aria-describedby={errors.consent ? "consent-error" : undefined}
         />
-        <span className="text-[0.95rem] leading-7">{consentText}</span>
+        <span className="text-label leading-7">{consentText}</span>
       </label>
       {errors.consent ? (
         <p id="consent-error" className="error-text -mt-4">
@@ -855,28 +856,6 @@ function Progress({ step, total }: { step: number; total: number }) {
     </div>
   );
 }
-
-function Field({ id, label, hint, error, children }: { id: string; label: string; hint?: string; error?: string; children: ReactNode }) {
-  return (
-    <div>
-      <label htmlFor={id} className="label">
-        {label}
-      </label>
-      {children}
-      {hint && !error ? (
-        <p id={`${id}-hint`} className="hint mt-1.5">
-          {hint}
-        </p>
-      ) : null}
-      {error ? (
-        <p id={`${id}-error`} className="error-text">
-          {error}
-        </p>
-      ) : null}
-    </div>
-  );
-}
-
 function GroupError({ message }: { message?: string }) {
   if (!message) return null;
   return (
@@ -1015,7 +994,7 @@ function Success({
       </button>
 
       {recap.length > 0 ? (
-        <dl className="mx-auto mt-8 max-w-md divide-y divide-line rounded-2xl border border-line bg-surface px-4 text-start">
+        <dl className="panel mx-auto mt-8 max-w-md divide-y divide-line px-4 text-start">
           {recap.map((row) => (
             <div key={row.key} className="flex items-start justify-between gap-4 py-2.5">
               <dt className="text-sm text-muted">{row.label}</dt>
@@ -1057,7 +1036,7 @@ function Success({
           {offersText ? <p className="mx-auto mt-2 max-w-md text-center leading-7 text-muted">{offersText}</p> : null}
           <ul className="mt-6 grid gap-4 sm:grid-cols-2">
             {offers.map((offer) => (
-              <li key={offer.code} className="overflow-hidden rounded-2xl border border-line bg-surface">
+              <li key={offer.code} className="card overflow-hidden">
                 <Link href={offer.href} className="block h-full focus-visible:outline-offset-[-2px]">
                   {offer.coverUrl ? (
                     // eslint-disable-next-line @next/next/no-img-element -- remote cover, sized by its box

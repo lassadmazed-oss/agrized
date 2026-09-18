@@ -1,9 +1,10 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 
-import { BarList, StatTile, type BarItem } from "@/components/admin/charts";
+import { BarList, ChartCard, type BarItem } from "@/components/admin/charts";
 import { DemandMap, type MapTile } from "@/components/admin/demand-map";
 import { formatPercent } from "@/components/admin/tree-pricing-inputs";
+import { StatTile } from "@/components/ui";
 import { CRM_READ_ROLES, hasRole, requireStaff } from "@/lib/auth";
 import { formatArea, formatCount, formatMillimes } from "@/lib/format";
 import { createClient } from "@/lib/supabase/server";
@@ -137,7 +138,7 @@ export default async function AnalyticsPage({ searchParams }: PageProps<"/admin/
   return (
     <div className="space-y-8">
       <header>
-        <h1 className="font-display text-4xl font-bold text-forest">التحليلات وخريطة الطلب</h1>
+        <h1 className="section-title">التحليلات وخريطة الطلب</h1>
         <p className="mt-1 text-muted">
           وين الطلب، قدّاش من زيتونة، وقدّاش من شخص.{ownFilesOnly ? " الأرقام تخص الملفات المسندة إليك." : ""}
         </p>
@@ -153,21 +154,24 @@ export default async function AnalyticsPage({ searchParams }: PageProps<"/admin/
         <StatTile label="مطالب" value={stats.requests} note={`${formatCount(stats.duplicates)} منها مكرّرة`} />
         <StatTile label="أشخاص" value={stats.persons} note="رقم هاتف واحد لكل شخص" />
         <StatTile label="زيتونات مطلوبة" value={stats.trees_total} note="الحد الأدنى لكل اختيار، دون المطالب المكرّرة" />
-        <div className="rounded-2xl border border-line bg-surface p-5">
-          <p className="text-sm text-muted">أكثر ولاية مطلوبة ({metric === "trees" ? "بالزيتونات" : mode === "people" ? "بالأشخاص" : "بالمطالب"})</p>
-          <p className="mt-2 text-2xl font-semibold text-ink">{leaders.length > 0 ? leaders.map((tile) => tile.name).join("، ") : "—"}</p>
-          {leaders.length > 0 ? (
-            <p className="mt-1 text-xs text-muted tabular-nums">
-              {formatCount(topValue)} {unit}
-            </p>
-          ) : (
-            <p className="mt-1 text-xs text-muted">لا يوجد طلب مرتبط بولاية في هذه الفترة.</p>
-          )}
-        </div>
+        <StatTile
+          size="sm"
+          label={`أكثر ولاية مطلوبة (${metric === "trees" ? "بالزيتونات" : mode === "people" ? "بالأشخاص" : "بالمطالب"})`}
+          value={leaders.length > 0 ? leaders.map((tile) => tile.name).join("، ") : "—"}
+          note={
+            leaders.length > 0 ? (
+              <span className="tabular-nums">
+                {formatCount(topValue)} {unit}
+              </span>
+            ) : (
+              "لا يوجد طلب مرتبط بولاية في هذه الفترة."
+            )
+          }
+        />
       </section>
 
       <div className="grid gap-4 xl:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)]">
-        <ChartCard
+        <ChartCard as="h2"
           title="خريطة الطلب"
           subtitle={`${formatCount(anywhere)} ${unit} في مطالب «المكان غير مهم» لا تظهر في الخريطة. المطلب اللي يذكر أكثر من ولاية يُحسب في كل ولاية. اضغط على ولاية لعرض مطالبها.`}
         >
@@ -180,7 +184,7 @@ export default async function AnalyticsPage({ searchParams }: PageProps<"/admin/
           />
         </ChartCard>
 
-        <ChartCard title={`${valueLabel} حسب الولاية`} subtitle={range.label}>
+        <ChartCard as="h2" title={`${valueLabel} حسب الولاية`} subtitle={range.label}>
           <BarList
             items={ranked.map((tile) => ({ key: String(tile.id), label: tile.name, count: tile.value }))}
             emptyText="لا يوجد طلب مرتبط بولاية في هذه الفترة."
@@ -189,13 +193,13 @@ export default async function AnalyticsPage({ searchParams }: PageProps<"/admin/
       </div>
 
       <div className="grid gap-4 xl:grid-cols-2">
-        <ChartCard title="عدد الزيتونات في المطالب" subtitle={`عدد ${mode === "people" ? "الأشخاص" : "المطالب"} حسب الاختيار.`}>
+        <ChartCard as="h2" title="عدد الزيتونات في المطالب" subtitle={`عدد ${mode === "people" ? "الأشخاص" : "المطالب"} حسب الاختيار.`}>
           <BarList
             items={stats.by_tree_count.map((bucket) => ({ key: bucket.code ?? "none", label: bucket.label, count: bucket.count }))}
             total={countTotal}
           />
         </ChartCard>
-        <ChartCard title="الزيتونات المطلوبة حسب الاختيار" subtitle="«اقترحولي» والمطالب بدون عدد لا تضيف زيتونات.">
+        <ChartCard as="h2" title="الزيتونات المطلوبة حسب الاختيار" subtitle="«اقترحولي» والمطالب بدون عدد لا تضيف زيتونات.">
           <BarList
             items={stats.by_tree_count.map((bucket) => ({ key: bucket.code ?? "none", label: bucket.label, count: bucket.trees }))}
             total={stats.trees_total}
@@ -204,10 +208,10 @@ export default async function AnalyticsPage({ searchParams }: PageProps<"/admin/
       </div>
 
       <div className="grid gap-4 xl:grid-cols-2">
-        <ChartCard title="شنوّة يحبوا يملكوا" subtitle={`${formatCount(stats.unsure_type)} ${countUnit} «ما يهمنيش النوع».`}>
+        <ChartCard as="h2" title="شنوّة يحبوا يملكوا" subtitle={`${formatCount(stats.unsure_type)} ${countUnit} «ما يهمنيش النوع».`}>
           <BarList items={stats.by_scenario.map((s) => ({ key: s.id, label: s.name, count: s.count }))} total={countTotal} />
         </ChartCard>
-        <ChartCard title="فئات المساحة" subtitle={`عدد ${mode === "people" ? "الأشخاص" : "المطالب"} حسب المساحة لكل زيتونة المختارة.`}>
+        <ChartCard as="h2" title="فئات المساحة" subtitle={`عدد ${mode === "people" ? "الأشخاص" : "المطالب"} حسب المساحة لكل زيتونة المختارة.`}>
           <BarList
             items={(stats.by_spacing_class ?? []).map((spacing) => ({
               key: spacing.id ?? "none",
@@ -221,7 +225,7 @@ export default async function AnalyticsPage({ searchParams }: PageProps<"/admin/
       </div>
 
       <div className="grid gap-4 xl:grid-cols-2">
-        <ChartCard title="طريقة الدفع" subtitle="بالحاضر أو بالتقسيط، كما اختارها الحريف مع السعر.">
+        <ChartCard as="h2" title="طريقة الدفع" subtitle="بالحاضر أو بالتقسيط، كما اختارها الحريف مع السعر.">
           <BarList
             items={(stats.by_payment_mode ?? []).map((entry) => ({
               key: entry.code ?? "none",
@@ -233,17 +237,17 @@ export default async function AnalyticsPage({ searchParams }: PageProps<"/admin/
           />
         </ChartCard>
         {/* Plan Q-1: the percentage of the cash total chosen with installments. */}
-        <ChartCard title="نسبة التسبقة" subtitle={`عدد ${mode === "people" ? "الأشخاص" : "المطالب"} حسب نسبة التسبقة المختارة مع التقسيط.`}>
+        <ChartCard as="h2" title="نسبة التسبقة" subtitle={`عدد ${mode === "people" ? "الأشخاص" : "المطالب"} حسب نسبة التسبقة المختارة مع التقسيط.`}>
           <BarList items={percentItems} total={countTotal} emptyText="حتى مطلب ما فيه نسبة تسبقة في هذه الفترة." />
         </ChartCard>
       </div>
 
       <div className="grid gap-4 xl:grid-cols-2">
         {/* Report v3 §49: which duration is chosen most. */}
-        <ChartCard title="مدة الدفع" subtitle={`عدد ${mode === "people" ? "الأشخاص" : "المطالب"} حسب المدة المختارة.`}>
+        <ChartCard as="h2" title="مدة الدفع" subtitle={`عدد ${mode === "people" ? "الأشخاص" : "المطالب"} حسب المدة المختارة.`}>
           <BarList items={stats.by_duration.map((d) => ({ key: d.id ?? "none", label: d.label, count: d.count }))} total={countTotal} />
         </ChartCard>
-        <ChartCard title="الزيارة والتمويل البنكي" subtitle="اللي جاوبوا بنعم. السؤالين اختياريين في الاستمارة.">
+        <ChartCard as="h2" title="الزيارة والتمويل البنكي" subtitle="اللي جاوبوا بنعم. السؤالين اختياريين في الاستمارة.">
           <BarList
             items={[
               { key: "visit", label: "يحب يزور الأرض", count: stats.visit_yes },
@@ -256,7 +260,7 @@ export default async function AnalyticsPage({ searchParams }: PageProps<"/admin/
       </div>
 
       {priceBands.length > 0 ? (
-        <ChartCard
+        <ChartCard as="h2"
           title="شرائح السعر الجملي"
           subtitle={`عدد ${mode === "people" ? "الأشخاص" : "المطالب"} حسب السعر الجملي المقدّر وقت التسجيل. الشرائح من الإعداد analytics.total_price_bands_millimes.`}
         >
@@ -274,7 +278,7 @@ export default async function AnalyticsPage({ searchParams }: PageProps<"/admin/
           </div>
           <div className="grid gap-4 xl:grid-cols-2">
             {legacy.map((chart) => (
-              <ChartCard key={chart.key} title={chart.title}>
+              <ChartCard as="h2" key={chart.key} title={chart.title}>
                 <BarList items={chart.items} total={countTotal} />
               </ChartCard>
             ))}
@@ -295,7 +299,7 @@ export default async function AnalyticsPage({ searchParams }: PageProps<"/admin/
 
 function Segmented({ label, options, current }: { label: string; options: { key: string; label: string; href: string }[]; current: string }) {
   return (
-    <nav aria-label={label} className="flex flex-wrap gap-1 rounded-xl border border-line bg-surface p-1">
+    <nav aria-label={label} className="card flex flex-wrap gap-1 rounded-xl p-1">
       {options.map((option) => (
         <Link
           key={option.key}
@@ -309,15 +313,5 @@ function Segmented({ label, options, current }: { label: string; options: { key:
         </Link>
       ))}
     </nav>
-  );
-}
-
-function ChartCard({ title, subtitle, children }: { title: string; subtitle?: string; children: React.ReactNode }) {
-  return (
-    <section className="rounded-2xl border border-line bg-surface p-5">
-      <h2 className="font-semibold">{title}</h2>
-      {subtitle ? <p className="mt-0.5 text-sm text-muted">{subtitle}</p> : null}
-      <div className="mt-4">{children}</div>
-    </section>
   );
 }

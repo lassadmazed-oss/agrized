@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 
 import { ActionForm } from "@/components/admin/action-form";
 import { treePricingReady } from "@/components/admin/legacy-pricing-notice";
+import { DataRow, EmptyState, StatusPill } from "@/components/ui";
 import { hasRole, requireStaff, type StaffRole } from "@/lib/auth";
 import { getPublicConfig, settingText } from "@/lib/config";
 import { PLANTATION_LABELS, PRODUCTION_LABELS } from "@/lib/crm";
@@ -115,54 +116,52 @@ export default async function ParcelPage({ params, searchParams }: PageProps<"/a
         {/* Offer card exactly as the client will read it (clause 25.6) */}
         <aside className="space-y-3">
           <h2 className="text-lg font-semibold">بطاقة العرض</h2>
-          <div className="rounded-2xl border border-line bg-surface p-5">
+          <div className="card p-5">
             <div className="flex items-center justify-between gap-3">
               <p className="font-display text-2xl font-bold text-forest">القطعة {parcel.code}</p>
-              <span className={`rounded-full px-2.5 py-1 text-xs font-semibold ring-1 ring-inset ${parcelStatusTone(parcel.status)}`}>
-                {parcelStatusLabel(parcel.status)}
-              </span>
+              <StatusPill toneClass={parcelStatusTone(parcel.status)}>{parcelStatusLabel(parcel.status)}</StatusPill>
             </div>
             <dl className="mt-4 divide-y divide-line text-sm">
-              <Row label="المساحة">{formatCount(Number(parcel.area_m2))} م²</Row>
-              <Row label="نوع العقار">{PROPERTY_TYPE_LABELS[parcel.property_type] ?? parcel.property_type}</Row>
-              <Row label="نوع الغراسة">
+              <DataRow label="المساحة">{formatCount(Number(parcel.area_m2))} م²</DataRow>
+              <DataRow label="نوع العقار">{PROPERTY_TYPE_LABELS[parcel.property_type] ?? parcel.property_type}</DataRow>
+              <DataRow label="نوع الغراسة">
                 {parcel.plantation_system ? (PLANTATION_LABELS[parcel.plantation_system] ?? parcel.plantation_system) : "—"}
-              </Row>
-              <Row label="عدد الزيتونات">{parcel.olive_tree_count ?? "—"}</Row>
-              <Row label="عمر الزيتونات">{parcel.tree_age_years ? `${parcel.tree_age_years} سنوات` : "—"}</Row>
-              <Row label="حالة الإنتاج">
+              </DataRow>
+              <DataRow label="عدد الزيتونات">{parcel.olive_tree_count ?? "—"}</DataRow>
+              <DataRow label="عمر الزيتونات">{parcel.tree_age_years ? `${parcel.tree_age_years} سنوات` : "—"}</DataRow>
+              <DataRow label="حالة الإنتاج">
                 {parcel.production_status ? (PRODUCTION_LABELS[parcel.production_status] ?? parcel.production_status) : "—"}
-              </Row>
-              <Row label="الري">{parcel.irrigation ? (IRRIGATION_LABELS as Record<string, string>)[parcel.irrigation] : "—"}</Row>
+              </DataRow>
+              <DataRow label="الري">{parcel.irrigation ? (IRRIGATION_LABELS as Record<string, string>)[parcel.irrigation] : "—"}</DataRow>
               {onTree && treePrice ? (
                 <>
-                  <Row label="مساحة كل زيتونة">{treePrice.area_per_tree_m2 ? formatArea(treePrice.area_per_tree_m2) : "—"}</Row>
-                  <Row label="المساحة الجملية">{treePrice.total_area_m2 ? formatArea(treePrice.total_area_m2) : "—"}</Row>
-                  <Row label="السعر للزيتونة">
+                  <DataRow label="مساحة كل زيتونة">{treePrice.area_per_tree_m2 ? formatArea(treePrice.area_per_tree_m2) : "—"}</DataRow>
+                  <DataRow label="المساحة الجملية">{treePrice.total_area_m2 ? formatArea(treePrice.total_area_m2) : "—"}</DataRow>
+                  <DataRow label="السعر للزيتونة">
                     {treePrice.price_per_tree_millimes ? formatMillimes(treePrice.price_per_tree_millimes) : "—"}
-                  </Row>
-                  <Row label="السعر الجملي">
+                  </DataRow>
+                  <DataRow label="السعر الجملي">
                     {treePrice.cash_total_millimes
                       ? formatMillimes(treePrice.cash_total_millimes)
                       : ((treePrice.reason && PARCEL_PRICE_REASONS[treePrice.reason]) ?? "السعر ما تحسبش.")}
-                  </Row>
+                  </DataRow>
                 </>
               ) : (
                 <>
-                  <Row label="السعر حاضر">
+                  <DataRow label="السعر حاضر">
                     {parcel.cash_price_millimes > 0 ? formatMillimes(parcel.cash_price_millimes) : settingText(config, "projects.price_pending", "السعر يُعلن لاحقاً.")}
-                  </Row>
-                  <Row label="التسبقة">{offer?.down_from_millimes ? `من ${formatMillimes(offer.down_from_millimes)}` : "—"}</Row>
-                  <Row label="القسط">
+                  </DataRow>
+                  <DataRow label="التسبقة">{offer?.down_from_millimes ? `من ${formatMillimes(offer.down_from_millimes)}` : "—"}</DataRow>
+                  <DataRow label="القسط">
                     {entry?.ok && entry.months
                       ? `من ${formatMillimes(entry.installment_millimes)} في الشهر · ${formatCount(entry.months)} شهراً`
                       : "غير متاح بالقيم الحالية"}
-                  </Row>
+                  </DataRow>
                 </>
               )}
-              <Row label="المصاريف السنوية التقديرية">
+              <DataRow label="المصاريف السنوية التقديرية">
                 {parcel.annual_costs_millimes !== null ? formatMillimes(parcel.annual_costs_millimes) : "—"}
-              </Row>
+              </DataRow>
             </dl>
             <p className="mt-4 rounded-xl bg-paper px-4 py-3 text-xs leading-6 text-muted">
               {settingText(config, "legal.parcel_card_note")}
@@ -176,7 +175,7 @@ export default async function ParcelPage({ params, searchParams }: PageProps<"/a
 
         <div className="space-y-6">
           {onTree ? (
-            <section className="rounded-2xl border border-line bg-surface p-5">
+            <section className="card p-5">
               <h2 className="font-semibold">التسعير بالزيتونة</h2>
               <p className="mt-1 text-sm leading-6 text-muted">
                 هذه القطعة من مشروع يتباع بالزيتونة: المساحة والسعر يتحسبو من عدد الزيتونات وفئة المساحة. التسبقة والمدة والقسط
@@ -188,13 +187,13 @@ export default async function ParcelPage({ params, searchParams }: PageProps<"/a
             </section>
           ) : (
           /* Installment simulator of legacy parcels, using the same server function as contracts will (SIM-06) */
-          <section className="rounded-2xl border border-line bg-surface p-5">
+          <section className="card p-5">
             <h2 className="font-semibold">محاكي التقسيط</h2>
             <p className="mt-1 text-sm text-muted">نفس دالة الحساب المستعملة في الموقع والحجز والعقود وجدول الأقساط.</p>
             <form method="get" className="mt-4 flex flex-wrap items-end gap-3">
               <label className="block space-y-1">
                 <span className="block text-xs text-muted">التسبقة</span>
-                <select name="down" defaultValue={chosen?.down_option_id ?? downOptions[0]?.id ?? ""} className="field min-h-11">
+                <select name="down" defaultValue={chosen?.down_option_id ?? downOptions[0]?.id ?? ""} className="field field-sm">
                   {downOptions.map((option) => (
                     <option key={option.id} value={option.id}>
                       {option.label_ar}
@@ -207,7 +206,7 @@ export default async function ParcelPage({ params, searchParams }: PageProps<"/a
                 <select
                   name="installment"
                   defaultValue={chosen?.installment_option_id ?? entry?.installment_option_id ?? installmentOptions[0]?.id ?? ""}
-                  className="field min-h-11"
+                  className="field field-sm"
                 >
                   {installmentOptions.map((option) => (
                     <option key={option.id} value={option.id}>
@@ -216,7 +215,7 @@ export default async function ParcelPage({ params, searchParams }: PageProps<"/a
                   ))}
                 </select>
               </label>
-              <button type="submit" className="btn btn-secondary min-h-11">
+              <button type="submit" className="btn btn-secondary btn-sm">
                 احسب
               </button>
             </form>
@@ -224,10 +223,10 @@ export default async function ParcelPage({ params, searchParams }: PageProps<"/a
             {chosen ? (
               chosen.ok && chosen.months ? (
                 <dl className="mt-4 grid grid-cols-2 gap-4 sm:grid-cols-4">
-                  <Fact label="عدد الأشهر">{formatCount(chosen.months)}</Fact>
-                  <Fact label="السعر الجملي">{formatMillimes(chosen.total_millimes ?? 0)}</Fact>
-                  <Fact label="آخر قسط">{formatMillimes(chosen.last_installment_millimes ?? 0)}</Fact>
-                  <Fact label="الفارق عن الحاضر">{formatMillimes((chosen.total_millimes ?? 0) - parcel.cash_price_millimes)}</Fact>
+                  <DataRow layout="stacked" size="lg" label="عدد الأشهر">{formatCount(chosen.months)}</DataRow>
+                  <DataRow layout="stacked" size="lg" label="السعر الجملي">{formatMillimes(chosen.total_millimes ?? 0)}</DataRow>
+                  <DataRow layout="stacked" size="lg" label="آخر قسط">{formatMillimes(chosen.last_installment_millimes ?? 0)}</DataRow>
+                  <DataRow layout="stacked" size="lg" label="الفارق عن الحاضر">{formatMillimes((chosen.total_millimes ?? 0) - parcel.cash_price_millimes)}</DataRow>
                 </dl>
               ) : (
                 <p className="mt-4 rounded-xl bg-gold-soft px-4 py-3 text-sm text-forest-700">
@@ -255,13 +254,11 @@ export default async function ParcelPage({ params, searchParams }: PageProps<"/a
             {matchError ? (
               <p className="rounded-xl bg-danger-soft px-4 py-3 text-sm text-danger">تعذّر حساب المطابقة: {matchError.message}</p>
             ) : matchRows.length === 0 ? (
-              <p className="rounded-2xl border border-dashed border-line-strong bg-surface px-6 py-10 text-center text-muted">
-                لا يوجد حرفاء مطابقون بالحد الأدنى الحالي للنتيجة.
-              </p>
+              <EmptyState>لا يوجد حرفاء مطابقون بالحد الأدنى الحالي للنتيجة.</EmptyState>
             ) : (
               <ul className="space-y-2">
                 {matchRows.map((match) => (
-                  <li key={match.request_id} className="rounded-2xl border border-line bg-surface p-4">
+                  <li key={match.request_id} className="card p-4">
                     <div className="flex flex-wrap items-start justify-between gap-3">
                       <div className="min-w-0">
                         <Link href={`/admin/leads/${match.person_id}`} className="font-semibold text-forest underline-offset-4 hover:underline">
@@ -295,7 +292,7 @@ export default async function ParcelPage({ params, searchParams }: PageProps<"/a
           {canWrite ? (
             <section className="space-y-3">
               <h2 className="text-lg font-semibold">تعديل القطعة</h2>
-              <div className="rounded-2xl border border-line bg-surface p-5">
+              <div className="card p-5">
                 <ActionForm
                   action={saveParcel.bind(null, id, parcelId)}
                   submitLabel="حفظ القطعة"
@@ -315,24 +312,6 @@ export default async function ParcelPage({ params, searchParams }: PageProps<"/a
           ) : null}
         </div>
       </div>
-    </div>
-  );
-}
-
-function Row({ label, children }: { label: string; children: React.ReactNode }) {
-  return (
-    <div className="flex items-center justify-between gap-4 py-2">
-      <dt className="text-muted">{label}</dt>
-      <dd className="font-semibold tabular-nums">{children}</dd>
-    </div>
-  );
-}
-
-function Fact({ label, children }: { label: string; children: React.ReactNode }) {
-  return (
-    <div>
-      <dt className="text-xs text-muted">{label}</dt>
-      <dd className="mt-0.5 text-lg font-semibold tabular-nums">{children}</dd>
     </div>
   );
 }

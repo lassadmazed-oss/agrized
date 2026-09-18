@@ -6,10 +6,10 @@ import type { ReactNode } from "react";
 import { ComingSoon, PreviewBanner } from "@/components/site/module-gate";
 import { ParcelCard } from "@/components/site/parcel-card";
 import { ParcelPlan } from "@/components/site/parcel-plan";
-import { ParcelRow } from "@/components/site/parcel-row";
 import { ProjectGallery } from "@/components/site/project-gallery";
 import { ProjectVideo } from "@/components/site/project-video";
 import { RemotePhoto } from "@/components/site/site-photo";
+import { DataRow, EmptyState } from "@/components/ui";
 import { flagState, getPublicConfig, optionsFor, settingText, type PublicConfig } from "@/lib/config";
 import { PLANTATION_LABELS, PRODUCTION_LABELS } from "@/lib/crm";
 import { formatArea, formatCount, formatMillimes } from "@/lib/format";
@@ -107,7 +107,7 @@ export default async function ProjectPage({ params }: PageProps<"/projects/[code
                 {project.code}
               </p>
               {project.status !== "published" ? (
-                <span className={`rounded-full px-2.5 py-1 text-xs font-semibold ring-1 ring-inset ${projectStatusTone(project.status)}`}>
+                <span className={`pill ring-1 ring-inset ${projectStatusTone(project.status)}`}>
                   {projectStatusLabel(project.status)}
                 </span>
               ) : null}
@@ -126,36 +126,36 @@ export default async function ProjectPage({ params }: PageProps<"/projects/[code
               </a>
             ) : null}
 
-            <dl className="mt-6 space-y-2.5 rounded-2xl border border-line bg-surface p-5 text-sm">
-              {project.total_area_m2 ? <ParcelRow label="المساحة الجملية">{formatCount(project.total_area_m2)} م²</ParcelRow> : null}
-              {project.tree_count ? <ParcelRow label="عدد الأشجار">{formatCount(project.tree_count)}</ParcelRow> : null}
-              {project.olive_variety ? <ParcelRow label="الصنف">{project.olive_variety}</ParcelRow> : null}
-              {project.tree_age_years ? <ParcelRow label="عمر الأشجار">{formatCount(project.tree_age_years)} سنوات</ParcelRow> : null}
-              <ParcelRow label="نظام الغراسة">
+            <dl className="panel mt-6 space-y-2.5 p-5 text-sm">
+              {project.total_area_m2 ? <DataRow padded={false} label="المساحة الجملية">{formatCount(project.total_area_m2)} م²</DataRow> : null}
+              {project.tree_count ? <DataRow padded={false} label="عدد الأشجار">{formatCount(project.tree_count)}</DataRow> : null}
+              {project.olive_variety ? <DataRow padded={false} label="الصنف">{project.olive_variety}</DataRow> : null}
+              {project.tree_age_years ? <DataRow padded={false} label="عمر الأشجار">{formatCount(project.tree_age_years)} سنوات</DataRow> : null}
+              <DataRow padded={false} label="نظام الغراسة">
                 {project.plantation_system ? (PLANTATION_LABELS[project.plantation_system] ?? project.plantation_system) : "—"}
-              </ParcelRow>
-              <ParcelRow label="حالة الإنتاج">
+              </DataRow>
+              <DataRow padded={false} label="حالة الإنتاج">
                 {project.production_status ? (PRODUCTION_LABELS[project.production_status] ?? project.production_status) : "—"}
-              </ParcelRow>
-              {water ? <ParcelRow label="الماء">{water}</ParcelRow> : null}
-              {irrigation ? <ParcelRow label="الري">{irrigation}</ParcelRow> : null}
-              {page?.access_note ? <ParcelRow label="النفاذ">{page.access_note}</ParcelRow> : null}
-              <ParcelRow label="القطع">
+              </DataRow>
+              {water ? <DataRow padded={false} label="الماء">{water}</DataRow> : null}
+              {irrigation ? <DataRow padded={false} label="الري">{irrigation}</DataRow> : null}
+              {page?.access_note ? <DataRow padded={false} label="النفاذ">{page.access_note}</DataRow> : null}
+              <DataRow padded={false} label="القطع">
                 {formatCount(project.parcels_total)} · {formatCount(project.parcels_offered)} متبقية
-              </ParcelRow>
+              </DataRow>
               {project.on_tree_pricing && project.area_per_tree_min_m2 ? (
-                <ParcelRow label="مساحة كل زيتونة">
+                <DataRow padded={false} label="مساحة كل زيتونة">
                   {project.area_per_tree_max_m2 && project.area_per_tree_max_m2 !== project.area_per_tree_min_m2
                     ? `${formatCount(project.area_per_tree_min_m2)} – ${formatArea(project.area_per_tree_max_m2)}`
                     : formatArea(project.area_per_tree_min_m2)}
-                </ParcelRow>
+                </DataRow>
               ) : null}
               {project.offered && project.on_tree_pricing ? (
                 project.min_price_per_tree_millimes ? (
-                  <ParcelRow label="السعر للزيتونة">ابتداءً من {formatMillimes(project.min_price_per_tree_millimes)}</ParcelRow>
+                  <DataRow padded={false} label="السعر للزيتونة">ابتداءً من {formatMillimes(project.min_price_per_tree_millimes)}</DataRow>
                 ) : null
               ) : project.offered && project.min_cash_price_millimes ? (
-                <ParcelRow label="السعر حاضر">ابتداءً من {formatMillimes(project.min_cash_price_millimes)}</ParcelRow>
+                <DataRow padded={false} label="السعر حاضر">ابتداءً من {formatMillimes(project.min_cash_price_millimes)}</DataRow>
               ) : null}
             </dl>
           </div>
@@ -168,7 +168,7 @@ export default async function ProjectPage({ params }: PageProps<"/projects/[code
             <div className="grid gap-6 lg:grid-cols-[1.4fr_1fr]">
               {page.description_ar ? (
                 <div>
-                  <h2 className="font-display text-3xl font-bold text-forest">
+                  <h2 className="section-title">
                     {settingText(config, "projects.about_title", "على المشروع")}
                   </h2>
                   <p className="mt-3 whitespace-pre-line leading-8 text-ink/80">{page.description_ar}</p>
@@ -199,7 +199,7 @@ export default async function ProjectPage({ params }: PageProps<"/projects/[code
 
           {page.video_url ? (
             <div className="max-w-3xl">
-              <h2 className="font-display text-3xl font-bold text-forest">{videoTitle}</h2>
+              <h2 className="section-title">{videoTitle}</h2>
               <div className="mt-4">
                 <ProjectVideo url={page.video_url} title={`${videoTitle} · ${project.name}`} />
               </div>
@@ -244,7 +244,7 @@ export default async function ProjectPage({ params }: PageProps<"/projects/[code
       <section className="border-y border-line bg-surface">
         <div className="mx-auto max-w-6xl space-y-6 px-4 py-10 sm:px-6">
           <div>
-            <h2 className="font-display text-3xl font-bold text-forest">
+            <h2 className="section-title">
               {settingText(config, "projects.detail_parcels_title", "القطع في هذا المشروع")}
             </h2>
             {hasTaken ? (
@@ -267,9 +267,7 @@ export default async function ProjectPage({ params }: PageProps<"/projects/[code
           />
 
           {own.length === 0 ? (
-            <p className="rounded-2xl border border-dashed border-line-strong bg-paper px-6 py-10 text-center text-muted">
-              {settingText(config, "projects.empty_text", "ما فماش قطع متاحة توّا.")}
-            </p>
+            <EmptyState className="bg-paper">{settingText(config, "projects.empty_text", "ما فماش قطع متاحة توّا.")}</EmptyState>
           ) : (
             <ul className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
               {own.map((parcel) => (
@@ -340,7 +338,7 @@ function chosenLabels(config: PublicConfig, listKey: string, ids: string[] | und
 
 function InfoCard({ title, children }: { title: string; children: ReactNode }) {
   return (
-    <div className="rounded-2xl border border-line bg-surface p-5 sm:p-6">
+    <div className="card p-5 sm:p-6">
       <h2 className="font-display text-2xl font-bold text-forest">{title}</h2>
       <div className="mt-3 leading-7 text-ink/80">{children}</div>
     </div>

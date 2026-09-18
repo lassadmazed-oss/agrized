@@ -5,8 +5,8 @@ import { notFound } from "next/navigation";
 import { ComingSoon, PreviewBanner } from "@/components/site/module-gate";
 import { OfferBlock } from "@/components/site/offer-block";
 import { TreeOfferBlock } from "@/components/site/tree-offer-block";
-import { ParcelRow } from "@/components/site/parcel-row";
 import { RemotePhoto } from "@/components/site/site-photo";
+import { DataRow } from "@/components/ui";
 import { flagState, getPublicConfig, settingText } from "@/lib/config";
 import { PLANTATION_LABELS, PRODUCTION_LABELS } from "@/lib/crm";
 import { formatCount } from "@/lib/format";
@@ -117,30 +117,30 @@ export default async function ParcelPage({ params, searchParams }: PageProps<"/p
             />
 
             {/* The offer card in the order of clause 25.6 */}
-            <div className="rounded-2xl border border-line bg-surface p-5">
+            <div className="card p-5">
               <div className="flex items-start justify-between gap-3">
                 <div>
                   <h1 className="font-display text-3xl font-bold text-forest">القطعة {parcel.code}</h1>
                   <p className="mt-1 text-sm text-muted">{[project.name, governorate].filter(Boolean).join(" · ")}</p>
                 </div>
-                <span className={`shrink-0 rounded-full px-2.5 py-1 text-xs font-semibold ring-1 ring-inset ${parcelStatusTone(parcel.status)}`}>
+                <span className={`pill shrink-0 ring-1 ring-inset ${parcelStatusTone(parcel.status)}`}>
                   {parcelStatusLabel(parcel.status)}
                 </span>
               </div>
               <dl className="mt-4 space-y-2.5 text-sm">
-                <ParcelRow label="المساحة">{formatCount(parcel.area_m2)} م²</ParcelRow>
-                <ParcelRow label="نوع العقار">{PROPERTY_TYPE_LABELS[parcel.property_type] ?? parcel.property_type}</ParcelRow>
-                <ParcelRow label="نوع الغراسة">
+                <DataRow padded={false} label="المساحة">{formatCount(parcel.area_m2)} م²</DataRow>
+                <DataRow padded={false} label="نوع العقار">{PROPERTY_TYPE_LABELS[parcel.property_type] ?? parcel.property_type}</DataRow>
+                <DataRow padded={false} label="نوع الغراسة">
                   {parcel.plantation_system ? (PLANTATION_LABELS[parcel.plantation_system] ?? parcel.plantation_system) : "—"}
-                </ParcelRow>
-                <ParcelRow label="عدد الزيتونات">
+                </DataRow>
+                <DataRow padded={false} label="عدد الزيتونات">
                   {parcel.property_type === "bare_land" ? "—" : formatCount(parcel.olive_tree_count ?? 0)}
-                </ParcelRow>
-                {parcel.tree_age_years ? <ParcelRow label="عمر الزيتونات">{formatCount(parcel.tree_age_years)} سنوات</ParcelRow> : null}
-                <ParcelRow label="حالة الإنتاج">
+                </DataRow>
+                {parcel.tree_age_years ? <DataRow padded={false} label="عمر الزيتونات">{formatCount(parcel.tree_age_years)} سنوات</DataRow> : null}
+                <DataRow padded={false} label="حالة الإنتاج">
                   {parcel.production_status ? (PRODUCTION_LABELS[parcel.production_status] ?? parcel.production_status) : "—"}
-                </ParcelRow>
-                {irrigation ? <ParcelRow label="الري">{irrigation}</ParcelRow> : null}
+                </DataRow>
+                {irrigation ? <DataRow padded={false} label="الري">{irrigation}</DataRow> : null}
               </dl>
             </div>
           </div>
@@ -159,7 +159,7 @@ export default async function ParcelPage({ params, searchParams }: PageProps<"/p
 
             {cta ? (
               <div className="hidden md:block">
-                <Link href={cta.href} className="btn btn-primary min-h-14 w-full text-lg">
+                <Link href={cta.href} className="btn btn-primary w-full text-lg">
                   {cta.label}
                 </Link>
                 <p className="mt-2 text-center text-sm text-muted">{settingText(config, "site.final_cta_note")}</p>
@@ -174,7 +174,7 @@ export default async function ParcelPage({ params, searchParams }: PageProps<"/p
         <>
           <div aria-hidden="true" className="h-24 md:hidden" />
           <div className="fixed inset-x-0 bottom-0 z-40 border-t border-line bg-paper/95 px-4 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-3 backdrop-blur md:hidden">
-            <Link href={cta.href} className="btn btn-primary min-h-13 w-full text-lg">
+            <Link href={cta.href} className="btn btn-primary w-full text-lg">
               {cta.label}
             </Link>
           </div>

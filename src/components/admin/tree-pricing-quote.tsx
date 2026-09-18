@@ -1,5 +1,6 @@
 // Readable breakdown of public.staff_tree_quote, so Finance and Admin can check every number before publishing.
 
+import { DataRow } from "@/components/ui";
 import { intakeErrorMessage, isKnownIntakeError } from "@/lib/errors";
 import { formatArea, formatCount } from "@/lib/format";
 
@@ -93,9 +94,9 @@ export function QuoteBreakdown({ quote }: { quote: TreeQuote }) {
   return (
     <div className="space-y-4">
       <dl className="grid gap-3 sm:grid-cols-3">
-        <Figure label="المساحة لكل زيتونة" value={typeof quote.area_per_tree_m2 === "number" ? formatArea(quote.area_per_tree_m2) : "—"} />
-        <Figure label="عدد الزيتونات" value={hasTrees ? formatCount(quote.trees as number) : "—"} />
-        <Figure label="المساحة الجملية" value={typeof quote.total_area_m2 === "number" ? formatArea(quote.total_area_m2) : "—"} />
+        <DataRow layout="stacked" size="lg" label="المساحة لكل زيتونة" className="card px-4 py-3">{typeof quote.area_per_tree_m2 === "number" ? formatArea(quote.area_per_tree_m2) : "—"}</DataRow>
+        <DataRow layout="stacked" size="lg" label="عدد الزيتونات" className="card px-4 py-3">{hasTrees ? formatCount(quote.trees as number) : "—"}</DataRow>
+        <DataRow layout="stacked" size="lg" label="المساحة الجملية" className="card px-4 py-3">{typeof quote.total_area_m2 === "number" ? formatArea(quote.total_area_m2) : "—"}</DataRow>
       </dl>
 
       {!price.ok ? (
@@ -104,7 +105,7 @@ export function QuoteBreakdown({ quote }: { quote: TreeQuote }) {
         </p>
       ) : (
         <>
-          <div className="overflow-x-auto rounded-2xl border border-line bg-surface">
+          <div className="panel overflow-x-auto">
             <table className="w-full min-w-[40rem] text-sm">
               <caption className="px-4 pt-4 text-start font-semibold">التفصيل الداخلي لسعر الزيتونة (ما يظهرش للزائر)</caption>
               <thead className="text-xs text-muted">
@@ -173,35 +174,27 @@ export function QuoteBreakdown({ quote }: { quote: TreeQuote }) {
 
           {installments ? <InstallmentsTable installments={installments} totalPrice={quote.total_price_millimes} roundingSource={price.sources.rounding} /> : null}
 
-          <section className="rounded-2xl border border-line bg-paper p-4">
+          <section className="card bg-paper p-4">
             <h3 className="font-semibold">ما يظهر للزائر بعد نشر موديول التسعير</h3>
             <dl className="mt-3 grid gap-3 text-sm sm:grid-cols-2 lg:grid-cols-5">
-              <Figure label="عدد الزيتونات" value={hasTrees ? formatCount(quote.trees as number) : "—"} plain />
-              <Figure label="المساحة لكل زيتونة" value={formatArea(price.area_m2)} plain />
-              <Figure label="المساحة الجملية" value={typeof quote.total_area_m2 === "number" ? formatArea(quote.total_area_m2) : "—"} plain />
-              <Figure label="سعر الزيتونة" value={formatMoney(price.price_per_tree_millimes)} plain />
-              <Figure label="السعر الجملي للطلب" value={typeof quote.total_price_millimes === "number" ? formatMoney(quote.total_price_millimes) : "—"} plain />
+              <DataRow layout="stacked" size="lg" label="عدد الزيتونات">{hasTrees ? formatCount(quote.trees as number) : "—"}</DataRow>
+              <DataRow layout="stacked" size="lg" label="المساحة لكل زيتونة">{formatArea(price.area_m2)}</DataRow>
+              <DataRow layout="stacked" size="lg" label="المساحة الجملية">{typeof quote.total_area_m2 === "number" ? formatArea(quote.total_area_m2) : "—"}</DataRow>
+              <DataRow layout="stacked" size="lg" label="سعر الزيتونة">{formatMoney(price.price_per_tree_millimes)}</DataRow>
+              <DataRow layout="stacked" size="lg" label="السعر الجملي للطلب">{typeof quote.total_price_millimes === "number" ? formatMoney(quote.total_price_millimes) : "—"}</DataRow>
             </dl>
             {installments?.ok ? (
               // Report v3 §12: the installment figures the visitor sees once they pick a percentage and a duration.
               <dl className="mt-3 grid gap-3 border-t border-line pt-3 text-sm sm:grid-cols-2 lg:grid-cols-5">
-                <Figure
-                  label="التسبقة"
-                  value={
+                <DataRow layout="stacked" size="lg" label="التسبقة">{
                     hasPercent(installments.down_payment_percent)
                       ? `${formatPercent(installments.down_payment_percent)} · ${formatMoney(installments.down_payment_millimes)}`
                       : formatMoney(installments.down_payment_millimes)
-                  }
-                  plain
-                />
-                <Figure label="السعر الجملي بالتقسيط" value={formatMoney(installments.total_financed_millimes)} plain />
-                <Figure label="المبلغ المتبقي" value={formatMoney(installments.remaining_millimes)} plain />
-                <Figure label="القسط الشهري" value={formatMoney(installments.monthly_millimes)} plain />
-                <Figure
-                  label="الأقساط"
-                  value={`${formatCount(installments.installments_count)} · آخر قسط ${formatMoney(installments.last_installment_millimes)}`}
-                  plain
-                />
+                  }</DataRow>
+                <DataRow layout="stacked" size="lg" label="السعر الجملي بالتقسيط">{formatMoney(installments.total_financed_millimes)}</DataRow>
+                <DataRow layout="stacked" size="lg" label="المبلغ المتبقي">{formatMoney(installments.remaining_millimes)}</DataRow>
+                <DataRow layout="stacked" size="lg" label="القسط الشهري">{formatMoney(installments.monthly_millimes)}</DataRow>
+                <DataRow layout="stacked" size="lg" label="الأقساط">{`${formatCount(installments.installments_count)} · آخر قسط ${formatMoney(installments.last_installment_millimes)}`}</DataRow>
               </dl>
             ) : null}
           </section>
@@ -228,7 +221,7 @@ function InstallmentsTable({ installments, totalPrice, roundingSource }: { insta
     : undefined;
 
   return (
-    <div className="overflow-x-auto rounded-2xl border border-line bg-surface">
+    <div className="panel overflow-x-auto">
       <table className="w-full min-w-[40rem] text-sm">
         <caption className="px-4 pt-4 text-start font-semibold">التقسيط</caption>
         <thead className="text-xs text-muted">
@@ -283,14 +276,5 @@ function Row({ label, detail, amount, source, strong = false }: { label: string;
       <td className="whitespace-nowrap px-4 py-2.5 text-end tabular-nums">{amount}</td>
       <td className="whitespace-nowrap px-4 py-2.5 text-xs text-muted">{source ?? ""}</td>
     </tr>
-  );
-}
-
-function Figure({ label, value, plain = false }: { label: string; value: string; plain?: boolean }) {
-  return (
-    <div className={plain ? undefined : "rounded-2xl border border-line bg-surface px-4 py-3"}>
-      <dt className="text-xs text-muted">{label}</dt>
-      <dd className="mt-0.5 text-lg font-semibold text-ink tabular-nums">{value}</dd>
-    </div>
   );
 }

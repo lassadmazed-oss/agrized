@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 
 import { formatPercent } from "@/components/admin/tree-pricing-inputs";
+import { DataTable, EmptyState, StatusPill, type Column } from "@/components/ui";
 import { ADMIN_ROLES, CRM_READ_ROLES, hasRole, requireStaff } from "@/lib/auth";
 import { getPublicConfig, optionsFor } from "@/lib/config";
 import { CHANNEL_LABELS, PLANTATION_LABELS, PRODUCTION_LABELS, STAGE_TONES } from "@/lib/crm";
@@ -102,11 +103,139 @@ export default async function LeadsPage({ searchParams }: PageProps<"/admin/lead
   const wantsLabel = (row: (typeof rows)[number]) =>
     row.scenario_labels.length > 0 ? row.scenario_labels.join("، ") : row.project_type_unsure ? "ما يهمّوش النوع" : "—";
 
+  type LeadRow = (typeof rows)[number];
+  const selectColumn: Column<LeadRow> = {
+    key: "select",
+    header: <SelectAllCheckbox formId={BULK_FORM_ID} label="تحديد كل الملفات في هذه الصفحة" />,
+    headClassName: "w-10",
+    mobile: "hidden",
+    cell: (row) => (
+      <input
+        type="checkbox"
+        name="person_ids"
+        value={row.person_id}
+        form={BULK_FORM_ID}
+        aria-label={`تحديد ملف ${row.full_name}`}
+        className="size-4 accent-forest"
+      />
+    ),
+  };
+  // One description, rendered as the wide table from md up and as cards below it.
+  const columns: Column<LeadRow>[] = [
+    ...(isAdmin ? [selectColumn] : []),
+    {
+      key: "request_no",
+      header: "رقم المطلب",
+      // The phone card is itself one <a> (rowHref), so this cell's <Link> must stay off it.
+      mobile: "hidden",
+      cell: (row) => (
+        <>
+          <Link href={`/admin/leads/${row.person_id}`} dir="ltr" className="font-semibold text-forest underline-offset-4 hover:underline">
+            {row.request_no}
+          </Link>
+          <div className="mt-0.5 text-xs text-muted tabular-nums">{formatDateTime(row.created_at)}</div>
+          {row.is_duplicate ? <span className="mt-1 inline-block rounded bg-gold-soft px-1.5 py-0.5 text-[0.7rem] text-forest-700">مكرّر</span> : null}
+        </>
+      ),
+    },
+    { key: "full_name", header: "الاسم", className: "font-medium", mobile: "title", cell: (row) => row.full_name },
+    {
+      key: "phone",
+      header: "الهاتف",
+      cell: (row) => (
+        <>
+          <span dir="ltr" className="tabular-nums">
+            {formatPhone(row.phone_e164)}
+          </span>
+          <div className="text-xs text-muted">{CHANNEL_LABELS[row.contact_channel]}</div>
+        </>
+      ),
+    },
+    { key: "trees", header: "الزيتونات", numeric: true, className: "font-medium", cell: (row) => row.tree_count_label_ar ?? "—" },
+    {
+      key: "spacing",
+      header: "الفئة والسعر",
+      className: "whitespace-nowrap",
+      cell: (row) => (
+        <>
+          {row.spacing_label_ar ? (
+            <>
+              <span className="font-medium">{row.spacing_label_ar}</span>
+              {typeof row.area_per_tree_m2 === "number" ? (
+                <div className="text-xs text-muted tabular-nums">{formatArea(row.area_per_tree_m2)} للزيتونة</div>
+              ) : null}
+            </>
+          ) : (
+            "—"
+          )}
+          {row.payment_mode ? <div className="text-xs text-muted">{PAYMENT_MODE_LABELS[row.payment_mode] ?? row.payment_mode}</div> : null}
+          {typeof row.total_price_millimes === "number" ? (
+            <div className="text-xs tabular-nums">مقدّر: {formatMillimes(row.total_price_millimes)}</div>
+          ) : null}
+        </>
+      ),
+    },
+    {
+      key: "residence",
+      header: "الإقامة",
+      cell: (row) => (
+        <>
+          {governorateName.get(row.residence_governorate_id)}
+          {row.residence_delegation_id ? <div className="text-xs text-muted">{delegationName.get(row.residence_delegation_id)}</div> : null}
+        </>
+      ),
+    },
+    { key: "invest", header: "الاستثمار", className: "max-w-44", cell: (row) => investLabel(row) },
+    {
+      key: "wants",
+      header: "يحب يملك",
+      className: "max-w-52",
+      cell: (row) => (
+        <>
+          {wantsLabel(row)}
+          {row.plantation_systems.length > 0 ? (
+            <div className="text-xs text-muted">{row.plantation_systems.map((code) => PLANTATION_LABELS[code] ?? code).join("، ")}</div>
+          ) : null}
+        </>
+      ),
+    },
+    {
+      key: "down_payment",
+      header: "التسبقة والمدة",
+      numeric: true,
+      cell: (row) => (
+        <>
+          {downPaymentSummary(row.down_payment_percent, row.down_payment_amount_millimes) ?? "—"}
+          {row.duration_label_ar ? <div className="text-xs text-muted">{row.duration_label_ar}</div> : null}
+        </>
+      ),
+    },
+    {
+      key: "status",
+      header: "الحالة",
+      mobile: "aside",
+      cell: (row) => <StatusPill toneClass={STAGE_TONES[row.stage]}>{row.status_label_ar}</StatusPill>,
+    },
+    { key: "assigned_to", header: "المسؤول", className: "text-muted", cell: (row) => row.assigned_to_name ?? "—" },
+    {
+      // Phone card only: the reference line that the wide table already spells out in its first column.
+      key: "ref",
+      header: "رقم المطلب",
+      desktop: false,
+      mobile: "meta",
+      cell: (row) => (
+        <span dir="ltr">
+          {row.request_no} · {formatDateTime(row.created_at)}
+        </span>
+      ),
+    },
+  ];
+
   return (
     <div className="space-y-6">
       <header className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <h1 className="font-display text-4xl font-bold text-forest">مطالب الاستثمار</h1>
+          <h1 className="section-title">مطالب الاستثمار</h1>
           <p className="mt-1 text-muted">
             {hasRole(session, ["commercial"]) && !hasRole(session, ["admin", "super_admin", "finance", "legal"])
               ? "المطالب المسندة إليك."
@@ -120,7 +249,7 @@ export default async function LeadsPage({ searchParams }: PageProps<"/admin/lead
         ) : null}
       </header>
 
-      <details open={hasActiveFilters(filters)} className="group rounded-2xl border border-line bg-surface">
+      <details open={hasActiveFilters(filters)} className="panel group">
         <summary className="flex cursor-pointer list-none items-center justify-between px-5 py-4 font-semibold [&::-webkit-details-marker]:hidden">
           البحث والفلاتر
           <span className="text-sm font-normal text-muted group-open:hidden">اضغط لعرض الفلاتر</span>
@@ -367,7 +496,7 @@ export default async function LeadsPage({ searchParams }: PageProps<"/admin/lead
           </p>
           <p className="mt-0.5 text-xs text-muted">الزيتونات: الحد الأدنى لكل اختيار، دون المطالب المكرّرة.</p>
         </div>
-        <nav aria-label="طريقة العرض" className="flex gap-1 rounded-xl border border-line bg-surface p-1">
+        <nav aria-label="طريقة العرض" className="card flex gap-1 rounded-xl p-1">
           {[
             { key: "requests", label: "مطلب في كل سطر", active: !people, href: `/admin/leads?${filtersToQuery({ ...filters, people: false })}` },
             { key: "people", label: "شخص في كل سطر", active: people, href: `/admin/leads?${filtersToQuery({ ...filters, people: true })}` },
@@ -387,14 +516,17 @@ export default async function LeadsPage({ searchParams }: PageProps<"/admin/lead
       </section>
 
       {rows.length === 0 ? (
-        <div className="rounded-2xl border border-dashed border-line-strong bg-surface px-6 py-12 text-center text-muted">
-          لا توجد مطالب مطابقة.{" "}
-          {hasActiveFilters(filters) ? (
-            <Link href="/admin/leads" className="font-semibold text-forest underline-offset-4 hover:underline">
-              مسح الفلاتر
-            </Link>
-          ) : null}
-        </div>
+        <EmptyState
+          action={
+            hasActiveFilters(filters) ? (
+              <Link href="/admin/leads" className="font-semibold text-forest underline-offset-4 hover:underline">
+                مسح الفلاتر
+              </Link>
+            ) : null
+          }
+        >
+          لا توجد مطالب مطابقة.
+        </EmptyState>
       ) : (
         <>
           {isAdmin ? (
@@ -407,145 +539,14 @@ export default async function LeadsPage({ searchParams }: PageProps<"/admin/lead
             />
           ) : null}
 
-          {/* Desktop table */}
-          <div className="hidden overflow-x-auto rounded-2xl border border-line bg-surface md:block">
-            <table className="w-full min-w-[84rem] text-sm">
-              <thead className="bg-paper text-xs text-muted">
-                <tr className="text-start">
-                  {isAdmin ? (
-                    <th className="w-10 px-4 py-3">
-                      <SelectAllCheckbox formId={BULK_FORM_ID} label="تحديد كل الملفات في هذه الصفحة" />
-                    </th>
-                  ) : null}
-                  <Th>رقم المطلب</Th>
-                  <Th>الاسم</Th>
-                  <Th>الهاتف</Th>
-                  <Th>الزيتونات</Th>
-                  <Th>الفئة والسعر</Th>
-                  <Th>الإقامة</Th>
-                  <Th>الاستثمار</Th>
-                  <Th>يحب يملك</Th>
-                  <Th>التسبقة والمدة</Th>
-                  <Th>الحالة</Th>
-                  <Th>المسؤول</Th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-line">
-                {rows.map((row) => (
-                  <tr key={row.id} className="align-top hover:bg-paper/60">
-                    {isAdmin ? (
-                      <td className="px-4 py-3">
-                        <input
-                          type="checkbox"
-                          name="person_ids"
-                          value={row.person_id}
-                          form={BULK_FORM_ID}
-                          aria-label={`تحديد ملف ${row.full_name}`}
-                          className="size-4 accent-forest"
-                        />
-                      </td>
-                    ) : null}
-                    <Td>
-                      <Link href={`/admin/leads/${row.person_id}`} dir="ltr" className="font-semibold text-forest underline-offset-4 hover:underline">
-                        {row.request_no}
-                      </Link>
-                      <div className="mt-0.5 text-xs text-muted tabular-nums">{formatDateTime(row.created_at)}</div>
-                      {row.is_duplicate ? <span className="mt-1 inline-block rounded bg-gold-soft px-1.5 py-0.5 text-[0.7rem] text-forest-700">مكرّر</span> : null}
-                    </Td>
-                    <Td className="font-medium">{row.full_name}</Td>
-                    <Td>
-                      <span dir="ltr" className="tabular-nums">
-                        {formatPhone(row.phone_e164)}
-                      </span>
-                      <div className="text-xs text-muted">{CHANNEL_LABELS[row.contact_channel]}</div>
-                    </Td>
-                    <Td className="whitespace-nowrap font-medium tabular-nums">{row.tree_count_label_ar ?? "—"}</Td>
-                    <Td className="whitespace-nowrap">
-                      {row.spacing_label_ar ? (
-                        <>
-                          <span className="font-medium">{row.spacing_label_ar}</span>
-                          {typeof row.area_per_tree_m2 === "number" ? (
-                            <div className="text-xs text-muted tabular-nums">{formatArea(row.area_per_tree_m2)} للزيتونة</div>
-                          ) : null}
-                        </>
-                      ) : (
-                        "—"
-                      )}
-                      {row.payment_mode ? <div className="text-xs text-muted">{PAYMENT_MODE_LABELS[row.payment_mode] ?? row.payment_mode}</div> : null}
-                      {typeof row.total_price_millimes === "number" ? (
-                        <div className="text-xs tabular-nums">مقدّر: {formatMillimes(row.total_price_millimes)}</div>
-                      ) : null}
-                    </Td>
-                    <Td>
-                      {governorateName.get(row.residence_governorate_id)}
-                      {row.residence_delegation_id ? (
-                        <div className="text-xs text-muted">{delegationName.get(row.residence_delegation_id)}</div>
-                      ) : null}
-                    </Td>
-                    <Td className="max-w-44">{investLabel(row)}</Td>
-                    <Td className="max-w-52">
-                      {wantsLabel(row)}
-                      {row.plantation_systems.length > 0 ? (
-                        <div className="text-xs text-muted">
-                          {row.plantation_systems.map((code) => PLANTATION_LABELS[code] ?? code).join("، ")}
-                        </div>
-                      ) : null}
-                    </Td>
-                    <Td className="whitespace-nowrap tabular-nums">
-                      {downPaymentSummary(row.down_payment_percent, row.down_payment_amount_millimes) ?? "—"}
-                      {row.duration_label_ar ? <div className="text-xs text-muted">{row.duration_label_ar}</div> : null}
-                    </Td>
-                    <Td>
-                      <StatusChip stage={row.stage} label={row.status_label_ar} />
-                    </Td>
-                    <Td className="text-muted">{row.assigned_to_name ?? "—"}</Td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-
-          {/* Mobile cards */}
-          <ul className="space-y-3 md:hidden">
-            {rows.map((row) => (
-              <li key={row.id}>
-                <Link href={`/admin/leads/${row.person_id}`} className="block rounded-2xl border border-line bg-surface p-4">
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="min-w-0">
-                      <p className="truncate font-semibold">{row.full_name}</p>
-                      <p dir="ltr" className="text-end text-sm text-muted tabular-nums">
-                        {formatPhone(row.phone_e164)}
-                      </p>
-                    </div>
-                    <StatusChip stage={row.stage} label={row.status_label_ar} />
-                  </div>
-                  <p className="mt-2 text-sm font-medium tabular-nums">{row.tree_count_label_ar ?? "عدد الزيتونات: بدون إجابة"}</p>
-                  {row.spacing_label_ar || row.payment_mode || typeof row.total_price_millimes === "number" ? (
-                    <p className="mt-1 text-sm tabular-nums">
-                      {[
-                        row.spacing_label_ar
-                          ? `${row.spacing_label_ar}${typeof row.area_per_tree_m2 === "number" ? ` (${formatArea(row.area_per_tree_m2)} للزيتونة)` : ""}`
-                          : null,
-                        row.payment_mode ? (PAYMENT_MODE_LABELS[row.payment_mode] ?? row.payment_mode) : null,
-                        typeof row.total_price_millimes === "number" ? `مقدّر: ${formatMillimes(row.total_price_millimes)}` : null,
-                      ]
-                        .filter(Boolean)
-                        .join(" · ")}
-                    </p>
-                  ) : null}
-                  <p className="mt-1 text-sm text-muted">
-                    {investLabel(row)} · {wantsLabel(row)}
-                  </p>
-                  <p className="mt-1 text-sm tabular-nums empty:hidden">
-                    {[downPaymentSummary(row.down_payment_percent, row.down_payment_amount_millimes), row.duration_label_ar].filter(Boolean).join(" · ")}
-                  </p>
-                  <p dir="ltr" className="mt-2 text-end text-xs text-muted tabular-nums">
-                    {row.request_no} · {formatDateTime(row.created_at)}
-                  </p>
-                </Link>
-              </li>
-            ))}
-          </ul>
+          <DataTable
+            caption="مطالب الاستثمار"
+            columns={columns}
+            rows={rows}
+            rowKey={(row) => row.id}
+            rowHref={(row) => `/admin/leads/${row.person_id}`}
+            minWidth="84rem"
+          />
 
           {pageCount > 1 ? (
             <nav aria-label="الصفحات" className="flex items-center justify-between gap-4">
@@ -633,20 +634,4 @@ function RangeField({
       {children}
     </fieldset>
   );
-}
-
-function StatusChip({ stage, label }: { stage: keyof typeof STAGE_TONES; label: string }) {
-  return (
-    <span className={`inline-flex whitespace-nowrap rounded-full px-2.5 py-1 text-xs font-semibold ring-1 ring-inset ${STAGE_TONES[stage]}`}>
-      {label}
-    </span>
-  );
-}
-
-function Th({ children }: { children: React.ReactNode }) {
-  return <th className="px-4 py-3 text-start font-semibold whitespace-nowrap">{children}</th>;
-}
-
-function Td({ children, className = "" }: { children: React.ReactNode; className?: string }) {
-  return <td className={`px-4 py-3 ${className}`}>{children}</td>;
 }

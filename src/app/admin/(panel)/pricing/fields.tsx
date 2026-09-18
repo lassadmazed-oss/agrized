@@ -47,7 +47,7 @@ export function DeleteForm({
       submitLabel={submitLabel}
       pendingLabel="جارٍ الحذف…"
       className="space-y-3 rounded-xl border border-danger/30 bg-danger-soft/40 p-4"
-      buttonClassName="btn min-h-11 border-[1.5px] border-danger bg-surface text-danger hover:bg-danger-soft"
+      buttonClassName="btn btn-sm border-[1.5px] border-danger bg-surface text-danger hover:bg-danger-soft"
     >
       {hint ? <p className="text-sm text-ink">{hint}</p> : null}
       <ReasonField minLength={reasonMin} id={reasonId} label="سبب الحذف" />

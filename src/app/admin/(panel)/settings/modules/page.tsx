@@ -30,7 +30,7 @@ export default async function ModulesPage() {
   return (
     <div className="max-w-4xl space-y-8">
       <header>
-        <h1 className="font-display text-4xl font-bold text-forest">الموديولات</h1>
+        <h1 className="section-title">الموديولات</h1>
         <p className="mt-2 max-w-2xl leading-7 text-muted">
           تحكّم في ما يظهر للعموم دون تدخل تقني. التغيير يسري فوراً ويُسجَّل في سجل العمليات.
         </p>
@@ -44,7 +44,7 @@ export default async function ModulesPage() {
       {phases.map(({ phase, flags: phaseFlags }) => (
         <section key={phase} className="space-y-3">
           <h2 className="text-lg font-semibold">{PHASE_LABELS[phase]}</h2>
-          <ul className="divide-y divide-line rounded-2xl border border-line bg-surface">
+          <ul className="panel divide-y divide-line">
             {phaseFlags.map((flag) => {
               const implemented = isImplementedModule(flag.key);
               return (
@@ -94,7 +94,7 @@ export default async function ModulesPage() {
 
 function StateHelp({ state, text }: { state: keyof typeof STATE_TONES; text: string }) {
   return (
-    <div className="rounded-xl border border-line bg-surface px-3 py-2">
+    <div className="card rounded-xl px-3 py-2">
       <dt>
         <span className={`rounded-full px-2 py-0.5 text-xs font-semibold ring-1 ring-inset ${STATE_TONES[state]}`}>{FLAG_STATE_LABELS[state]}</span>
       </dt>

@@ -24,11 +24,11 @@ type MillionStartProps = {
 export function MillionStart({ treeCounts, treesQuestion, subtitle, taglines, otherCardLabel, otherLink }: MillionStartProps) {
   return (
     <section id="start" className="scroll-mt-20 bg-forest text-paper">
-      <div className="mx-auto max-w-6xl px-4 py-16 sm:px-6">
-        <h2 className="font-display text-3xl font-bold sm:text-4xl">{treesQuestion}</h2>
+      <div className="mx-auto max-w-6xl px-4 py-section sm:px-6">
+        <h2 className="section-title text-paper">{treesQuestion}</h2>
         {subtitle ? <p className="mt-2 text-paper/75">{subtitle}</p> : null}
 
-        <ul className="mt-7 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
+        <ul className="mt-roomy grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
           {treeCounts.map((option) => (
             <li key={option.id}>
               <Link href={`/start?trees=${option.id}`} className={treeCardClass(false, "dark")}>

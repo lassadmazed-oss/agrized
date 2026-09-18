@@ -6,6 +6,7 @@ import { ActionForm } from "@/components/admin/action-form";
 import { LegacyPricingNotice, treePricingReady } from "@/components/admin/legacy-pricing-notice";
 import { PricingEditor } from "@/components/admin/pricing-editor";
 import { ParcelPlan } from "@/components/site/parcel-plan";
+import { DataRow, EmptyState, FormField, StatusPill, TableCell, TableHeadCell } from "@/components/ui";
 import { hasRole, requireStaff, type StaffRole } from "@/lib/auth";
 import { getPublicConfig, optionsFor } from "@/lib/config";
 import { PLANTATION_LABELS, PRODUCTION_LABELS } from "@/lib/crm";
@@ -125,13 +126,13 @@ export default async function ProjectDetailPage({ params }: PageProps<"/admin/pr
         → المشاريع والقطع
       </Link>
 
-      <header className="flex flex-wrap items-start justify-between gap-4 rounded-2xl border border-line bg-surface p-5 sm:p-6">
+      <header className="card flex flex-wrap items-start justify-between gap-4 p-5 sm:p-6">
         <div className="space-y-1">
           <div className="flex flex-wrap items-center gap-3">
-            <h1 className="font-display text-3xl font-bold text-forest sm:text-4xl">{project.name}</h1>
-            <span className={`rounded-full px-2.5 py-1 text-xs font-semibold ring-1 ring-inset ${PROJECT_STATUS_TONES[project.status as ProjectStatus]}`}>
+            <h1 className="section-title">{project.name}</h1>
+            <StatusPill toneClass={PROJECT_STATUS_TONES[project.status as ProjectStatus]}>
               {PROJECT_STATUS_LABELS[project.status as ProjectStatus]}
-            </span>
+            </StatusPill>
             {visibleOnSite ? (
               <Link
                 href={`/projects/${encodeURIComponent(project.code)}`}
@@ -152,10 +153,10 @@ export default async function ProjectDetailPage({ params }: PageProps<"/admin/pr
           </p>
         </div>
         <dl className="grid grid-cols-2 gap-x-6 gap-y-2 text-sm sm:grid-cols-4">
-          <Fact label="القطع">{formatCount(rows.length)}</Fact>
-          <Fact label="مساحة القطع">{formatCount(Math.round(parcelArea))} م²</Fact>
-          <Fact label="زيتونات القطع">{formatCount(parcelTrees)}</Fact>
-          <Fact label="قيمة القطع">{formatMillimes(parcelValue)}</Fact>
+          <DataRow layout="stacked" label="القطع">{formatCount(rows.length)}</DataRow>
+          <DataRow layout="stacked" label="مساحة القطع">{formatCount(Math.round(parcelArea))} م²</DataRow>
+          <DataRow layout="stacked" label="زيتونات القطع">{formatCount(parcelTrees)}</DataRow>
+          <DataRow layout="stacked" label="قيمة القطع">{formatMillimes(parcelValue)}</DataRow>
         </dl>
       </header>
 
@@ -188,51 +189,49 @@ export default async function ProjectDetailPage({ params }: PageProps<"/admin/pr
         />
 
         {rows.length === 0 ? (
-          <p className="rounded-2xl border border-dashed border-line-strong bg-surface px-6 py-10 text-center text-muted">
-            لا توجد قطع بعد. أضف أول قطعة من الأسفل.
-          </p>
+          <EmptyState>لا توجد قطع بعد. أضف أول قطعة من الأسفل.</EmptyState>
         ) : (
-          <div className="overflow-x-auto rounded-2xl border border-line bg-surface">
+          <div className="panel overflow-x-auto">
             <table className="w-full min-w-[62rem] text-sm">
               <thead className="bg-paper text-xs text-muted">
                 <tr>
-                  <Th>القطعة</Th>
-                  <Th>المساحة</Th>
-                  <Th>نوع العقار</Th>
-                  <Th>الغراسة</Th>
-                  <Th>الزيتونات</Th>
-                  <Th>العمر</Th>
-                  <Th>الإنتاج</Th>
-                  <Th>الري</Th>
-                  <Th>سعر الحاضر</Th>
-                  <Th>الحالة</Th>
-                  <Th> </Th>
+                  <TableHeadCell>القطعة</TableHeadCell>
+                  <TableHeadCell>المساحة</TableHeadCell>
+                  <TableHeadCell>نوع العقار</TableHeadCell>
+                  <TableHeadCell>الغراسة</TableHeadCell>
+                  <TableHeadCell>الزيتونات</TableHeadCell>
+                  <TableHeadCell>العمر</TableHeadCell>
+                  <TableHeadCell>الإنتاج</TableHeadCell>
+                  <TableHeadCell>الري</TableHeadCell>
+                  <TableHeadCell>سعر الحاضر</TableHeadCell>
+                  <TableHeadCell>الحالة</TableHeadCell>
+                  <TableHeadCell> </TableHeadCell>
                 </tr>
               </thead>
               <tbody className="divide-y divide-line">
                 {rows.map((parcel) => (
                   <tr key={parcel.id} className="hover:bg-paper/60">
-                    <Td className="font-semibold">{parcel.code}</Td>
-                    <Td className="tabular-nums">{formatCount(figures(parcel).area)} م²</Td>
-                    <Td>{PROPERTY_TYPE_LABELS[parcel.property_type] ?? parcel.property_type}</Td>
-                    <Td>{parcel.plantation_system ? (PLANTATION_LABELS[parcel.plantation_system] ?? parcel.plantation_system) : "—"}</Td>
-                    <Td className="tabular-nums">{parcel.olive_tree_count ?? "—"}</Td>
-                    <Td className="tabular-nums">{parcel.tree_age_years ?? "—"}</Td>
-                    <Td>{parcel.production_status ? (PRODUCTION_LABELS[parcel.production_status] ?? parcel.production_status) : "—"}</Td>
-                    <Td>{parcel.irrigation === "irrigated" ? "مروية" : parcel.irrigation === "rainfed" ? "بعلية" : "—"}</Td>
-                    <Td className="tabular-nums">
+                    <TableCell className="font-semibold">{parcel.code}</TableCell>
+                    <TableCell className="tabular-nums">{formatCount(figures(parcel).area)} م²</TableCell>
+                    <TableCell>{PROPERTY_TYPE_LABELS[parcel.property_type] ?? parcel.property_type}</TableCell>
+                    <TableCell>{parcel.plantation_system ? (PLANTATION_LABELS[parcel.plantation_system] ?? parcel.plantation_system) : "—"}</TableCell>
+                    <TableCell className="tabular-nums">{parcel.olive_tree_count ?? "—"}</TableCell>
+                    <TableCell className="tabular-nums">{parcel.tree_age_years ?? "—"}</TableCell>
+                    <TableCell>{parcel.production_status ? (PRODUCTION_LABELS[parcel.production_status] ?? parcel.production_status) : "—"}</TableCell>
+                    <TableCell>{parcel.irrigation === "irrigated" ? "مروية" : parcel.irrigation === "rainfed" ? "بعلية" : "—"}</TableCell>
+                    <TableCell className="tabular-nums">
                       <ParcelPriceCell cash={figures(parcel).cash} price={figures(parcel).price} />
-                    </Td>
-                    <Td>
-                      <span className={`rounded-full px-2 py-0.5 text-xs font-semibold ring-1 ring-inset ${PARCEL_STATUS_TONES[parcel.status as ParcelStatus]}`}>
+                    </TableCell>
+                    <TableCell>
+                      <StatusPill toneClass={PARCEL_STATUS_TONES[parcel.status as ParcelStatus]}>
                         {PARCEL_STATUS_LABELS[parcel.status as ParcelStatus]}
-                      </span>
-                    </Td>
-                    <Td>
+                      </StatusPill>
+                    </TableCell>
+                    <TableCell>
                       <Link href={`/admin/projects/${id}/parcels/${parcel.id}`} className="font-semibold text-forest underline-offset-4 hover:underline">
                         البطاقة والـMatching
                       </Link>
-                    </Td>
+                    </TableCell>
                   </tr>
                 ))}
               </tbody>
@@ -265,13 +264,13 @@ export default async function ProjectDetailPage({ params }: PageProps<"/admin/pr
           <h2 className="text-lg font-semibold">صور المشروع</h2>
           <p className="text-sm text-muted">تظهر في صفحة المشروع. الغلاف يظهر أولاً وفي بطاقة المشروع.</p>
         </div>
-        <div className="rounded-2xl border border-line bg-surface p-5">
+        <div className="card p-5">
           {pictures.length > 0 ? (
             <ul className="mb-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
               {pictures.map((picture, index) => {
                 const isCover = picture.is_cover || (!hasChosenCover && index === 0);
                 return (
-                  <li key={picture.id} className="rounded-xl border border-line bg-paper p-2">
+                  <li key={picture.id} className="card rounded-xl bg-paper p-2">
                     <div className="relative aspect-4/3 overflow-hidden rounded-lg bg-leaf-soft">
                       {/* eslint-disable-next-line @next/next/no-img-element -- admin preview of an uploaded file */}
                       <img src={picture.url} alt={picture.alt_ar} className="size-full object-cover" />
@@ -325,9 +324,9 @@ export default async function ProjectDetailPage({ params }: PageProps<"/admin/pr
               submitLabel="رفع الصورة"
               pendingLabel="جارٍ الرفع…"
               className="grid gap-3 sm:grid-cols-2 lg:grid-cols-[1.2fr_1fr_1fr_auto] lg:items-end"
-              buttonClassName="btn btn-secondary min-h-11"
+              buttonClassName="btn btn-secondary btn-sm"
             >
-              <Labeled label="ملف الصورة">
+              <FormField size="sm" label="ملف الصورة">
                 <input
                   name="file"
                   type="file"
@@ -335,13 +334,13 @@ export default async function ProjectDetailPage({ params }: PageProps<"/admin/pr
                   accept="image/jpeg,image/png,image/webp,image/avif"
                   className="field py-2.5 file:me-3 file:rounded-lg file:border-0 file:bg-leaf-soft file:px-3 file:py-1.5 file:text-sm file:font-semibold file:text-forest"
                 />
-              </Labeled>
-              <Labeled label="النص البديل">
-                <input name="alt" required maxLength={160} placeholder="مثال: صفوف زيتون شملالي عند مدخل الضيعة" className="field min-h-11" />
-              </Labeled>
-              <Labeled label="تعليق (اختياري)">
-                <input name="caption" maxLength={200} className="field min-h-11" />
-              </Labeled>
+              </FormField>
+              <FormField size="sm" label="النص البديل">
+                <input name="alt" required maxLength={160} placeholder="مثال: صفوف زيتون شملالي عند مدخل الضيعة" className="field field-sm" />
+              </FormField>
+              <FormField size="sm" label="تعليق (اختياري)">
+                <input name="caption" maxLength={200} className="field field-sm" />
+              </FormField>
             </ActionForm>
           ) : null}
         </div>
@@ -350,17 +349,17 @@ export default async function ProjectDetailPage({ params }: PageProps<"/admin/pr
       {canWrite ? (
         <section className="space-y-3">
           <h2 className="text-lg font-semibold">بيانات المشروع</h2>
-          <div className="rounded-2xl border border-line bg-surface p-5">
+          <div className="card p-5">
             <ActionForm
               action={saveProject.bind(null, id)}
               submitLabel="حفظ المشروع"
               className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3"
               buttonClassName="btn btn-secondary sm:col-span-2 lg:col-span-3 lg:w-48"
             >
-              <Labeled label="الاسم">
+              <FormField size="sm" label="الاسم">
                 <input name="name" defaultValue={project.name} required className="field" />
-              </Labeled>
-              <Labeled label="الولاية">
+              </FormField>
+              <FormField size="sm" label="الولاية">
                 <select name="governorate_id" defaultValue={project.governorate_id} className="field">
                   {config.governorates.map((g) => (
                     <option key={g.id} value={g.id}>
@@ -368,8 +367,8 @@ export default async function ProjectDetailPage({ params }: PageProps<"/admin/pr
                     </option>
                   ))}
                 </select>
-              </Labeled>
-              <Labeled label="نوع المشروع">
+              </FormField>
+              <FormField size="sm" label="نوع المشروع">
                 <select name="project_type_id" defaultValue={project.project_type_id ?? ""} className="field">
                   <option value="">بدون</option>
                   {config.projectTypes.map((type) => (
@@ -378,20 +377,20 @@ export default async function ProjectDetailPage({ params }: PageProps<"/admin/pr
                     </option>
                   ))}
                 </select>
-              </Labeled>
-              <Labeled label="المساحة الجملية (م²)">
+              </FormField>
+              <FormField size="sm" label="المساحة الجملية (م²)">
                 <input name="total_area_m2" defaultValue={project.total_area_m2 ?? ""} inputMode="decimal" dir="ltr" className="field text-left" />
-              </Labeled>
-              <Labeled label="عدد الأشجار">
+              </FormField>
+              <FormField size="sm" label="عدد الأشجار">
                 <input name="tree_count" defaultValue={project.tree_count ?? ""} inputMode="numeric" dir="ltr" className="field text-left" />
-              </Labeled>
-              <Labeled label="عمر الأشجار (سنوات)">
+              </FormField>
+              <FormField size="sm" label="عمر الأشجار (سنوات)">
                 <input name="tree_age_years" defaultValue={project.tree_age_years ?? ""} inputMode="decimal" dir="ltr" className="field text-left" />
-              </Labeled>
-              <Labeled label="الصنف">
+              </FormField>
+              <FormField size="sm" label="الصنف">
                 <input name="olive_variety" defaultValue={project.olive_variety ?? ""} className="field" />
-              </Labeled>
-              <Labeled label="نظام الغراسة">
+              </FormField>
+              <FormField size="sm" label="نظام الغراسة">
                 <select name="plantation_system" defaultValue={project.plantation_system ?? ""} className="field">
                   <option value="">غير محدّد</option>
                   {Object.entries(PLANTATION_LABELS).map(([value, label]) => (
@@ -400,8 +399,8 @@ export default async function ProjectDetailPage({ params }: PageProps<"/admin/pr
                     </option>
                   ))}
                 </select>
-              </Labeled>
-              <Labeled label="حالة الإنتاج">
+              </FormField>
+              <FormField size="sm" label="حالة الإنتاج">
                 <select name="production_status" defaultValue={project.production_status ?? ""} className="field">
                   <option value="">غير محدّدة</option>
                   {Object.entries(PRODUCTION_LABELS).map(([value, label]) => (
@@ -410,15 +409,15 @@ export default async function ProjectDetailPage({ params }: PageProps<"/admin/pr
                     </option>
                   ))}
                 </select>
-              </Labeled>
-              <Labeled label="الري">
+              </FormField>
+              <FormField size="sm" label="الري">
                 <select name="irrigation" defaultValue={project.irrigation ?? ""} className="field">
                   <option value="">غير محدّد</option>
                   <option value="rainfed">بعلية</option>
                   <option value="irrigated">مروية</option>
                 </select>
-              </Labeled>
-              <Labeled label="المصاريف السنوية التقديرية للقطعة (د.ت)">
+              </FormField>
+              <FormField size="sm" label="المصاريف السنوية التقديرية للقطعة (د.ت)">
                 <input
                   name="annual_costs_dinars"
                   defaultValue={project.annual_costs_millimes !== null ? project.annual_costs_millimes / 1000 : ""}
@@ -426,8 +425,8 @@ export default async function ProjectDetailPage({ params }: PageProps<"/admin/pr
                   dir="ltr"
                   className="field text-left"
                 />
-              </Labeled>
-              <Labeled label="الحالة">
+              </FormField>
+              <FormField size="sm" label="الحالة">
                 <select name="status" defaultValue={project.status} className="field">
                   {Object.entries(PROJECT_STATUS_LABELS).map(([value, label]) => (
                     <option key={value} value={value}>
@@ -435,17 +434,17 @@ export default async function ProjectDetailPage({ params }: PageProps<"/admin/pr
                     </option>
                   ))}
                 </select>
-              </Labeled>
+              </FormField>
               <div className="sm:col-span-2 lg:col-span-3">
-                <Labeled label="وصف الموقع">
+                <FormField size="sm" label="وصف الموقع">
                   <input name="location_description" defaultValue={project.location_description ?? ""} className="field" />
-                </Labeled>
+                </FormField>
               </div>
 
               {/* Report v3 §20: what the public project page shows beyond the facts */}
               <input type="hidden" name="page_fields" value="1" />
               <div className="sm:col-span-2 lg:col-span-3">
-                <Labeled label="وصف المشروع (يظهر في صفحة المشروع)">
+                <FormField size="sm" label="وصف المشروع (يظهر في صفحة المشروع)">
                   <textarea
                     name="description_ar"
                     rows={5}
@@ -453,10 +452,10 @@ export default async function ProjectDetailPage({ params }: PageProps<"/admin/pr
                     defaultValue={project.description_ar ?? ""}
                     className="field min-h-32"
                   />
-                </Labeled>
+                </FormField>
                 <p className="hint mt-1">بلا وعود ولا أرقام مردود أو ربح (PRN-01).</p>
               </div>
-              <Labeled label="الماء">
+              <FormField size="sm" label="الماء">
                 <select
                   name="water_available"
                   defaultValue={project.water_available === true ? "yes" : project.water_available === false ? "no" : ""}
@@ -466,11 +465,11 @@ export default async function ProjectDetailPage({ params }: PageProps<"/admin/pr
                   <option value="yes">متوفّر</option>
                   <option value="no">غير متوفّر</option>
                 </select>
-              </Labeled>
-              <Labeled label="مصدر الماء">
+              </FormField>
+              <FormField size="sm" label="مصدر الماء">
                 <input name="water_note" maxLength={300} defaultValue={project.water_note ?? ""} placeholder="مثال: بئر عميقة داخل الضيعة" className="field" />
-              </Labeled>
-              <Labeled label="النفاذ والطريق">
+              </FormField>
+              <FormField size="sm" label="النفاذ والطريق">
                 <input
                   name="access_note"
                   maxLength={300}
@@ -478,9 +477,9 @@ export default async function ProjectDetailPage({ params }: PageProps<"/admin/pr
                   placeholder="مثال: طريق معبّدة حتى مدخل الضيعة"
                   className="field"
                 />
-              </Labeled>
+              </FormField>
               <div className="sm:col-span-2 lg:col-span-3">
-                <Labeled label="رابط الفيديو (YouTube أو Vimeo يظهر داخل الصفحة، غيرهما يظهر كرابط)">
+                <FormField size="sm" label="رابط الفيديو (YouTube أو Vimeo يظهر داخل الصفحة، غيرهما يظهر كرابط)">
                   <input
                     name="video_url"
                     type="url"
@@ -490,14 +489,14 @@ export default async function ProjectDetailPage({ params }: PageProps<"/admin/pr
                     dir="ltr"
                     className="field text-left"
                   />
-                </Labeled>
+                </FormField>
               </div>
-              <Labeled label="خط العرض">
+              <FormField size="sm" label="خط العرض">
                 <input name="latitude" defaultValue={project.latitude ?? ""} inputMode="decimal" placeholder="34.55" dir="ltr" className="field text-left" />
-              </Labeled>
-              <Labeled label="خط الطول">
+              </FormField>
+              <FormField size="sm" label="خط الطول">
                 <input name="longitude" defaultValue={project.longitude ?? ""} inputMode="decimal" placeholder="10.30" dir="ltr" className="field text-left" />
-              </Labeled>
+              </FormField>
               <label className="choice self-end">
                 <input type="checkbox" name="show_location" defaultChecked={project.show_location} />
                 <span className="font-medium">إظهار الموقع على الخريطة في صفحة المشروع</span>
@@ -537,7 +536,7 @@ export default async function ProjectDetailPage({ params }: PageProps<"/admin/pr
             <h2 className="text-lg font-semibold">التكاليف الداخلية</h2>
             <p className="text-sm text-muted">لا تظهر للحرفاء ولا للـCommercials (PRJ-03).</p>
           </div>
-          <div className="rounded-2xl border border-line bg-surface p-5">
+          <div className="card p-5">
             {(costs.data ?? []).length > 0 ? (
               <ul className="mb-4 divide-y divide-line">
                 {(costs.data ?? []).map((cost) => (
@@ -570,23 +569,23 @@ export default async function ProjectDetailPage({ params }: PageProps<"/admin/pr
               action={addProjectCost.bind(null, id)}
               submitLabel="إضافة"
               className="grid gap-3 sm:grid-cols-[1fr_13rem_10rem_auto] sm:items-end"
-              buttonClassName="btn btn-secondary min-h-11"
+              buttonClassName="btn btn-secondary btn-sm"
             >
-              <Labeled label="البيان">
-                <input name="label" required className="field min-h-11" />
-              </Labeled>
-              <Labeled label="النوع">
-                <select name="kind" defaultValue="purchase" className="field min-h-11">
+              <FormField size="sm" label="البيان">
+                <input name="label" required className="field field-sm" />
+              </FormField>
+              <FormField size="sm" label="النوع">
+                <select name="kind" defaultValue="purchase" className="field field-sm">
                   {COST_KINDS_OFFERED.map((kind) => (
                     <option key={kind} value={kind}>
                       {COST_KIND_LABELS[kind]}
                     </option>
                   ))}
                 </select>
-              </Labeled>
-              <Labeled label="المبلغ (د.ت)">
-                <input name="amount_dinars" required inputMode="decimal" dir="ltr" className="field min-h-11 text-left" />
-              </Labeled>
+              </FormField>
+              <FormField size="sm" label="المبلغ (د.ت)">
+                <input name="amount_dinars" required inputMode="decimal" dir="ltr" className="field field-sm text-left" />
+              </FormField>
             </ActionForm>
           </div>
         </section>
@@ -637,11 +636,11 @@ export function ParcelFields({
 
   return (
     <>
-      <Labeled label="رمز القطعة">
+      <FormField size="sm" label="رمز القطعة">
         <input name="code" defaultValue={parcel?.code ?? nextCode} required dir="ltr" className="field text-left" />
-      </Labeled>
+      </FormField>
       {onTree ? (
-        <Labeled label="فئة المساحة">
+        <FormField size="sm" label="فئة المساحة">
           <select name="spacing_class_id" defaultValue={parcel?.spacing_class_id ?? treeClasses[0]?.id ?? ""} required className="field">
             {treeClasses.map((spacing) => (
               <option key={spacing.id} value={spacing.id}>
@@ -649,13 +648,13 @@ export function ParcelFields({
               </option>
             ))}
           </select>
-        </Labeled>
+        </FormField>
       ) : (
-        <Labeled label="المساحة (م²)">
+        <FormField size="sm" label="المساحة (م²)">
           <input name="area_m2" defaultValue={parcel?.area_m2 ?? ""} required inputMode="decimal" dir="ltr" className="field text-left" />
-        </Labeled>
+        </FormField>
       )}
-      <Labeled label="نوع العقار">
+      <FormField size="sm" label="نوع العقار">
         <select name="property_type" defaultValue={parcel?.property_type ?? "planted"} className="field">
           {Object.entries(PROPERTY_TYPE_LABELS).map(([value, label]) => (
             <option key={value} value={value}>
@@ -663,8 +662,8 @@ export function ParcelFields({
             </option>
           ))}
         </select>
-      </Labeled>
-      <Labeled label="نظام الغراسة">
+      </FormField>
+      <FormField size="sm" label="نظام الغراسة">
         <select name="plantation_system" defaultValue={parcel?.plantation_system ?? ""} className="field">
           <option value="">غير محدّد</option>
           {Object.entries(PLANTATION_LABELS).map(([value, label]) => (
@@ -673,8 +672,8 @@ export function ParcelFields({
             </option>
           ))}
         </select>
-      </Labeled>
-      <Labeled label="عدد الزيتونات">
+      </FormField>
+      <FormField size="sm" label="عدد الزيتونات">
         <input
           name="olive_tree_count"
           defaultValue={parcel?.olive_tree_count ?? ""}
@@ -683,11 +682,11 @@ export function ParcelFields({
           dir="ltr"
           className="field text-left"
         />
-      </Labeled>
-      <Labeled label="عمر الزيتونات (سنوات)">
+      </FormField>
+      <FormField size="sm" label="عمر الزيتونات (سنوات)">
         <input name="tree_age_years" defaultValue={parcel?.tree_age_years ?? ""} inputMode="decimal" dir="ltr" className="field text-left" />
-      </Labeled>
-      <Labeled label="حالة الإنتاج">
+      </FormField>
+      <FormField size="sm" label="حالة الإنتاج">
         <select name="production_status" defaultValue={parcel?.production_status ?? ""} className="field">
           <option value="">غير محدّدة</option>
           {Object.entries(PRODUCTION_LABELS).map(([value, label]) => (
@@ -696,14 +695,14 @@ export function ParcelFields({
             </option>
           ))}
         </select>
-      </Labeled>
-      <Labeled label="الري">
+      </FormField>
+      <FormField size="sm" label="الري">
         <select name="irrigation" defaultValue={parcel?.irrigation ?? ""} className="field">
           <option value="">غير محدّد</option>
           <option value="rainfed">بعلية</option>
           <option value="irrigated">مروية</option>
         </select>
-      </Labeled>
+      </FormField>
       {onTree ? (
         <div className="space-y-1.5">
           <span className="block text-sm font-semibold">المساحة والسعر</span>
@@ -713,7 +712,7 @@ export function ParcelFields({
           </p>
         </div>
       ) : (
-        <Labeled label="سعر الحاضر (د.ت)">
+        <FormField size="sm" label="سعر الحاضر (د.ت)">
           <input
             name="cash_price_dinars"
             defaultValue={parcel ? parcel.cash_price_millimes / 1000 : ""}
@@ -722,9 +721,9 @@ export function ParcelFields({
             dir="ltr"
             className="field text-left"
           />
-        </Labeled>
+        </FormField>
       )}
-      <Labeled label="المصاريف السنوية (د.ت)">
+      <FormField size="sm" label="المصاريف السنوية (د.ت)">
         <input
           name="annual_costs_dinars"
           defaultValue={parcel?.annual_costs_millimes !== null && parcel?.annual_costs_millimes !== undefined ? parcel.annual_costs_millimes / 1000 : ""}
@@ -732,8 +731,8 @@ export function ParcelFields({
           dir="ltr"
           className="field text-left"
         />
-      </Labeled>
-      <Labeled label="الحالة">
+      </FormField>
+      <FormField size="sm" label="الحالة">
         <select name="status" defaultValue={parcel?.status ?? "available"} className="field">
           {Object.entries(PARCEL_STATUS_LABELS).map(([value, label]) => (
             <option key={value} value={value}>
@@ -741,14 +740,14 @@ export function ParcelFields({
             </option>
           ))}
         </select>
-      </Labeled>
-      <Labeled label="الترتيب">
+      </FormField>
+      <FormField size="sm" label="الترتيب">
         <input type="number" name="sort_order" defaultValue={parcel?.sort_order ?? nextOrder} min={0} dir="ltr" className="field text-left" />
-      </Labeled>
+      </FormField>
       <div className="sm:col-span-2 lg:col-span-4">
-        <Labeled label="ملاحظات">
+        <FormField size="sm" label="ملاحظات">
           <input name="notes" defaultValue={parcel?.notes ?? ""} className="field" />
-        </Labeled>
+        </FormField>
       </div>
       {onTree ? null : (
         <div className="space-y-3 sm:col-span-2 lg:col-span-4">
@@ -804,30 +803,4 @@ function ParcelPriceCell({ cash, price }: { cash: number | null; price: ParcelPr
       ) : null}
     </>
   );
-}
-
-function Labeled({ label, children }: { label: string; children: React.ReactNode }) {
-  return (
-    <label className="block space-y-1.5">
-      <span className="block text-sm font-semibold">{label}</span>
-      {children}
-    </label>
-  );
-}
-
-function Fact({ label, children }: { label: string; children: React.ReactNode }) {
-  return (
-    <div>
-      <dt className="text-xs text-muted">{label}</dt>
-      <dd className="font-medium tabular-nums">{children}</dd>
-    </div>
-  );
-}
-
-function Th({ children }: { children: React.ReactNode }) {
-  return <th className="px-4 py-3 text-start font-semibold whitespace-nowrap">{children}</th>;
-}
-
-function Td({ children, className = "" }: { children: React.ReactNode; className?: string }) {
-  return <td className={`px-4 py-3 ${className}`}>{children}</td>;
 }
