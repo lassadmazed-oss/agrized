@@ -173,3 +173,216 @@ body {
     flex: none;
   }
 }
+
+/*
+ * The surface layer.
+ *
+ * Until now the only grouping device in the app was a 1px hairline, written out by hand as
+ * `rounded-2xl border border-line bg-surface` in eighty places. That is the mechanical reason the
+ * pieces read as separated: nothing ever sits *on* the page, so nothing gathers. What follows adds
+ * the three things the stylesheet was missing — a spacing rhythm, a radius scale and a little
+ * elevation — and then names the hand-written string.
+ *
+ * Values are measured on what the app already does (p-5 inside a card, py-16 between bands, min-h-11
+ * on the dense admin controls) or harvested from the `redesign` branch, which had already settled the
+ * shadows. No second palette: the colours are the forest / leaf / gold / paper / ink tokens above.
+ *
+ * `static` keeps every token in the compiled CSS even before a utility uses one, so a token is always
+ * readable as var(--…) from a component rule.
+ */
+@theme static {
+  /* Spacing: the rhythm the pages already keep. */
+  --spacing-hair: 0.25rem;
+  --spacing-tight: 0.5rem;
+  --spacing-snug: 0.75rem;
+  --spacing-cozy: 1rem;
+  --spacing-card: 1.25rem; /* p-5, the padding of most cards */
+  --spacing-roomy: 1.5rem; /* p-6, the same card from sm: up */
+  --spacing-section: 2.5rem;
+  --spacing-band: 4rem; /* py-16, one section of the home page */
+
+  /* Radius. --radius-card is 1rem on purpose: that is what rounded-2xl resolves to today, so a .card
+     and a not-yet-migrated hand-written card keep the same corner. Tailwind's own --radius-* keys are
+     left untouched, so every existing rounded-* utility still means what it meant. */
+  --radius-control: 0.75rem; /* .btn and .field today */
+  --radius-chip: 0.625rem;
+  --radius-card: 1rem;
+  --radius-panel: 1.25rem;
+  --radius-pill: 9999px;
+
+  /* Elevation, in ink. Geometry and alphas harvested from the redesign branch, recoloured to this
+     palette. Three steps only: settled on the page, lifted off it, floating above it. */
+  --shadow-raise: 0 1px 2px rgb(27 42 31 / 0.05);
+  --shadow-card: 0 1px 2px rgb(27 42 31 / 0.05), 0 14px 34px -22px rgb(27 42 31 / 0.22);
+  --shadow-float: 0 2px 8px rgb(27 42 31 / 0.08), 0 30px 60px -30px rgb(27 42 31 / 0.45);
+
+  /* Type, named by the role the text plays rather than by its size. Each size lands where the app
+     already sets that role by hand, so a class and a hand-written heading stay the same height. */
+  --text-display: clamp(2.25rem, 1.6rem + 2.4vw, 3.5rem);
+  --text-display--line-height: 1.1;
+  --text-section-title: clamp(1.875rem, 1.5rem + 1.5vw, 2.25rem); /* text-3xl → sm:text-4xl */
+  --text-section-title--line-height: 1.25;
+  --text-body: 1rem;
+  --text-body--line-height: 1.75;
+  --text-label: 0.95rem; /* matches .label */
+  --text-label--line-height: 1.4;
+  --text-caption: 0.85rem; /* matches .hint */
+  --text-caption--line-height: 1.6;
+  --text-figure: clamp(1.875rem, 1.6rem + 1vw, 2.5rem); /* the number in a counter tile */
+  --text-figure--line-height: 1.05;
+}
+
+@layer components {
+  /*
+   * .card is a drop-in for `rounded-2xl border border-line bg-surface`: same ground, same hairline,
+   * same 1rem corner. The one thing it adds is --shadow-raise, a 5 % 1px shadow that is almost
+   * invisible alone but stops a run of cards reading as loose rectangles. Padding stays at the call
+   * site, exactly as the string was used: `class="card p-5 sm:p-6"`.
+   *
+   * Utilities still win over this layer, so every variant of the string keeps working without a class
+   * of its own: `card bg-paper`, `card rounded-xl`, `card p-5 hover:border-forest`.
+   */
+  .card {
+    background: var(--color-surface);
+    border: 1px solid var(--color-line);
+    border-radius: var(--radius-card);
+    box-shadow: var(--shadow-raise);
+  }
+
+  /* The same material, for a container that holds rows, a table or a <details> rather than one item.
+     It carries the full --shadow-card, because a panel is the thing the eye should read as one block.
+     It sets no padding and no overflow, so `class="panel overflow-x-auto"` around a table still
+     scrolls and `class="panel"` on a <details> still clips nothing. */
+  .panel {
+    background: var(--color-surface);
+    border: 1px solid var(--color-line);
+    border-radius: var(--radius-card);
+    box-shadow: var(--shadow-card);
+  }
+
+  /* A simulated figure must never be mistaken for real stock. An estimate sits on a warm ground
+     behind a dashed edge and carries no elevation at all — it is explicitly not an object on the
+     page. Combine it with .card (`class="card card-estimate p-5"`): it restates all three of the
+     card's surface properties, and it comes later, so it wins. */
+  .card-estimate {
+    background: color-mix(in srgb, var(--color-gold-soft) 50%, var(--color-surface));
+    border: 1.5px dashed color-mix(in srgb, var(--color-gold) 40%, var(--color-line-strong));
+    border-radius: var(--radius-card);
+    box-shadow: none;
+  }
+
+  /* What every section heading writes out by hand today: display face, bold, forest, growing from
+     text-3xl to text-4xl. A utility still overrides the colour where a title sits on a dark band. */
+  .section-title {
+    font-family: var(--font-display);
+    font-weight: 700;
+    font-size: var(--text-section-title);
+    line-height: 1.25;
+    color: var(--color-forest);
+    text-wrap: balance;
+  }
+
+  /* A figure and what it counts. Used bare (the facts row of the home page) or inside a .card (the
+     counter tiles), so .stat is only the pairing and carries no surface of its own. */
+  .stat {
+    display: flex;
+    flex-direction: column;
+    gap: 0.375rem;
+  }
+  .stat-figure {
+    font-family: var(--font-display);
+    font-size: var(--text-figure);
+    line-height: 1.05;
+    font-weight: 700;
+    color: var(--color-forest);
+    font-variant-numeric: tabular-nums;
+  }
+  .stat-label {
+    font-size: var(--text-caption);
+    line-height: 1.6;
+    color: var(--color-muted);
+  }
+
+  /* A status word. The tone — background, text and ring — still comes from the map the call site
+     already holds (STAGE_TONES, PARCEL_STATUS_TONES, LAND_STATUS_TONES…), so .pill replaces only the
+     shape: `inline-flex whitespace-nowrap rounded-full px-2.5 py-1 text-xs font-semibold`. */
+  .pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    white-space: nowrap;
+    border-radius: var(--radius-pill);
+    padding: 0.25rem 0.625rem;
+    font-size: 0.75rem;
+    font-weight: 600;
+    line-height: 1.25;
+  }
+  /* The untoned pill: a hairline badge carrying no status of its own. */
+  .pill-line {
+    border: 1px solid var(--color-line);
+    background: var(--color-surface);
+    color: var(--color-muted);
+  }
+
+  /* A value the visitor picks: the payment chips of the offer block, the amounts of the simulator.
+     Selection is read from whichever signal the call site already uses — aria-current on a <Link>,
+     aria-pressed on a <button>, or a checked <input> inside a <label> — so no call site has to change
+     the way it marks the chosen one. */
+  .chip {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.375rem;
+    min-height: 2.25rem;
+    padding: 0.375rem 0.875rem;
+    border: 1px solid var(--color-line);
+    border-radius: var(--radius-pill);
+    background: var(--color-surface);
+    color: var(--color-ink);
+    font-size: 0.875rem;
+    font-weight: 600;
+    line-height: 1.25;
+    text-decoration: none;
+    cursor: pointer;
+    transition: border-color 150ms, background-color 150ms, color 150ms;
+  }
+  .chip:hover {
+    border-color: var(--color-line-strong);
+  }
+  .chip[aria-current="true"],
+  .chip[aria-pressed="true"],
+  .chip:has(input:checked) {
+    border-color: var(--color-forest);
+    background: var(--color-leaf-soft);
+    color: var(--color-forest);
+  }
+  .chip:has(input:focus-visible) {
+    outline: 2px solid var(--color-gold-bright);
+    outline-offset: 2px;
+  }
+
+  /*
+   * A denser control scale for the Back Office. .btn and .field are 3rem tall, which is right for a
+   * phone form and too tall for an eleven-column staff table; the admin pages already work around it
+   * by hand — `btn btn-secondary min-h-11` and `field min-h-11` appear some thirty times. These name
+   * that size instead of repeating it. 2.75rem is still a 44px tap target.
+   *
+   * .field-sm deliberately does not shrink the text: 16px is what stops iOS zooming the page on
+   * focus (see .field above), and that is a property of the input, not of the screen it sits on.
+   * Both leave .btn and .field themselves untouched and are meant to be added to them:
+   * `class="btn btn-secondary btn-sm"`, `class="field field-sm"`.
+   */
+  .btn-sm {
+    min-height: 2.75rem;
+    padding-inline: 0.875rem;
+    font-size: 0.9375rem;
+  }
+  .field-sm {
+    min-height: 2.75rem;
+    padding: 0.375rem 0.75rem;
+  }
+  .label-sm {
+    font-size: var(--text-caption);
+    margin-bottom: 0.25rem;
+  }
+}

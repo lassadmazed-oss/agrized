@@ -222,7 +222,7 @@ export function OfferInterestForm(props: OfferInterestFormProps) {
             onChange={(event) => update("trees", event.target.value)}
             aria-invalid={Boolean(errors.trees)}
             aria-describedby={errors.trees ? "offer-trees-error" : "offer-trees-hint"}
-            className="input mt-3 max-w-40 text-center tabular-nums"
+            className="field mt-3 max-w-40 text-center tabular-nums"
           />
           {errors.trees ? (
             <p id="offer-trees-error" className="error-text">
@@ -269,7 +269,7 @@ export function OfferInterestForm(props: OfferInterestFormProps) {
               value={form.fullName}
               onChange={(event) => update("fullName", event.target.value)}
               aria-invalid={Boolean(errors.fullName)}
-              className="input"
+              className="field"
             />
           </Field>
           <Field id="offer-phone" label="رقم الهاتف" hint="8 أرقام، مثال: 98 123 456" error={errors.phone}>
@@ -282,7 +282,7 @@ export function OfferInterestForm(props: OfferInterestFormProps) {
               value={form.phone}
               onChange={(event) => update("phone", event.target.value)}
               aria-invalid={Boolean(errors.phone)}
-              className="input"
+              className="field"
             />
           </Field>
         </div>
@@ -301,7 +301,7 @@ export function OfferInterestForm(props: OfferInterestFormProps) {
               value={form.whatsapp}
               onChange={(event) => update("whatsapp", event.target.value)}
               aria-invalid={Boolean(errors.whatsapp)}
-              className="input"
+              className="field"
             />
           </Field>
         ) : null}
@@ -313,7 +313,7 @@ export function OfferInterestForm(props: OfferInterestFormProps) {
             value={form.governorateId}
             onChange={(event) => update("governorateId", event.target.value)}
             aria-invalid={Boolean(errors.governorateId)}
-            className="input"
+            className="field"
           >
             <option value="">اختر ولايتك</option>
             {props.governorates.map((g) => (
@@ -354,7 +354,7 @@ export function OfferInterestForm(props: OfferInterestFormProps) {
               name="contactTime"
               value={form.contactTimeOptionId ?? ""}
               onChange={(event) => update("contactTimeOptionId", event.target.value || null)}
-              className="input"
+              className="field"
             >
               <option value="">أي وقت</option>
               {props.contactTimes.map((time) => (
