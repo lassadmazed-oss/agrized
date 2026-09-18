@@ -3,9 +3,11 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
-// Pages that carry their own bottom action: /start (its continue button keeps the visitor's choices,
-// which a plain /register link would drop) and parcel pages («أنا مهتم بهذه القطعة»).
-const OWN_ACTION = [/^\/start\/?$/, /^\/projects\/[^/]+\/[^/]+\/?$/];
+// Pages that carry their own bottom action: /start (its continue button keeps the visitor's choices, which a
+// plain /register link would drop), the two forms (/register, /land) and parcel pages («أنا مهتم بهذه القطعة»).
+// On a phone the bar lands exactly where those pages put their own button, and inside a form it invites the
+// visitor to begin what they are already doing (owner, 2026-09-18: «there is double buttons»).
+const OWN_ACTION = [/^\/start\/?$/, /^\/register\/?$/, /^\/land\/?$/, /^\/projects\/[^/]+\/[^/]+\/?$/];
 
 /**
  * The site's main button (primaryCta: label and target from settings, report v3 §17), always within reach

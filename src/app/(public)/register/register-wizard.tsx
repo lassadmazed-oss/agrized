@@ -606,11 +606,15 @@ function LocationStep({ form, errors, update, governorates }: StepProps & { gove
       </label>
 
       <p className="mb-3 mt-6 text-sm font-semibold text-muted">أو اختر ولاية أو أكثر</p>
-      <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+      {/* Twenty-four names as full rows filled a phone screen on their own (owner, 2026-09-18: «takes too much
+          space»). As chips they read at a glance: the tick lives in the border and the background, like the
+          calculator's answers, so three fit on a line. */}
+      <div className="grid grid-cols-3 gap-2 sm:grid-cols-4 lg:grid-cols-6">
         {governorates.map((g) => (
-          <label key={g.id} className="choice min-h-12 py-2">
+          <label key={g.id} className="choice min-h-11 justify-center px-2 py-2 text-center text-sm font-semibold">
             <input
               type="checkbox"
+              className="sr-only"
               checked={form.investGovernorateIds.includes(g.id)}
               onChange={(event) => toggle(g.id, event.target.checked)}
             />
@@ -927,8 +931,6 @@ function Success({
           <path d="M5 12.5l4.5 4.5L19 7.5" strokeLinecap="round" strokeLinejoin="round" />
         </svg>
       </div>
-      {/* The site-wide «سجّل اهتمامك» bar has no place here: this visitor just registered. */}
-      <style>{`[data-sticky-cta]{display:none !important}`}</style>
 
       <h1 ref={headingRef} tabIndex={-1} className="mt-6 font-display text-4xl font-bold text-forest outline-none">
         تم تسجيل مطلبك
