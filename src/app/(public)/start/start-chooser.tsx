@@ -168,7 +168,8 @@ function fillLimits(text: string, min: number, max: number): string {
 /**
  * The calculator (MIL-01, P2-6): tree count, area per tree, offer type, then cash or installments with a
  * down payment percentage and a duration. Owner, 2026-09-16: one question per screen, and answering it carries
- * the visitor to the next one; the figures wait on the last screen. The answers continue to /register in the
+ * the visitor to the next one. Owner, 2026-09-18 («التسعيرة في نفس الصفحة»): the figures no longer wait for the
+ * last screen — they sit beside the question and follow every answer. The answers continue to /register in the
  * URL, so nothing is asked twice. Choices come from the Back Office lists (LEAD-01); areas and prices come
  * from the database quote.
  */
@@ -422,6 +423,10 @@ export function StartChooser({
     quote: shownQuote,
   });
 
+  // The card carries the figures beside the questions, so it appears as soon as one answer fills a row; before
+  // that the photo keeps the column rather than leaving an empty box next to question one.
+  const showFigures = summary.rows.some((row) => row.value !== null) || summary.notice !== null;
+
   // Read the summary out once the visitor reaches it, not on every question.
   const summaryText = [
     ...summary.rows.map((row) => {
@@ -472,7 +477,7 @@ export function StartChooser({
   };
 
   return (
-    <div className={`mx-auto px-4 py-8 sm:px-6 ${isSummary ? "max-w-6xl" : "max-w-3xl"}`}>
+    <div className="mx-auto max-w-6xl px-4 py-8 sm:px-6">
       <div className="mb-6">{breadcrumb}</div>
 
       <Progress step={index + 1} total={steps.length} />
@@ -526,7 +531,8 @@ export function StartChooser({
 
       {/* On a wide screen a two-chip question is short, and the page shrinking under it looks broken; a phone shows the
           question full width and needs no filler, which would only push the buttons below the fold. */}
-      <div className={`mt-8 ${isSummary ? "" : "sm:min-h-[52vh]"}`}>
+      <div className="mt-8 grid gap-8 lg:grid-cols-[minmax(0,1fr)_22rem] lg:items-start">
+        <div className={isSummary ? "" : "sm:min-h-[52vh]"}>
         {/* 1 · The tiers, as the Back Office wrote them (LEAD-01), plus a free number. */}
         {activeStep === "trees" ? (
           <fieldset>
@@ -729,9 +735,11 @@ export function StartChooser({
           />
         ) : null}
 
-        {/* 5 · The figures, once every question is answered. */}
-        {isSummary ? (
-          <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_22rem] lg:items-start">
+        </div>
+
+        {/* 5 · The figures, beside the questions on every screen, following each answer. */}
+        {showFigures ? (
+          <aside className="lg:sticky lg:top-24">
             <section className="rounded-2xl border border-line bg-surface p-5 sm:p-6">
               <p role="status" className="sr-only">
                 {announcement}
@@ -754,7 +762,8 @@ export function StartChooser({
                 </p>
               ) : null}
 
-              {gap === null ? (
+              {/* The button belongs to the last screen: earlier the card only reports what the answers cost. */}
+              {!isSummary ? null : gap === null ? (
                 <Link href={href} className="btn mt-6 min-h-14 w-full bg-gold-bright text-lg text-forest-700 hover:bg-gold-soft">
                   <span>
                     <Bi ar={copy.continue} fr={copy.continueFr} frClassName="text-[0.7em] text-forest-700/80" />
@@ -779,7 +788,7 @@ export function StartChooser({
                 </>
               )}
 
-              {copy.secureNote ? (
+              {isSummary && copy.secureNote ? (
                 <p className="mt-3 flex items-start gap-1.5 text-xs leading-5 text-muted">
                   <LockIcon />
                   <span>
@@ -788,10 +797,10 @@ export function StartChooser({
                 </p>
               ) : null}
             </section>
-
-            <div className="hidden lg:block">{photo}</div>
-          </div>
-        ) : null}
+          </aside>
+        ) : (
+          <div className="hidden lg:block">{photo}</div>
+        )}
       </div>
 
       {/* Back is always there; forward belongs to the answer itself, except for a typed number. On the last screen the
