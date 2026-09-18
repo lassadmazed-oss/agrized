@@ -31,11 +31,19 @@ type Filters = {
 
 const MAX_PRICE_DINARS = 10_000_000;
 
+/**
+ * The name of the section, everywhere it is named (owner, 2026-09-18: «عروضنا»). Emptying offers.title falls
+ * back to the older projects.title, so the section is renamed from the Back Office without a deploy.
+ */
+export function offersTitle(config: PublicConfig): string {
+  return settingText(config, "offers.title") || settingText(config, "projects.title", "المشاريع المتوفّرة");
+}
+
 export default async function ProjectsPage({ searchParams }: PageProps<"/projects">) {
   const config = await getPublicConfig();
   const access = await moduleAccess(config, "projects");
   if (access === "closed") {
-    return <ComingSoon title={settingText(config, "projects.title", "المشاريع المتوفّرة")} />;
+    return <ComingSoon title={offersTitle(config)} />;
   }
 
   const mode = publicMode(access);
@@ -56,9 +64,7 @@ export default async function ProjectsPage({ searchParams }: PageProps<"/project
       <section className="mx-auto max-w-6xl px-4 pb-8 pt-10 sm:px-6 sm:pt-14">
         <div className="flex flex-wrap items-end justify-between gap-4">
           <div className="max-w-2xl">
-            <h1 className="font-display text-4xl font-bold text-forest sm:text-5xl">
-              {settingText(config, "projects.title", "المشاريع المتوفّرة")}
-            </h1>
+            <h1 className="font-display text-4xl font-bold text-forest sm:text-5xl">{offersTitle(config)}</h1>
             <p className="mt-3 leading-7 text-muted">
               {settingText(
                 config,

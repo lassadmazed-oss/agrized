@@ -26,7 +26,7 @@ import {
   publicMode,
 } from "@/lib/public-projects";
 
-import { LegalNotes, longestDuration } from "../page";
+import { LegalNotes, longestDuration, offersTitle } from "../page";
 import { OfferInterestForm } from "./offer-interest-form";
 
 export const metadata: Metadata = { title: "مشروع" };
@@ -43,7 +43,7 @@ export default async function ProjectPage({ params }: PageProps<"/projects/[code
   const config = await getPublicConfig();
   const access = await moduleAccess(config, "projects");
   if (access === "closed") {
-    return <ComingSoon title={settingText(config, "projects.title", "المشاريع المتوفّرة")} />;
+    return <ComingSoon title={offersTitle(config)} />;
   }
 
   const mode = publicMode(access);
