@@ -28,19 +28,26 @@ export function OliveMark({ trees, className = "text-paper/70" }: { trees: numbe
   );
 }
 
-/** Wrapper classes of a tree-count card: a link on the dark home band, a radio label on /start. */
+/**
+ * Wrapper classes of a tree-count card: a link on the dark home band, a radio label on /start.
+ *
+ * On the dark band the card is a LIGHT surface that lifts off it. It used to be a transparent box behind a
+ * `border-paper/20` outline, which on that green ground read as a faint rectangle rather than as something to
+ * press. A filled card with elevation is the same idea the rest of the site now uses (.card), and the hover
+ * lift says it is a link.
+ */
 export function treeCardClass(selected: boolean, tone: TreeCardTone): string {
   // On /start the radio inside the card is visually hidden, so the card itself shows keyboard focus.
   const base =
-    "flex h-full cursor-pointer flex-col items-center justify-center gap-1 rounded-2xl border-2 px-3 py-5 text-center transition-colors has-[.sr-only:focus-visible]:outline-2 has-[.sr-only:focus-visible]:outline-offset-2 has-[.sr-only:focus-visible]:outline-gold-bright";
+    "flex h-full cursor-pointer flex-col items-center justify-center gap-1 rounded-2xl border-2 px-3 py-5 text-center transition duration-200 motion-reduce:transition-none has-[.sr-only:focus-visible]:outline-2 has-[.sr-only:focus-visible]:outline-offset-2 has-[.sr-only:focus-visible]:outline-gold-bright";
   const state =
     tone === "dark"
       ? selected
-        ? "border-gold-bright bg-paper/12"
-        : "border-paper/20 hover:border-paper/45 hover:bg-paper/6"
+        ? "border-gold-bright bg-paper shadow-[var(--shadow-float)]"
+        : "border-transparent bg-paper shadow-[var(--shadow-card)] hover:-translate-y-0.5 hover:border-gold-bright/50 hover:shadow-[var(--shadow-float)] motion-reduce:hover:translate-y-0"
       : selected
-        ? "border-forest bg-leaf-soft"
-        : "border-line-strong bg-surface hover:border-leaf";
+        ? "border-forest bg-leaf-soft shadow-[var(--shadow-raise)]"
+        : "border-line-strong bg-surface hover:-translate-y-0.5 hover:border-leaf hover:shadow-[var(--shadow-card)] motion-reduce:hover:translate-y-0";
   return `${base} ${state}`;
 }
 
@@ -54,23 +61,24 @@ type TreeCardBodyProps = {
   tone: TreeCardTone;
 };
 
-/** Inside of a tree-count card: mark, label (Back Office wording, MIL-02), optional tagline. */
+/**
+ * Inside of a tree-count card: mark, label (Back Office wording, MIL-02), optional tagline.
+ *
+ * Both tones now sit on a light card, so the text is read the same way in both; the tone only warms the olive
+ * mark to gold on the home band, where the card is what carries the section's accent.
+ */
 export function TreeCardBody({ labelAr, labelFr, trees, taglineAr, taglineFr, tone }: TreeCardBodyProps) {
-  const dark = tone === "dark";
+  const onBand = tone === "dark";
   return (
     <>
-      {trees ? <OliveMark trees={trees} className={dark ? "text-paper/70" : "text-leaf"} /> : null}
-      <span
-        className={`font-display font-bold leading-tight ${trees ? "text-3xl" : "text-2xl"} ${
-          dark ? "text-gold-bright" : "text-forest"
-        }`}
-      >
-        <Bi ar={labelAr} fr={labelFr} frClassName={`text-[0.78em] ${dark ? "text-paper/75" : "text-muted"}`} />
+      {trees ? <OliveMark trees={trees} className={onBand ? "text-gold" : "text-leaf"} /> : null}
+      <span className={`font-display font-bold leading-tight text-forest ${trees ? "text-3xl" : "text-2xl"}`}>
+        <Bi ar={labelAr} fr={labelFr} frClassName="text-[0.78em] text-muted" />
       </span>
       {taglineAr ? (
         <>
-          <span aria-hidden="true" className={`my-2 h-px w-10 ${dark ? "bg-paper/25" : "bg-line-strong"}`} />
-          <span className={`text-sm leading-5 ${dark ? "text-paper/70" : "text-muted"}`}>
+          <span aria-hidden="true" className="my-2 h-px w-10 bg-line-strong" />
+          <span className="text-sm leading-5 text-muted">
             <Bi ar={taglineAr} fr={taglineFr} frClassName="text-[0.85em] opacity-80" />
           </span>
         </>
