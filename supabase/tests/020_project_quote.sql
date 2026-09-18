@@ -267,7 +267,10 @@ declare
   v_allowed text[] := array[
     'project_id', 'project_code', 'on_tree_pricing', 'spacing_status', 'spacing_class_id', 'label_ar', 'label_fr',
     'row_spacing_m', 'tree_spacing_m', 'area_per_tree_m2', 'trees', 'trees_max', 'total_area_m2', 'pricing',
-    'price_per_tree_millimes', 'total_price_millimes', 'installments', 'status', 'down_payment_percent',
+    'price_per_tree_millimes', 'total_price_millimes',
+    -- 0048: what the chosen trees cost every year, beside the price and never inside it.
+    'annual_fee_per_tree_millimes', 'annual_fee_total_millimes',
+    'installments', 'status', 'down_payment_percent',
     'down_payment_millimes', 'months', 'total_financed_millimes', 'remaining_millimes', 'monthly_millimes',
     'last_installment_millimes', 'installments_count', 'shortened', 'choices', 'spacing_classes', 'down_percents',
     'durations', 'id', 'area_m2', 'percent'];
