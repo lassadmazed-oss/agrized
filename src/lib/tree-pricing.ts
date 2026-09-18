@@ -64,6 +64,9 @@ export type TreeQuote = {
   pricing: QuotePricing;
   price_per_tree_millimes: number | null;
   total_price_millimes: number | null;
+  /** Pruning, upkeep and follow-up, paid every year and never part of the price above (0045). */
+  annual_fee_per_tree_millimes: number | null;
+  annual_fee_total_millimes: number | null;
   installments: TreeInstallments | null;
 };
 
@@ -114,6 +117,8 @@ export function toTreeQuote(data: unknown): TreeQuote | null {
     pricing,
     price_per_tree_millimes: pricing === "ok" ? numOrNull(data.price_per_tree_millimes) : null,
     total_price_millimes: pricing === "ok" ? numOrNull(data.total_price_millimes) : null,
+    annual_fee_per_tree_millimes: pricing === "ok" ? numOrNull(data.annual_fee_per_tree_millimes) : null,
+    annual_fee_total_millimes: pricing === "ok" ? numOrNull(data.annual_fee_total_millimes) : null,
     installments,
   };
 }

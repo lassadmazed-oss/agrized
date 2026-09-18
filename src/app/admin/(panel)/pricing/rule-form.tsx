@@ -61,6 +61,14 @@ export function RuleForm({
           placeholder={inherit(globalRule?.planting_cost_per_tree_millimes, "د")}
           required={!isProject}
         />
+        <DinarInput
+          name="annual_fee"
+          label="معاليم الصيانة والتقليم في العام"
+          unit="د/زيتونة في العام"
+          millimes={rule?.annual_fee_per_tree_millimes}
+          placeholder={inherit(globalRule?.annual_fee_per_tree_millimes, "د")}
+          hint="تتخلّص كل عام وما تدخلش في ثمن شراء الزيتونة. فارغة في عرض = ياخو القيمة العامّة."
+        />
       </div>
 
       <div className="space-y-2">

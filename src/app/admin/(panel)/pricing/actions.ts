@@ -156,6 +156,14 @@ export async function savePricingRule(projectId: string | null, _previous: Actio
   const monthlyRounding = readAmount(formData, "monthly_rounding", { required: isGlobal, positive: true, message: roundingMessage });
   if (!monthlyRounding.ok) return fail(monthlyRounding.message);
 
+  // Paid every year, per tree, and never part of the purchase price. Empty on an offer inherits the global figure.
+  const annualFee = readAmount(formData, "annual_fee", {
+    required: false,
+    positive: false,
+    message: `اكتب معاليم الصيانة والتقليم في العام بالدينار، مثال: 150، أو اتركها فارغة.`,
+  });
+  if (!annualFee.ok) return fail(annualFee.message);
+
   // Free text explaining where the margin and markup figures come from; empty clears it.
   const note = textValue(formData, "note_ar", NOTE_MAX_LENGTH) || null;
   const markupsNote = textValue(formData, "markups_note_ar", NOTE_MAX_LENGTH) || null;
@@ -175,6 +183,7 @@ export async function savePricingRule(projectId: string | null, _previous: Actio
       price_rounding_millimes: priceRounding.value,
       monthly_rounding_millimes: monthlyRounding.value,
       use_global_cost_items: isGlobal || formData.get("use_global_cost_items") === "on",
+      annual_fee_per_tree_millimes: annualFee.value,
       note_ar: note,
       markups_note_ar: markupsNote,
     },

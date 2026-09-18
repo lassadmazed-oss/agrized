@@ -79,7 +79,7 @@ export default async function PricingPage({ searchParams }: PageProps<"/admin/pr
     supabase
       .from("tree_pricing_rules")
       .select(
-        "id, project_id, land_price_per_m2_millimes, planting_cost_per_tree_millimes, margin_mode, margin_percent_bp, margin_fixed_millimes, price_rounding_millimes, monthly_rounding_millimes, use_global_cost_items, note_ar, markups_note_ar, updated_at, updated_by",
+        "id, project_id, land_price_per_m2_millimes, planting_cost_per_tree_millimes, margin_mode, margin_percent_bp, margin_fixed_millimes, price_rounding_millimes, monthly_rounding_millimes, use_global_cost_items, annual_fee_per_tree_millimes, note_ar, markups_note_ar, updated_at, updated_by",
       ),
     supabase.from("tree_cost_items").select("id, project_id, label_ar, label_fr, basis, amount_millimes, sort_order, is_active").order("sort_order"),
     supabase.from("financing_markups").select("id, project_id, months, markup_bp").order("months"),

@@ -269,7 +269,9 @@ begin
     'cost 400 د, margin 20% = 80 د, price 480 د, got ' || v_q::text;
   assert (v_q->>'total_price_millimes')::bigint = 12000000 and (v_q->>'total_area_m2')::numeric = 875,
     'the staff quote multiplies by the trees, got ' || v_q::text;
-  assert v_q->'price'->'sources' = '{"land": "global", "planting": "global", "margin": "global", "rounding": "global"}'::jsonb,
+  -- 0045 added the yearly care of a tree, which is resolved the same way as the rest of the rule.
+  assert v_q->'price'->'sources'
+       = '{"land": "global", "planting": "global", "margin": "global", "rounding": "global", "annual_fee": "global"}'::jsonb,
     'every figure comes from the global rule';
 
   -- Invalid values and an unset global margin are refused

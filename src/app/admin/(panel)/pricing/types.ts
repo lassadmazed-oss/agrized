@@ -26,6 +26,8 @@ export type PricingRule = {
   price_rounding_millimes: number | null;
   monthly_rounding_millimes: number | null;
   use_global_cost_items: boolean;
+  /** Pruning, upkeep and follow-up of one tree every year; null on a project inherits the global figure (0045). */
+  annual_fee_per_tree_millimes: number | null;
   /** Where the margin figures come from until Finance confirms them (seeded on the global row). */
   note_ar: string | null;
   /** Same for the markups per duration. */

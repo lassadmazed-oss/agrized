@@ -67,6 +67,12 @@ export type SummaryCopy = {
   rowPricePerTreeFr: string;
   rowTotalPrice: string;
   rowTotalPriceFr: string;
+  /** Pruning, upkeep and follow-up, paid every year and never part of the price (0045). */
+  rowAnnualFee: string;
+  rowAnnualFeeFr: string;
+  /** Contains `{amount}`: what one tree costs every year, beside the total for the trees chosen. */
+  annualFeePerTree: string;
+  annualFeePerTreeFr: string;
   rowPayment: string;
   rowPaymentFr: string;
   paymentCash: string;
@@ -106,6 +112,7 @@ export type SummaryRowKey =
   | "total_area"
   | "price_per_tree"
   | "total_price"
+  | "annual_fee"
   | "payment"
   | "down"
   | "duration"
@@ -242,6 +249,21 @@ export function calculatorSummary(input: SummaryInput): CalculatorSummary {
   }
   if (totalPrice) {
     rows.push({ key: "total_price", label: line(copy.rowTotalPrice, copy.rowTotalPriceFr), value: totalPrice, notes: [] });
+  }
+
+  // Owner 2026-09-18: the yearly care of a tree belongs to the offer and is read beside the price, never inside it.
+  const annualTotal = priced ? atLeast(moneyOrNull(quote?.annual_fee_total_millimes)) : null;
+  const annualPerTree = priced ? moneyOrNull(quote?.annual_fee_per_tree_millimes) : null;
+  if (annualTotal && annualPerTree) {
+    const notes: Line[] = copy.annualFeePerTree
+      ? [
+          {
+            ar: fill(copy.annualFeePerTree, "amount", annualPerTree.ar),
+            fr: copy.annualFeePerTreeFr && annualPerTree.fr ? fill(copy.annualFeePerTreeFr, "amount", annualPerTree.fr) : null,
+          },
+        ]
+      : [];
+    rows.push({ key: "annual_fee", label: line(copy.rowAnnualFee, copy.rowAnnualFeeFr), value: annualTotal, notes });
   }
 
   const payment: Line | null =

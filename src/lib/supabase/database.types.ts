@@ -2055,6 +2055,7 @@ export type Database = {
       }
       tree_pricing_rules: {
         Row: {
+          annual_fee_per_tree_millimes: number | null
           id: string
           land_price_per_m2_millimes: number | null
           margin_fixed_millimes: number | null
@@ -2071,6 +2072,7 @@ export type Database = {
           use_global_cost_items: boolean
         }
         Insert: {
+          annual_fee_per_tree_millimes?: number | null
           id?: string
           land_price_per_m2_millimes?: number | null
           margin_fixed_millimes?: number | null
@@ -2087,6 +2089,7 @@ export type Database = {
           use_global_cost_items?: boolean
         }
         Update: {
+          annual_fee_per_tree_millimes?: number | null
           id?: string
           land_price_per_m2_millimes?: number | null
           margin_fixed_millimes?: number | null
