@@ -205,6 +205,8 @@ function focusFirstError() {
 export function RegisterWizard(props: RegisterWizardProps) {
   const { recap, choices } = props;
   const [step, setStep] = useState(1);
+  /** Set while the visitor fixes one answer from the review screen, so the next move returns there. */
+  const [returnStep, setReturnStep] = useState<number | null>(null);
   const [form, setForm] = useState<FormState>(() => emptyForm(props));
   const [errors, setErrors] = useState<Errors>({});
   const [submitError, setSubmitError] = useState<SubmitError | null>(null);
@@ -268,11 +270,17 @@ export function RegisterWizard(props: RegisterWizardProps) {
       return;
     }
     setErrors({});
+    if (returnStep !== null) {
+      setReturnStep(null);
+      setStep(returnStep);
+      return;
+    }
     setStep((current) => Math.min(current + 1, STEPS.length));
   }
 
   function goBack() {
     if (advanceTimer.current) clearTimeout(advanceTimer.current);
+    setReturnStep(null);
     setErrors({});
     setStep((current) => Math.max(current - 1, 1));
   }
@@ -289,6 +297,11 @@ export function RegisterWizard(props: RegisterWizardProps) {
     if (advanceTimer.current) clearTimeout(advanceTimer.current);
     advanceTimer.current = setTimeout(() => {
       if (Object.keys(validateStep(step, next, props)).length === 0) {
+        if (returnStep !== null) {
+          setReturnStep(null);
+          setStep(returnStep);
+          return;
+        }
         setStep((current) => Math.min(current + 1, STEPS.length));
       }
     }, AUTO_NEXT_MS);
@@ -376,9 +389,23 @@ export function RegisterWizard(props: RegisterWizardProps) {
 
   return (
     <div className="mx-auto max-w-2xl px-4 pb-6 pt-6 sm:px-6 sm:pt-10">
-      {/* The calculator answers belong on the screen the visitor lands on, and wherever they block the request.
-          In between they only pushed the question off the phone (owner, 2026-09-18: «remove the table»). */}
-      {step === 1 || recap.error ? <RecapCard recap={recap} /> : null}
+      {/* The answers live on the calculator, one screen back. From here the visitor needs the way back to them,
+          and the reason when they block the request (owner, 2026-09-18: «remove the table ... keep the thing
+          editable the step before»). */}
+      {recap.error ? (
+        <p role="alert" className="rounded-xl bg-danger-soft px-4 py-3 text-sm font-medium leading-6 text-danger">
+          {recap.error}{" "}
+          <Link href={recap.editHref} className="font-semibold underline underline-offset-4 hover:no-underline">
+            {recap.editLabel}
+          </Link>
+        </p>
+      ) : step === 1 ? (
+        <p className="text-sm text-muted">
+          <Link href={recap.editHref} className="font-semibold text-forest underline underline-offset-4 hover:no-underline">
+            {recap.editLabel}
+          </Link>
+        </p>
+      ) : null}
 
       <div className="mt-6">
         <Progress step={step} total={STEPS.length} />
@@ -438,7 +465,18 @@ export function RegisterWizard(props: RegisterWizardProps) {
           ) : null}
           {step === 4 ? <VisitStep form={form} errors={errors} update={update} /> : null}
           {step === 5 ? <ContactStep form={form} errors={errors} update={update} contactTimes={props.contactTimes} /> : null}
-          {step === 6 ? <ReviewStep form={form} errors={errors} update={update} setStep={setStep} {...props} /> : null}
+          {step === 6 ? (
+            <ReviewStep
+              form={form}
+              errors={errors}
+              update={update}
+              editStep={(target) => {
+                setReturnStep(STEPS.length);
+                setStep(target);
+              }}
+              {...props}
+            />
+          ) : null}
         </div>
 
         {/* Honeypot for bots; hidden from people and assistive technology */}
@@ -461,52 +499,6 @@ export function RegisterWizard(props: RegisterWizardProps) {
         </div>
       </form>
     </div>
-  );
-}
-
-// ---------------------------------------------------------------------------
-// Calculator recap
-// ---------------------------------------------------------------------------
-
-/** P2-6: what was answered on /start, read-only; changing it means going back to the calculator. */
-function RecapCard({ recap }: { recap: CalculatorRecap }) {
-  return (
-    <section aria-labelledby="calculator-recap-title" className="rounded-2xl border border-line bg-surface p-4 sm:p-5">
-      {/* Not a heading: the step title below stays the page's first heading. */}
-      <div className="flex items-baseline justify-between gap-3">
-        <p id="calculator-recap-title" className="font-display text-lg font-bold text-forest">
-          {recap.title}
-        </p>
-        <Link href={recap.editHref} className="flex-none text-sm font-semibold text-forest underline underline-offset-4 hover:no-underline">
-          {recap.editLabel}
-        </Link>
-      </div>
-      <dl className="mt-3 grid grid-cols-2 gap-x-4 gap-y-3 sm:grid-cols-3">
-        {recap.rows.map((row) => (
-          <div key={row.key} className="min-w-0">
-            <dt className="text-xs text-muted">{row.label}</dt>
-            <dd className="mt-0.5 font-semibold break-words text-ink tabular-nums">
-              {row.value}
-              {row.notes.map((note) => (
-                <span key={note} className="mt-0.5 block text-xs font-normal text-muted">
-                  {note}
-                </span>
-              ))}
-            </dd>
-          </div>
-        ))}
-      </dl>
-      {recap.notice ? <p className="mt-3 rounded-xl bg-leaf-soft px-3 py-2 text-sm leading-6 text-forest">{recap.notice}</p> : null}
-      {recap.error ? (
-        <p className="mt-3 rounded-xl bg-danger-soft px-3 py-2 text-sm font-medium leading-6 text-danger">
-          {recap.error}{" "}
-          <Link href={recap.editHref} className="font-semibold underline underline-offset-4 hover:no-underline">
-            {recap.editLabel}
-          </Link>
-        </p>
-      ) : null}
-      {recap.estimateNote ? <p className="mt-3 text-xs leading-5 text-muted">{recap.estimateNote}</p> : null}
-    </section>
   );
 }
 
@@ -747,12 +739,12 @@ function ReviewStep({
   form,
   errors,
   update,
-  setStep,
+  editStep,
   governorates,
   goals,
   contactTimes,
   consentText,
-}: StepProps & RegisterWizardProps & { setStep: (step: number) => void }) {
+}: StepProps & RegisterWizardProps & { editStep: (step: number) => void }) {
   const label = (list: Option[], id: string | null) => list.find((o) => o.id === id)?.label_ar ?? "—";
   const governorate = governorates.find((g) => g.id === form.governorateId)?.name_ar;
 
@@ -793,7 +785,7 @@ function ReviewStep({
               <dt className="text-sm text-muted">{row.label}</dt>
               <dd className="mt-0.5 font-semibold break-words text-ink">{row.value}</dd>
             </div>
-            <button type="button" onClick={() => setStep(row.step)} className="flex-none text-sm font-semibold text-forest underline-offset-4 hover:underline">
+            <button type="button" onClick={() => editStep(row.step)} className="flex-none text-sm font-semibold text-forest underline-offset-4 hover:underline">
               تعديل
             </button>
           </div>

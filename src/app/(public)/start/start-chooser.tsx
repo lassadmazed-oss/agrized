@@ -206,6 +206,8 @@ export function StartChooser({
   const continueHintId = `${groupId}-continue-hint`;
   const headingRef = useRef<HTMLHeadingElement>(null);
   const advanceTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  /** True while the visitor changes one answer from «مشروعك المبدئي», so the answer returns there. */
+  const editingRef = useRef(false);
 
   const customNumber = custom === "" ? null : Number(custom);
   const customValid =
@@ -268,6 +270,17 @@ export function StartChooser({
 
   const go = useCallback((next: StepKey) => {
     if (advanceTimer.current) clearTimeout(advanceTimer.current);
+    editingRef.current = false;
+    setStep(next);
+  }, []);
+
+  /**
+   * «تبديل» on a row of the figures (owner, 2026-09-18: «if i want to change something i need to go pass
+   * everything again»): that one answer carries the visitor straight back to the figures.
+   */
+  const goEdit = useCallback((next: StepKey) => {
+    if (advanceTimer.current) clearTimeout(advanceTimer.current);
+    editingRef.current = true;
     setStep(next);
   }, []);
 
@@ -275,7 +288,10 @@ export function StartChooser({
   const advance = useCallback(() => {
     if (advanceTimer.current) clearTimeout(advanceTimer.current);
     advanceTimer.current = setTimeout(() => {
+      const editing = editingRef.current;
+      editingRef.current = false;
       setStep((current) => {
+        if (editing) return "summary";
         const list = stepsRef.current;
         const position = list.indexOf(list.includes(current) ? current : "summary");
         return position >= 0 && position + 1 < list.length ? list[position + 1] : current;
@@ -723,7 +739,7 @@ export function StartChooser({
               {/* What the visitor picked, plus the areas and prices the database quoted for it (docs/tree-area-and-cost.md). */}
               <dl aria-busy={busy || undefined} className={`divide-y divide-line transition-opacity ${busy ? "opacity-60" : ""}`}>
                 {summary.rows.map((row) => (
-                  <SummaryItem key={row.key} label={row.label} value={row.value} notes={row.notes} onEdit={rowStep(row.key, steps) ? () => go(rowStep(row.key, steps) as StepKey) : undefined} />
+                  <SummaryItem key={row.key} label={row.label} value={row.value} notes={row.notes} onEdit={rowStep(row.key, steps) ? () => goEdit(rowStep(row.key, steps) as StepKey) : undefined} />
                 ))}
               </dl>
 
