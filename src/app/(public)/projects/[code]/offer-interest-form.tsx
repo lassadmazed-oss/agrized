@@ -198,16 +198,6 @@ export function OfferInterestForm(props: OfferInterestFormProps) {
                 {formatCount(count)}
               </button>
             ))}
-            {props.maxTrees > 1 ? (
-              <button
-                type="button"
-                onClick={() => update("trees", String(props.maxTrees))}
-                aria-pressed={trees === props.maxTrees}
-                className="chip tabular-nums"
-              >
-                الكل ({formatCount(props.maxTrees)})
-              </button>
-            ) : null}
           </div>
           <input
             id="offer-trees"
