@@ -7,6 +7,11 @@
 -- every global pricing row and seeded list item this file relies on is set explicitly inside the rolled-back
 -- transaction. Seed values are asserted only while nobody has saved them from the Back Office.
 
+-- The reason guard is a setting since 0058 and the owner turned it off (audit.reason_min_length = 0). This file
+-- asserts that a sensitive save refuses a blank reason, which is the guard's behaviour WHILE IT IS ON, so it
+-- turns it on inside its own transaction. The runner rolls this back; the live value is untouched.
+update public.settings set value = to_jsonb(5) where key = 'audit.reason_min_length';
+
 select set_config('test.tp_reason', rpad(s, greatest(char_length(s), app.setting_int('audit.reason_min_length', 5)), '.'), true)
 from (values ('ضبط تسعير الزيتونة في الاختبار')) as t (s);
 

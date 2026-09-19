@@ -37,9 +37,11 @@ begin
   where s.key = any (v_keys) and s.is_public and s.value_type = 'text' and s.group_key = 'site';
   assert v_found = cardinality(v_keys), 'every counter text row is still there, got ' || v_found;
 
-  -- MIL-02: the bar's denominator is still a setting, and still a number.
-  assert (select value_type = 'integer' and (value #>> '{}')::bigint > 0 from public.settings where key = 'million.goal'),
-    'the bar still has a denominator to compute its share with';
+  -- MIL-02: the bar's denominator is still a setting, and still a number. Zero is one of its values and means
+  -- there is no reference to measure against, so the counter draws its figures and no bar (0053). What must
+  -- never happen is a negative or a non-integer, which would divide the share by nonsense.
+  assert (select value_type = 'integer' and (value #>> '{}')::bigint >= 0 from public.settings where key = 'million.goal'),
+    'the bar reference is a whole number, zero meaning no reference at all';
 
   -- The Back Office no longer calls that row a project-wide goal.
   assert (select label_ar not like '%المليون%' from public.settings where key = 'million.goal'),

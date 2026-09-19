@@ -1,5 +1,13 @@
 -- Sensitive operations carry their reason into the audit log, and the log stays append-only.
 -- Spec: §51 (who, what, old value, new value, when, reason), AUD-01, AUD-02.
+--
+-- THE GUARD IS A SETTING NOW (0058). The owner turned it off on 2026-09-19 — «remove the سبب التغيير, too
+-- dumb» — so audit.reason_min_length is 0 in the live database and no screen asks for a reason. What this file
+-- pins is the guard ITSELF: that it still works, unchanged, the moment anyone turns it back on. So it switches
+-- it on inside its own transaction, which the runner rolls back; the live value is never touched. The zero
+-- behaviour is asserted too, further down, by passing the minimum explicitly.
+
+update public.settings set value = to_jsonb(5) where key = 'audit.reason_min_length';
 
 -- ---------------------------------------------------------------------------
 -- Fixtures (as the migration owner): an admin, a setting row owned by this test, a sensitive RPC
@@ -44,13 +52,22 @@ begin
   assert exists (select 1 from public.settings
                  where key = 'audit.reason_min_length' and value_type = 'integer' and not is_public),
     'audit.reason_min_length is a private integer setting';
-  assert v_min >= 1, 'the minimum reason length is at least 1, got ' || v_min;
+  -- Since 0058 zero is one of its values and means «this product asks for no reason» (owner, 2026-09-19). The
+  -- setting is whatever the owner left it at, so the test asserts the RULE at both ends rather than the value.
+  assert v_min >= 0, 'the minimum reason length is never negative, got ' || v_min;
 
   assert app.require_reason(E'  سبب واضح\n', 1) = 'سبب واضح', 'require_reason returns the reason without surrounding blanks';
-  assert app.require_reason(repeat('ب', v_min)) = repeat('ب', v_min), 'a reason of exactly the minimum length is accepted';
 
+  -- A minimum of zero accepts everything, including nothing at all, and still returns the reason trimmed.
+  assert app.require_reason('', 0) = '', 'a zero minimum accepts an empty reason';
+  assert app.require_reason(E' \t ', 0) = '', 'a zero minimum accepts blanks and returns them trimmed away';
+  assert app.require_reason(E'  سبب واضح\n', 0) = 'سبب واضح', 'a zero minimum still trims a reason that was given';
+
+  -- A positive minimum is still enforced, whatever the setting holds, so re-enabling it from the Back Office
+  -- brings the guard back everywhere in one move.
+  assert app.require_reason(repeat('ب', 5), 5) = repeat('ب', 5), 'a reason of exactly the minimum length is accepted';
   begin
-    perform app.require_reason(repeat('ب', v_min - 1));
+    perform app.require_reason(repeat('ب', 4), 5);
     raise exception 'expected reason_required for a reason one character too short but it was accepted';
   exception when others then
     if sqlerrm <> 'reason_required' then
@@ -59,13 +76,27 @@ begin
   end;
 
   begin
-    perform app.require_reason('', 0);
-    raise exception 'expected reason_required for an empty reason with a zero minimum but it was accepted';
+    perform app.require_reason('', 1);
+    raise exception 'expected reason_required for an empty reason with a minimum of one but it was accepted';
   exception when others then
     if sqlerrm <> 'reason_required' then
-      raise exception 'expected reason_required for an empty reason with a zero minimum but got "%"', sqlerrm;
+      raise exception 'expected reason_required for an empty reason with a minimum of one but got "%"', sqlerrm;
     end if;
   end;
+
+  -- And the configured minimum is the one that applies when the caller names none.
+  if v_min > 0 then
+    begin
+      perform app.require_reason(repeat('ب', v_min - 1));
+      raise exception 'expected reason_required from the configured minimum but the reason was accepted';
+    exception when others then
+      if sqlerrm <> 'reason_required' then
+        raise exception 'expected reason_required from the configured minimum but got "%"', sqlerrm;
+      end if;
+    end;
+  else
+    assert app.require_reason('') = '', 'with the configured minimum at zero, a call with no reason is accepted';
+  end if;
 
   assert not has_function_privilege('authenticated', 'app.set_reason(text)', 'execute')
      and not has_function_privilege('anon', 'app.set_reason(text)', 'execute')
