@@ -296,11 +296,23 @@ reset role;
 
 do $$
 declare
-  v_state public.flag_state := (select f.state from public.feature_flags f where f.key = 'visits');
-  v       jsonb;
+  v jsonb;
 begin
-  assert v_state = 'disabled',
-    'the owner turns this module on himself: applying the migration must leave it off, got ' || v_state::text;
+  -- This block used to OPEN by asserting that `visits` was live-state 'disabled', on the reasoning that
+  -- applying the migration must leave the module off for the owner to switch on himself. That reasoning is
+  -- right about the migration and wrong about this test. The flag belongs to the owner from the moment the
+  -- migration lands: he set `visits` to 'public' on 2026-09-21, which is exactly what the product is for, and
+  -- the suite went red on a correct state. A test that fails when the owner uses the product is not testing
+  -- the product.
+  --
+  -- So the door is SET shut here and SET open below, the way every other flag in this file is already handled
+  -- twelve lines down. What the migration ships is a property of the migration and is asserted where it can
+  -- mean something — at apply time — not against a live database months later.
+  --
+  -- Nothing here escapes: scripts/db-test.mjs wraps the whole run in begin/rollback, so the owner's own flag
+  -- state is untouched by this file. Verified before changing it, because a test that quietly turned his
+  -- module off would be a far worse bug than the one it was fixing.
+  update public.feature_flags set state = 'disabled' where key = 'visits';
 
   -- Shut: a visitor cannot ask for a visit, whatever else is valid about the request.
   perform pg_temp.vi_expect(
