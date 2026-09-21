@@ -177,7 +177,7 @@ export default async function HomePage() {
           point of it: the first thing that moves after the photograph is the real stock, named and priced.
           It carries no cover photographs — see the component for why — and it repeats no figure the section
           further down does not already show. */}
-      <OffersTicker config={config} offers={offers} />
+      <div className="reveal"><OffersTicker config={config} offers={offers} /></div>
 
       <div className="hidden md:block">
         <Hero
@@ -220,7 +220,7 @@ export default async function HomePage() {
 
       {/* 04 · The offers themselves: name, place, olive trees, the area each tree comes with, and the price
           the database computed. Never a formula, never the land price (PRJ-03). */}
-      <OffersSection config={config} offers={offers} shown={shownOffers} stockOf={stockOf} />
+      <div className="reveal"><OffersSection config={config} offers={offers} shown={shownOffers} stockOf={stockOf} /></div>
 
       {/* 05 · Where the project stands, on the first dark band. Counts of real rows only, one tile per
           stage (spec v2 §6). It keeps id="million", which the bar and the footer both link to. */}
@@ -235,7 +235,7 @@ export default async function HomePage() {
 
       {/* 08 · The unit the page sells: one olive tree with the land it comes with. The areas are the Back
           Office spacing classes — a planting class and its own area, never a tree count multiplied by one. */}
-      <AreaSection config={config} />
+      <div className="reveal"><AreaSection config={config} /></div>
 
       {/* 09 · What AgriZed does after the sale (report v3 §36), beside where it works. Two cards now, not
           two loose columns. The price of a service belongs to the contract, never to this page. */}

@@ -26,8 +26,17 @@ export type PhotoMarqueeProps = {
   sizes?: string;
   /** Reserves the ratio, for a hero that sits in the flow. Omit for one that fills a positioned parent. */
   aspect?: string;
-  /** Seconds for one full pass of the whole strip. Slower reads as weather; faster reads as a slideshow. */
+  /** Seconds each photograph takes to cross. The whole loop is this times the number of photographs. */
   seconds?: number;
+  /**
+   * Which frames are fetched up front.
+   *
+   * «all» for the strip a visitor actually lands on; «first» for the other one. BOTH heroes are in the DOM
+   * at every width — one is `md:hidden`, the other `hidden md:block` — and a hidden image with priority on
+   * it still downloads. Marking every frame of both as priority meant twenty image requests to show five
+   * pictures, which is most of why the owner called the page slow. «first» keeps the hidden hero to one.
+   */
+  eager?: "all" | "first";
   priority?: boolean;
   className?: string;
 };
@@ -37,7 +46,8 @@ export function PhotoMarquee({
   slots,
   sizes = "100vw",
   aspect,
-  seconds = 48,
+  seconds = 9,
+  eager = "all",
   priority,
   className = "",
 }: PhotoMarqueeProps) {
@@ -54,15 +64,21 @@ export function PhotoMarquee({
   }
 
   const frames = (copy: number) =>
-    shown.map((slot) => (
+    shown.map((slot, index) => (
       <div key={`${copy}-${slot}`} className="marquee-photo">
-        {/* EVERY frame is eager, both copies, and the second copy is the reason. It was lazy at first, which
-            is the obvious choice and the wrong one here: a lazy frame is off-screen until the track carries
-            it in, so it began its request at the moment it became visible and showed SitePhoto's leaf-green
-            ground for as long as it took — a pale panel sliding into the hero every cycle. There is no
-            second download to save, because the two copies are the same five URLs; the browser dedupes them
-            and the second set is served from cache. */}
-        <SitePhoto config={config} slot={slot} fill sizes={sizes} priority={priority} />
+        {/* THE SECOND COPY IS NEVER FETCHED SEPARATELY — it is the same URLs as the first, so the browser
+            serves it from cache and a lazy frame there resolves instantly. What must NOT be lazy is the
+            first copy of the strip a visitor is looking at: a lazy frame only starts its request when the
+            track carries it into view, and until it lands the reader watches SitePhoto's leaf-green ground
+            slide past instead of a photograph. Hence `eager`: the visible hero preloads its whole first
+            copy, and the one hidden behind a breakpoint preloads a single frame. */}
+        <SitePhoto
+          config={config}
+          slot={slot}
+          fill
+          sizes={sizes}
+          priority={priority && copy === 0 && (eager === "all" || index === 0)}
+        />
       </div>
     ));
 

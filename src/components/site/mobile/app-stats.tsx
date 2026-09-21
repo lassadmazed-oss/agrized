@@ -40,17 +40,27 @@ export function AppStats({ stats }: { stats: readonly AppStat[] }) {
   if (shown.length === 0) return null;
 
   return (
-    <section className="grid grid-cols-2 gap-snug px-4 pt-cozy md:hidden">
-      {shown.map((stat) => (
-        <div key={stat.label} className="card flex flex-col items-center gap-1 p-4 text-center">
-          <svg viewBox="0 0 24 24" aria-hidden="true" className="size-7 fill-forest">
+    /* ONE ROW, NOT A 2×2 (owner, 2026-09-21). Four figures stacked two-by-two took a third of the first
+       screen to say four short things, and pushed everything real below the fold. Four columns on one line
+       is 24px of figure at 375px — measured, it fits — and the whole set is read in a glance instead of a
+       scan. The tiles keep their card ground so they still read as facts and not as a caption. */
+    <section className="grid grid-cols-4 gap-1.5 px-4 pt-cozy md:hidden">
+      {shown.map((stat, index) => (
+        <div
+          key={stat.label}
+          /* Each tile arrives a beat after the one before it, so the row assembles instead of appearing.
+             `.rise` carries its own reduced-motion rule — see globals.css. */
+          className="card rise flex flex-col items-center gap-0.5 px-1 py-3 text-center"
+          style={{ animationDelay: `${index * 90}ms` }}
+        >
+          <svg viewBox="0 0 24 24" aria-hidden="true" className="float size-5 fill-forest">
             {ICONS[stat.icon]}
           </svg>
-          <p className="font-display text-2xl font-bold leading-none text-forest tabular-nums">
+          <p className="font-display text-[1.375rem] font-bold leading-none text-forest tabular-nums">
             {stat.growing ? "+" : ""}
             {formatCount(stat.value as number)}
           </p>
-          <p className="text-caption text-muted">{stat.label}</p>
+          <p className="text-[0.6875rem] leading-tight text-muted">{stat.label}</p>
         </div>
       ))}
     </section>

@@ -696,3 +696,90 @@ body {
     inline-size: var(--marquee-photo-width, 100cqw);
   }
 }
+
+@layer components {
+  /*
+   * MOTION (owner, 2026-09-21: «make the landing page feel a lot more alive, add a lot more animations»).
+   *
+   * Three primitives, deliberately small. Each one is a class a section opts into, so a page that says
+   * nothing says it still, and none of them moves anything a reader is trying to read — they move a thing
+   * INTO place and then stop. The one continuous motion on the site is the marquee above, and it earns it
+   * because drifting photography is the content.
+   *
+   * SCROLL-DRIVEN WHERE THE BROWSER CAN. `animation-timeline: view()` ties the reveal to where the element
+   * is in the viewport, so a section animates as it is scrolled to and not all at once on load. Where it is
+   * unsupported the property is ignored and the SAME animation runs once on the document timeline, which is
+   * a plain fade-in — the degraded case is a page that fades in rather than a page with invisible sections.
+   * That is why every one of these ends at the visible state and is `both`-filled: a reader whose browser
+   * runs neither still sees the finished page, because the last frame is the page.
+   *
+   * Every one is switched off under prefers-reduced-motion with `animation: none`, for the reason the
+   * marquee rule already gives: the blanket 0.01ms at the top of this file would run them, not stop them.
+   */
+  .rise {
+    animation: rise-in 620ms cubic-bezier(0.22, 0.61, 0.36, 1) both;
+  }
+  @keyframes rise-in {
+    from {
+      opacity: 0;
+      transform: translate3d(0, 18px, 0);
+    }
+    to {
+      opacity: 1;
+      transform: translate3d(0, 0, 0);
+    }
+  }
+
+  /* The same arrival, tied to the scroll: a band lifts into place as it comes up the screen and is finished
+     by the time it is a third of the way in, so nothing is still moving where the eye settles. */
+  .reveal {
+    animation: rise-in 1ms linear both;
+    animation-timeline: view();
+    animation-range: entry 0% cover 28%;
+  }
+
+  /* A slow, small drift for a mark that should look alive rather than placed — the olive glyphs. It never
+     travels more than 3px, so nothing beside it reflows and nothing it labels appears to move. */
+  .float {
+    animation: float-soft 5.5s ease-in-out infinite;
+  }
+  @keyframes float-soft {
+    0%,
+    100% {
+      transform: translate3d(0, 0, 0);
+    }
+    50% {
+      transform: translate3d(0, -3px, 0);
+    }
+  }
+
+  /* A figure that has just changed should be seen to have changed. One pass, on arrival, on the number
+     only — the label under it never moves. */
+  .figure-in {
+    animation: figure-pop 700ms cubic-bezier(0.22, 0.61, 0.36, 1) both;
+  }
+  @keyframes figure-pop {
+    from {
+      opacity: 0;
+      transform: scale(0.88);
+    }
+    60% {
+      transform: scale(1.03);
+    }
+    to {
+      opacity: 1;
+      transform: scale(1);
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .rise,
+    .reveal,
+    .float,
+    .figure-in {
+      animation: none !important;
+      opacity: 1 !important;
+      transform: none !important;
+    }
+  }
+}

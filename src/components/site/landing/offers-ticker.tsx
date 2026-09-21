@@ -94,7 +94,7 @@ export function OffersTicker({ config, offers }: OffersTickerProps) {
     <section aria-label={offersTitle(config)} className="border-y border-line bg-paper py-snug">
       {/* Short chips want a quicker pass than a strip of photographs; twelve seconds an offer reads as a
           ticker rather than a slideshow. It is per-offer, so publishing a fourth lengthens the loop. */}
-      <div className="marquee" style={{ ["--marquee-duration" as string]: `${items.length * 12}s` }}>
+      <div className="marquee" style={{ ["--marquee-duration" as string]: `${items.length * 5}s` }}>
         <ul className="marquee-track gap-snug px-snug">
           {strip(0)}
           {/* The seam: identical content, announced once. */}

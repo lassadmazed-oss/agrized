@@ -344,7 +344,8 @@ export function Hero({ config, copy, promises, primaryHref, secondaryHref = "", 
       <PhotoMarquee
         config={config}
         slots={HERO_SLOTS}
-        seconds={60}
+        seconds={7}
+        eager="first"
         priority
         sizes="100vw"
       />
