@@ -106,6 +106,12 @@ export const ADMIN_LABELS = {
   // dead end the five were removed for.
   "/admin/visits": "الزيارات الميدانية",
   "/admin/reservations": "الحجوزات والعربون",
+  // STAGE 3, 2026-09-21 — العقود · الأقساط, the two the comment above left out until they had tables. They
+  // do now (supabase/pending/bb_60_contracts_installments.sql) and two screens that read them, so the crumb
+  // names them. These are LABELS, not nav rows: the rows live in admin/(panel)/layout.tsx, and without them
+  // the trail on /admin/contracts would read «لوحة القيادة» and nothing else.
+  "/admin/contracts": "العقود ووعد البيع",
+  "/admin/installments": "الأقساط والخلاص",
   "/admin/settings": "الإعدادات",
   "/admin/settings/modules": "الموديولات",
   "/admin/settings/lists": "القوائم",
