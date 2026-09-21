@@ -23,7 +23,10 @@ type MillionStartProps = {
  */
 export function MillionStart({ treeCounts, treesQuestion, subtitle, taglines, otherCardLabel, otherLink }: MillionStartProps) {
   return (
-    <section id="start" className="scroll-mt-20 bg-forest text-paper">
+    // No `id` and no scroll margin: this section carried id="start" and nothing in the site, the header,
+    // the footer or a message template ever linked it — the last unlinked landmark on the home page, and an
+    // anchor that answers nothing is a promise the page cannot keep. 2026-09-19.
+    <section className="bg-forest text-paper">
       <div className="mx-auto max-w-6xl px-4 py-section sm:px-6">
         <h2 className="section-title text-paper">{treesQuestion}</h2>
         {subtitle ? <p className="mt-2 text-paper/75">{subtitle}</p> : null}

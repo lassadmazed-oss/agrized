@@ -7,9 +7,8 @@
 //     src/app/admin/(panel)/leads/[personId]/page.tsx:133
 //     src/app/admin/(panel)/land-offers/page.tsx:110, land-offers/[id]/page.tsx:75
 //     src/app/admin/(panel)/projects/page.tsx:130, projects/[id]/page.tsx:132 and :227
-//     src/app/admin/(panel)/projects/[id]/parcels/[parcelId]/page.tsx:121
 //     src/app/admin/(panel)/settings/modules/page.tsx:55
-//     src/app/(public)/projects/[code]/page.tsx:110, projects/[code]/[parcel]/page.tsx:126
+//     src/app/(public)/projects/[code]/page.tsx:110
 //
 // The shape is .pill from globals.css; the ring is added here because the tone strings the app already
 // holds are written for `ring-1 ring-inset`.
@@ -20,7 +19,7 @@
 // Two ways to colour it, on purpose:
 //   tone="success"  — a semantic tone, for new call sites.
 //   toneClass={…}   — the ready-made strings already exported from src/lib (STAGE_TONES, LAND_STATUS_TONES,
-//                     PROJECT_STATUS_TONES, PARCEL_STATUS_TONES, parcelStatusTone()), so a call site can move
+//                     PROJECT_STATUS_TONES), so a call site can move
 //                     to this component without also rewriting its status map. toneClass wins when both are given.
 
 import type { ReactNode } from "react";

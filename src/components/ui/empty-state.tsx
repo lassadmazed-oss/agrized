@@ -7,7 +7,6 @@
 //   src/app/admin/(panel)/land-offers/page.tsx:95, land-offers/[id]/page.tsx:174
 //   src/app/admin/(panel)/leads/[personId]/page.tsx:293
 //   src/app/admin/(panel)/projects/page.tsx:109, projects/[id]/page.tsx:191
-//   src/app/admin/(panel)/projects/[id]/parcels/[parcelId]/page.tsx:258
 //   src/app/admin/(panel)/pricing/allowed-choices-form.tsx:33, cost-items.tsx:26, markups-form.tsx:59,
 //     project-section.tsx:83                                                        → size="sm"
 //   src/app/(public)/projects/page.tsx:108, projects/[code]/page.tsx:270

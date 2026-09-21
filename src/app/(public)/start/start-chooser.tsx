@@ -53,6 +53,14 @@ export type ValueItem = { icon: ValueIconKey; ar: string; fr?: string };
 
 /** Every text on the page, resolved from `settings` on the server (MIL-02, PRN-02). */
 export type StartCopy = SummaryCopy & {
+  /** What this page is, said on the page: «حاسبة تقديرية». Emptying `start.eyebrow` removes the badge. */
+  eyebrow: string;
+  eyebrowFr: string;
+  /** The way out to the real offers, shown only while the projects module answers. */
+  offersTitle: string;
+  offersTitleFr: string;
+  offersLabel: string;
+  offersLabelFr: string;
   title: string;
   titleFr: string;
   subtitle: string;
@@ -115,6 +123,8 @@ export type StartChooserProps = {
   initial: CalculatorChoices;
   /** `visit=1` travels on to /register. */
   wantsVisit: boolean;
+  /** FLAG-02: /projects answers this visitor, so the last screen may send them to the real offers. */
+  offersOpen: boolean;
   /** Server-rendered nodes (next/image, breadcrumb links) kept out of the client bundle. */
   breadcrumb: ReactNode;
   photo: ReactNode;
@@ -172,6 +182,14 @@ function fillLimits(text: string, min: number, max: number): string {
  * last screen — they sit beside the question and follow every answer. The answers continue to /register in the
  * URL, so nothing is asked twice. Choices come from the Back Office lists (LEAD-01); areas and prices come
  * from the database quote.
+ *
+ * Owner, 2026-09-18: «الـMain Form موش عرض … هذا مثال تقديري لمشروع يناسب اختياراتك، موش عرض عقاري نهائي».
+ * Four things keep that true on screen: the page names itself a calculator in a badge beside the step counter
+ * (`start.eyebrow`, added 2026-09-19 — until then the only word saying so was the note on the figures card,
+ * while a step counter, a progress bar, «مشروعك المبدئي» and a register button all read as a purchase), the
+ * estimate card carries the disclaimer at all times on the dashed .card-estimate surface (never elevated,
+ * never the shape of real stock), every price is prefixed «ابتداءً من», and what is real — registering, and
+ * the offers that actually exist — sits on its own raised .panel at the end.
  */
 export function StartChooser({
   treeCounts,
@@ -186,6 +204,7 @@ export function StartChooser({
   customMax,
   initial,
   wantsVisit,
+  offersOpen,
   breadcrumb,
   photo,
 }: StartChooserProps) {
@@ -444,27 +463,18 @@ export function StartChooser({
     return () => clearTimeout(timer);
   }, [summaryText, copy.summaryTitle, isSummary]);
 
-  // The answers so far, each one a way back to its question.
-  const trail: { key: StepKey; value: Line }[] = [];
-  const treesLine = summary.rows.find((row) => row.key === "trees")?.value ?? null;
-  if (treesLine) trail.push({ key: "trees", value: treesLine });
-  if (chosenSpacing) {
-    trail.push({
-      key: "spacing",
-      value: { ar: formatArea(chosenSpacing.area_m2), fr: formatArea(chosenSpacing.area_m2, "m²") },
-    });
-  } else if (spacingAnswered && spacingClasses.length > 0) {
-    trail.push({ key: "spacing", value: { ar: copy.spacingAny, fr: copy.spacingAnyFr || null } });
-  }
-  if (chosenScenario) trail.push({ key: "type", value: { ar: chosenScenario.label_ar, fr: chosenScenario.label_fr } });
-  if (paymentMode) {
-    const option = paymentOptions.find((item) => item.id === paymentMode);
-    if (option) trail.push({ key: "payment", value: { ar: option.label_ar, fr: option.label_fr } });
-  }
-  if (installments && chosenDown) trail.push({ key: "down", value: { ar: chosenDown.label_ar, fr: chosenDown.label_fr } });
-  if (installments && chosenDuration) {
-    trail.push({ key: "duration", value: { ar: chosenDuration.label_ar, fr: chosenDuration.label_fr } });
-  }
+  /**
+   * The figure the card leads with, because a number is read before its name: the monthly instalment once the
+   * visitor picked instalments, the total of the request otherwise. It is the quote's own row, moved to the head
+   * of the card — and taken out of the list underneath, so the same amount is never printed twice.
+   */
+  const leadKey: SummaryRowKey | null = summary.rows.some((row) => row.key === "monthly" && row.value)
+    ? "monthly"
+    : summary.rows.some((row) => row.key === "total_price" && row.value)
+      ? "total_price"
+      : null;
+  const leadRow = leadKey ? (summary.rows.find((row) => row.key === leadKey) ?? null) : null;
+  const listRows = summary.rows.filter((row) => row.key !== leadKey);
 
   const questionTitle: Record<StepKey, Line> = {
     trees: { ar: copy.title, fr: copy.titleFr || null },
@@ -480,60 +490,57 @@ export function StartChooser({
     <div className="mx-auto max-w-6xl px-4 py-8 sm:px-6">
       <div className="mb-6">{breadcrumb}</div>
 
+      {/* Owner, 2026-09-18: «الـMain Form موش عرض». The badge says what the screen is before the visitor answers
+          anything: everything else here — a step counter, a bar, a summary titled «مشروعك المبدئي» — reads like
+          a purchase being prepared, and the one word that said otherwise sat far down the figures card. */}
+      {copy.eyebrow ? (
+        <p className="pill mb-snug bg-gold-soft text-forest ring-1 ring-gold/30">
+          <span aria-hidden="true" className="size-1.5 rounded-full bg-gold-bright" />
+          <Bi ar={copy.eyebrow} fr={copy.eyebrowFr} frClassName="text-[0.9em] font-normal opacity-80" />
+        </p>
+      ) : null}
       <Progress step={index + 1} total={steps.length} />
 
-      {trail.length > 0 && !isSummary ? (
-        <ul className="mt-4 flex flex-wrap gap-2">
-          {trail
-            .filter((item) => item.key !== activeStep)
-            .map((item) => (
-              <li key={item.key}>
-                <button
-                  type="button"
-                  onClick={() => go(item.key)}
-                  className="choice min-h-9 w-auto px-3 py-1.5 text-sm font-semibold text-ink"
-                >
-                  <Bi ar={item.value.ar} fr={item.value.fr} frClassName="text-[0.8em] text-muted" />
-                </button>
-              </li>
-            ))}
-        </ul>
-      ) : null}
-
-      <h1
-        ref={headingRef}
-        tabIndex={-1}
-        className="section-title mt-6 outline-none"
-      >
-        <Bi ar={questionTitle[activeStep].ar} fr={questionTitle[activeStep].fr} frClassName="mt-1 text-[0.6em] text-muted" />
+      {/*
+       * Two fixes on one line. The French twin of a heading is an LTR block: left to itself it lands against the
+       * opposite edge of an RTL page, a line away from the Arabic it translates, so `text-end` inside that block
+       * brings it back under the Arabic. And the heading takes focus on every step so a reader hears the new
+       * question — but the site's `:focus-visible` rule is unlayered, no utility can silence it, and every answer
+       * therefore drew a gold box around the title. An inline style wins. Nothing is lost: the heading is not a
+       * control and is only ever focused in code.
+       */}
+      <h1 ref={headingRef} tabIndex={-1} style={{ outline: "none" }} className="section-title mt-6 max-w-2xl">
+        <Bi ar={questionTitle[activeStep].ar} fr={questionTitle[activeStep].fr} frClassName="mt-1 text-end text-[0.6em] text-muted" />
       </h1>
 
       {activeStep === "trees" && copy.subtitle ? (
         <p className="mt-3 max-w-2xl text-lg leading-8 text-muted">
-          <Bi ar={copy.subtitle} fr={copy.subtitleFr} frClassName="text-[0.85em] leading-6 opacity-85" />
+          <Bi ar={copy.subtitle} fr={copy.subtitleFr} frClassName="text-end text-[0.85em] leading-6 opacity-85" />
         </p>
       ) : null}
       {activeStep === "spacing" && copy.spacingHint ? (
-        <p id={spacingHintId} className="hint mt-2">
-          <Bi ar={copy.spacingHint} fr={copy.spacingHintFr} frClassName="text-[0.9em] opacity-85" />
+        <p id={spacingHintId} className="hint mt-2 max-w-xl">
+          <Bi ar={copy.spacingHint} fr={copy.spacingHintFr} frClassName="text-end text-[0.9em] opacity-85" />
         </p>
       ) : null}
       {activeStep === "payment" && copy.paymentHint ? (
-        <p className="hint mt-2">
-          <Bi ar={copy.paymentHint} fr={copy.paymentHintFr} frClassName="text-[0.9em] opacity-85" />
+        <p className="hint mt-2 max-w-xl">
+          <Bi ar={copy.paymentHint} fr={copy.paymentHintFr} frClassName="text-end text-[0.9em] opacity-85" />
         </p>
       ) : null}
       {activeStep === "down" && copy.downPercentHint ? (
-        <p className="hint mt-2">
-          <Bi ar={copy.downPercentHint} fr={copy.downPercentHintFr} frClassName="text-[0.9em] opacity-85" />
+        <p className="hint mt-2 max-w-xl">
+          <Bi ar={copy.downPercentHint} fr={copy.downPercentHintFr} frClassName="text-end text-[0.9em] opacity-85" />
         </p>
       ) : null}
 
-      {/* A two-chip question is short, and it used to reserve half a viewport under itself so the page would not
-          shrink between steps. The height was never the problem: beside the tall figures card a short question simply
-          looked stranded at the top. It now centres itself against that column and reserves nothing. */}
+      {/* The question and the figures, side by side from `lg` up and stacked below it. Both columns start at the
+          top of the row: centring the question against the card left a screen-deep gap between a two-chip
+          question and its own title, and pushed the chips below the fold on a laptop. */}
       <div className="mt-roomy grid gap-roomy lg:grid-cols-[minmax(0,1fr)_22rem] lg:items-start">
-        <div className="lg:self-center">
+        {/* On the last screen this column holds what happens next instead of a question. The figures are read
+            first on a phone and keep their place beside it on a wide screen, so the order flips only there. */}
+        <div className={isSummary ? "order-2 lg:order-1" : undefined}>
         {/* 1 · The tiers, as the Back Office wrote them (LEAD-01), plus a free number. */}
         {activeStep === "trees" ? (
           <fieldset>
@@ -541,17 +548,21 @@ export function StartChooser({
             <ul className="grid grid-cols-2 gap-4 sm:grid-cols-3">
               {treeCounts.map((option) => {
                 const tagline = option.code ? taglines[option.code] : undefined;
+                const picked = treeId === option.id;
                 return (
                   <li key={option.id}>
-                    <label className={treeCardClass(treeId === option.id, "light")}>
+                    {/* The chosen card is filled and lifted, and carries the tick: on a grid of eight, a coloured
+                        edge alone was not enough to find the one that is on. */}
+                    <label className={`${treeCardClass(picked, "light")} relative ${picked ? "shadow-[var(--shadow-card)]" : ""}`}>
                       <input
                         type="radio"
                         name={`${groupId}-trees`}
                         value={option.id}
-                        checked={treeId === option.id}
+                        checked={picked}
                         onChange={() => pickTier(option.id)}
                         className="sr-only"
                       />
+                      {picked ? <PickedMark /> : null}
                       <TreeCardBody
                         labelAr={option.label_ar}
                         labelFr={option.label_fr}
@@ -567,7 +578,12 @@ export function StartChooser({
 
               <li>
                 {/* A typed number is not a click, so this card moves on with the button below. */}
-                <label htmlFor={customInputId} id="custom" className={`${treeCardClass(customSelected, "light")} scroll-mt-24`}>
+                <label
+                  htmlFor={customInputId}
+                  id="custom"
+                  className={`${treeCardClass(customSelected, "light")} relative scroll-mt-24 ${customSelected ? "shadow-[var(--shadow-card)]" : ""}`}
+                >
+                  {customSelected ? <PickedMark /> : null}
                   <OliveMark trees={customValid && customNumber !== null ? customNumber : 1} className="text-leaf" />
                   <span id={`${customInputId}-label`} className="font-display text-2xl font-bold leading-tight text-forest">
                     <Bi ar={copy.customLabel} fr={copy.customLabelFr} />
@@ -617,7 +633,8 @@ export function StartChooser({
             <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3">
               {spacingClasses.map((option) => (
                 <li key={option.id}>
-                  <label className="choice h-full flex-col items-start justify-start gap-1">
+                  {/* pe-8 is unconditional so the tick never reflows the card when it appears. */}
+                  <label className="choice relative h-full flex-col items-start justify-start gap-1 pe-8">
                     <input
                       type="radio"
                       name={`${groupId}-spacing`}
@@ -626,6 +643,7 @@ export function StartChooser({
                       onChange={() => pickSpacing(option.id)}
                       className="sr-only"
                     />
+                    {spacingId === option.id ? <PickedMark /> : null}
                     <span className="block font-semibold leading-snug text-ink">
                       <Bi ar={option.label_ar} fr={option.label_fr} frClassName="text-[0.85em] text-muted" />
                     </span>
@@ -643,7 +661,7 @@ export function StartChooser({
                 </li>
               ))}
               <li>
-                <label className="choice h-full justify-center text-center">
+                <label className="choice relative h-full justify-center px-8 text-center">
                   <input
                     type="radio"
                     name={`${groupId}-spacing`}
@@ -652,6 +670,7 @@ export function StartChooser({
                     onChange={() => pickSpacing(null)}
                     className="sr-only"
                   />
+                  {spacingAnswered && spacingId === null ? <PickedMark /> : null}
                   <span className="font-semibold text-ink">
                     <Bi ar={copy.spacingAny} fr={copy.spacingAnyFr} frClassName="text-[0.85em] text-muted" />
                   </span>
@@ -736,67 +755,134 @@ export function StartChooser({
           />
         ) : null}
 
+        {/* 6 · What happens next. The simulation ends on a real surface — a solid, raised panel, the opposite of
+            the dashed estimate beside it — carrying the two things that do exist: registering the request, and
+            the offers actually on the ground. */}
+        {isSummary ? (
+          <section className="panel p-5 sm:p-6">
+            {gap === null ? (
+              <Link href={href} className="btn w-full bg-gold-bright text-lg text-forest-700 hover:bg-gold-soft">
+                <span>
+                  <Bi ar={copy.continue} fr={copy.continueFr} frClassName="text-[0.7em] text-forest-700/80" />
+                </span>
+              </Link>
+            ) : (
+              <>
+                <span
+                  aria-disabled="true"
+                  aria-describedby={gapHint?.ar ? continueHintId : undefined}
+                  className="btn w-full cursor-not-allowed bg-line text-lg text-muted"
+                >
+                  <span>
+                    <Bi ar={copy.continue} fr={copy.continueFr} frClassName="text-[0.7em] text-muted" />
+                  </span>
+                </span>
+                {gapHint?.ar ? (
+                  <p id={continueHintId} className="mt-2 text-sm leading-6 text-muted">
+                    <Bi ar={gapHint.ar} fr={gapHint.fr} frClassName="text-[0.9em] opacity-85" />
+                  </p>
+                ) : null}
+              </>
+            )}
+
+            {copy.secureNote ? (
+              <p className="mt-3 flex items-start gap-1.5 text-xs leading-5 text-muted">
+                <LockIcon />
+                <span>
+                  <Bi ar={copy.secureNote} fr={copy.secureNoteFr} frClassName="text-[0.95em] opacity-85" />
+                </span>
+              </p>
+            ) : null}
+
+            {/* The estimate is «موش عرض عقاري نهائي», so the screen says where the real ones are. Nothing renders
+                while the projects module is closed to this visitor, and nothing is written here that is not in
+                `settings` already (site.cta_offers_label, register.offers_title). */}
+            {offersOpen && copy.offersLabel ? (
+              <div className="mt-5 border-t border-line pt-5">
+                {copy.offersTitle ? (
+                  <p className="font-semibold text-ink">
+                    <Bi ar={copy.offersTitle} fr={copy.offersTitleFr} frClassName="text-[0.85em] font-normal text-muted" />
+                  </p>
+                ) : null}
+                <Link href="/projects" className="btn btn-secondary mt-3 w-full">
+                  <span>
+                    <Bi ar={copy.offersLabel} fr={copy.offersLabelFr} frClassName="text-[0.7em] font-normal text-muted" />
+                  </span>
+                </Link>
+              </div>
+            ) : null}
+          </section>
+        ) : null}
+
         </div>
 
         {/* 5 · The figures, beside the questions on every screen, following each answer. */}
         {showFigures ? (
-          <aside className="lg:sticky lg:top-24">
-            <section className="card card-estimate p-5 sm:p-6">
+          <aside className={isSummary ? "order-1 lg:order-2" : undefined}>
+            {/* A simulation never wears the shape of stock: the warm dashed .card-estimate surface, no elevation,
+                and the disclaimer stamped across the head of the card rather than left as a footnote at the
+                bottom. The wording is `start.estimate_note` (MIL-02) — blanking that setting is still the only
+                way to take it off. */}
+            <section className="card card-estimate overflow-hidden">
               <p role="status" className="sr-only">
                 {announcement}
               </p>
+
+              {copy.estimateNote ? (
+                <p className="flex items-start gap-2 border-b border-dashed border-gold/50 bg-gold-soft/70 px-4 py-3 text-xs font-semibold leading-5 text-forest sm:px-5">
+                  <EstimateIcon />
+                  <span>
+                    <Bi ar={copy.estimateNote} fr={copy.estimateNoteFr} frClassName="text-end text-[0.95em] font-normal opacity-80" />
+                  </span>
+                </p>
+              ) : null}
+
               {/* What the visitor picked, plus the areas and prices the database quoted for it (docs/tree-area-and-cost.md). */}
-              <dl aria-busy={busy || undefined} className={`divide-y divide-line transition-opacity ${busy ? "opacity-60" : ""}`}>
-                {summary.rows.map((row) => (
-                  <SummaryItem key={row.key} label={row.label} value={row.value} notes={row.notes} onEdit={rowStep(row.key, steps) ? () => goEdit(rowStep(row.key, steps) as StepKey) : undefined} />
-                ))}
-              </dl>
-
-              {summary.notice?.ar ? (
-                <p className="mt-3 rounded-xl bg-leaf-soft px-3 py-2 text-sm leading-6 text-forest">
-                  <Bi ar={summary.notice.ar} fr={summary.notice.fr} frClassName="text-[0.9em] opacity-85" />
-                </p>
-              ) : null}
-              {summary.priced && copy.estimateNote ? (
-                <p className="mt-3 text-xs leading-5 text-muted">
-                  <Bi ar={copy.estimateNote} fr={copy.estimateNoteFr} frClassName="text-[0.95em] opacity-85" />
-                </p>
-              ) : null}
-
-              {/* The button belongs to the last screen: earlier the card only reports what the answers cost. */}
-              {!isSummary ? null : gap === null ? (
-                <Link href={href} className="btn mt-6 w-full bg-gold-bright text-lg text-forest-700 hover:bg-gold-soft">
-                  <span>
-                    <Bi ar={copy.continue} fr={copy.continueFr} frClassName="text-[0.7em] text-forest-700/80" />
-                  </span>
-                </Link>
-              ) : (
-                <>
-                  <span
-                    aria-disabled="true"
-                    aria-describedby={gapHint?.ar ? continueHintId : undefined}
-                    className="btn mt-6 w-full cursor-not-allowed bg-line text-lg text-muted"
-                  >
-                    <span>
-                      <Bi ar={copy.continue} fr={copy.continueFr} frClassName="text-[0.7em] text-muted" />
+              <div aria-busy={busy || undefined} className={`p-4 transition-opacity sm:p-5 ${busy ? "opacity-60" : ""}`}>
+                {leadRow?.value ? (
+                  <div className="stat border-b border-dashed border-gold/40 pb-4">
+                    <span className="stat-figure">
+                      <Bi
+                        ar={leadRow.value.ar}
+                        fr={leadRow.value.fr}
+                        frClassName="mt-1 text-end text-[0.45em] font-normal leading-6 text-muted"
+                      />
                     </span>
-                  </span>
-                  {gapHint?.ar ? (
-                    <p id={continueHintId} className="mt-2 text-sm leading-6 text-muted">
-                      <Bi ar={gapHint.ar} fr={gapHint.fr} frClassName="text-[0.9em] opacity-85" />
-                    </p>
-                  ) : null}
-                </>
-              )}
+                    <span className="stat-label">
+                      <Bi ar={leadRow.label.ar} fr={leadRow.label.fr} frClassName="text-end text-[0.95em]" />
+                    </span>
+                    {leadRow.notes.map((note) => (
+                      <span key={note.ar} className="text-xs leading-5 text-muted">
+                        <Bi ar={note.ar} fr={note.fr} frClassName="text-end text-[0.95em]" />
+                      </span>
+                    ))}
+                  </div>
+                ) : null}
 
-              {isSummary && copy.secureNote ? (
-                <p className="mt-3 flex items-start gap-1.5 text-xs leading-5 text-muted">
-                  <LockIcon />
-                  <span>
-                    <Bi ar={copy.secureNote} fr={copy.secureNoteFr} frClassName="text-[0.95em] opacity-85" />
-                  </span>
-                </p>
-              ) : null}
+                <dl className="divide-y divide-line">
+                  {listRows.map((row) => {
+                    // «تبديل» under a dash offers to change an answer that was never given; the row waits instead.
+                    const target = row.value ? rowStep(row.key, steps) : null;
+                    return (
+                      <SummaryItem
+                        key={row.key}
+                        label={row.label}
+                        value={row.value}
+                        notes={row.notes}
+                        onEdit={target ? () => goEdit(target) : undefined}
+                      />
+                    );
+                  })}
+                </dl>
+
+                {summary.notice?.ar ? (
+                  <p className="mt-3 rounded-xl bg-leaf-soft px-3 py-2 text-sm leading-6 text-forest">
+                    <Bi ar={summary.notice.ar} fr={summary.notice.fr} frClassName="text-end text-[0.9em] opacity-85" />
+                  </p>
+                ) : null}
+                {/* The card reports what the answers cost, and stops there: what to do about it is the panel
+                    beside it, on a surface that is not an estimate. */}
+              </div>
             </section>
           </aside>
         ) : (
@@ -804,12 +890,21 @@ export function StartChooser({
         )}
       </div>
 
-      {/* Back is always there; forward belongs to the answer itself, except for a typed number. On the last screen the
-          bar holds nothing but «رجوع», and pinned to the bottom of a phone it swallowed the taps meant for
-          «سجّل اهتمامك» underneath it, so there it scrolls with the page. */}
+      {/* The hint belongs above the bar: pinned, the bar covered it. */}
+      {activeStep === "trees" && !hasTrees && copy.continueHint ? (
+        <p className="mt-6 max-w-xl text-muted">
+          <Bi ar={copy.continueHint} fr={copy.continueHintFr} frClassName="text-end text-[0.85em] opacity-85" />
+        </p>
+      ) : null}
+
+      {/* Forward belongs to the answer itself, except for a typed number — so only the first screen keeps a bar
+          pinned to the bottom of a phone. On every other screen it held «رجوع» alone, and a full-width pinned bar
+          for one small button covered the figures underneath it; there it simply follows the page. */}
       <div
-        className={`-mx-4 mt-8 flex gap-3 border-t border-line bg-paper/95 px-4 py-3 backdrop-blur sm:static sm:mx-0 sm:border-0 sm:bg-transparent sm:px-0 sm:py-0 ${
-          isSummary ? "" : "sticky bottom-0"
+        className={`mt-8 flex gap-3 ${
+          activeStep === "trees"
+            ? "sticky bottom-0 -mx-4 border-t border-line bg-paper/95 px-4 py-3 backdrop-blur sm:static sm:mx-0 sm:border-0 sm:bg-transparent sm:px-0 sm:py-0"
+            : ""
         }`}
       >
         {index > 0 ? (
@@ -829,12 +924,6 @@ export function StartChooser({
         ) : null}
       </div>
 
-      {activeStep === "trees" && !hasTrees && copy.continueHint ? (
-        <p className="mt-3 text-muted">
-          <Bi ar={copy.continueHint} fr={copy.continueHintFr} frClassName="text-[0.85em] opacity-85" />
-        </p>
-      ) : null}
-
       {isSummary && values.length > 0 ? (
         <ul className="mt-12 grid gap-6 border-t border-line pt-8 sm:grid-cols-2 lg:grid-cols-4">
           {values.map((item, itemIndex) => (
@@ -851,13 +940,16 @@ export function StartChooser({
   );
 }
 
-/** The screen that answers a summary row, when the visitor may still change it. */
+/**
+ * The screen that answers a summary row, when the visitor may still change it. A question owns one «تبديل» and
+ * no more: the total area is read from the same spacing screen as the area per tree, and repeating the link on
+ * both rows put the same control twice on one card.
+ */
 function rowStep(key: SummaryRowKey, steps: StepKey[]): StepKey | null {
   const target: Partial<Record<SummaryRowKey, StepKey>> = {
     trees: "trees",
     type: "type",
     area_per_tree: "spacing",
-    total_area: "spacing",
     payment: "payment",
     down: "down",
     duration: "duration",
@@ -898,26 +990,37 @@ function SummaryItem({
   onEdit?: () => void;
 }) {
   return (
-    <div className="flex items-start justify-between gap-4 py-2.5">
-      <dt className="text-sm text-muted">
+    // A long label and a long amount wrap onto two lines rather than push each other off a phone; `ms-auto`
+    // keeps the value against the far edge whether it shares the line or takes its own.
+    <div
+      className={`group relative flex flex-wrap items-start justify-between gap-x-4 gap-y-1 py-2.5 ${
+        onEdit ? "hover:bg-gold-soft/50" : ""
+      }`}
+    >
+      <dt className="min-w-0 text-sm text-muted">
         <Bi ar={label.ar} fr={label.fr} frClassName="text-[0.85em]" />
       </dt>
       {/* The French line is an LTR block, so "start" there is the same edge as "end" of the RTL cell. */}
-      <dd className="text-end font-semibold text-ink tabular-nums">
+      <dd className="ms-auto min-w-0 text-end font-semibold text-ink tabular-nums">
         {value ? <Bi ar={value.ar} fr={value.fr} frClassName="text-[0.78em] text-start text-muted" /> : "—"}
         {notes.map((note) => (
           <span key={note.ar} className="mt-1 block text-xs font-normal text-muted">
             <Bi ar={note.ar} fr={note.fr} frClassName="text-[0.95em] text-start" />
           </span>
         ))}
+        {/* The row itself is the control. «تبديل» printed as a twelve-pixel word was a 16px tap target, and a
+            3rem button stacked under each of a dozen rows would have doubled a card meant to stay dense; the
+            button covers the whole row instead, and the word stays as its label. It sits inside the <dd> so the
+            list keeps its dl > div > (dt, dd) shape. */}
         {onEdit ? (
-          <button
-            type="button"
-            onClick={onEdit}
-            className="mt-0.5 block w-full text-end text-xs font-semibold text-forest underline-offset-4 hover:underline"
-          >
-            تبديل
-          </button>
+          <>
+            <span aria-hidden="true" className="mt-0.5 block text-xs font-semibold text-forest underline-offset-4 group-hover:underline">
+              تبديل
+            </span>
+            <button type="button" onClick={onEdit} className="absolute inset-0 rounded-lg">
+              <span className="sr-only">تبديل</span>
+            </button>
+          </>
         ) : null}
       </dd>
     </div>
@@ -942,26 +1045,72 @@ function ChoiceGrid({
   return (
     <fieldset>
       <legend className="sr-only">{legend}</legend>
+      {/* The chosen chip is filled, not outlined: on a row of five amounts a coloured edge reads as decoration.
+          .choice is 3.25rem tall, so every one of them is still a tap target. */}
       <div className={`grid gap-3 ${twoColumns ? "grid-cols-1 sm:grid-cols-2" : "grid-cols-2 sm:grid-cols-3"}`}>
-        {options.map((option) => (
-          <label key={option.id} className="choice justify-center">
-            <input
-              type="radio"
-              name={name}
-              value={option.id}
-              className="sr-only"
-              checked={value === option.id}
-              onChange={() => onChange(option.id)}
-            />
-            <span className="text-center">
-              <span className="block text-lg font-semibold tabular-nums">
-                <Bi ar={option.label_ar} fr={option.label_fr} frClassName="text-[0.7em] text-muted tabular-nums" />
+        {options.map((option) => {
+          const picked = value === option.id;
+          return (
+            <label
+              key={option.id}
+              className={`choice justify-center ${picked ? "shadow-[var(--shadow-card)]" : ""}`}
+            >
+              <input
+                type="radio"
+                name={name}
+                value={option.id}
+                className="sr-only"
+                checked={picked}
+                onChange={() => onChange(option.id)}
+              />
+              <span className="text-center">
+                <span className="block text-lg font-semibold tabular-nums">
+                  <Bi
+                    ar={option.label_ar}
+                    fr={option.label_fr}
+                    frClassName={`text-[0.7em] tabular-nums ${picked ? "text-surface/80" : "text-muted"}`}
+                  />
+                </span>
               </span>
-            </span>
-          </label>
-        ))}
+            </label>
+          );
+        })}
       </div>
     </fieldset>
+  );
+}
+
+/** The tick a chosen card carries, so a selection is read from the card itself and not only from its edge. */
+function PickedMark() {
+  return (
+    <span
+      aria-hidden="true"
+      className="absolute end-2 top-2 grid size-6 place-items-center rounded-full bg-forest text-surface shadow-[var(--shadow-raise)]"
+    >
+      <svg viewBox="0 0 24 24" className="size-3.5" fill="none" stroke="currentColor" strokeWidth={3.2} strokeLinecap="round" strokeLinejoin="round">
+        <path d="m5 13 4 4 10-10" />
+      </svg>
+    </span>
+  );
+}
+
+/** «≈»: what the figures on this card are. */
+function EstimateIcon() {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      className="mt-0.5 size-4.5 flex-none text-gold"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={1.75}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <circle cx="12" cy="12" r="9" />
+      <path d="M7.6 10.4c1.1-1.3 2.2-1.3 3.3 0s2.2 1.3 3.3 0" />
+      <path d="M7.6 14.4c1.1-1.3 2.2-1.3 3.3 0s2.2 1.3 3.3 0" />
+    </svg>
   );
 }
 

@@ -4,7 +4,6 @@
 // Meant to replace, one file at a time (the migration is a later, separate step):
 //   the leads list — src/app/admin/(panel)/leads/page.tsx:409-560, which today writes every row twice: a
 //                    min-w-[84rem] table AND a separate <ul> of cards that must be kept in step by hand
-//   the parcels table — src/app/admin/(panel)/projects/[id]/page.tsx:195-240 (no card list at all today)
 //   Th / Td        — src/app/admin/(panel)/leads/page.tsx:646 and :650
 //                    src/app/admin/(panel)/projects/[id]/page.tsx:827 and :831
 //                    (kept exported below as TableHeadCell / TableCell for tables that stay hand-written,

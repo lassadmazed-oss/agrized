@@ -9,7 +9,8 @@ function withQuery(path: string, params: Record<string, string | null | undefine
   return text ? `${path}?${text}` : path;
 }
 
-export function projectsHref(params: { gov?: string | null; trees?: string | null; type?: string | null } = {}): string {
+/** The catalogue, optionally narrowed to one governorate — the only parameter /projects reads. */
+export function projectsHref(params: { gov?: string | null } = {}): string {
   return withQuery("/projects", params);
 }
 
@@ -17,36 +18,10 @@ export function projectHref(projectCode: string): string {
   return `/projects/${encodeURIComponent(projectCode)}`;
 }
 
-export function parcelHref(projectCode: string, parcelCode: string): string {
-  return `/projects/${encodeURIComponent(projectCode)}/${encodeURIComponent(parcelCode)}`;
-}
-
-/**
- * Opens the request form with the calculator's choices filled in, using agrized-db's /register contract
- * (docs/plan-zitouna.md P2-6): the form itself never asks them again, and without a tree count it sends the
- * visitor to the calculator on /start with the other choices kept. Ids are option or class ids, never amounts.
- */
-export function interestHref(params: {
-  parcelId?: string | null;
-  trees?: string | null;
-  treesCustom?: number | null;
-  scenario?: string | null;
-  spacing?: string | null;
-  payment?: "cash" | "installments" | null;
-  downPercent?: string | null;
-  duration?: string | null;
-  visit?: boolean;
-}): string {
-  const installments = params.payment === "installments";
-  return withQuery("/register", {
-    parcel: params.parcelId,
-    trees: params.trees,
-    trees_custom: params.trees ? null : params.treesCustom ? String(params.treesCustom) : null,
-    scenario: params.scenario,
-    spacing: params.spacing,
-    payment: params.payment,
-    down_pct: installments ? params.downPercent : null,
-    duration: installments ? params.duration : null,
-    visit: params.visit ? "1" : null,
-  });
-}
+// `parcelHref(projectCode, parcelCode)` stood here. It built /projects/<offer>/<parcel>, a route deleted with
+// the parcel layer on 2026-09-18, and its only caller was the parcel row that went with it.
+//
+// `interestHref(params)` stood here too: it built the /register query string from the calculator's answers.
+// The chooser on /start builds that query itself now (calculatorQuery, src/app/(public)/start/calculator-summary.ts),
+// so the builder had no caller left. A second builder of the same link is how one of them silently loses a
+// parameter, which is what the dropped `parcel=` did.

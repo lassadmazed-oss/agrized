@@ -327,7 +327,7 @@ export function LandOfferForm(props: LandOfferFormProps) {
           <div>
             {coords ? (
               <p className="flex flex-wrap items-center gap-3 text-sm">
-                <span className="rounded-full bg-leaf-soft px-3 py-1 font-medium text-forest">تم تحديد الموقع</span>
+                <span className="pill bg-leaf-soft text-sm text-forest">تم تحديد الموقع</span>
                 <span dir="ltr" className="text-muted tabular-nums">
                   {coords.latitude}, {coords.longitude}
                 </span>

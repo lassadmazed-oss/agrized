@@ -11,6 +11,16 @@ import type { StartCopy } from "./start-chooser";
 export function startCopy(config: PublicConfig): StartCopy {
   const text = (key: string, fallback = "") => settingText(config, key, fallback);
   return {
+    // What the screen is, in its own words (owner: «هذا مثال تقديري … موش عرض عقاري نهائي»). It sits beside
+    // the step counter, where the visitor reads it before answering the first question.
+    eyebrow: text("start.eyebrow", "حاسبة تقديرية"),
+    eyebrowFr: text("start.eyebrow_fr"),
+    // Where a simulation leads once it is done: the real offers, under the projects module gate.
+    // Both keys are the ones the home page and /register already use for this same link (no new copy).
+    offersTitle: text("register.offers_title"),
+    offersTitleFr: text("register.offers_title_fr"),
+    offersLabel: text("site.cta_offers_label"),
+    offersLabelFr: text("site.cta_offers_label_fr"),
     title: text("site.trees_question", "قدّاش زيتونة تحب تبدا بيهم؟"),
     titleFr: text("site.trees_question_fr"),
     subtitle: text("site.trees_subtitle", "اختيارك يمشي معك للخطوة الموالية. تنجم تبدّلو وقت اللي تحب."),
@@ -90,6 +100,8 @@ export function startCopy(config: PublicConfig): StartCopy {
     installmentsCountFr: text("start.installments_count_fr"),
     fromPrefix: text("start.from_prefix", "ابتداءً من"),
     fromPrefixFr: text("start.from_prefix_fr"),
+    // The stamp the estimate card carries at all times (owner: «موش عرض عقاري نهائي»). The wording itself is
+    // `start.estimate_note` in the Back Office; this default is only what ships before it is edited.
     estimateNote: text("start.estimate_note", "هذا تقدير أولي حسب الإعدادات الحالية. التفاصيل النهائية في بطاقة المشروع والعقد."),
     estimateNoteFr: text("start.estimate_note_fr"),
     priceUnavailable: text("start.price_unavailable", "السعر يتحدّد قريباً."),

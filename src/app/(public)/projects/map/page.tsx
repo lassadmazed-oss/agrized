@@ -2,28 +2,60 @@ import type { Metadata } from "next";
 import Link from "next/link";
 
 import { ComingSoon, PreviewBanner } from "@/components/site/module-gate";
+import { getOfferStocks, offerCardLabels, offersTitle, stockCounted } from "@/components/site/offers";
 import { getPublicConfig, settingText } from "@/lib/config";
 import { formatCount } from "@/lib/format";
 import { moduleAccess } from "@/lib/modules";
 import { projectsHref } from "@/lib/public-hrefs";
-import { getCoverage, publicMode } from "@/lib/public-projects";
+import { getPublicProjects, publicMode } from "@/lib/public-projects";
 
-export const metadata: Metadata = { title: "وين تلقى قطعتك؟" };
+export const metadata: Metadata = { title: "وين تلقى زيتونتك؟" };
 
 export const dynamic = "force-dynamic";
 
-/** Counts per governorate. The tile list is the accessible source of truth until a real map exists. */
+/**
+ * Counts per governorate. The tile list is the accessible source of truth until a real map exists.
+ *
+ * It used to read `public_coverage()`, whose two figures are `parcels_total` and `parcels_offered` — counts
+ * over `public.parcels`, a table that has never held a row. So every tile printed «N مشروع · 0 قطعة» with a
+ * headline «0», on a page whose own sentence promises «الأرقام ... المعروضة فعلاً». The figures are the
+ * offers the visitor can already see and the trees still free in them (public_offer_stock, migration 0054),
+ * grouped by governorate: the same rows /projects lists, so a tile and the list it opens agree.
+ *
+ * Nothing is computed here beyond the grouping — each offer's four counts are counted in Postgres — and no
+ * price appears on this page at all (PRJ-03).
+ */
 export default async function CoveragePage() {
   const config = await getPublicConfig();
   const access = await moduleAccess(config, "projects");
   if (access === "closed") {
-    return <ComingSoon title={settingText(config, "projects.map_title", "وين تلقى قطعتك؟")} />;
+    return <ComingSoon title={settingText(config, "projects.map_title", "وين تلقى زيتونتك؟")} />;
   }
 
-  const coverage = await getCoverage(publicMode(access));
-  const byGovernorate = new Map(coverage.map((row) => [row.governorate_id, row]));
+  const mode = publicMode(access);
+  const projects = await getPublicProjects(mode);
+  const stocks = await getOfferStocks(
+    projects.map((project) => project.id),
+    mode,
+  );
+
+  // One row per governorate that has an offer: how many offers, and how many of their trees are still free.
+  // An offer whose trees are not numbered yet has an UNKNOWN stock, so it counts as an offer and adds
+  // nothing to the tree figure — never a confident 0.
+  const byGovernorate = new Map<number, { offers: number; available: number }>();
+  for (const project of projects) {
+    const row = byGovernorate.get(project.governorate_id) ?? { offers: 0, available: 0 };
+    const stock = stocks.get(project.id);
+    row.offers += 1;
+    if (stockCounted(stock)) row.available += stock.available;
+    byGovernorate.set(project.governorate_id, row);
+  }
+
   const withProjects = config.governorates.filter((g) => byGovernorate.has(g.id));
   const without = config.governorates.filter((g) => !byGovernorate.has(g.id));
+  // «المتاحة» stands alone in a table of four stock cells; here it follows its unit, so the tile reads
+  // «600 زيتونة متاحة» and never «600 المتاحة». Same Back Office key, read through the card vocabulary.
+  const availableLabel = offerCardLabels(config).available;
 
   return (
     <>
@@ -31,16 +63,16 @@ export default async function CoveragePage() {
 
       <section className="mx-auto max-w-6xl px-4 pb-16 pt-10 sm:px-6 sm:pt-14">
         <Link href="/projects" className="text-sm font-semibold text-forest underline-offset-4 hover:underline">
-          → كل المشاريع
+          {`→ ${offersTitle(config)}`}
         </Link>
         <h1 className="mt-4 font-display text-4xl font-bold text-forest sm:text-5xl">
-          {settingText(config, "projects.map_title", "وين تلقى قطعتك؟")}
+          {settingText(config, "projects.map_title", "وين تلقى زيتونتك؟")}
         </h1>
         <p className="mt-3 max-w-2xl leading-7 text-muted">
           {settingText(
             config,
             "projects.map_text",
-            "الأرقام هي عدد المشاريع والقطع المعروضة فعلاً في كل ولاية اليوم. الولايات بلا رقم مفتوحة للتسجيل.",
+            "الأرقام هي عدد العروض والزيتونات المتاحة فعلاً في كل ولاية اليوم. الولايات بلا رقم مفتوحة للتسجيل.",
           )}
         </p>
 
@@ -56,12 +88,14 @@ export default async function CoveragePage() {
                   >
                     <span>
                       <span className="block text-lg font-semibold text-ink">{governorate.name_ar}</span>
-                      <span className="mt-1 block text-sm text-muted">
-                        {formatCount(row?.projects_count ?? 0)} مشروع · {formatCount(row?.parcels_total ?? 0)} قطعة
-                      </span>
+                      <span className="mt-1 block text-sm text-muted">{formatCount(row?.offers ?? 0)} عرض</span>
                     </span>
-                    <span className="font-display text-4xl font-bold text-forest tabular-nums">
-                      {formatCount(row?.parcels_offered ?? 0)}
+                    {/* The figure carries its own word, so «600» is never read as a count of offers. */}
+                    <span className="stat shrink-0 gap-0.5 text-center">
+                      <span className="font-display text-4xl font-bold text-forest tabular-nums">
+                        {formatCount(row?.available ?? 0)}
+                      </span>
+                      <span className="stat-label">{availableLabel}</span>
                     </span>
                   </Link>
                 </li>
@@ -81,7 +115,7 @@ export default async function CoveragePage() {
             </p>
             <ul className="mt-3 flex flex-wrap gap-2">
               {without.map((governorate) => (
-                <li key={governorate.id} className="rounded-full border border-line bg-surface px-3.5 py-1.5 text-sm text-muted">
+                <li key={governorate.id} className="pill pill-line px-3.5 py-1.5 text-sm font-normal">
                   {governorate.name_ar}
                 </li>
               ))}

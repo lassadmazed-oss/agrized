@@ -3,12 +3,11 @@ import "server-only";
 import { unstable_cache } from "next/cache";
 
 import type { ModuleAccess } from "@/lib/modules";
-import type { ParcelOffer } from "@/lib/projects";
 import { toTreeQuote, type PaymentMode, type TreeQuote } from "@/lib/tree-pricing";
 import { createPublicClient } from "@/lib/supabase/public";
 import { createClient } from "@/lib/supabase/server";
 
-/** Expired by every Back Office action that changes a project, a parcel or the module flag. */
+/** Expired by every Back Office action that changes a project or the module flag. */
 export const PUBLIC_PROJECTS_TAG = "public-projects";
 
 /**
@@ -55,40 +54,6 @@ export type PublicProject = {
   cover_alt_ar: string | null;
 };
 
-export type PublicParcel = {
-  id: string;
-  project_id: string;
-  project_code: string;
-  project_name: string;
-  project_status: string;
-  project_type_id: string | null;
-  governorate_id: number;
-  delegation_id: number | null;
-  code: string;
-  area_m2: number;
-  property_type: string;
-  plantation_system: string | null;
-  olive_tree_count: number | null;
-  tree_age_years: number | null;
-  production_status: string | null;
-  irrigation: string | null;
-  status: string;
-  offered: boolean;
-  /** Plan P5-3: area = trees × area per tree, price = trees × price per tree (app.parcel_price). */
-  on_tree_pricing: boolean;
-  spacing_class_id: string | null;
-  spacing_label_ar: string | null;
-  area_per_tree_m2: number | null;
-  price_per_tree_millimes: number | null;
-  cash_price_millimes: number | null;
-  /** Smallest down payment this parcel accepts (report v3 §19); null until the listing returns it. */
-  down_from_millimes: number | null;
-  annual_costs_millimes: number | null;
-  sort_order: number;
-  photo_url: string | null;
-  photo_alt_ar: string | null;
-};
-
 export type ProjectPicture = { id: string; url: string; alt_ar: string; caption_ar: string | null; is_cover: boolean };
 
 /** Report v3 §20: what public_project_page() adds to a project's listing row. */
@@ -104,13 +69,6 @@ export type ProjectPage = {
   document_option_ids: string[];
   service_option_ids: string[];
   media: ProjectPicture[];
-};
-
-export type CoverageRow = {
-  governorate_id: number;
-  projects_count: number;
-  parcels_total: number;
-  parcels_offered: number;
 };
 
 // The RPCs of migration 0020 are called by name; PostgREST returns numeric and bigint as JSON numbers
@@ -172,70 +130,10 @@ export async function getPublicProjects(mode: PublicMode): Promise<PublicProject
   }));
 }
 
-export async function getPublicParcels(mode: PublicMode): Promise<PublicParcel[]> {
-  const rows = ((await load(mode, "public_parcels")) ?? []) as Record<string, unknown>[];
-  return rows.map((row) => ({
-    id: String(row.id),
-    project_id: String(row.project_id),
-    project_code: String(row.project_code),
-    project_name: String(row.project_name),
-    project_status: String(row.project_status),
-    project_type_id: (row.project_type_id as string | null) ?? null,
-    governorate_id: num(row.governorate_id),
-    delegation_id: numOrNull(row.delegation_id),
-    code: String(row.code),
-    area_m2: num(row.area_m2),
-    property_type: String(row.property_type),
-    plantation_system: (row.plantation_system as string | null) ?? null,
-    olive_tree_count: numOrNull(row.olive_tree_count),
-    tree_age_years: numOrNull(row.tree_age_years),
-    production_status: (row.production_status as string | null) ?? null,
-    irrigation: (row.irrigation as string | null) ?? null,
-    status: String(row.status),
-    offered: Boolean(row.offered),
-    on_tree_pricing: row.on_tree_pricing === true,
-    spacing_class_id: (row.spacing_class_id as string | null) ?? null,
-    spacing_label_ar: (row.spacing_label_ar as string | null) ?? null,
-    area_per_tree_m2: numOrNull(row.area_per_tree_m2),
-    price_per_tree_millimes: numOrNull(row.price_per_tree_millimes),
-    cash_price_millimes: numOrNull(row.cash_price_millimes),
-    down_from_millimes: numOrNull(row.down_from_millimes),
-    annual_costs_millimes: numOrNull(row.annual_costs_millimes),
-    sort_order: num(row.sort_order),
-    photo_url: (row.photo_url as string | null) ?? null,
-    photo_alt_ar: (row.photo_alt_ar as string | null) ?? null,
-  }));
-}
-
-export async function getCoverage(mode: PublicMode): Promise<CoverageRow[]> {
-  const rows = ((await load(mode, "public_coverage")) ?? []) as Record<string, unknown>[];
-  return rows.map((row) => ({
-    governorate_id: num(row.governorate_id),
-    projects_count: num(row.projects_count),
-    parcels_total: num(row.parcels_total),
-    parcels_offered: num(row.parcels_offered),
-  }));
-}
-
-/**
- * The offer card of one parcel: price, entry installment and worked examples, all computed in SQL.
- * Choices are option ids only; an invalid pair falls back to the plain offer rather than failing the page.
- */
-export async function getParcelOffer(
-  parcelId: string,
-  mode: PublicMode,
-  choice: { down?: string; installment?: string } = {},
-): Promise<ParcelOffer | null> {
-  const base = { p_parcel: parcelId };
-  const withChoice =
-    choice.down && choice.installment ? { ...base, p_down_option: choice.down, p_installment_option: choice.installment } : null;
-  try {
-    return ((await load(mode, "public_parcel_offer", withChoice ?? base)) as ParcelOffer | null) ?? null;
-  } catch (error) {
-    if (!withChoice) throw error;
-    return ((await load(mode, "public_parcel_offer", base)) as ParcelOffer | null) ?? null;
-  }
-}
+// getPublicParcels() (public_parcels), getCoverage() (public_coverage) and getParcelOffer()
+// (public_parcel_offer), with the PublicParcel and CoverageRow types, stood here. Every screen moved off
+// the parcel on 2026-09-18 — the coverage map now reads public_offer_stock — and none of the three had a
+// caller left. The three RPCs behind them now have no caller in the product either.
 
 /** Report v3 §20: description, water, access, video, documents, services and gallery of one project. */
 export async function getProjectPage(code: string, mode: PublicMode): Promise<ProjectPage | null> {
@@ -351,8 +249,4 @@ export async function getProjectQuote(projectId: string, mode: PublicMode, reque
 
 export function findProject(projects: PublicProject[], code: string): PublicProject | undefined {
   return projects.find((project) => project.code === code);
-}
-
-export function findParcel(parcels: PublicParcel[], projectCode: string, parcelCode: string): PublicParcel | undefined {
-  return parcels.find((parcel) => parcel.project_code === projectCode && parcel.code === parcelCode);
 }

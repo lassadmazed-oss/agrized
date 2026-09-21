@@ -1,337 +1,276 @@
 import Link from "next/link";
 
-import { Wordmark } from "@/components/brand/wordmark";
-import { MillionCounter, millionCounterCopy } from "@/components/site/million-counter";
-import { MillionStart } from "@/components/site/million-start";
-import { primaryCta } from "@/components/site/site-header";
+import { AreaSection } from "@/components/site/landing/area-section";
+import { ClosingCta } from "@/components/site/landing/closing-cta";
+import { CounterBand } from "@/components/site/landing/counter-band";
+import { Faq } from "@/components/site/landing/faq";
+import { Hero, heroCopy, heroPromises } from "@/components/site/landing/hero";
+import { HeroStats, heroStatColumns } from "@/components/site/landing/hero-stats";
+import { homeOffers, OffersSection } from "@/components/site/landing/offers-section";
+import { ServicesMap } from "@/components/site/landing/services-map";
+import { Steps } from "@/components/site/landing/steps";
+import { TreePicks } from "@/components/site/landing/tree-picks";
+import { TrustStrip, trustPoints } from "@/components/site/landing/trust-strip";
+import { TwinCards, twinCardsCopy } from "@/components/site/landing/twin-cards";
+import { AppHero } from "@/components/site/mobile/app-hero";
+import { AppStats, type AppStat } from "@/components/site/mobile/app-stats";
+import { getOfferStocks } from "@/components/site/offers";
+import { estimateLabel, landTitle } from "@/components/site/site-header";
 import { SitePhoto } from "@/components/site/site-photo";
 import { flagState, getPublicConfig, optionsFor, settingJson, settingText } from "@/lib/config";
-import { formatArea, formatSpacing } from "@/lib/format";
 import { getMillionProgress } from "@/lib/million";
-import { getSpacingClasses } from "@/lib/tree-pricing";
+import { getPublicProjects, type PublicProject } from "@/lib/public-projects";
 
-type Step = { title: string; text: string };
-type Faq = { q: string; a: string };
-type Fact = { value: string; label: string };
+/**
+ * One question and its answer. `flag` is optional and names a module: the question is printed only while
+ * that module is open. It exists because an answer can point at a door — «من قسم «عندك أرض أو ضيعة؟»» —
+ * and a closed module takes that door off the page while the answer stays, sending the reader nowhere.
+ * Nothing is written here: the owner adds `"flag": "land_offers"` to the item in `site.faq`.
+ */
+type Faq = { q: string; a: string; flag?: string };
 
 // The counter moves as requests arrive, so the page is rebuilt at most once a minute (MIL-01).
 export const revalidate = 60;
 
+/**
+ * The offers as a visitor sees them (owner, 2026-09-18: an offer is real stock, the calculator is not).
+ *
+ * How many trees of an offer are still free is counted in Postgres over rows of `public.trees`
+ * (public_offer_stock, 0054), exactly as /projects counts it — it used to be read off `public.parcels`,
+ * a table that has never held a row, which meant the figure was the offer's declared `tree_count`
+ * relabelled «متاحة». Both reads are the cached anon ones the catalogue already makes, so this page adds
+ * no query the site was not making.
+ *
+ * §54: this page is prerendered for everyone, so it must never read the staff session — the "internal"
+ * state of the module shows nothing here, exactly as before. A failing RPC leaves the section empty
+ * rather than breaking a page that is built for every visitor.
+ */
+async function liveOffers(): Promise<PublicProject[]> {
+  try {
+    const projects = await getPublicProjects("anon");
+    return projects.filter((project) => project.offered && (project.tree_count ?? 0) > 0);
+  } catch (error) {
+    console.error(error);
+    return [];
+  }
+}
+
+/**
+ * The landing page, rebuilt to the owner's reference drawings (2026-09-21).
+ *
+ * This file is now an assembly and almost nothing else: every section is a component under
+ * components/site/landing, each reads its own settings, each hides itself when the owner empties the
+ * setting that names it, and not one Arabic sentence is written here. What this file still owns is the
+ * ORDER, the RHYTHM between the bands, and the four reads the whole page shares.
+ *
+ * THE RHYTHM, which is what makes the reference look composed rather than long. Cream is the page's own
+ * ground; a dark band is an event, and two of them never touch:
+ *
+ *   hero (photograph under a paper wash) → the two doors, straddling its foot → the trust line
+ *   → عروضنا            cream, dense            py-section
+ *   → وين وصلنا؟        DARK, a photograph      py-band      ← the first event
+ *   → قدّاش زيتونة       cream, dense            py-section   ← the breath between two dark bands
+ *   → كيفاش تخدم        DARK, flat forest       py-band      ← the second
+ *   → الزيتونة مع مساحتها cream, dense           py-section
+ *   → الخدمات · التغطية  cream, two cards        py-section
+ *   → الأسئلة · آخر نداء  cream, breathes        py-band
+ *   → the footer        DARK, a photograph      py-band      ← the last
+ *
+ * THE FIVE PHOTOGRAPHS are spent once each, which is the constraint that decides three of the sections:
+ * `home.hero` in the hero, `home.coverage` on the counter band, `home.journey` on «الزيتونة مع مساحتها»,
+ * `home.closing` on the last card, `home.land` in the footer — and in the landowner section instead the day
+ * that module opens, at which point the footer falls back to flat forest. The offers door in the hero shows
+ * `home.coverage` a second time, which is the one repeat on the page: the counter band's copy sits under a
+ * 78 % forest scrim two screens away and reads as a ground, not as a picture. A slot the owner has not
+ * filled degrades to the drawn grove of `GrovePlaceholder`, never to a grey box.
+ */
 export default async function HomePage() {
   const config = await getPublicConfig();
-  // §54: this page is prerendered for everyone, so reading the session for an "internal" preview would break
-  // its regeneration; only a public module shows here, and million_progress() refuses visitors otherwise.
   const progress = flagState(config, "public_statistics") === "public" ? await getMillionProgress() : null;
 
   const interestOpen = flagState(config, "interest_form") === "public";
   const landOpen = flagState(config, "land_offers") === "public";
+  // Report v3 §17: the offers door opens only once the module is public, so it never leads to a «قريباً» page.
+  const offersOpen = flagState(config, "projects") === "public";
+  const offers = offersOpen ? await liveOffers() : [];
+  // Sliced by the section that renders them, so the stock is read for exactly the offers that will be shown.
+  const shownOffers = homeOffers(offers);
+  // One reading of the stock per offer shown, the same count the catalogue prints. An offer whose trees
+  // are not numbered yet has an UNKNOWN stock, so its card falls back to the declared count named as such
+  // rather than printing a confident «0 متاحة».
+  const stockOf = await getOfferStocks(
+    shownOffers.map((offer) => offer.id),
+    "anon",
+  );
 
-  const steps = settingJson<Step[]>(config, "site.how_it_works", []);
-  const faq = settingJson<Faq[]>(config, "site.faq", []);
-  const facts = settingJson<Fact[]>(config, "site.facts", []);
-  const notice = settingText(config, "site.free_interest_notice");
-  const treeCounts = optionsFor(config, "tree_count");
-  // docs/plan-zitouna.md P3-2: the unit section shows once its copy exists and the Back Office has spacing classes.
-  const unitTitle = settingText(config, "site.unit_title");
-  const spacingClasses = unitTitle ? await getSpacingClasses() : [];
-  // The follow-up AgriZed sells after the sale (report v3 §36). No title in settings, no section.
-  const servicesTitle = settingText(config, "site.services_title");
-  const services = servicesTitle ? optionsFor(config, "agrized_service") : [];
-  // Report v3 §17: the main button opens the tree question first (v2 §5). «شوف العروض» replaces the steps link
-  // only once offers are public, so it never leads to a «قريباً» page.
-  const cta = primaryCta(config);
-  const offersLabel = flagState(config, "projects") === "public" ? settingText(config, "site.cta_offers_label") : "";
-  const secondaryCta: { label: string; href: "/projects" | "/#how" } = offersLabel
-    ? { label: offersLabel, href: "/projects" }
-    : { label: settingText(config, "site.cta_secondary_label", "اكتشف كيفاش تخدم AgriZed"), href: "/#how" };
+  // An answer whose module is closed is not shown: it would name a section that is not on the page.
+  const faq = settingJson<Faq[]>(config, "site.faq", []).filter(
+    (item) => !item.flag || flagState(config, item.flag) === "public",
+  );
+
+  // The calculator's one word, in the hero button, on the door below it, in the bar and on the last card —
+  // the rule site-header.tsx states: every control that opens /start says what /start does.
+  const estimateCta = estimateLabel(config);
+
+  const place = (governorateId: number) => config.governorates.find((g) => g.id === governorateId)?.name_ar ?? "";
+  // Where the live stock actually is: the door says it in place names, which are rows, not a promise.
+  const offerPlaces = [...new Set(offers.map((offer) => place(offer.governorate_id)).filter(Boolean))];
+
+  // The trust line renders nothing until the owner writes `site.trust_points`, on purpose: «عقد قانوني
+  // واضح» and «متابعة وصيانة» are claims about how AgriZed operates, and a promise that cannot be deleted
+  // from the Back Office is the worst thing to leave in the code of a page whose argument is «بلا وعود».
+  const trust = trustPoints(config);
+
+  /**
+   * The phone's 2×2, in the mock-up's order: olive trees · investors · hectares · governorates.
+   *
+   * Every figure is `million_progress()`. The mock-up prints «+317,800 زيتونة», «+12,450 مستثمر» and
+   * «+18,250 هكتار»; the real answers today are 512 trees asked for, 20 people and 28 hectares. A mock-up
+   * invents numbers to show a shape — that is what it is for — but a page that prints them is telling a
+   * stranger something untrue on the screen where they decide whether this is real, and this product answers
+   * that question with «بلا وعود». So the shape is the drawing's and every figure is the database's.
+   *
+   * A tile whose figure the counter did not answer is dropped, not shown as a zero: with the statistics module
+   * closed there is no `progress` at all and the grid does not exist.
+   */
+  const appStats: AppStat[] = [
+    { label: settingText(config, "site.tab_trees", "زيتونة"), value: progress?.treesRequested ?? null, growing: true, icon: "tree" },
+    { label: settingText(config, "site.stat_people", "مستثمر"), value: progress?.participants ?? null, growing: true, icon: "people" },
+    {
+      label: settingText(config, "site.stat_hectares", "هكتار"),
+      // m² in the database, hectares on screen: the conversion is a unit change, not a business rule, and
+      // rounding down keeps the tile from ever claiming more land than the offers hold.
+      value: progress?.areaOfferedM2 == null ? null : Math.floor(progress.areaOfferedM2 / 10_000),
+      growing: true,
+      icon: "land",
+    },
+    // Never «+»: the country has 24 governorates and that figure does not grow.
+    { label: settingText(config, "site.stat_governorates", "ولاية"), value: config.governorates.length || null, icon: "place" },
+  ];
+
+  // The number in the drawn stepper on the calculator card: a real Back Office option, never a typed «25».
+  const sampleTreeCount = optionsFor(config, "tree_count").find((option) => option.min_number)?.min_number ?? null;
 
   return (
     <>
-      {/* 01 · One wide, quiet olive grove, the name of the project, and one thing to do (HOME-01) */}
-      <section className="relative isolate grid min-h-96 items-center overflow-hidden">
-        <SitePhoto config={config} slot="home.hero" fill priority sizes="100vw" />
-        <div className="absolute inset-0 bg-linear-to-t from-forest-700/85 via-forest-700/60 to-forest-700/35" />
-        <div className="relative">
-          <div className="mx-auto w-full max-w-6xl px-4 py-section sm:px-6">
-            <div className="max-w-2xl text-paper">
-              {settingText(config, "site.hero_eyebrow") ? (
-                <p className="mb-3 inline-flex items-center gap-2 rounded-full bg-paper/15 px-3.5 py-1.5 text-sm font-semibold backdrop-blur-sm">
-                  <span aria-hidden="true" className="size-1.5 rounded-full bg-gold-bright" />
-                  {settingText(config, "site.hero_eyebrow")}
-                </p>
-              ) : null}
+      {/* The page names itself, and the header reads it (globals.css: `.site-header`). It is how the bar
+          knows to float over this page's photograph instead of sitting above it the way it does on /start
+          and /projects, and how «الرئيسية» in the menu knows it is the current section — both without the
+          bar reading the client router, which would cost the whole header its server rendering. */}
+      <div data-page="home" hidden />
 
-              <h1 className="font-display text-display font-bold text-balance">
-                {settingText(config, "site.home_headline")}
-              </h1>
-              <p className="mt-4 max-w-xl text-lg leading-8 text-paper/90 sm:text-xl">
-                {settingText(config, "site.home_subheadline")}
-              </p>
+      {/* 01 · THE HERO. The photograph is not darkened any more: a paper wash covers the text side and the
+          words are forest and gold ON it, which is the drawing and the exact inverse of what this page did
+          before. The promises card hangs beside the headline and the live figures sit low in the picture,
+          diagonally opposite the text. */}
+      {/* 01a · THE PHONE'S OWN FIRST SCREEN (owner, 2026-09-21, from the AgriZed app mock-up): a greeting, one
+          photographic card carrying the promise and a single door, then four figures in a 2×2. It is not the
+          desktop hero squashed — that composition is a headline, two sub-lines, two buttons, a promises card and
+          a four-column slab, and at 375 it is four scrolls before a visitor reaches anything they can act on.
+          Below md this replaces it; from md the drawing's hero takes over unchanged. */}
+      <AppHero config={config} href={offersOpen ? "/projects" : "/start"} />
+      <AppStats stats={appStats} />
 
-              <div className="mt-roomy flex flex-wrap items-center gap-3">
-                {interestOpen && cta.label ? (
-                  <Link
-                    href={cta.href}
-                    className="btn bg-gold-bright px-8 text-lg text-forest-700 hover:bg-gold-soft"
-                  >
-                    {cta.label}
-                  </Link>
-                ) : null}
-                {secondaryCta.label ? (
-                  <Link
-                    href={secondaryCta.href}
-                    className="btn border-2 border-paper/40 px-6 text-paper hover:border-paper hover:bg-paper/10"
-                  >
-                    {secondaryCta.label}
-                  </Link>
-                ) : null}
-              </div>
-
-              {notice ? <p className="mt-4 text-sm font-medium text-paper/85">{notice}</p> : null}
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* 02 · Where the project stands. Counts of real rows only, one tile per stage (spec v2 §6). */}
-      {progress ? <MillionCounter progress={progress} copy={millionCounterCopy(config)} /> : null}
-
-      {/* 03 · The million starts with one olive tree */}
-      <section className="mx-auto max-w-6xl px-4 py-section sm:px-6">
-        <div className="grid gap-roomy lg:grid-cols-[1fr_0.8fr] lg:items-center">
-          <div>
-            <h2 className="section-title">
-              {settingText(config, "site.start_title", "تبدا بزيتونة، ويكبر مع الوقت")}
-            </h2>
-            <p className="mt-3 max-w-xl text-lg leading-8 text-muted">{settingText(config, "site.start_text")}</p>
-
-            {facts.length > 0 ? (
-              <ul className="mt-roomy grid gap-4 sm:grid-cols-3">
-                {facts.map((fact) => (
-                  <li key={fact.label}>
-                    <p className="font-display text-3xl font-bold leading-none text-forest">{fact.value}</p>
-                    <p className="mt-1 text-sm leading-6 text-muted">{fact.label}</p>
-                  </li>
-                ))}
-              </ul>
-            ) : null}
-          </div>
-          <SitePhoto config={config} slot="home.journey" sizes="(min-width: 1024px) 36vw, 100vw" />
-        </div>
-      </section>
-
-      {/* 04 · The tree question; a card click opens the calculator on /start with that tier chosen (MIL-01) */}
-      {interestOpen && treeCounts.length > 0 ? (
-        <MillionStart
-          treeCounts={treeCounts}
-          treesQuestion={settingText(config, "site.trees_question", "قدّاش زيتونة تحب تبدا بيهم؟")}
-          subtitle={settingText(
-            config,
-            "site.trees_subtitle",
-            "اختيارك يمشي معك للخطوة الموالية. تنجم تبدّلو وقت اللي تحب.",
-          )}
-          taglines={settingJson(config, "start.tier_taglines", {})}
-          otherCardLabel={settingText(config, "site.trees_other_card_label", "عدد آخر")}
-          otherLink={settingText(config, "site.trees_other_link")}
-        />
-      ) : null}
-
-      {/* 05 · How it works */}
-      {steps.length > 0 ? (
-        <section id="how" className="mx-auto max-w-6xl scroll-mt-20 px-4 py-section sm:px-6">
-          <h2 className="section-title">كيفاش تخدم AgriZed؟</h2>
-          <p className="mt-3 max-w-2xl leading-7 text-muted">مسار واضح، خطوة بخطوة، بدون أي دفع في البداية.</p>
-          {/* Four steps fit one row on a wide screen; any other count wraps three per row. */}
-          <ol className={`mt-roomy grid gap-3 sm:grid-cols-2 ${steps.length === 4 ? "lg:grid-cols-4" : "lg:grid-cols-3"}`}>
-            {steps.map((step, index) => (
-              <li key={step.title} className="card p-5">
-                <span className="grid size-10 place-items-center rounded-full bg-gold-soft font-display text-xl font-bold text-gold tabular-nums">
-                  {index + 1}
-                </span>
-                <h3 className="mt-4 font-semibold text-ink">{step.title}</h3>
-                <p className="mt-1 text-sm leading-6 text-muted">{step.text}</p>
-              </li>
-            ))}
-          </ol>
-        </section>
-      ) : null}
-
-      {/* 06 · The sale unit: one olive tree with its area (docs/tree-area-and-cost.md). The areas are the Back Office
-          spacing classes; no price and none of the internal formula is shown here. Asking happens on /start only. */}
-      {unitTitle && spacingClasses.length > 0 ? (
-        <section id="unit" className="scroll-mt-20 border-y border-line bg-surface">
-          <div className="mx-auto max-w-6xl px-4 py-section sm:px-6">
-            <div className="max-w-2xl">
-              <h2 className="section-title">{unitTitle}</h2>
-              {settingText(config, "site.unit_text") ? (
-                <p className="mt-3 leading-7 text-muted">{settingText(config, "site.unit_text")}</p>
-              ) : null}
-            </div>
-
-            <ul className="mt-roomy grid grid-cols-2 gap-3 sm:grid-cols-4">
-              {spacingClasses.map((spacing) => (
-                <li key={spacing.id} className="card bg-paper p-4 sm:p-5">
-                  <p className="text-sm leading-5 text-muted">{spacing.label_ar}</p>
-                  <p className="mt-2 font-display text-3xl font-bold leading-none text-forest tabular-nums">
-                    {formatArea(spacing.area_m2)}
-                  </p>
-                  <p className="mt-2 text-xs text-muted">
-                    لكل زيتونة · <span dir="ltr">{formatSpacing(spacing.row_spacing_m, spacing.tree_spacing_m)}</span>
-                  </p>
-                </li>
-              ))}
-            </ul>
-
-            <div className="mt-6 flex flex-wrap items-center gap-x-6 gap-y-3">
-              {interestOpen && settingText(config, "site.unit_cta") ? (
-                <Link href="/start" className="btn btn-primary">
-                  {settingText(config, "site.unit_cta")}
-                </Link>
-              ) : null}
-              {settingText(config, "site.unit_note") ? (
-                <p className="text-sm leading-6 text-muted">{settingText(config, "site.unit_note")}</p>
-              ) : null}
-            </div>
-          </div>
-        </section>
-      ) : null}
-
-      {/* 06b · What AgriZed does after the sale: follow-up and farming services for a known fee (report v3 §36).
-          The names come from the agrized_service list; prices belong to the contract, never to this page. */}
-      {servicesTitle ? (
-        <section id="services" className="scroll-mt-20 bg-leaf-soft/40">
-          <div className="mx-auto max-w-6xl px-4 py-section sm:px-6">
-            <div className="max-w-2xl">
-              <h2 className="section-title">{servicesTitle}</h2>
-              {settingText(config, "site.services_text") ? (
-                <p className="mt-3 leading-7 text-muted">{settingText(config, "site.services_text")}</p>
-              ) : null}
-            </div>
-
-            {services.length > 0 ? (
-              <ul className="mt-roomy flex flex-wrap gap-2">
-                {services.map((service) => (
-                  <li
-                    key={service.id}
-                    className="rounded-full border border-line bg-paper px-3.5 py-1.5 text-sm text-ink"
-                  >
-                    {service.label_ar}
-                  </li>
-                ))}
-              </ul>
-            ) : null}
-
-            {settingText(config, "site.services_note") ? (
-              <p className="mt-5 text-sm leading-6 text-muted">{settingText(config, "site.services_note")}</p>
-            ) : null}
-          </div>
-        </section>
-      ) : null}
-
-      {/* 07 · Where. Every governorate is open; demand decides where AgriZed searches next. */}
-      <section id="where" className="mx-auto max-w-6xl scroll-mt-20 px-4 py-section sm:px-6">
-        <div className="grid gap-roomy lg:grid-cols-[1fr_0.8fr] lg:items-center">
-          <div>
-            <h2 className="section-title">
-              {settingText(config, "site.coverage_title")}
-            </h2>
-            <p className="mt-3 max-w-xl leading-7 text-muted">{settingText(config, "site.coverage_text")}</p>
-            <ul className="mt-6 flex flex-wrap gap-2">
-              {config.governorates.map((governorate) => (
-                <li
-                  key={governorate.id}
-                  className="rounded-full border border-line bg-surface px-3.5 py-1.5 text-sm text-ink"
-                >
-                  {governorate.name_ar}
-                </li>
-              ))}
-            </ul>
-          </div>
-          <SitePhoto config={config} slot="home.coverage" sizes="(min-width: 1024px) 36vw, 100vw" />
-        </div>
-      </section>
-
-      {/* 08 · Landowners */}
-      {landOpen ? (
-        <section className="mx-auto max-w-6xl px-4 pb-section sm:px-6">
-          <div className="grid items-center gap-roomy rounded-3xl border border-gold/25 bg-gold-soft/50 p-6 sm:p-10 lg:grid-cols-[1fr_0.9fr]">
-            <div>
-              <h2 className="font-display text-2xl font-bold text-forest sm:text-3xl">عندك أرض أو ضيعة زيتون؟</h2>
-              <p className="mt-3 max-w-xl leading-7 text-ink/80">{settingText(config, "site.land_section_text")}</p>
-              <Link href="/land" className="btn btn-primary mt-6">
-                ابعث معلومات عقارك
-              </Link>
-            </div>
-            <SitePhoto config={config} slot="home.land" sizes="(min-width: 1024px) 40vw, 100vw" />
-          </div>
-        </section>
-      ) : null}
-
-      {/* FAQ */}
-      {faq.length > 0 ? (
-        <section className="mx-auto max-w-3xl px-4 pb-section sm:px-6">
-          <h2 className="section-title">أسئلة شائعة</h2>
-          <div className="mt-6 divide-y divide-line border-y border-line">
-            {faq.map((item) => (
-              <details key={item.q} className="group py-snug">
-                <summary className="flex cursor-pointer list-none items-center justify-between gap-4 font-semibold text-ink [&::-webkit-details-marker]:hidden">
-                  {item.q}
-                  <span
-                    aria-hidden="true"
-                    className="text-2xl leading-none text-gold transition-transform group-open:rotate-45"
-                  >
-                    +
-                  </span>
-                </summary>
-                <p className="mt-3 leading-7 text-muted">{item.a}</p>
-              </details>
-            ))}
-          </div>
-        </section>
-      ) : null}
-
-      {/* 09 · Ask once more, plainly */}
-      {interestOpen ? (
-        <section className="mx-auto max-w-6xl px-4 pb-section sm:px-6">
-          <div className="card rounded-3xl px-6 py-section text-center sm:px-10">
-            <h2 className="section-title">
-              {settingText(config, "site.final_cta_title", "ابدا أصلك اليوم، على قدّ إمكانياتك")}
-            </h2>
-            {cta.label ? (
-              <Link href={cta.href} className="btn btn-primary mt-roomy px-10 text-lg">
-                {cta.label}
-              </Link>
-            ) : null}
-            <p className="mt-3 text-sm text-muted">{settingText(config, "site.final_cta_note")}</p>
-          </div>
-        </section>
-      ) : null}
-
-      {/* Closing band */}
-      <section className="relative isolate grid min-h-72 place-items-center overflow-hidden">
-        <SitePhoto
+      <div className="hidden md:block">
+        <Hero
           config={config}
-          slot="home.closing"
-          fill
-          sizes="100vw"
-          className="[&_img]:brightness-[0.45] [&_svg]:brightness-[0.55]"
+          copy={heroCopy(config)}
+          promises={heroPromises(config)}
+          primaryHref="/start"
+          secondaryHref={offersOpen ? "/projects" : ""}
+          stats={
+          /* Every figure is `million_progress()`. With the statistics module closed there is no `progress`,
+             so there are no columns and the slab does not exist — the hero simply has more photograph. */
+            <HeroStats
+              columns={heroStatColumns(config, progress)}
+              href="/#million"
+              linkLabel={settingText(config, "site.progress_title", "وين وصلنا؟")}
+            />
+          }
         />
-        <div className="absolute inset-0 bg-forest-700/45" />
-        <div className="relative px-4 py-section text-center">
-          <div>
-            <Wordmark onDark className="text-4xl sm:text-6xl" />
-            <p className="mt-4 font-display text-3xl font-bold text-paper sm:text-5xl">
-              {settingText(config, "site.closing_title", settingText(config, "site.vision_title"))}
-            </p>
-            <p className="mt-3 text-paper/85 sm:text-lg">{settingText(config, "site.vision_text")}</p>
-            {settingText(config, "brand.tagline_fr") ? (
-              <p dir="ltr" className="mt-5 text-xs uppercase tracking-[0.28em] text-gold-bright sm:text-sm">
-                {settingText(config, "brand.tagline_fr")}
-              </p>
-            ) : null}
+      </div>
+
+      {/* 02 · THE TWO DOORS, straddling the photograph's bottom edge: the calculator, which answers with an
+          example, and the offers, which are real land. They are told apart by surface as well as by colour —
+          the calculator keeps the dashed estimate ground (PRN-01), the offers card carries a photograph.
+          While the trust line has nothing to print, this is what keeps the cards off «عروضنا». */}
+      <div className={trust.length > 0 ? "" : "pb-cozy sm:pb-section"}>
+        <TwinCards
+          config={config}
+          copy={twinCardsCopy(config)}
+          estimateHref="/start"
+          offersHref="/projects"
+          showOffers={offersOpen}
+          place={offerPlaces[0] ?? ""}
+          sampleTreeCount={sampleTreeCount}
+          photoSlot="home.coverage"
+        />
+      </div>
+
+      {/* 03 · The quiet line that closes the first screen. Empty today — see the report. */}
+      <TrustStrip points={trust} />
+
+      {/* 04 · The offers themselves: name, place, olive trees, the area each tree comes with, and the price
+          the database computed. Never a formula, never the land price (PRJ-03). */}
+      <OffersSection config={config} offers={offers} shown={shownOffers} stockOf={stockOf} />
+
+      {/* 05 · Where the project stands, on the first dark band. Counts of real rows only, one tile per
+          stage (spec v2 §6). It keeps id="million", which the bar and the footer both link to. */}
+      {progress ? <CounterBand config={config} progress={progress} /> : null}
+
+      {/* 06 · The tree question, on cream between the two dark bands; a tile opens the calculator on /start
+          with that tier already chosen (MIL-01). */}
+      <TreePicks config={config} />
+
+      {/* 07 · How it works, on the second dark band. It keeps id="how". */}
+      <Steps config={config} />
+
+      {/* 08 · The unit the page sells: one olive tree with the land it comes with. The areas are the Back
+          Office spacing classes — a planting class and its own area, never a tree count multiplied by one. */}
+      <AreaSection config={config} />
+
+      {/* 09 · What AgriZed does after the sale (report v3 §36), beside where it works. Two cards now, not
+          two loose columns. The price of a service belongs to the contract, never to this page. */}
+      <ServicesMap config={config} offerPlaces={offerPlaces} />
+
+      {/* 10 · Landowners. Not in the reference because the module is closed, which is also why the footer
+          may use this section's photograph in the meantime: when `land_offers` opens, `home.land` comes
+          back here and the footer falls back to flat forest (site-footer.tsx). */}
+      {landOpen ? (
+        <section className="mx-auto max-w-6xl px-4 py-section sm:px-6">
+          <div className="panel grid items-center gap-roomy border-gold/25 bg-gold-soft/60 p-card sm:p-roomy lg:grid-cols-[1fr_0.55fr]">
+            <div>
+              <h2 className="font-display text-2xl font-bold text-forest sm:text-3xl">{landTitle(config)}</h2>
+              <p className="mt-tight max-w-xl leading-7 text-ink/80">{settingText(config, "site.land_section_text")}</p>
+              {/* NEW KEY. This button was the last hard-coded sentence on the page: the owner could rename
+                  the section and its door would keep saying something else. */}
+              <Link href="/land" className="btn btn-primary mt-cozy">
+                {settingText(config, "site.land_cta_label", "ابعث معلومات عقارك")}
+              </Link>
+            </div>
+            <SitePhoto config={config} slot="home.land" sizes="(min-width: 1024px) 28vw, 100vw" />
           </div>
-        </div>
-      </section>
+        </section>
+      ) : null}
+
+      {/* 11 · The objections answered, then the ask — beside each other, not one screen after the other, and
+          in that order on a phone: a stranger's questions first, the ask second. The last band of the page
+          before the footer, so it breathes like a story section rather than like the offers. */}
+      {faq.length > 0 || interestOpen ? (
+        <section className="mx-auto max-w-6xl px-4 py-section sm:px-6 lg:py-band">
+          <div className="grid gap-roomy lg:grid-cols-[1.1fr_0.9fr] lg:items-start">
+            <Faq config={config} items={faq} />
+            {interestOpen ? <ClosingCta config={config} ctaLabel={estimateCta} /> : null}
+          </div>
+        </section>
+      ) : null}
+
+      {/* The closing band that used to sit here is gone. It printed the wordmark, `site.closing_title` and
+          `site.vision_text` over `home.closing`, about 140px above a footer that printed the wordmark and
+          the French tagline again — the duplication the file's own comment already complained about
+          (owner, 2026-09-18: remove what repeats). The footer absorbed it: it is the dark photographic band
+          now, and it carries `site.closing_title` in its end column. `home.closing` moved to the card
+          above, so nothing lost a picture and nothing prints twice. */}
     </>
   );
 }

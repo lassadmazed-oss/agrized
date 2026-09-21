@@ -40,7 +40,8 @@ export default async function RegisterPage({ searchParams }: PageProps<"/registe
   const config = await getPublicConfig();
   const access = await moduleAccess(config, "interest_form");
   if (access === "closed") {
-    return <ComingSoon title="سجّل اهتمامك" />;
+    // The register word, from the setting that owns it — this page is the one act it names.
+    return <ComingSoon title={settingText(config, "site.cta_primary_label", "سجّل اهتمامك")} />;
   }
 
   // P2-6: every calculator question lives on /start, so a visitor without a usable tree count starts there.

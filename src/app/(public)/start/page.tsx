@@ -39,6 +39,9 @@ export default async function StartPage({ searchParams }: PageProps<"/start">) {
   const lists = await getCalculatorLists(config);
   // The home cards and «بدّل اختياراتك» on /register link here with what was already picked.
   const params = await searchParams;
+  // A simulation is not stock (owner, 2026-09-18), so the last screen also points at the real offers — but only
+  // where /projects actually answers: public for everyone, internal for signed-in staff, hidden otherwise (FLAG-02).
+  const offersOpen = (await moduleAccess(config, "projects")) !== "closed";
 
   return (
     <>
@@ -56,6 +59,7 @@ export default async function StartPage({ searchParams }: PageProps<"/start">) {
         customMax={lists.customMax}
         initial={readCalculatorChoices(lists, params)}
         wantsVisit={params.visit === "1"}
+        offersOpen={offersOpen}
         breadcrumb={
           <Breadcrumb
             items={[

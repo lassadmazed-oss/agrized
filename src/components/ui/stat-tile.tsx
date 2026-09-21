@@ -6,7 +6,6 @@
 //              (same prop names, so the five call sites in src/app/admin/(panel)/page.tsx:97-101 and the three
 //               in src/app/admin/(panel)/analytics/page.tsx:153-155 only change their import path)
 //   Figure   — src/components/admin/tree-pricing-quote.tsx:289          → value is already a formatted string
-//   Fact (large) — src/app/admin/(panel)/projects/[id]/parcels/[parcelId]/page.tsx:331
 //   the attention tiles — src/app/admin/(panel)/page.tsx:74-86          → href, emphasis, quiet
 //   the demand figure   — src/app/admin/(panel)/land-offers/[id]/page.tsx:201
 //

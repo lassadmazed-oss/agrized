@@ -3,17 +3,12 @@
 //
 // Meant to replace these private copies, one file at a time (the migration is a later, separate step):
 //   Row   — src/app/(public)/projects/[code]/offer-interest-form.tsx:442
-//           src/components/site/offer-block.tsx:114
-//           src/components/site/tree-offer-block.tsx:210
-//           src/app/admin/(panel)/projects/[id]/parcels/[parcelId]/page.tsx:322   → layout="inline"
 //   Fact  — src/app/admin/(panel)/land-offers/page.tsx:159
 //           src/app/admin/(panel)/projects/page.tsx:165
 //           src/app/admin/(panel)/projects/[id]/page.tsx:818
-//           src/components/site/offer-block.tsx:123                               → layout="stacked"
-//           src/app/admin/(panel)/projects/[id]/parcels/[parcelId]/page.tsx:331   → layout="stacked" size="lg"
+//                                                                                 → layout="stacked"
 //   Item  — src/app/admin/(panel)/leads/[personId]/page.tsx:424
 //           src/app/admin/(panel)/land-offers/[id]/page.tsx:263                   → layout="stacked" numeric={false}
-//   ParcelRow — src/components/site/parcel-row.tsx:4                              → layout="inline"
 //
 // The <dl>/<dt>/<dd> markup is kept: these are name/value pairs, and screen readers announce them as such.
 
@@ -35,8 +30,8 @@ export type DataRowProps = {
   /**
    * Inline only. The row carries its own vertical padding, which is what a divided list wants: the
    * hairline then sits midway between two values. A list that spaces its rows from the outside
-   * instead (`space-y-2` on the <dl>, as the parcel and project cards do) would get that padding on
-   * top of its own gap, so it passes padded={false} and keeps the spacing it already had.
+   * instead (`space-y-2` on the <dl>, with no dividers) would get that padding on top of its own gap,
+   * so it passes padded={false} and keeps the spacing it already had. No caller needs it today.
    */
   padded?: boolean;
   className?: string;
@@ -95,8 +90,8 @@ const GRID_COLUMNS: Record<DataListColumns, string> = {
 
 /**
  * The <dl> around a set of DataRows.
- * Replaces the hand-written wrappers such as `divide-y divide-line` (src/components/site/offer-block.tsx:53)
- * and `grid gap-x-6 gap-y-3 text-sm sm:grid-cols-2` (src/app/admin/(panel)/leads/[personId]/page.tsx:179).
+ * Replaces the hand-written wrappers such as `divide-y divide-line` and
+ * `grid gap-x-6 gap-y-3 text-sm sm:grid-cols-2` (src/app/admin/(panel)/leads/[personId]/page.tsx:179).
  */
 export function DataList({ children, variant = "divided", columns = 2, className = "" }: DataListProps) {
   const shape = variant === "grid" ? GRID_COLUMNS[columns] : variant === "divided" ? "divide-y divide-line" : "";

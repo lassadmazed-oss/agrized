@@ -156,11 +156,11 @@ function fill(template: string, key: string, value: string): string {
   return template.split(`{${key}}`).join(value);
 }
 
-export function areaLine(m2: number): Line {
+function areaLine(m2: number): Line {
   return { ar: formatArea(m2), fr: formatArea(m2, "m²") };
 }
 
-export function moneyLine(millimes: number): Line {
+function moneyLine(millimes: number): Line {
   // Whole dinars stay short; an amount with millimes is shown exactly rather than rounded.
   const withMillimes = millimes % 1000 !== 0;
   const digits = withMillimes ? 3 : 0;
@@ -242,8 +242,23 @@ export function calculatorSummary(input: SummaryInput): CalculatorSummary {
     );
   }
 
-  const pricePerTree = priced ? moneyOrNull(quote?.price_per_tree_millimes) : null;
-  const totalPrice = priced ? atLeast(moneyOrNull(quote?.total_price_millimes)) : null;
+  /**
+   * Owner, 2026-09-18: «الـMain Form موش عرض». `public_tree_quote` prices the one global rate card, so every
+   * visitor is quoted the same figure; printed bare it reads as the price of a thing that exists. «ابتداءً من»
+   * (start.from_prefix, the key the tiers already use) says what the figure is — where an estimate starts — on
+   * the two rows a visitor reads as the price. Nothing new is computed: the amount is the quote's, untouched.
+   */
+  const startingAt = (value: Line | null): Line | null => {
+    if (!value || !copy.fromPrefix) return value;
+    return {
+      ar: `${copy.fromPrefix} ${value.ar}`,
+      fr: value.fr ? (copy.fromPrefixFr ? `${copy.fromPrefixFr} ${value.fr}` : value.fr) : null,
+    };
+  };
+
+  const pricePerTree = priced ? startingAt(moneyOrNull(quote?.price_per_tree_millimes)) : null;
+  // An open-ended tier is already a minimum; the prefix says so once, not twice.
+  const totalPrice = priced ? startingAt(moneyOrNull(quote?.total_price_millimes)) : null;
   if (pricePerTree) {
     rows.push({ key: "price_per_tree", label: line(copy.rowPricePerTree, copy.rowPricePerTreeFr), value: pricePerTree, notes: [] });
   }
