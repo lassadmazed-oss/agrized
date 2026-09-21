@@ -2,7 +2,7 @@ import Link from "next/link";
 import type { ReactNode } from "react";
 
 import { estimateLabel } from "@/components/site/site-header";
-import { SitePhoto } from "@/components/site/site-photo";
+import { PhotoMarquee } from "@/components/site/landing/photo-marquee";
 import { settingJson, settingText, type PublicConfig } from "@/lib/config";
 
 /*
@@ -188,6 +188,14 @@ export function LandingIcon({ name, className = "size-5" }: IconProps) {
   }
 }
 
+/**
+ * The grove pictures the hero drifts through, in the order they were uploaded for their own sections. They
+ * are site_media slots, so the owner changes what the hero shows by uploading, never by editing this list —
+ * and a slot he has not filled is skipped rather than drawn as a placeholder (PhotoMarquee). `home.hero`
+ * leads because it is the one chosen for this position and it is the frame a visitor lands on.
+ */
+export const HERO_SLOTS = ["home.hero", "home.journey", "home.coverage", "home.land", "home.closing"] as const;
+
 /** The olive sprig the reference draws beside its calculator mock. A line drawing, not a photograph. */
 export function OliveSprig({ className = "" }: { className?: string }) {
   return (
@@ -328,7 +336,18 @@ export function Hero({ config, copy, promises, primaryHref, secondaryHref = "", 
 
   return (
     <section className="relative isolate min-h-[34rem] overflow-hidden sm:min-h-[38rem] lg:min-h-[44rem]">
-      <SitePhoto config={config} slot="home.hero" fill priority sizes="100vw" />
+      {/* The photograph drifts through the site's own grove pictures instead of standing still (owner,
+          2026-09-21: «i want the thing to feel alive»). Slow on purpose — one picture a minute — because the
+          headline, the promises card and the figures all sit ON this, and a strip that moves faster than
+          weather turns the words into something the eye has to hold still against. Slots with no upload drop
+          out, and with one photograph left it renders exactly what this line rendered before. */}
+      <PhotoMarquee
+        config={config}
+        slots={HERO_SLOTS}
+        seconds={60}
+        priority
+        sizes="100vw"
+      />
 
       {/* THE WASH, and the readability rule that governs it: it must hold paper at ~90 % or more across
           the whole width of the text column, so the contrast is AA whatever photograph the owner uploads

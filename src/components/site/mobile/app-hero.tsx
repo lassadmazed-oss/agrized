@@ -1,6 +1,7 @@
 import Link from "next/link";
 
-import { SitePhoto } from "@/components/site/site-photo";
+import { HERO_SLOTS } from "@/components/site/landing/hero";
+import { PhotoMarquee } from "@/components/site/landing/photo-marquee";
 import { settingText, type PublicConfig } from "@/lib/config";
 
 /**
@@ -44,7 +45,11 @@ export function AppHero({ config, href }: { config: PublicConfig; href: string }
         href={href}
         className="group relative block overflow-hidden rounded-3xl shadow-[var(--shadow-card)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold-bright"
       >
-        <SitePhoto config={config} slot="home.hero" aspect="4/3" sizes="100vw" priority className="w-full" />
+        {/* The card's picture drifts through the site's grove photographs rather than holding one still
+            (owner, 2026-09-21: «i want the thing to feel alive»). Same strip and same order as the desktop
+            hero, so the two screens are showing the same place. Quicker here than there — this photograph
+            carries one line of text, not a whole composition. */}
+        <PhotoMarquee config={config} slots={HERO_SLOTS} aspect="4/3" seconds={40} priority sizes="100vw" />
 
         {/* Strong where the words are, absent where the sky is: the bay is the reason this photograph is here. */}
         <div aria-hidden="true" className="absolute inset-0 bg-gradient-to-t from-forest-700/90 via-forest-700/35 to-transparent" />

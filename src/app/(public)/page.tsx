@@ -7,6 +7,7 @@ import { Faq } from "@/components/site/landing/faq";
 import { Hero, heroCopy, heroPromises } from "@/components/site/landing/hero";
 import { HeroStats, heroStatColumns } from "@/components/site/landing/hero-stats";
 import { homeOffers, OffersSection } from "@/components/site/landing/offers-section";
+import { OffersTicker } from "@/components/site/landing/offers-ticker";
 import { ServicesMap } from "@/components/site/landing/services-map";
 import { Steps } from "@/components/site/landing/steps";
 import { TreePicks } from "@/components/site/landing/tree-picks";
@@ -170,6 +171,13 @@ export default async function HomePage() {
           Below md this replaces it; from md the drawing's hero takes over unchanged. */}
       <AppHero config={config} href={offersOpen ? "/projects" : "/start"} />
       <AppStats stats={appStats} />
+
+      {/* 01b · THE OFFERS, MOVING (owner, 2026-09-21: «add another banner under it showing our offers to see
+          movement like infinite sliding»). It sits directly under the hero on every width, which is the whole
+          point of it: the first thing that moves after the photograph is the real stock, named and priced.
+          It carries no cover photographs — see the component for why — and it repeats no figure the section
+          further down does not already show. */}
+      <OffersTicker config={config} offers={offers} />
 
       <div className="hidden md:block">
         <Hero

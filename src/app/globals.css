@@ -612,3 +612,87 @@ body {
     opacity: 1;
   }
 }
+
+@layer components {
+  /*
+   * The marquee: one primitive, two jobs.
+   *
+   * The owner asked for the landing page to «feel alive» — the hero photograph sliding on a loop that never
+   * stops, and a band under it moving the offers past (2026-09-21).
+   *
+   * WHY THE TRACK IS RENDERED TWICE AND NOT N TIMES. Every "slide through N things" built with keyframes has
+   * to put N into the keyframe percentages, so the CSS stops working the day a sixth photograph is uploaded
+   * or an offer is unpublished. This one is independent of N: the call site renders the list, then renders it
+   * again, the track is twice its content, and the animation moves it exactly -50% and starts over. The seam
+   * lands on an identical copy, so the loop is invisible and nothing needs to know how many items there are.
+   * The second copy carries aria-hidden at the call site: it is the same content, and a screen reader that
+   * reads the offers twice is being told there are twice as many.
+   *
+   * Speed is a property of what is moving, not of the primitive: --marquee-duration is set per use. A strip
+   * of photographs wants a minute; a row of short chips wants half that.
+   */
+  .marquee {
+    position: relative;
+    overflow: hidden;
+    /* The frames of a photographic strip are as wide as the STRIP, and the track they sit in is
+       `max-content` wide — so a frame asking for `100%` would be asking a parent whose width depends on the
+       frame, which resolves to nothing and collapses the picture to zero. Naming the marquee as a container
+       lets a frame measure the one box that has a real width: `100cqw` below. */
+    container-type: inline-size;
+  }
+  .marquee-track {
+    display: flex;
+    inline-size: max-content;
+    will-change: transform;
+    /* WHICH WAY IT DRIFTS DEPENDS ON THE WRITING DIRECTION, and getting this wrong does not look like a
+       reversed animation — it looks like the content vanishing. In an RTL row the first item sits at the
+       RIGHT edge and the track overflows to the left, so translating the track further left pulls it out of
+       its own window and leaves blank space behind. The track has to travel toward the start edge, which on
+       this page is +50%. `transform` is physical and has no logical form, so the direction is named here and
+       flipped back for an LTR document, which this site does not have today and might. */
+    --marquee-end: 50%;
+    animation: marquee-drift var(--marquee-duration, 60s) linear infinite;
+  }
+  .marquee-track:dir(ltr) {
+    --marquee-end: -50%;
+  }
+  /* Hovering pauses it, so a reader who wants to look at one card can. It is also what makes the band usable
+     with a pointer at all: a link that is moving is a link you have to chase. */
+  .marquee:hover .marquee-track,
+  .marquee:focus-within .marquee-track {
+    animation-play-state: paused;
+  }
+  @keyframes marquee-drift {
+    from {
+      transform: translate3d(0, 0, 0);
+    }
+    to {
+      /* Exactly half: the second copy is now where the first one started. */
+      transform: translate3d(var(--marquee-end, 50%), 0, 0);
+    }
+  }
+
+  /*
+   * A reader who asked for no motion gets NO MOTION, and this needs its own rule rather than the blanket one
+   * at the top of this file. That rule sets animation-duration to 0.01ms !important on everything, which on a
+   * loop like this is not "stopped" — it is the whole cycle completing a hundred times a millisecond, which
+   * is a strobe, and strobing is the specific harm the preference exists to prevent. `animation: none` is a
+   * different property from `animation-duration`, so it wins on the cascade rather than fighting it, and it
+   * leaves the track sitting at its start: the first copy, static and complete.
+   */
+  @media (prefers-reduced-motion: reduce) {
+    .marquee-track {
+      animation: none !important;
+      transform: none !important;
+    }
+  }
+
+  /* One frame of a photographic strip: as wide as the strip's viewport, so the eye reads one picture drifting
+     into the next rather than a contact sheet sliding past. */
+  .marquee-photo {
+    position: relative;
+    flex: none;
+    block-size: 100%;
+    inline-size: var(--marquee-photo-width, 100cqw);
+  }
+}
