@@ -14,6 +14,142 @@ export type Database = {
   }
   public: {
     Tables: {
+      agri_operation_trees: {
+        Row: {
+          operation_id: string
+          tree_id: string
+        }
+        Insert: {
+          operation_id: string
+          tree_id: string
+        }
+        Update: {
+          operation_id?: string
+          tree_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "agri_operation_trees_operation_id_fkey"
+            columns: ["operation_id"]
+            isOneToOne: false
+            referencedRelation: "agri_operations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "agri_operation_trees_tree_id_fkey"
+            columns: ["tree_id"]
+            isOneToOne: false
+            referencedRelation: "trees"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      agri_operations: {
+        Row: {
+          approved_at: string | null
+          approved_by: string | null
+          cost_millimes: number | null
+          created_at: string
+          created_by: string | null
+          executed_on: string | null
+          id: string
+          label_ar: string
+          note: string | null
+          planned_on: string | null
+          project_id: string
+          provider_note: string | null
+          provider_option_id: string | null
+          scope: string
+          service_option_id: string
+          status: string
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          approved_at?: string | null
+          approved_by?: string | null
+          cost_millimes?: number | null
+          created_at?: string
+          created_by?: string | null
+          executed_on?: string | null
+          id?: string
+          label_ar: string
+          note?: string | null
+          planned_on?: string | null
+          project_id: string
+          provider_note?: string | null
+          provider_option_id?: string | null
+          scope?: string
+          service_option_id: string
+          status?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          approved_at?: string | null
+          approved_by?: string | null
+          cost_millimes?: number | null
+          created_at?: string
+          created_by?: string | null
+          executed_on?: string | null
+          id?: string
+          label_ar?: string
+          note?: string | null
+          planned_on?: string | null
+          project_id?: string
+          provider_note?: string | null
+          provider_option_id?: string | null
+          scope?: string
+          service_option_id?: string
+          status?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "agri_operations_approved_by_fkey"
+            columns: ["approved_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "agri_operations_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "agri_operations_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "agri_operations_provider_option_id_fkey"
+            columns: ["provider_option_id"]
+            isOneToOne: false
+            referencedRelation: "option_items"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "agri_operations_service_option_id_fkey"
+            columns: ["service_option_id"]
+            isOneToOne: false
+            referencedRelation: "option_items"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "agri_operations_updated_by_fkey"
+            columns: ["updated_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       audit_logs: {
         Row: {
           action: string
@@ -251,6 +387,296 @@ export type Database = {
           sort_order?: number
         }
         Relationships: []
+      }
+      harvest_choices: {
+        Row: {
+          created_at: string
+          decided_at: string
+          decided_by: string | null
+          id: string
+          note: string | null
+          outcome_option_id: string | null
+          person_id: string
+          pick_option_id: string | null
+          season_id: string
+          source: Database["public"]["Enums"]["harvest_choice_source"]
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          created_at?: string
+          decided_at?: string
+          decided_by?: string | null
+          id?: string
+          note?: string | null
+          outcome_option_id?: string | null
+          person_id: string
+          pick_option_id?: string | null
+          season_id: string
+          source?: Database["public"]["Enums"]["harvest_choice_source"]
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          created_at?: string
+          decided_at?: string
+          decided_by?: string | null
+          id?: string
+          note?: string | null
+          outcome_option_id?: string | null
+          person_id?: string
+          pick_option_id?: string | null
+          season_id?: string
+          source?: Database["public"]["Enums"]["harvest_choice_source"]
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "harvest_choices_decided_by_fkey"
+            columns: ["decided_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "harvest_choices_outcome_option_id_fkey"
+            columns: ["outcome_option_id"]
+            isOneToOne: false
+            referencedRelation: "option_items"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "harvest_choices_person_id_fkey"
+            columns: ["person_id"]
+            isOneToOne: false
+            referencedRelation: "persons"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "harvest_choices_pick_option_id_fkey"
+            columns: ["pick_option_id"]
+            isOneToOne: false
+            referencedRelation: "option_items"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "harvest_choices_season_id_fkey"
+            columns: ["season_id"]
+            isOneToOne: false
+            referencedRelation: "harvest_seasons"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "harvest_choices_updated_by_fkey"
+            columns: ["updated_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      harvest_seasons: {
+        Row: {
+          choice_deadline: string | null
+          created_at: string
+          ended_on: string | null
+          estimated_olives_kg: number | null
+          harvest_cost_millimes: number | null
+          id: string
+          label_ar: string
+          note: string | null
+          oil_litres: number | null
+          olives_kg: number | null
+          pressed_olives_kg: number | null
+          project_id: string
+          sale_amount_millimes: number | null
+          season_year: number
+          settled_at: string | null
+          settled_by: string | null
+          sold_oil_litres: number | null
+          sold_olives_kg: number | null
+          started_on: string | null
+          status: Database["public"]["Enums"]["harvest_season_status"]
+          stored_oil_litres: number | null
+          trees_harvested: number | null
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          choice_deadline?: string | null
+          created_at?: string
+          ended_on?: string | null
+          estimated_olives_kg?: number | null
+          harvest_cost_millimes?: number | null
+          id?: string
+          label_ar: string
+          note?: string | null
+          oil_litres?: number | null
+          olives_kg?: number | null
+          pressed_olives_kg?: number | null
+          project_id: string
+          sale_amount_millimes?: number | null
+          season_year: number
+          settled_at?: string | null
+          settled_by?: string | null
+          sold_oil_litres?: number | null
+          sold_olives_kg?: number | null
+          started_on?: string | null
+          status?: Database["public"]["Enums"]["harvest_season_status"]
+          stored_oil_litres?: number | null
+          trees_harvested?: number | null
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          choice_deadline?: string | null
+          created_at?: string
+          ended_on?: string | null
+          estimated_olives_kg?: number | null
+          harvest_cost_millimes?: number | null
+          id?: string
+          label_ar?: string
+          note?: string | null
+          oil_litres?: number | null
+          olives_kg?: number | null
+          pressed_olives_kg?: number | null
+          project_id?: string
+          sale_amount_millimes?: number | null
+          season_year?: number
+          settled_at?: string | null
+          settled_by?: string | null
+          sold_oil_litres?: number | null
+          sold_olives_kg?: number | null
+          started_on?: string | null
+          status?: Database["public"]["Enums"]["harvest_season_status"]
+          stored_oil_litres?: number | null
+          trees_harvested?: number | null
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "harvest_seasons_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "harvest_seasons_settled_by_fkey"
+            columns: ["settled_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "harvest_seasons_updated_by_fkey"
+            columns: ["updated_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      harvest_shares: {
+        Row: {
+          choice_source:
+            | Database["public"]["Enums"]["harvest_choice_source"]
+            | null
+          counted_at: string
+          created_at: string
+          id: string
+          note: string | null
+          oil_litres: number | null
+          olives_kg: number
+          outcome_label_ar: string | null
+          outcome_option_id: string | null
+          person_id: string
+          pick_label_ar: string | null
+          pick_option_id: string | null
+          season_id: string
+          settled_by: string | null
+          trees_harvested: number
+          trees_held: number
+        }
+        Insert: {
+          choice_source?:
+            | Database["public"]["Enums"]["harvest_choice_source"]
+            | null
+          counted_at?: string
+          created_at?: string
+          id?: string
+          note?: string | null
+          oil_litres?: number | null
+          olives_kg: number
+          outcome_label_ar?: string | null
+          outcome_option_id?: string | null
+          person_id: string
+          pick_label_ar?: string | null
+          pick_option_id?: string | null
+          season_id: string
+          settled_by?: string | null
+          trees_harvested: number
+          trees_held: number
+        }
+        Update: {
+          choice_source?:
+            | Database["public"]["Enums"]["harvest_choice_source"]
+            | null
+          counted_at?: string
+          created_at?: string
+          id?: string
+          note?: string | null
+          oil_litres?: number | null
+          olives_kg?: number
+          outcome_label_ar?: string | null
+          outcome_option_id?: string | null
+          person_id?: string
+          pick_label_ar?: string | null
+          pick_option_id?: string | null
+          season_id?: string
+          settled_by?: string | null
+          trees_harvested?: number
+          trees_held?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "harvest_shares_outcome_option_id_fkey"
+            columns: ["outcome_option_id"]
+            isOneToOne: false
+            referencedRelation: "option_items"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "harvest_shares_person_id_fkey"
+            columns: ["person_id"]
+            isOneToOne: false
+            referencedRelation: "persons"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "harvest_shares_pick_option_id_fkey"
+            columns: ["pick_option_id"]
+            isOneToOne: false
+            referencedRelation: "option_items"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "harvest_shares_season_id_fkey"
+            columns: ["season_id"]
+            isOneToOne: false
+            referencedRelation: "harvest_seasons"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "harvest_shares_settled_by_fkey"
+            columns: ["settled_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       interest_requests: {
         Row: {
@@ -1258,6 +1684,122 @@ export type Database = {
           },
         ]
       }
+      payments: {
+        Row: {
+          amount_millimes: number
+          created_at: string
+          id: string
+          kind: Database["public"]["Enums"]["payment_kind"]
+          method_label_ar: string | null
+          method_option_id: string | null
+          note: string | null
+          person_id: string
+          project_id: string | null
+          received_at: string
+          recorded_by: string | null
+          reference: string | null
+          reference_no: string
+          reservation_id: string | null
+          updated_at: string
+          updated_by: string | null
+          void_reason: string | null
+          voided_at: string | null
+          voided_by: string | null
+        }
+        Insert: {
+          amount_millimes: number
+          created_at?: string
+          id?: string
+          kind: Database["public"]["Enums"]["payment_kind"]
+          method_label_ar?: string | null
+          method_option_id?: string | null
+          note?: string | null
+          person_id: string
+          project_id?: string | null
+          received_at?: string
+          recorded_by?: string | null
+          reference?: string | null
+          reference_no: string
+          reservation_id?: string | null
+          updated_at?: string
+          updated_by?: string | null
+          void_reason?: string | null
+          voided_at?: string | null
+          voided_by?: string | null
+        }
+        Update: {
+          amount_millimes?: number
+          created_at?: string
+          id?: string
+          kind?: Database["public"]["Enums"]["payment_kind"]
+          method_label_ar?: string | null
+          method_option_id?: string | null
+          note?: string | null
+          person_id?: string
+          project_id?: string | null
+          received_at?: string
+          recorded_by?: string | null
+          reference?: string | null
+          reference_no?: string
+          reservation_id?: string | null
+          updated_at?: string
+          updated_by?: string | null
+          void_reason?: string | null
+          voided_at?: string | null
+          voided_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payments_method_option_id_fkey"
+            columns: ["method_option_id"]
+            isOneToOne: false
+            referencedRelation: "option_items"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payments_person_id_fkey"
+            columns: ["person_id"]
+            isOneToOne: false
+            referencedRelation: "persons"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payments_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payments_recorded_by_fkey"
+            columns: ["recorded_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payments_reservation_id_fkey"
+            columns: ["reservation_id"]
+            isOneToOne: false
+            referencedRelation: "reservations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payments_updated_by_fkey"
+            columns: ["updated_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payments_voided_by_fkey"
+            columns: ["voided_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       person_assignments: {
         Row: {
           created_at: string
@@ -1677,6 +2219,99 @@ export type Database = {
           },
         ]
       }
+      project_service_terms: {
+        Row: {
+          amount_millimes: number
+          basis: string
+          created_at: string
+          frequency_option_id: string | null
+          id: string
+          in_annual_package: boolean
+          is_active: boolean
+          label_ar: string
+          note: string | null
+          project_id: string | null
+          provider_note: string | null
+          provider_option_id: string | null
+          service_option_id: string
+          sort_order: number
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          amount_millimes?: number
+          basis: string
+          created_at?: string
+          frequency_option_id?: string | null
+          id?: string
+          in_annual_package?: boolean
+          is_active?: boolean
+          label_ar: string
+          note?: string | null
+          project_id?: string | null
+          provider_note?: string | null
+          provider_option_id?: string | null
+          service_option_id: string
+          sort_order?: number
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          amount_millimes?: number
+          basis?: string
+          created_at?: string
+          frequency_option_id?: string | null
+          id?: string
+          in_annual_package?: boolean
+          is_active?: boolean
+          label_ar?: string
+          note?: string | null
+          project_id?: string | null
+          provider_note?: string | null
+          provider_option_id?: string | null
+          service_option_id?: string
+          sort_order?: number
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "project_service_terms_frequency_option_id_fkey"
+            columns: ["frequency_option_id"]
+            isOneToOne: false
+            referencedRelation: "option_items"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "project_service_terms_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "project_service_terms_provider_option_id_fkey"
+            columns: ["provider_option_id"]
+            isOneToOne: false
+            referencedRelation: "option_items"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "project_service_terms_service_option_id_fkey"
+            columns: ["service_option_id"]
+            isOneToOne: false
+            referencedRelation: "option_items"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "project_service_terms_updated_by_fkey"
+            columns: ["updated_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       project_spacing_classes: {
         Row: {
           created_at: string
@@ -1776,6 +2411,7 @@ export type Database = {
       projects: {
         Row: {
           access_note: string | null
+          allows_installments: boolean
           annual_costs_millimes: number | null
           code: string
           created_at: string
@@ -1783,6 +2419,10 @@ export type Database = {
           description_ar: string | null
           document_option_ids: string[]
           governorate_id: number
+          harvest_outcome_default_id: string | null
+          harvest_outcome_option_ids: string[]
+          harvest_pick_default_id: string | null
+          harvest_pick_option_ids: string[]
           id: string
           irrigation: Database["public"]["Enums"]["irrigation_type"] | null
           land_offer_id: string | null
@@ -1790,6 +2430,7 @@ export type Database = {
           legal_notes: string | null
           location_description: string | null
           longitude: number | null
+          min_trees_per_order: number | null
           name: string
           olive_variety: string | null
           plan_storage_path: string | null
@@ -1797,20 +2438,26 @@ export type Database = {
           pricing: Json
           production_status: string | null
           project_type_id: string | null
+          reservation_conditions_ar: string | null
+          reservation_deposit_millimes: number | null
+          reservation_valid_days: number | null
           service_option_ids: string[]
           show_location: boolean
           status: Database["public"]["Enums"]["project_status"]
           total_area_m2: number | null
           tree_age_years: number | null
+          tree_code_pattern: string | null
           tree_count: number | null
           updated_at: string
           updated_by: string | null
           video_url: string | null
+          visit_meeting_point: string | null
           water_available: boolean | null
           water_note: string | null
         }
         Insert: {
           access_note?: string | null
+          allows_installments?: boolean
           annual_costs_millimes?: number | null
           code: string
           created_at?: string
@@ -1818,6 +2465,10 @@ export type Database = {
           description_ar?: string | null
           document_option_ids?: string[]
           governorate_id: number
+          harvest_outcome_default_id?: string | null
+          harvest_outcome_option_ids?: string[]
+          harvest_pick_default_id?: string | null
+          harvest_pick_option_ids?: string[]
           id?: string
           irrigation?: Database["public"]["Enums"]["irrigation_type"] | null
           land_offer_id?: string | null
@@ -1825,6 +2476,7 @@ export type Database = {
           legal_notes?: string | null
           location_description?: string | null
           longitude?: number | null
+          min_trees_per_order?: number | null
           name: string
           olive_variety?: string | null
           plan_storage_path?: string | null
@@ -1832,20 +2484,26 @@ export type Database = {
           pricing?: Json
           production_status?: string | null
           project_type_id?: string | null
+          reservation_conditions_ar?: string | null
+          reservation_deposit_millimes?: number | null
+          reservation_valid_days?: number | null
           service_option_ids?: string[]
           show_location?: boolean
           status?: Database["public"]["Enums"]["project_status"]
           total_area_m2?: number | null
           tree_age_years?: number | null
+          tree_code_pattern?: string | null
           tree_count?: number | null
           updated_at?: string
           updated_by?: string | null
           video_url?: string | null
+          visit_meeting_point?: string | null
           water_available?: boolean | null
           water_note?: string | null
         }
         Update: {
           access_note?: string | null
+          allows_installments?: boolean
           annual_costs_millimes?: number | null
           code?: string
           created_at?: string
@@ -1853,6 +2511,10 @@ export type Database = {
           description_ar?: string | null
           document_option_ids?: string[]
           governorate_id?: number
+          harvest_outcome_default_id?: string | null
+          harvest_outcome_option_ids?: string[]
+          harvest_pick_default_id?: string | null
+          harvest_pick_option_ids?: string[]
           id?: string
           irrigation?: Database["public"]["Enums"]["irrigation_type"] | null
           land_offer_id?: string | null
@@ -1860,6 +2522,7 @@ export type Database = {
           legal_notes?: string | null
           location_description?: string | null
           longitude?: number | null
+          min_trees_per_order?: number | null
           name?: string
           olive_variety?: string | null
           plan_storage_path?: string | null
@@ -1867,15 +2530,20 @@ export type Database = {
           pricing?: Json
           production_status?: string | null
           project_type_id?: string | null
+          reservation_conditions_ar?: string | null
+          reservation_deposit_millimes?: number | null
+          reservation_valid_days?: number | null
           service_option_ids?: string[]
           show_location?: boolean
           status?: Database["public"]["Enums"]["project_status"]
           total_area_m2?: number | null
           tree_age_years?: number | null
+          tree_code_pattern?: string | null
           tree_count?: number | null
           updated_at?: string
           updated_by?: string | null
           video_url?: string | null
+          visit_meeting_point?: string | null
           water_available?: boolean | null
           water_note?: string | null
         }
@@ -1895,6 +2563,20 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "projects_harvest_outcome_default_id_fkey"
+            columns: ["harvest_outcome_default_id"]
+            isOneToOne: false
+            referencedRelation: "option_items"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "projects_harvest_pick_default_id_fkey"
+            columns: ["harvest_pick_default_id"]
+            isOneToOne: false
+            referencedRelation: "option_items"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "projects_land_offer_id_fkey"
             columns: ["land_offer_id"]
             isOneToOne: false
@@ -1910,6 +2592,137 @@ export type Database = {
           },
           {
             foreignKeyName: "projects_updated_by_fkey"
+            columns: ["updated_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      reservations: {
+        Row: {
+          close_reason: string | null
+          closed_at: string | null
+          closed_by: string | null
+          conditions_ar: string | null
+          created_at: string
+          created_by: string | null
+          deposit_due_millimes: number
+          deposit_paid_at: string | null
+          expires_at: string | null
+          extended_at: string | null
+          extended_count: number
+          id: string
+          note: string | null
+          person_id: string
+          project_id: string
+          reference_no: string
+          request_id: string | null
+          reserved_at: string
+          status: Database["public"]["Enums"]["reservation_status"]
+          trees_count: number
+          trees_released: boolean
+          updated_at: string
+          updated_by: string | null
+          valid_days: number
+        }
+        Insert: {
+          close_reason?: string | null
+          closed_at?: string | null
+          closed_by?: string | null
+          conditions_ar?: string | null
+          created_at?: string
+          created_by?: string | null
+          deposit_due_millimes: number
+          deposit_paid_at?: string | null
+          expires_at?: string | null
+          extended_at?: string | null
+          extended_count?: number
+          id?: string
+          note?: string | null
+          person_id: string
+          project_id: string
+          reference_no: string
+          request_id?: string | null
+          reserved_at?: string
+          status?: Database["public"]["Enums"]["reservation_status"]
+          trees_count: number
+          trees_released?: boolean
+          updated_at?: string
+          updated_by?: string | null
+          valid_days: number
+        }
+        Update: {
+          close_reason?: string | null
+          closed_at?: string | null
+          closed_by?: string | null
+          conditions_ar?: string | null
+          created_at?: string
+          created_by?: string | null
+          deposit_due_millimes?: number
+          deposit_paid_at?: string | null
+          expires_at?: string | null
+          extended_at?: string | null
+          extended_count?: number
+          id?: string
+          note?: string | null
+          person_id?: string
+          project_id?: string
+          reference_no?: string
+          request_id?: string | null
+          reserved_at?: string
+          status?: Database["public"]["Enums"]["reservation_status"]
+          trees_count?: number
+          trees_released?: boolean
+          updated_at?: string
+          updated_by?: string | null
+          valid_days?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "reservations_closed_by_fkey"
+            columns: ["closed_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "reservations_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "reservations_person_id_fkey"
+            columns: ["person_id"]
+            isOneToOne: false
+            referencedRelation: "persons"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "reservations_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "reservations_request_id_fkey"
+            columns: ["request_id"]
+            isOneToOne: false
+            referencedRelation: "crm_requests"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "reservations_request_id_fkey"
+            columns: ["request_id"]
+            isOneToOne: false
+            referencedRelation: "interest_requests"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "reservations_updated_by_fkey"
             columns: ["updated_by"]
             isOneToOne: false
             referencedRelation: "profiles"
@@ -2010,6 +2823,178 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "site_media_updated_by_fkey"
+            columns: ["updated_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      subscription_lines: {
+        Row: {
+          amount_millimes: number
+          basis: string
+          created_at: string
+          created_by: string | null
+          frequency_label: string | null
+          id: string
+          in_package: boolean
+          label_ar: string
+          note: string | null
+          provider_label: string | null
+          service_option_id: string
+          status: string
+          subscription_id: string
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          amount_millimes?: number
+          basis: string
+          created_at?: string
+          created_by?: string | null
+          frequency_label?: string | null
+          id?: string
+          in_package?: boolean
+          label_ar: string
+          note?: string | null
+          provider_label?: string | null
+          service_option_id: string
+          status?: string
+          subscription_id: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          amount_millimes?: number
+          basis?: string
+          created_at?: string
+          created_by?: string | null
+          frequency_label?: string | null
+          id?: string
+          in_package?: boolean
+          label_ar?: string
+          note?: string | null
+          provider_label?: string | null
+          service_option_id?: string
+          status?: string
+          subscription_id?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "subscription_lines_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "subscription_lines_service_option_id_fkey"
+            columns: ["service_option_id"]
+            isOneToOne: false
+            referencedRelation: "option_items"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "subscription_lines_subscription_id_fkey"
+            columns: ["subscription_id"]
+            isOneToOne: false
+            referencedRelation: "subscriptions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "subscription_lines_updated_by_fkey"
+            columns: ["updated_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      subscriptions: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          fee_per_tree_millimes: number
+          fee_source: string
+          id: string
+          note: string | null
+          payment_status: string
+          person_id: string
+          project_id: string
+          season_ends_on: string
+          season_label: string
+          season_starts_on: string
+          status: string
+          total_millimes: number | null
+          tree_count: number
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          fee_per_tree_millimes: number
+          fee_source: string
+          id?: string
+          note?: string | null
+          payment_status?: string
+          person_id: string
+          project_id: string
+          season_ends_on: string
+          season_label: string
+          season_starts_on: string
+          status?: string
+          total_millimes?: number | null
+          tree_count: number
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          fee_per_tree_millimes?: number
+          fee_source?: string
+          id?: string
+          note?: string | null
+          payment_status?: string
+          person_id?: string
+          project_id?: string
+          season_ends_on?: string
+          season_label?: string
+          season_starts_on?: string
+          status?: string
+          total_millimes?: number | null
+          tree_count?: number
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "subscriptions_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "subscriptions_person_id_fkey"
+            columns: ["person_id"]
+            isOneToOne: false
+            referencedRelation: "persons"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "subscriptions_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "subscriptions_updated_by_fkey"
             columns: ["updated_by"]
             isOneToOne: false
             referencedRelation: "profiles"
@@ -2193,6 +3178,97 @@ export type Database = {
           },
         ]
       }
+      trees: {
+        Row: {
+          allocated_at: string | null
+          code: string
+          created_at: string
+          held_by: string | null
+          id: string
+          note: string | null
+          project_id: string
+          request_id: string | null
+          reservation_id: string | null
+          seq: number
+          state: Database["public"]["Enums"]["tree_state"]
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          allocated_at?: string | null
+          code: string
+          created_at?: string
+          held_by?: string | null
+          id?: string
+          note?: string | null
+          project_id: string
+          request_id?: string | null
+          reservation_id?: string | null
+          seq: number
+          state?: Database["public"]["Enums"]["tree_state"]
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          allocated_at?: string | null
+          code?: string
+          created_at?: string
+          held_by?: string | null
+          id?: string
+          note?: string | null
+          project_id?: string
+          request_id?: string | null
+          reservation_id?: string | null
+          seq?: number
+          state?: Database["public"]["Enums"]["tree_state"]
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "trees_held_by_fkey"
+            columns: ["held_by"]
+            isOneToOne: false
+            referencedRelation: "persons"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "trees_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "trees_request_id_fkey"
+            columns: ["request_id"]
+            isOneToOne: false
+            referencedRelation: "crm_requests"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "trees_request_id_fkey"
+            columns: ["request_id"]
+            isOneToOne: false
+            referencedRelation: "interest_requests"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "trees_reservation_id_fkey"
+            columns: ["reservation_id"]
+            isOneToOne: false
+            referencedRelation: "reservations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "trees_updated_by_fkey"
+            columns: ["updated_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       user_roles: {
         Row: {
           granted_at: string
@@ -2223,6 +3299,173 @@ export type Database = {
           {
             foreignKeyName: "user_roles_user_id_fkey"
             columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      visits: {
+        Row: {
+          assigned_to: string | null
+          cancel_reason: string | null
+          client_note: string | null
+          contact_channel: Database["public"]["Enums"]["contact_channel"]
+          created_at: string
+          created_by: string | null
+          id: string
+          meeting_point: string | null
+          outcome_liked: boolean | null
+          outcome_next_step: string | null
+          outcome_note: string | null
+          outcome_project_id: string | null
+          people_count: number
+          person_id: string
+          project_id: string
+          request_id: string | null
+          slot_from: string | null
+          slot_label_ar: string
+          slot_option_id: string | null
+          slot_to: string | null
+          source: string
+          staff_note: string | null
+          status: Database["public"]["Enums"]["visit_status"]
+          status_changed_at: string
+          status_changed_by: string | null
+          updated_at: string
+          updated_by: string | null
+          visit_date: string
+          visit_no: string
+        }
+        Insert: {
+          assigned_to?: string | null
+          cancel_reason?: string | null
+          client_note?: string | null
+          contact_channel: Database["public"]["Enums"]["contact_channel"]
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          meeting_point?: string | null
+          outcome_liked?: boolean | null
+          outcome_next_step?: string | null
+          outcome_note?: string | null
+          outcome_project_id?: string | null
+          people_count: number
+          person_id: string
+          project_id: string
+          request_id?: string | null
+          slot_from?: string | null
+          slot_label_ar: string
+          slot_option_id?: string | null
+          slot_to?: string | null
+          source?: string
+          staff_note?: string | null
+          status?: Database["public"]["Enums"]["visit_status"]
+          status_changed_at?: string
+          status_changed_by?: string | null
+          updated_at?: string
+          updated_by?: string | null
+          visit_date: string
+          visit_no: string
+        }
+        Update: {
+          assigned_to?: string | null
+          cancel_reason?: string | null
+          client_note?: string | null
+          contact_channel?: Database["public"]["Enums"]["contact_channel"]
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          meeting_point?: string | null
+          outcome_liked?: boolean | null
+          outcome_next_step?: string | null
+          outcome_note?: string | null
+          outcome_project_id?: string | null
+          people_count?: number
+          person_id?: string
+          project_id?: string
+          request_id?: string | null
+          slot_from?: string | null
+          slot_label_ar?: string
+          slot_option_id?: string | null
+          slot_to?: string | null
+          source?: string
+          staff_note?: string | null
+          status?: Database["public"]["Enums"]["visit_status"]
+          status_changed_at?: string
+          status_changed_by?: string | null
+          updated_at?: string
+          updated_by?: string | null
+          visit_date?: string
+          visit_no?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "visits_assigned_to_fkey"
+            columns: ["assigned_to"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "visits_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "visits_outcome_project_id_fkey"
+            columns: ["outcome_project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "visits_person_id_fkey"
+            columns: ["person_id"]
+            isOneToOne: false
+            referencedRelation: "persons"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "visits_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "visits_request_id_fkey"
+            columns: ["request_id"]
+            isOneToOne: false
+            referencedRelation: "crm_requests"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "visits_request_id_fkey"
+            columns: ["request_id"]
+            isOneToOne: false
+            referencedRelation: "interest_requests"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "visits_slot_option_id_fkey"
+            columns: ["slot_option_id"]
+            isOneToOne: false
+            referencedRelation: "option_items"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "visits_status_changed_by_fkey"
+            columns: ["status_changed_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "visits_updated_by_fkey"
+            columns: ["updated_by"]
             isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["id"]
@@ -2273,6 +3516,11 @@ export type Database = {
           invest_governorate_ids: number[] | null
           is_duplicate: boolean | null
           monthly_millimes: number | null
+          offer_annual_fee_per_tree_millimes: number | null
+          offer_annual_fee_total_millimes: number | null
+          offer_price_per_tree_millimes: number | null
+          offer_total_price_millimes: number | null
+          offer_trees: number | null
           parcel_area_m2: number | null
           parcel_captured_at: string | null
           parcel_cash_price_millimes: number | null
@@ -2300,6 +3548,7 @@ export type Database = {
           project_name: string | null
           project_type_ids: string[] | null
           project_type_unsure: boolean | null
+          request_kind: string | null
           request_no: string | null
           residence_delegation_id: number | null
           residence_governorate_id: number | null
@@ -2513,6 +3762,7 @@ export type Database = {
           invest_governorate_ids: number[]
           is_duplicate: boolean
           monthly_millimes: number
+          offer_trees: number
           payment_mode: string
           person_id: string
           persons_total: number
@@ -2521,8 +3771,12 @@ export type Database = {
           priority_code: string
           priority_label_ar: string
           production_statuses: string[]
+          project_code: string
+          project_id: string
+          project_name: string
           project_type_ids: string[]
           project_type_unsure: boolean
+          request_kind: string
           request_no: string
           requests_total: number
           residence_delegation_id: number
@@ -2582,6 +3836,7 @@ export type Database = {
           projects_count: number
         }[]
       }
+      public_offer_stock: { Args: { p_project: string }; Returns: Json }
       public_parcel_offer: {
         Args: {
           p_down_option?: string
@@ -2691,7 +3946,55 @@ export type Database = {
         }
         Returns: undefined
       }
+      staff_agri_operations: {
+        Args: { p_filter?: string; p_limit?: number; p_project?: string }
+        Returns: Json
+      }
+      staff_allocate_trees: {
+        Args: {
+          p_person: string
+          p_project: string
+          p_reason: string
+          p_request: string
+          p_state: string
+          p_trees: number
+        }
+        Returns: Json
+      }
+      staff_approve_agri_operation: {
+        Args: { p_id: string; p_reason: string }
+        Returns: Json
+      }
+      staff_book_visit: { Args: { p: Json; p_reason?: string }; Returns: Json }
+      staff_close_reservation: {
+        Args: {
+          p_outcome: string
+          p_reason: string
+          p_release: boolean
+          p_reservation: string
+        }
+        Returns: Json
+      }
+      staff_create_reservation: {
+        Args: {
+          p_note: string
+          p_person: string
+          p_project: string
+          p_reason: string
+          p_request: string
+          p_trees: number
+        }
+        Returns: Json
+      }
+      staff_create_subscription: {
+        Args: { p: Json; p_reason: string }
+        Returns: Json
+      }
       staff_delete_cost_item: {
+        Args: { p_id: string; p_reason: string }
+        Returns: undefined
+      }
+      staff_delete_offer_service: {
         Args: { p_id: string; p_reason: string }
         Returns: undefined
       }
@@ -2703,6 +4006,22 @@ export type Database = {
         Args: { p_id: string; p_reason: string }
         Returns: undefined
       }
+      staff_extend_reservation: {
+        Args: { p_days: number; p_reason: string; p_reservation: string }
+        Returns: Json
+      }
+      staff_generate_trees: {
+        Args: { p_project: string; p_reason: string }
+        Returns: Json
+      }
+      staff_harvest_overview: { Args: { p_project?: string }; Returns: Json }
+      staff_harvest_season: { Args: { p_season: string }; Returns: Json }
+      staff_match_offers: {
+        Args: { p_limit?: number; p_request: string }
+        Returns: Json
+      }
+      staff_offer_services: { Args: { p_project: string }; Returns: Json }
+      staff_offer_stock: { Args: { p_project: string }; Returns: Json }
       staff_parcel_offer: {
         Args: {
           p_down_option?: string
@@ -2711,6 +4030,8 @@ export type Database = {
         }
         Returns: Json
       }
+      staff_person_reservations: { Args: { p_person: string }; Returns: Json }
+      staff_person_visits: { Args: { p_person: string }; Returns: Json }
       staff_project_parcel_prices: {
         Args: { p_project: string }
         Returns: {
@@ -2729,6 +4050,32 @@ export type Database = {
         }
         Returns: Json
       }
+      staff_record_deposit: {
+        Args: {
+          p_amount_millimes: number
+          p_method: string
+          p_note: string
+          p_reason: string
+          p_received_at: string
+          p_reference: string
+          p_reservation: string
+        }
+        Returns: Json
+      }
+      staff_request_subscription_service: {
+        Args: { p_reason: string; p_service: string; p_subscription: string }
+        Returns: Json
+      }
+      staff_reservation: { Args: { p_reservation: string }; Returns: Json }
+      staff_reservation_terms: { Args: { p_project: string }; Returns: Json }
+      staff_reservations: {
+        Args: { p_filter?: string; p_limit?: number; p_project?: string }
+        Returns: Json
+      }
+      staff_save_agri_operation: {
+        Args: { p: Json; p_reason: string }
+        Returns: Json
+      }
       staff_save_cost_item: {
         Args: { p: Json; p_reason: string }
         Returns: string
@@ -2736,6 +4083,25 @@ export type Database = {
       staff_save_financing_markups: {
         Args: { p_project: string; p_reason: string; p_rows: Json }
         Returns: undefined
+      }
+      staff_save_harvest_season: {
+        Args: { p: Json; p_reason: string }
+        Returns: Json
+      }
+      staff_save_offer_harvest_options: {
+        Args: {
+          p_outcome_default: string
+          p_outcome_ids: string[]
+          p_pick_default: string
+          p_pick_ids: string[]
+          p_project: string
+          p_reason: string
+        }
+        Returns: Json
+      }
+      staff_save_offer_service: {
+        Args: { p: Json; p_reason: string }
+        Returns: Json
       }
       staff_save_pricing_rule: {
         Args: { p: Json; p_project: string; p_reason: string }
@@ -2757,6 +4123,59 @@ export type Database = {
         Args: { p: Json; p_reason: string }
         Returns: string
       }
+      staff_set_harvest_choice: {
+        Args: {
+          p_note: string
+          p_outcome_option_id: string
+          p_person: string
+          p_pick_option_id: string
+          p_reason: string
+          p_season: string
+        }
+        Returns: Json
+      }
+      staff_set_harvest_money: {
+        Args: {
+          p_harvest_cost_millimes: number
+          p_reason: string
+          p_sale_amount_millimes: number
+          p_season: string
+        }
+        Returns: Json
+      }
+      staff_set_harvest_status: {
+        Args: { p_reason: string; p_season: string; p_status: string }
+        Returns: Json
+      }
+      staff_set_subscription_status: {
+        Args: {
+          p_id: string
+          p_payment: string
+          p_reason: string
+          p_status: string
+        }
+        Returns: Json
+      }
+      staff_set_tree_state: {
+        Args: { p_reason: string; p_state: string; p_tree_ids: string[] }
+        Returns: Json
+      }
+      staff_set_visit_status: {
+        Args: { p?: Json; p_reason?: string; p_status: string; p_visit: string }
+        Returns: Json
+      }
+      staff_settle_harvest_season: {
+        Args: { p_reason: string; p_season: string }
+        Returns: Json
+      }
+      staff_subscription_preview: {
+        Args: { p_person: string; p_project: string }
+        Returns: Json
+      }
+      staff_subscriptions: {
+        Args: { p_filter?: string; p_limit?: number; p_project?: string }
+        Returns: Json
+      }
       staff_tree_quote: {
         Args: {
           p_down_percent?: number
@@ -2767,9 +4186,21 @@ export type Database = {
         }
         Returns: Json
       }
+      staff_update_visit: {
+        Args: { p: Json; p_reason?: string; p_visit: string }
+        Returns: Json
+      }
+      staff_visit_board: { Args: { p?: Json }; Returns: Json }
+      staff_void_payment: {
+        Args: { p_payment: string; p_reason: string }
+        Returns: Json
+      }
+      staff_zitounti_file: { Args: { p_person_id: string }; Returns: Json }
+      staff_zitounti_holders: { Args: never; Returns: Json }
       submit_interest_request: { Args: { p: Json }; Returns: Json }
       submit_land_offer: { Args: { p: Json }; Returns: Json }
       submit_offer_request: { Args: { p: Json }; Returns: Json }
+      submit_visit_request: { Args: { p: Json }; Returns: Json }
     }
     Enums: {
       app_role:
@@ -2789,6 +4220,13 @@ export type Database = {
         | "callback"
         | "not_interested"
       flag_state: "disabled" | "internal" | "public"
+      harvest_choice_source: "client" | "staff" | "auto"
+      harvest_season_status:
+        | "planned"
+        | "harvesting"
+        | "closed"
+        | "settled"
+        | "cancelled"
       irrigation_type: "rainfed" | "irrigated"
       land_offer_status:
         | "under_study"
@@ -2819,6 +4257,7 @@ export type Database = {
         | "sold"
         | "owned"
         | "withdrawn"
+      payment_kind: "deposit" | "down_payment" | "installment" | "other"
       project_status:
         | "draft"
         | "preparing"
@@ -2827,6 +4266,19 @@ export type Database = {
         | "sold_out"
         | "operating"
         | "archived"
+      reservation_status:
+        | "awaiting_deposit"
+        | "deposit_paid"
+        | "expired"
+        | "cancelled"
+        | "converted"
+      tree_state: "available" | "reserved" | "sold"
+      visit_status:
+        | "requested"
+        | "confirmed"
+        | "completed"
+        | "no_show"
+        | "cancelled"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -2973,6 +4425,14 @@ export const Constants = {
         "not_interested",
       ],
       flag_state: ["disabled", "internal", "public"],
+      harvest_choice_source: ["client", "staff", "auto"],
+      harvest_season_status: [
+        "planned",
+        "harvesting",
+        "closed",
+        "settled",
+        "cancelled",
+      ],
       irrigation_type: ["rainfed", "irrigated"],
       land_offer_status: [
         "under_study",
@@ -3006,6 +4466,7 @@ export const Constants = {
         "owned",
         "withdrawn",
       ],
+      payment_kind: ["deposit", "down_payment", "installment", "other"],
       project_status: [
         "draft",
         "preparing",
@@ -3014,6 +4475,21 @@ export const Constants = {
         "sold_out",
         "operating",
         "archived",
+      ],
+      reservation_status: [
+        "awaiting_deposit",
+        "deposit_paid",
+        "expired",
+        "cancelled",
+        "converted",
+      ],
+      tree_state: ["available", "reserved", "sold"],
+      visit_status: [
+        "requested",
+        "confirmed",
+        "completed",
+        "no_show",
+        "cancelled",
       ],
     },
   },
