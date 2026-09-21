@@ -4,7 +4,7 @@ import { revalidatePath, updateTag } from "next/cache";
 import { z } from "zod";
 
 import type { ActionResult } from "@/components/admin/action-form";
-import { requireStaff, type StaffRole } from "@/lib/auth";
+import { hasRole, PRICE_ROLES, requireStaff, type StaffRole } from "@/lib/auth";
 import { getPublicConfig, settingInt } from "@/lib/config";
 import { intakeErrorMessage, isKnownIntakeError } from "@/lib/errors";
 import { readPricingForm } from "@/lib/pricing-form";
@@ -14,6 +14,13 @@ import type { Json } from "@/lib/supabase/database.types";
 import { createClient } from "@/lib/supabase/server";
 
 const WRITE_ROLES = ["finance", "admin", "super_admin"] as const satisfies readonly StaffRole[];
+
+// The same two rules the database enforces (0054 §1), checked again here so a refused act is a readable sentence
+// instead of a Postgres error: stock keeping — numbering, renumbering and releasing trees — is the agricultural
+// manager's, Finance's and Admin's; marking a tree sold is the contract moment and stays with Legal, Finance and
+// Admin. A commercial reserves inside their own file and never creates or destroys inventory.
+const TREE_MANAGE_ROLES = ["agri_manager", "finance", "admin", "super_admin"] as const satisfies readonly StaffRole[];
+const TREE_CONTRACT_ROLES = ["legal", "finance", "admin", "super_admin"] as const satisfies readonly StaffRole[];
 
 const FAILED_MESSAGE = "تعذّر الحفظ. تحقق من القيم وحاول مرة أخرى.";
 const FAILED: ActionResult = { ok: false, message: FAILED_MESSAGE };
@@ -49,6 +56,12 @@ const IRRIGATION = ["", "rainfed", "irrigated"] as const;
 /**
  * Pricing formulas are data, never code (PRN-02 / SIM-06), and are edited with plain fields (PricingEditor).
  * value null = no formula of its own: the project uses the default, the parcel uses its project's.
+ *
+ * Read ONLY when the form carries `pricing_mode`. The legacy jsonb editor left the offer card on 2026-09-18
+ * (it wrote projects.pricing, which only app.parcel_pricing(p_parcel) reads, and no parcel row exists), so
+ * neither the card form nor the «عرض جديد» form submits that field any more. Reading it unconditionally made
+ * every card save fail with «اختر طريقة التسعير.». The column is NOT NULL default '{}', so omitting the key
+ * is safe on insert and leaves the stored formula untouched on update.
  */
 function parsePricing(formData: FormData): { ok: true; value: Json | null } | { ok: false; message: string } {
   const result = readPricingForm(formData, { allowInherit: true });
@@ -115,6 +128,28 @@ function readPageFields(formData: FormData): { ok: true; value: PageFields } | {
   };
 }
 
+/**
+ * A check constraint of `public.projects` refused the row, said in the owner's words: which field, and the
+ * move that fixes it. The two the offer card can trip are the ones migration 0054 added — the minimum basket
+ * against the declared tree count, and the numbering pattern.
+ */
+function projectCheckError(error: { message?: string }): ActionResult {
+  const message = error.message ?? "";
+  if (message.includes("projects_min_trees_check")) {
+    return {
+      ok: false,
+      message: "أقلّ عدد زيتونات في الطلب لازم يكون 1 على الأقل، وأصغر ولا يساوي عدد الزيتونات المصرّح به في هذه البطاقة. كبّر عدد الزيتونات، ولا صغّر أقلّ عدد.",
+    };
+  }
+  if (message.includes("projects_tree_code_pattern_check")) {
+    return {
+      ok: false,
+      message: "صيغة ترقيم الزيتونات لازم تحتوي على {seq} وتكون بين 5 و60 حرف، مثال: {offer}-{seq}.",
+    };
+  }
+  return FAILED;
+}
+
 export async function saveProject(projectId: string | null, _previous: ActionResult, formData: FormData): Promise<ActionResult> {
   await requireStaff(WRITE_ROLES);
 
@@ -123,8 +158,8 @@ export async function saveProject(projectId: string | null, _previous: ActionRes
   const governorateId = Number(formData.get("governorate_id"));
   if (!Number.isInteger(governorateId) || governorateId <= 0) return { ok: false, message: "اختر الولاية." };
 
-  const pricing = parsePricing(formData);
-  if (!pricing.ok) return pricing;
+  const pricing = formData.has("pricing_mode") ? parsePricing(formData) : null;
+  if (pricing && !pricing.ok) return pricing;
 
   const totalArea = optionalNumber(formData, "total_area_m2");
   const treeCount = optionalNumber(formData, "tree_count");
@@ -142,9 +177,46 @@ export async function saveProject(projectId: string | null, _previous: ActionRes
   const irrigation = z.enum(IRRIGATION).safeParse(formData.get("irrigation") ?? "");
   if (!status.success || !plantation.success || !production.success || !irrigation.success) return FAILED;
 
+  // An offer that is shown to a buyer has to have something to sell (owner's data, 2026-09-19). TX-002 sat
+  // published on the live site with no tree count: the catalogue showed it, under the same name as a real
+  // offer, and the page opened no form on it because it computes what is buyable from that count. A dead end
+  // wearing a real offer's name. This page already printed the warning and then saved anyway; now it refuses.
+  //
+  // WHY HERE AND NOT IN THE DATABASE. I drafted it as a trigger first, and the test suite refused it: nine
+  // files publish offers with no tree count, and they are right to — 033 and 034 do it deliberately, to pin
+  // that numbering an offer with no declared count raises `offer_has_no_trees`. A rule a tenth of your own
+  // suite has to violate is not an invariant; it is a publishing policy, and a policy belongs where the person
+  // making the decision is, with a sentence telling them what to do about it. The price is deliberately NOT
+  // part of it: «السعر يُعلن لاحقاً» (projects.price_pending) is a state this product ships copy for, so an
+  // offer may go out before its price is settled.
+  const SHOWN_TO_BUYERS = ["published", "internal"] as const;
+  if ((SHOWN_TO_BUYERS as readonly string[]).includes(status.data) && (treeCount ?? 0) < 1) {
+    return {
+      ok: false,
+      message:
+        "ما تنجّمش تنشر عرض بلا عدد زيتونات: الزائر يشوفو وما يلقى فيه شنوّة يشري. اكتب عدد الأشجار فوق، ولّا خلّي الحالة «مسودة» حتى يكمّل.",
+    };
+  }
+
   // Written only when the form carries the page fields, so the short «new project» form never erases them.
   const page = formData.has("page_fields") ? readPageFields(formData) : null;
   if (page && !page.ok) return page;
+
+  // How this offer sells its trees (migration 0054, step 6 of its own header): the smallest basket a client
+  // may ask for, and how the trees are numbered. Both are guarded by formData.has() like delegation_id, so
+  // the short «عرض جديد» form leaves them as they are. Empty = inherit the setting, which is why "" is written
+  // as null rather than skipped: clearing the field must give the offer back to offers.min_trees_default.
+  const minTrees = formData.has("min_trees_per_order") ? optionalNumber(formData, "min_trees_per_order") : undefined;
+  if (minTrees === undefined && formData.has("min_trees_per_order")) {
+    return { ok: false, message: "أقلّ عدد زيتونات في الطلب يتكتب بالأرقام، مثال: 5. خلّيه فارغ باش ياخذ العدد الافتراضي من الإعدادات." };
+  }
+  const codePattern = formData.has("tree_code_pattern") ? text(formData, "tree_code_pattern", 60) : undefined;
+  if (codePattern !== undefined && codePattern !== "" && !codePattern.includes("{seq}")) {
+    return {
+      ok: false,
+      message: "صيغة ترقيم الزيتونات لازم تحتوي على {seq}، مثال: {offer}-{seq}. خلّيها فارغة باش تاخذ الصيغة الافتراضية من الإعدادات.",
+    };
+  }
 
   const row = {
     name,
@@ -161,8 +233,11 @@ export async function saveProject(projectId: string | null, _previous: ActionRes
     production_status: production.data || null,
     irrigation: irrigation.data || null,
     annual_costs_millimes: dinarsToMillimes(annualCosts) ?? null,
-    // {} = no formula of its own: app.parcel_pricing() falls back to the default setting.
-    pricing: pricing.value ?? {},
+    // {} = no formula of its own: app.parcel_pricing() falls back to the default setting. Written only when the
+    // form carried the pricing fields, so a card save never resets a stored formula to «inherit».
+    ...(pricing?.ok ? { pricing: pricing.value ?? {} } : {}),
+    ...(minTrees === undefined ? {} : { min_trees_per_order: minTrees === null ? null : Math.round(minTrees) }),
+    ...(codePattern === undefined ? {} : { tree_code_pattern: codePattern || null }),
     status: status.data,
     ...(page?.ok ? page.value : {}),
   };
@@ -170,7 +245,8 @@ export async function saveProject(projectId: string | null, _previous: ActionRes
   const supabase = await createClient();
   if (projectId) {
     const { data, error } = await supabase.from("projects").update(row).eq("id", projectId).select("id");
-    if (error || !data?.length) return FAILED;
+    if (error) return projectCheckError(error);
+    if (!data?.length) return FAILED;
     revalidatePath(`/admin/projects/${projectId}`);
     revalidatePath("/admin/projects");
     expirePublicProjects();
@@ -184,118 +260,262 @@ export async function saveProject(projectId: string | null, _previous: ActionRes
   if (!code.success) return { ok: false, message: "رمز المشروع بأحرف لاتينية كبيرة وأرقام و«-»، مثال: SFX-01" };
 
   const { error } = await supabase.from("projects").insert({ ...row, code: code.data });
-  if (error) return error.code === "23505" ? { ok: false, message: "هذا الرمز مستعمل." } : FAILED;
+  if (error) return error.code === "23505" ? { ok: false, message: "هذا الرمز مستعمل." } : projectCheckError(error);
   revalidatePath("/admin/projects");
   expirePublicProjects();
   return { ok: true, message: `تم إنشاء المشروع ${code.data}.` };
 }
 
-/** A parcel write refused by the database, in words: a taken code, or a class the project does not list (0034). */
-function parcelError(error: { code?: string; message: string }): ActionResult {
-  if (error.code === "23505") return { ok: false, message: "رمز القطعة مستعمل في هذا المشروع." };
-  return isKnownIntakeError(error.message) ? { ok: false, message: intakeErrorMessage(error.message) } : FAILED;
+// WHAT LEFT, 2026-09-18 (owner: «remove the pieces thing, its simply selling the trees»). `saveParcel()` and
+// `parcelError()` stood here: the only write path into `public.parcels` from the Back Office. Both of their
+// forms are gone — the «القطع» tab of the offer page and the lot page under /admin/projects/{id}/parcels —
+// so nothing called either one, and `saveParcel` still revalidated a route that no longer exists. The table,
+// its RPCs and its tests are untouched: this phase closes the parcel layer on screen, and the database layer
+// is retired later with tests of its own. The offer's trees are written by generateOfferTrees /
+// allocateOfferTrees / setTreeState below.
+
+/**
+ * Plan Q-13: the spacing classes this offer is planted with.
+ *
+ * It is also the switch that puts the offer on the tree pricing at all: a lot of an offer that lists classes is a
+ * number of trees of one class, and its area and price are then computed (app.parcel_price). An offer with no
+ * class prices nothing — no price on the site, and no interest form — which is why this now lives on the offer's
+ * own page instead of only in «التسعير ← قواعد مشروع».
+ *
+ * Same role-checked RPC and same written reason as that page (§51): app.require_reason refuses the write without
+ * one, so the form must carry the field.
+ */
+export async function saveOfferSpacingClasses(projectId: string, _previous: ActionResult, formData: FormData): Promise<ActionResult> {
+  await requireStaff(PRICE_ROLES);
+  if (!UUID.test(projectId)) return { ok: false, message: "هذا العرض لم يعد موجوداً. حدّث الصفحة وحاول مرة أخرى." };
+
+  const ids = [...new Set(formData.getAll("ids").map(String))];
+  if (!ids.every((id) => UUID.test(id))) return { ok: false, message: "حدّث الصفحة وأعد الاختيار: إحدى الفئات ما عادتش صالحة." };
+  const reason = text(formData, "reason", 1000);
+
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("staff_save_project_spacing_classes", {
+    p_project: projectId,
+    p_class_ids: ids,
+    p_reason: reason,
+  });
+  if (error) {
+    if (error.message === "invalid_spacing_class") {
+      return { ok: false, message: "إحدى الفئات المختارة ما عادتش نشطة. حدّث الصفحة وأعد الاختيار، أو فعّلها في «التسعير ← فئات المساحة»." };
+    }
+    if (isKnownIntakeError(error.message)) return { ok: false, message: intakeErrorMessage(error.message) };
+    if (error.code === "42501") return { ok: false, message: intakeErrorMessage("forbidden") };
+    return FAILED;
+  }
+
+  revalidatePath(`/admin/projects/${projectId}`);
+  revalidatePath("/admin/pricing");
+  // Every tree's area and price follow from the classes, so the public pages must be recomputed.
+  expirePublicProjects();
+  return {
+    ok: true,
+    message:
+      ids.length === 0
+        // It named «سعر مكتوب لكل قطعة» — the written price of a lot, a layer the product left on 2026-09-18.
+        // What actually happens is that the offer loses its per-tree price and the pages say so. 2026-09-19.
+        ? "تم الحفظ: العرض ما بقاتلوش فئة مساحة، فما عادش يتسعّر بالزيتونة. اختر فئة باش يرجع السعر."
+        : "تم حفظ فئات المساحة. العرض يتسعّر بالزيتونة.",
+  };
+}
+
+// ---------------------------------------------------------------------------
+// The tree inventory (0054) · «the unit is a tree not m carré» (owner, 2026-09-18)
+// ---------------------------------------------------------------------------
+//
+// An offer holds tree_count olive trees; public.trees holds one row per tree, each with its own code, its state
+// and the person who holds it. Everything below is a thin wrapper over a security-definer RPC: the database
+// decides who may act and what the act means, and these functions add the second role check (project rule), a
+// written reason for the audit trail (§51), the caches to expire, and the Arabic sentence for every refusal.
+//
+// Nothing here computes anything. The counts come from public.staff_offer_stock, read through
+// ./offer-stock.ts — the one sanctioned reader — and never summed in TypeScript.
+
+/** What one of these actions answers with: the figures on success, a sentence the owner can act on otherwise. */
+type TreeFailure = { ok: false; message: string };
+
+type TreeState = "available" | "reserved" | "sold";
+const TREE_STATES: readonly TreeState[] = ["available", "reserved", "sold"];
+
+const STALE_OFFER: TreeFailure = {
+  ok: false,
+  message: "هذا العرض لم يعد موجوداً. حدّث الصفحة وحاول مرة أخرى.",
+};
+const TREE_FAILED_MESSAGE = "تعذّرت العملية ولم تتغيّر أي زيتونة. حدّث الصفحة وحاول مرة أخرى.";
+
+/** A tree write refused by the database, in words. The RPCs name their own reason; the codes are in @/lib/errors. */
+function treeFailure(error: { message: string; code?: string }): TreeFailure {
+  if (isKnownIntakeError(error.message)) return { ok: false, message: intakeErrorMessage(error.message) };
+  if (error.code === "42501") return { ok: false, message: intakeErrorMessage("forbidden") };
+  if (error.code === "23505") return { ok: false, message: intakeErrorMessage("duplicate_tree_code") };
+  return { ok: false, message: TREE_FAILED_MESSAGE };
+}
+
+function payloadOf(data: Json | null): Record<string, Json | undefined> {
+  return data && typeof data === "object" && !Array.isArray(data) ? data : {};
+}
+
+function countOf(value: Json | undefined): number {
+  return typeof value === "number" && Number.isFinite(value) ? Math.trunc(value) : 0;
+}
+
+function codeOf(value: Json | undefined): string | null {
+  return typeof value === "string" && value ? value : null;
 }
 
 /**
- * PARC-01 / PARC-02: every parcel field is stored exactly as entered. Nothing is derived from the area.
- * Plan P5-3 (owner, 2026-09-15): on a project that lists spacing classes, a parcel is a number of trees of one class,
- * so its area follows from the trees and its price is computed (app.parcel_price); neither is typed there.
+ * Numbering, reserving or releasing a tree moves the stock every screen reads: the offer's own page, the offers
+ * list and its tiles, the dashboard queue, and the four public counts (public_offer_stock).
  */
-export async function saveParcel(
-  projectId: string,
-  parcelId: string | null,
-  _previous: ActionResult,
-  formData: FormData,
-): Promise<ActionResult> {
-  await requireStaff(WRITE_ROLES);
+function treesChanged() {
+  // The layout form reaches the list and every offer page under it in one call.
+  revalidatePath("/admin/projects", "layout");
+  revalidatePath("/admin");
+  // A tree is released and sold from the client's file too, not only from the offer: /admin/leads/[personId]
+  // prints the codes this person holds, so it goes stale on the same writes. The layout form covers the list
+  // and every file under it, since a release may span the trees of more than one person. 2026-09-19.
+  revalidatePath("/admin/leads", "layout");
+  expirePublicProjects();
+}
 
-  const code = text(formData, "code", 20);
-  if (!code) return { ok: false, message: "اكتب رمز القطعة، مثال: P07." };
+/**
+ * Materialises this offer's trees: one row per tree, numbered 1..tree_count with the offer's code pattern.
+ *
+ * Idempotent, so it is equally the «number this offer» button and the «tree_count changed» button — it inserts
+ * the missing numbers only. Lowering tree_count deletes the surplus trees when they are all still available, and
+ * refuses outright (trees_taken_below_count) when one of them is reserved or sold: a sold tree is a client's tree.
+ */
+export async function generateOfferTrees(
+  projectId: string,
+): Promise<{ ok: true; added: number; removed: number; total: number } | TreeFailure> {
+  await requireStaff(TREE_MANAGE_ROLES);
+  if (!UUID.test(projectId)) return STALE_OFFER;
 
   const supabase = await createClient();
-  const { data: classRows } = await supabase
-    .from("project_spacing_classes")
-    .select("spacing_class_id, spacing:tree_spacing_classes(area_m2)")
-    .eq("project_id", projectId);
-  const projectClasses = classRows ?? [];
-  const onTree = projectClasses.length > 0;
+  const { data, error } = await supabase.rpc("staff_generate_trees", {
+    p_project: projectId,
+    // No form carries this act, so the reason is written here: §51 asks who changed what, when and why, and the
+    // database refuses the call without one (app.set_reason).
+    p_reason: "ترقيم زيتونات العرض من صفحة العرض في الباك أوفيس، حسب عدد الزيتونات المصرّح به في بطاقة العرض.",
+  });
+  if (error) return treeFailure(error);
 
-  const area = onTree ? null : optionalNumber(formData, "area_m2");
-  const trees = optionalNumber(formData, "olive_tree_count");
-  const age = optionalNumber(formData, "tree_age_years");
-  const price = onTree ? null : optionalNumber(formData, "cash_price_dinars");
-  const annual = optionalNumber(formData, "annual_costs_dinars");
-  if (area === undefined || trees === undefined || age === undefined || price === undefined || annual === undefined) {
-    return { ok: false, message: "المساحة وعدد الزيتونات والعمر والأسعار تُكتب بالأرقام." };
-  }
-
-  let spacingClassId: string | null = null;
-  let treeArea = 0;
-  if (onTree) {
-    if (!trees || trees <= 0) return { ok: false, message: "اكتب عدد الزيتونات: مساحة القطعة وسعرها يتحسبو منو." };
-    const chosen = String(formData.get("spacing_class_id") ?? "");
-    const match =
-      projectClasses.find((row) => row.spacing_class_id === chosen) ?? (projectClasses.length === 1 ? projectClasses[0] : undefined);
-    if (!match) return { ok: false, message: "اختر فئة المساحة للقطعة من فئات المشروع." };
-    spacingClassId = match.spacing_class_id;
-    // The database keeps the same value in sync (0035); computing it here keeps the row valid on its own.
-    treeArea = Math.round(trees) * Number(match.spacing?.area_m2 ?? 0);
-  } else {
-    if (!area || area <= 0) return { ok: false, message: "اكتب مساحة القطعة بالمتر المربع." };
-    if (price === null) return { ok: false, message: "اكتب سعر الحاضر بالدينار." };
-  }
-
-  const propertyType = z.enum(["bare_land", "planted"]).safeParse(formData.get("property_type"));
-  if (!propertyType.success) return { ok: false, message: "اختر نوع العقار." };
-  const plantation = z.enum(PLANTATION).safeParse(formData.get("plantation_system") ?? "");
-  const production = z.enum(PRODUCTION).safeParse(formData.get("production_status") ?? "");
-  const irrigation = z.enum(IRRIGATION).safeParse(formData.get("irrigation") ?? "");
-  const status = z
-    .enum(["available", "interested", "reserved", "contracting", "sold", "owned", "withdrawn"])
-    .safeParse(formData.get("status") ?? "available");
-  if (!plantation.success || !production.success || !irrigation.success || !status.success) return FAILED;
-
-  // A tree-priced parcel has no jsonb formula: its price comes from the project's tree pricing.
-  const pricing = onTree ? null : parsePricing(formData);
-  if (pricing && !pricing.ok) return pricing;
-  const parcelPricing = pricing?.ok && pricing.value && Object.keys(pricing.value as object).length > 0 ? pricing.value : null;
-
-  const sortOrder = Number(formData.get("sort_order"));
-  const row = {
-    project_id: projectId,
-    code,
-    area_m2: onTree ? treeArea : (area as number),
-    property_type: propertyType.data,
-    plantation_system: plantation.data || null,
-    olive_tree_count: trees === null ? null : Math.round(trees),
-    tree_age_years: age,
-    production_status: production.data || null,
-    irrigation: irrigation.data || null,
-    // 0 on a tree-priced parcel: app.parcel_price computes its price and never shows a stored 0 (0034).
-    cash_price_millimes: onTree ? 0 : (dinarsToMillimes(price) as number),
-    annual_costs_millimes: dinarsToMillimes(annual) ?? null,
-    pricing: parcelPricing,
-    ...(onTree ? { spacing_class_id: spacingClassId } : {}),
-    status: status.data,
-    notes: text(formData, "notes", 2000) || null,
-    sort_order: Number.isInteger(sortOrder) && sortOrder >= 0 ? sortOrder : 0,
+  const payload = payloadOf(data);
+  treesChanged();
+  return {
+    ok: true,
+    added: countOf(payload.added),
+    removed: countOf(payload.removed),
+    total: countOf(payload.trees),
   };
+}
 
-  if (parcelId) {
-    const { data, error } = await supabase.from("parcels").update(row).eq("id", parcelId).eq("project_id", projectId).select("id");
-    if (error) return parcelError(error);
-    if (!data?.length) return FAILED;
-    revalidatePath(`/admin/projects/${projectId}`);
-    revalidatePath(`/admin/projects/${projectId}/parcels/${parcelId}`);
-    expirePublicProjects();
-    return { ok: true, message: `تم حفظ القطعة ${code}.` };
+/**
+ * Takes a number of trees of one offer for one person: the lowest-numbered available ones, all of them or none.
+ *
+ * The demand that asked for them is optional — a client the commercial met without any form has none. The
+ * database picks which trees (FOR UPDATE SKIP LOCKED), refuses below the offer's minimum (below_min_trees) and
+ * refuses when the stock moved under the caller (not_enough_trees) rather than handing out fewer than asked.
+ */
+export async function allocateOfferTrees(input: {
+  projectId: string;
+  personId: string;
+  trees: number;
+  reason: string;
+  requestId?: string | null;
+  state?: "reserved" | "sold";
+}): Promise<
+  { ok: true; trees: number; state: "reserved" | "sold"; firstCode: string | null; lastCode: string | null; treeIds: string[] } | TreeFailure
+> {
+  const session = await requireStaff();
+
+  if (!UUID.test(input.projectId)) return STALE_OFFER;
+  if (!UUID.test(input.personId)) return { ok: false, message: intakeErrorMessage("invalid_person") };
+  const requestId = input.requestId ?? null;
+  if (requestId !== null && !UUID.test(requestId)) return { ok: false, message: intakeErrorMessage("invalid_request") };
+
+  const state = input.state ?? "reserved";
+  if (state !== "reserved" && state !== "sold") return { ok: false, message: intakeErrorMessage("invalid_tree_state") };
+  // Checked again here so a commercial reads the reason instead of a refused write (the database decides too).
+  if (state === "sold" && !hasRole(session, TREE_CONTRACT_ROLES)) {
+    return { ok: false, message: intakeErrorMessage("forbidden") };
   }
 
-  const { error } = await supabase.from("parcels").insert(row);
-  if (error) return parcelError(error);
-  revalidatePath(`/admin/projects/${projectId}`);
-  expirePublicProjects();
-  return { ok: true, message: `تمت إضافة القطعة ${code}.` };
+  const trees = Number(input.trees);
+  if (!Number.isInteger(trees) || trees < 1) return { ok: false, message: intakeErrorMessage("invalid_offer_trees") };
+  const reason = String(input.reason ?? "").trim().slice(0, 1000);
+
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("staff_allocate_trees", {
+    p_project: input.projectId,
+    p_person: input.personId,
+    p_trees: trees,
+    p_state: state,
+    p_reason: reason,
+    // The generated Args type spells the demand as a plain uuid; the function itself takes null for a client who
+    // filled no form (0054 §7), so the null is widened here and nowhere else.
+    ...({ p_request: requestId } as { p_request: string }),
+  });
+  if (error) return treeFailure(error);
+
+  const payload = payloadOf(data);
+  treesChanged();
+  revalidatePath(`/admin/leads/${input.personId}`);
+  const ids = payload.tree_ids;
+  return {
+    ok: true,
+    trees: countOf(payload.trees),
+    state,
+    firstCode: codeOf(payload.first_code),
+    lastCode: codeOf(payload.last_code),
+    treeIds: Array.isArray(ids) ? ids.filter((id): id is string => typeof id === "string") : [],
+  };
+}
+
+/**
+ * Moves chosen trees to one state: releasing a reservation back to «متاحة», or confirming the contract on «مباعة».
+ *
+ * Without it a reservation is a one-way door — nothing else may write public.trees. It moves states and never
+ * hands out trees, so reserving or selling a tree that holds nobody is refused (invalid_tree_state); use
+ * allocateOfferTrees for that. The ids may span offers, which is why every offer page is refreshed.
+ */
+export async function setTreeState(input: {
+  treeIds: readonly string[];
+  state: TreeState;
+  reason: string;
+}): Promise<{ ok: true; trees: number; state: TreeState } | TreeFailure> {
+  const session = await requireStaff();
+
+  if (!TREE_STATES.includes(input.state)) return { ok: false, message: intakeErrorMessage("invalid_tree_state") };
+  // Releasing is stock keeping, contracting is the contract moment — the same split the database applies.
+  if (input.state === "available" && !hasRole(session, TREE_MANAGE_ROLES)) {
+    return { ok: false, message: intakeErrorMessage("forbidden") };
+  }
+  if (input.state === "sold" && !hasRole(session, TREE_CONTRACT_ROLES)) {
+    return { ok: false, message: intakeErrorMessage("forbidden") };
+  }
+
+  const ids = [...new Set((input.treeIds ?? []).map(String))].filter((id) => UUID.test(id));
+  // The same bound the database holds to: one call never moves the whole inventory.
+  if (ids.length < 1 || ids.length > 1000 || ids.length !== (input.treeIds ?? []).length) {
+    return { ok: false, message: intakeErrorMessage("invalid_tree_selection") };
+  }
+  const reason = String(input.reason ?? "").trim().slice(0, 1000);
+
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("staff_set_tree_state", {
+    p_tree_ids: ids,
+    p_state: input.state,
+    p_reason: reason,
+  });
+  if (error) return treeFailure(error);
+
+  treesChanged();
+  return { ok: true, trees: countOf(payloadOf(data).trees), state: input.state };
 }
 
 // Internal costs never reach the public pages (PRJ-03), so this action leaves their cache alone.

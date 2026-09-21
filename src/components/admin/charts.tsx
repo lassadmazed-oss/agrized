@@ -126,25 +126,29 @@ export function DailyColumns({ days }: { days: { day: string; count: number }[] 
         </div>
       </div>
 
-      <details className="mt-4 text-sm">
-        <summary className="cursor-pointer font-semibold text-forest">عرض الجدول</summary>
-        <div className="mt-3 max-h-64 overflow-auto rounded-lg border border-line">
-          <table className="w-full text-sm">
-            <thead className="sticky top-0 bg-paper text-xs text-muted">
-              <tr>
-                <th className="px-3 py-2 text-start font-semibold">اليوم</th>
-                <th className="px-3 py-2 text-end font-semibold">المطالب</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-line">
-              {[...days].reverse().map((d) => (
-                <tr key={d.day}>
-                  <td className="px-3 py-1.5 tabular-nums">{formatDate(`${d.day}T12:00:00Z`)}</td>
-                  <td className="px-3 py-1.5 text-end tabular-nums">{formatCount(d.count)}</td>
+      {/* The scroll box is wrapped: the .disclosure gutter lands on the wrapper, so the framed table moves
+          under the summary's words as one piece instead of gaining an empty strip inside its own border. */}
+      <details className="disclosure mt-tight text-sm">
+        <summary className="text-forest">عرض الجدول</summary>
+        <div>
+          <div className="max-h-64 overflow-auto rounded-lg border border-line">
+            <table className="w-full text-sm">
+              <thead className="sticky top-0 bg-paper text-xs text-muted">
+                <tr>
+                  <th className="px-3 py-2 text-start font-semibold">اليوم</th>
+                  <th className="px-3 py-2 text-end font-semibold">المطالب</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody className="divide-y divide-line">
+                {[...days].reverse().map((d) => (
+                  <tr key={d.day}>
+                    <td className="px-3 py-1.5 tabular-nums">{formatDate(`${d.day}T12:00:00Z`)}</td>
+                    <td className="px-3 py-1.5 text-end tabular-nums">{formatCount(d.count)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
       </details>
     </div>

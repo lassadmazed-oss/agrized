@@ -19,6 +19,11 @@ const ENTITY_LABELS: Record<string, string> = {
   land_offer_reviews: "مراجعات العروض",
   land_offer_files: "ملفات العروض",
   projects: "المشاريع",
+  // Every tree write of migration 0054 — ترقيم، حجز، بيع، إرجاع — is audited with entity 'trees'. Without
+  // this row the log printed the raw English word on acts that happen today.
+  trees: "الزيتونات",
+  // `parcels` stays although the layer left the screens: audit_logs is append-only and still holds rows
+  // that name that table, and a log that cannot name its own rows is worse than an unused key.
   parcels: "القطع",
   project_costs: "التكاليف الداخلية",
   settings: "الإعدادات",
@@ -220,11 +225,16 @@ export default async function AuditPage({ searchParams }: PageProps<"/admin/audi
                   </table>
                 </div>
               ) : log.new_data || log.old_data ? (
-                <details className="mt-2">
-                  <summary className="cursor-pointer text-xs font-semibold text-forest">التفاصيل</summary>
-                  <pre dir="ltr" className="mt-2 max-h-64 overflow-auto rounded-lg bg-paper p-3 text-left text-xs">
-                    {JSON.stringify(log.new_data ?? log.old_data, null, 2)}
-                  </pre>
+                <details className="disclosure mt-2">
+                  <summary className="text-xs font-semibold text-forest">التفاصيل</summary>
+                  {/* The <pre> keeps its own box and its own padding, so the indent that puts the answer under
+                      the question goes on a wrapper: a Tailwind padding utility on the <pre> itself would win
+                      over the pattern, which lives in @layer components. */}
+                  <div>
+                    <pre dir="ltr" className="max-h-64 overflow-auto rounded-lg bg-paper p-3 text-left text-xs">
+                      {JSON.stringify(log.new_data ?? log.old_data, null, 2)}
+                    </pre>
+                  </div>
                 </details>
               ) : null}
             </li>

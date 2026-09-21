@@ -1,5 +1,6 @@
 import Link from "next/link";
 
+import { ADMIN_LABELS } from "@/components/admin/nav-model";
 import { EmptyState } from "@/components/ui";
 import { formatArea, formatSpacing } from "@/lib/format";
 
@@ -85,7 +86,9 @@ export function ProjectSection({
           {requestedId
             ? "هذا المشروع غير موجود أو ما عندكش صلاحية الاطلاع عليه. اختر مشروعاً من القائمة."
             : projects.length === 0
-              ? "ما فماش مشاريع بعد. أنشئ المشروع في «المشاريع والقطع» ثم ارجع هنا."
+              // It sent the staff member to «المشاريع والقطع», a section of the Back Office that no longer
+              // carries that name. It is «العروض», and the trail, the nav and its own <h1> all say so. 2026-09-19.
+              ? `ما فماش عروض بعد. أنشئ العرض في «${ADMIN_LABELS["/admin/projects"]}» ثم ارجع هنا.`
               : "اختر مشروعاً باش تشوف قواعده. مشروع بلا قواعد خاصة يتبع القواعد العامة كاملة."}
         </EmptyState>
       ) : (

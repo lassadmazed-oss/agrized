@@ -35,6 +35,14 @@ export type LeadFilters = {
   /** Tree pricing addendum: the spacing class and the payment mode chosen with the price. */
   spacing_class_id?: string;
   payment_mode?: PaymentMode;
+  /** 0049: which intake wrote the demand — the client simulator, or a real offer page. */
+  request_kind?: RequestKind;
+  /**
+   * 0049/0052: the offer a demand was sent from. crm_search_requests has filtered on it in SQL since 0052
+   * (verified against the live function, 2026-09-19); nothing read it out of the address until now, so «show
+   * me the demands on TX-00215» could not be linked to from the offer itself.
+   */
+  project_id?: string;
   /** View mode, not a filter: one row per person instead of one per demand. */
   people?: boolean;
 };
@@ -47,6 +55,26 @@ export type PaymentMode = (typeof PAYMENT_MODES)[number];
 export const PAYMENT_MODE_LABELS: Record<string, string> = {
   cash: "بالحاضر",
   installments: "بالتقسيط",
+};
+
+/**
+ * The two intakes, kept apart everywhere the Back Office shows a demand (0049 · interest_requests.request_kind).
+ * «calculator» is a simulation the visitor ran on /start; «offer» is a demand on a real offer page, with its
+ * stock, its trees and its own price. They must never read as the same thing.
+ */
+export const REQUEST_KINDS = ["calculator", "offer"] as const;
+export type RequestKind = (typeof REQUEST_KINDS)[number];
+
+/** Staff labels. Short, because they are read inside a table cell. */
+export const REQUEST_KIND_LABELS: Record<RequestKind, string> = {
+  calculator: "محاكي",
+  offer: "عرض",
+};
+
+/** The same two, spelled out for a filter control. */
+export const REQUEST_KIND_FILTER_LABELS: Record<RequestKind, string> = {
+  calculator: "محاكي (تقديري)",
+  offer: "عروض حقيقية",
 };
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -107,11 +135,20 @@ export function parseLeadFilters(params: SearchParams): LeadFilters {
     duplicates_only: first(params.duplicates_only) === "1",
     spacing_class_id: matching(params.spacing_class_id, UUID),
     payment_mode: PAYMENT_MODES.find((mode) => mode === first(params.payment_mode)),
+    request_kind: REQUEST_KINDS.find((kind) => kind === first(params.request_kind)),
+    project_id: matching(params.project_id, UUID),
     people: first(params.people) === "1",
   };
 }
 
-/** Arguments for public.crm_search_requests. The people mode is sent only when the caller asks for it. */
+/**
+ * Arguments for public.crm_search_requests. The people mode is sent only when the caller asks for it.
+ *
+ * Every key is forwarded as it stands and the function reads the ones it knows. request_kind and project_id
+ * are among them since 0052, which IS APPLIED (it landed as supabase/migrations/0052_crm_offer_columns.sql,
+ * not as the pending draft an earlier comment here named): the search filters on both inside the database, so
+ * no caller narrows the rows itself any more and the counts and pagination the list shows are exact.
+ */
 export function filtersToRpc(filters: LeadFilters, { withPeople = false } = {}): Record<string, string | boolean> {
   const result: Record<string, string | boolean> = {};
   for (const [key, value] of Object.entries(filters)) {

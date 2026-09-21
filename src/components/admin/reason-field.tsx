@@ -11,7 +11,15 @@ type ReasonFieldProps = {
   className?: string;
 };
 
-/** Required reason for a sensitive change (§51). The Server Action forwards it to the RPC as p_reason. */
+/**
+ * The reason for a sensitive change (§51). The Server Action forwards it to the RPC as p_reason.
+ *
+ * It draws nothing while audit.reason_min_length is zero — the owner, 2026-09-19: «remove the سبب التغيير, too
+ * dumb». One box across ten screens, filled with whatever passed the length check, is an audit trail that reads
+ * as evidence and is not. The audit row still carries who, when, the old value and the new one; only the typed
+ * sentence goes. app.require_reason (0058) accepts an empty reason at a zero minimum, so every form keeps
+ * working with nothing to fill in, and any number above zero here brings the field and the guard back at once.
+ */
 export function ReasonField({
   minLength,
   name = "reason",
@@ -23,7 +31,9 @@ export function ReasonField({
   rows = 2,
   className = "",
 }: ReasonFieldProps) {
-  const min = Math.max(1, Math.trunc(minLength) || 1);
+  const min = Math.trunc(minLength) || 0;
+  if (min <= 0) return null;
+
   const hintId = `${id}-hint`;
   const errorId = `${id}-error`;
 

@@ -47,9 +47,9 @@ export function SpacingSection({ classes, reasonMin }: { classes: SpacingClass[]
                     <ActiveBadge active={spacing.is_active} />
                   </div>
                 </div>
-                <details className="mt-2">
-                  <summary className="cursor-pointer text-sm font-semibold text-forest">تعديل أو حذف</summary>
-                  <div className="mt-3 space-y-4 border-t border-line pt-4">
+                <details className="disclosure">
+                  <summary className="text-sm text-forest">تعديل أو حذف</summary>
+                  <div className="space-y-4">
                     <ActionForm
                       action={saveSpacingClass.bind(null, spacing.id)}
                       submitLabel="حفظ الفئة"

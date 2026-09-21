@@ -3,7 +3,8 @@ import { getPublicConfig } from "@/lib/config";
 import { PLANTATION_LABELS, PRODUCTION_LABELS } from "@/lib/crm";
 import { createClient } from "@/lib/supabase/server";
 
-import { filtersToRpc, parseLeadFilters, PAYMENT_MODE_LABELS } from "../filters";
+import { filtersToRpc, parseLeadFilters, PAYMENT_MODE_LABELS, REQUEST_KIND_LABELS } from "../filters";
+import { offerOf, offerSnapshots, requestKindOf } from "../offer-snapshot";
 
 const BATCH = 500;
 const MAX_ROWS = 100_000;
@@ -17,6 +18,19 @@ const HEADER = [
   "مدة الدفع", "مدة الدفع (بالأشهر)", "السعر بالتقسيط (د.ت)", "القسط الشهري المقدّر (د.ت)",
   "يحب يزور الأرض", "يحب حل تمويل بنكي",
   "طريقة التواصل", "الوقت المفضل", "الحالة", "المسؤول", "مكرّر", "المصدر",
+];
+
+/** Which intake wrote the demand (0049). Added as soon as the export can tell, which is the normal case. */
+const KIND_HEADER = ["نوع الطلب"];
+
+/** The offer a demand names, added only when the export carries at least one offer demand. */
+const OFFER_HEADER = [
+  "العرض",
+  "رمز العرض",
+  "زيتونات العرض",
+  "سعر الزيتونة في العرض (د.ت)",
+  "السعر الجملي للعرض (د.ت)",
+  "معاليم الصيانة والتقليم في العام (د.ت)",
 ];
 
 /** Plan Q-7: answers to retired questions (LEAD-02), added only when an exported demand carries one. */
@@ -61,9 +75,11 @@ export async function GET(request: Request) {
   const delegationName = new Map(config.delegations.map((d) => [d.id, d.name_ar]));
   const typeName = new Map(config.projectTypes.map((t) => [t.id, t.label_ar]));
 
-  // Rows are kept until the end: the legacy columns depend on the whole export.
-  const records: { cells: unknown[]; legacy: string[] }[] = [];
+  // Rows are kept until the end: the kind, offer and legacy columns depend on the whole export.
+  const records: { cells: unknown[]; kind: string[]; offer: string[]; legacy: string[] }[] = [];
   let hasLegacy = false;
+  let hasKind = false;
+  let hasOffer = false;
 
   let offset = 0;
   let total = 0;
@@ -78,7 +94,28 @@ export async function GET(request: Request) {
     }
     const rows = data ?? [];
     total = rows[0]?.total_count ?? 0;
+    // The PRICE snapshot of an offer demand, read from interest_requests itself: 0052 taught
+    // crm_search_requests the offer's identity (request_kind, project_id/code/name, offer_trees) but its
+    // RETURNS TABLE still omits the four price columns — verified against the live signature on 2026-09-19.
+    // Those four are the only thing this read is still for (see ../offer-snapshot).
+    //
+    // The calculator-vs-offer filter is NOT applied here any more: 0052 filters on request_kind inside the
+    // database (`f.request_kind is null or c.request_kind = f.request_kind`), so the rows this loop receives
+    // are already the filtered ones and re-testing each one only risked disagreeing with the page's counts.
+    const snapshots = await offerSnapshots(supabase, rows.map((row) => row.id));
     for (const row of rows) {
+      const kind = requestKindOf(row);
+      const offer = offerOf(row, snapshots);
+      const offerCells = [
+        offer?.project_name ?? "",
+        offer?.project_code ?? "",
+        offer?.offer_trees ?? "",
+        dinars(offer?.offer_price_per_tree_millimes ?? null),
+        dinars(offer?.offer_total_price_millimes ?? null),
+        dinars(offer?.offer_annual_fee_total_millimes ?? null),
+      ].map(String);
+      hasKind ||= kind !== null;
+      hasOffer ||= offer !== null;
       const downPercent = percent(row.down_payment_percent);
       const legacy = [
         row.desired_area_label_ar ?? "",
@@ -126,6 +163,8 @@ export async function GET(request: Request) {
           row.is_duplicate ? "نعم" : "",
           (row.source as { utm_source?: string } | null)?.utm_source ?? "",
         ],
+        kind: [kind ? REQUEST_KIND_LABELS[kind] : ""],
+        offer: offerCells,
         legacy,
       });
     }
@@ -133,10 +172,24 @@ export async function GET(request: Request) {
     if (rows.length < BATCH) break;
   } while (offset < total && offset < MAX_ROWS);
 
-  const header = hasLegacy ? [...HEADER, ...LEGACY_HEADER] : HEADER;
+  const header = [
+    ...HEADER,
+    ...(hasKind ? KIND_HEADER : []),
+    ...(hasOffer ? OFFER_HEADER : []),
+    ...(hasLegacy ? LEGACY_HEADER : []),
+  ];
   const lines = [
     header.map(csvCell).join(","),
-    ...records.map((record) => (hasLegacy ? [...record.cells, ...record.legacy] : record.cells).map(csvCell).join(",")),
+    ...records.map((record) =>
+      [
+        ...record.cells,
+        ...(hasKind ? record.kind : []),
+        ...(hasOffer ? record.offer : []),
+        ...(hasLegacy ? record.legacy : []),
+      ]
+        .map(csvCell)
+        .join(","),
+    ),
   ];
 
   await supabase.rpc("log_action", {

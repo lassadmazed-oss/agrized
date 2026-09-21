@@ -19,7 +19,11 @@ const PAGE = "/admin/pricing";
 const CODE = /^[a-z0-9][a-z0-9_]{1,40}$/;
 
 const STALE: ActionResult = { ok: false, message: "هذا العنصر لم يعد موجوداً. حدّث الصفحة وحاول مرة أخرى." };
-const REASON_MISSING: ActionResult = { ok: false, message: intakeErrorMessage("reason_required") };
+// The reason is no longer refused here. app.require_reason (0058) is the single authority: it accepts an empty
+// reason while audit.reason_min_length is 0 — the owner turned the field off on 2026-09-19 — and raises
+// reason_required the moment anyone sets it above zero, which intakeErrorMessage already turns into Arabic. A
+// second gate in TypeScript could only ever disagree with it, and it did: the field was hidden and every save
+// still failed with «سبب التغيير ناقص أو قصير جداً».
 
 function fail(message: string): ActionResult {
   return { ok: false, message };
@@ -37,8 +41,9 @@ function rpcFailure(error: { message: string; code?: string }): ActionResult {
   return fail("تعذّر الحفظ ولم يتغيّر شيء. حدّث الصفحة وتحقّق من القيم، ثم حاول مرة أخرى.");
 }
 
-function readReason(formData: FormData): string | null {
-  return textValue(formData, "reason", 1000) || null;
+/** Whatever the writer typed, or nothing at all. The database decides whether nothing is allowed. */
+function readReason(formData: FormData): string {
+  return textValue(formData, "reason", 1000) || "";
 }
 
 function readSortOrder(formData: FormData): number | undefined {
@@ -65,7 +70,6 @@ export async function saveSpacingClass(classId: string | null, _previous: Action
   const sortOrder = readSortOrder(formData);
   if (sortOrder === undefined) return fail(SORT_ORDER_INVALID);
   const reason = readReason(formData);
-  if (!reason) return REASON_MISSING;
 
   const supabase = await createClient();
   const { error } = await supabase.rpc("staff_save_spacing_class", {
@@ -93,7 +97,6 @@ export async function deleteSpacingClass(classId: string, _previous: ActionResul
   await requireStaff(PRICE_ROLES);
   if (!isUuid(classId)) return STALE;
   const reason = readReason(formData);
-  if (!reason) return REASON_MISSING;
 
   const supabase = await createClient();
   const { error } = await supabase.rpc("staff_delete_spacing_class", { p_id: classId, p_reason: reason });
@@ -169,7 +172,6 @@ export async function savePricingRule(projectId: string | null, _previous: Actio
   const markupsNote = textValue(formData, "markups_note_ar", NOTE_MAX_LENGTH) || null;
 
   const reason = readReason(formData);
-  if (!reason) return REASON_MISSING;
 
   const supabase = await createClient();
   const { error } = await supabase.rpc("staff_save_pricing_rule", {
@@ -199,7 +201,6 @@ export async function deletePricingRule(projectId: string, _previous: ActionResu
   await requireStaff(PRICE_ROLES);
   if (!isUuid(projectId)) return STALE;
   const reason = readReason(formData);
-  if (!reason) return REASON_MISSING;
 
   const supabase = await createClient();
   const { error } = await supabase.rpc("staff_delete_pricing_rule", { p_project: projectId, p_reason: reason });
@@ -222,7 +223,6 @@ export async function saveCostItem(itemId: string | null, projectId: string | nu
   const sortOrder = readSortOrder(formData);
   if (sortOrder === undefined) return fail(SORT_ORDER_INVALID);
   const reason = readReason(formData);
-  if (!reason) return REASON_MISSING;
 
   const supabase = await createClient();
   const { error } = await supabase.rpc("staff_save_cost_item", {
@@ -248,7 +248,6 @@ export async function deleteCostItem(itemId: string, _previous: ActionResult, fo
   await requireStaff(PRICE_ROLES);
   if (!isUuid(itemId)) return STALE;
   const reason = readReason(formData);
-  if (!reason) return REASON_MISSING;
 
   const supabase = await createClient();
   const { error } = await supabase.rpc("staff_delete_cost_item", { p_id: itemId, p_reason: reason });
@@ -276,7 +275,6 @@ export async function saveMarkups(projectId: string | null, _previous: ActionRes
     rows.push({ months, markup_bp: bp });
   }
   const reason = readReason(formData);
-  if (!reason) return REASON_MISSING;
 
   const supabase = await createClient();
   const { error } = await supabase.rpc("staff_save_financing_markups", {
@@ -302,7 +300,6 @@ export async function saveProjectDownPercents(projectId: string, _previous: Acti
   const ids = readIds(formData);
   if (!isUuid(projectId) || ids === null) return STALE;
   const reason = readReason(formData);
-  if (!reason) return REASON_MISSING;
 
   const supabase = await createClient();
   const { error } = await supabase.rpc("staff_save_project_down_percents", {
@@ -328,7 +325,6 @@ export async function saveProjectSpacingClasses(projectId: string, _previous: Ac
   const ids = readIds(formData);
   if (!isUuid(projectId) || ids === null) return STALE;
   const reason = readReason(formData);
-  if (!reason) return REASON_MISSING;
 
   const supabase = await createClient();
   const { error } = await supabase.rpc("staff_save_project_spacing_classes", {

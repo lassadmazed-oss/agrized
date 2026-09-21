@@ -3,10 +3,11 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import { ActionForm } from "@/components/admin/action-form";
+import { ADMIN_LABELS } from "@/components/admin/nav-model";
 import { formatPercent } from "@/components/admin/tree-pricing-inputs";
-import { DataRow, EmptyState, SectionHeader, StatusPill } from "@/components/ui";
-import { ADMIN_ROLES, CRM_READ_ROLES, hasRole, requireStaff } from "@/lib/auth";
-import { getPublicConfig } from "@/lib/config";
+import { DataList, DataRow, EmptyState, SectionHeader, StatusPill } from "@/components/ui";
+import { ADMIN_ROLES, CRM_READ_ROLES, hasRole, requireStaff, type StaffRole } from "@/lib/auth";
+import { getPublicConfig, settingText } from "@/lib/config";
 import {
   ATTEMPT_CHANNEL_LABELS,
   CHANNEL_LABELS,
@@ -15,20 +16,44 @@ import {
   PRODUCTION_LABELS,
   STAGE_TONES,
 } from "@/lib/crm";
-import { formatArea, formatDateTime, formatMillimes } from "@/lib/format";
+import { formatArea, formatCount, formatDateTime, formatMillimes } from "@/lib/format";
+import { moduleAccess } from "@/lib/modules";
 import { formatPhone } from "@/lib/phone";
 import { createClient } from "@/lib/supabase/server";
 
-import { PAYMENT_MODE_LABELS } from "../filters";
+import { offerStocks, type OfferStock } from "../../projects/offer-stock";
+import { PAYMENT_MODE_LABELS, REQUEST_KIND_LABELS } from "../filters";
 import { addContactAttempt, addNote, assignPerson, updateStatus } from "./actions";
+import { HeldTreesSection, type HeldOffer, type HeldTree, type StateLabels } from "./held-trees";
+import { MatchingOffers } from "./matching-offers";
+import { ReservationCard } from "./reservation-card";
+import { ReserveTreesCard, type ReserveChoice } from "./reserve-trees-card";
+import { VisitCard } from "./visit-card";
 
 export const metadata: Metadata = { title: "ملف حريف" };
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
+// THE THREE TREE ACTS OF A CLIENT FILE, and the database list that decides each one (0054 §1 and §7, pinned by
+// tests/033 T7e and tests/034 §9). Each is mirrored here so a control the reader may never press is never drawn,
+// and checked again inside the Server Action, which the database checks a third time.
+//
+//   reserve  app.can_see_person  — Admin, Finance and Legal on any file; a commercial on their own file only.
+//                                  NOT the agricultural manager: they keep stock and read no client file.
+//   sell     + app.can_contract_trees — Legal, Finance, Admin. The contract moment (§51).
+//   release  app.can_manage_trees AND app.can_see_person(holder), because a held tree always has a holder: the
+//            two lists meet on Finance and Admin only. The agricultural manager releases from the offer's
+//            الزيتونات tab — where the trees are stock — not from a client's file.
+const FILE_READ_ANY_ROLES = ["finance", "legal", "admin", "super_admin"] as const satisfies readonly StaffRole[];
+const TREE_CONTRACT_ROLES = ["legal", "finance", "admin", "super_admin"] as const satisfies readonly StaffRole[];
+const TREE_RELEASE_ROLES = ["finance", "admin", "super_admin"] as const satisfies readonly StaffRole[];
+
+/** A file holding more than this reads its full inventory on the offer's own screen, not here. */
+const HELD_LIMIT = 300;
+
 type TimelineEntry = { at: string; kind: string; title: string; detail?: string | null; by?: string | null };
 
-export default async function LeadDetailPage({ params }: PageProps<"/admin/leads/[personId]">) {
+export default async function LeadDetailPage({ params, searchParams }: PageProps<"/admin/leads/[personId]">) {
   const session = await requireStaff(CRM_READ_ROLES);
   const { personId } = await params;
   if (!UUID.test(personId)) notFound();
@@ -47,6 +72,39 @@ export default async function LeadDetailPage({ params }: PageProps<"/admin/leads
   if (!person) notFound();
 
   const canEdit = isAdmin || (hasRole(session, ["commercial"]) && person.assigned_to === session.id);
+  // Not the same test as canEdit: Finance and Legal do not log calls or move a status, but the database lets
+  // them reserve and contract on any file (app.can_see_person), so the reservation card obeys its own rule.
+  const canReserve = hasRole(session, FILE_READ_ANY_ROLES) || (hasRole(session, ["commercial"]) && person.assigned_to === session.id);
+  const canContract = hasRole(session, TREE_CONTRACT_ROLES);
+  const canRelease = hasRole(session, TREE_RELEASE_ROLES);
+
+  // THE THREE STAGE-2 MODULES ON THIS FILE — report v3 §45's «one screen while on the phone». Each section is
+  // mounted only while its own module is open to this reader, and every one of them is off today, so a file
+  // opened right now is byte for byte the file that was opened yesterday. That is the point: switching a module
+  // on is the owner's act, and until he takes it this screen may not grow a panel announcing what it cannot do.
+  //
+  // «open to this reader» is moduleAccess, not the raw flag: «داخلي فقط» is open here (everyone reading a Back
+  // Office screen is signed-in staff) and «معطّل» is closed to everyone, staff included. That is the opposite
+  // of the rule for the SIDEBAR, where a switched-off row still opens — a module's own workspace is where it is
+  // prepared, but a client's file belongs to the day's work and is not the place to prepare anything.
+  //
+  // The role gate is drawn a second time on top of it, and it is the one the database draws: `canReserve` is
+  // app.can_see_person, which is the same test staff_create_reservation and staff_book_visit run in SQL.
+  const [matchingAccess, visitsAccess, reservationsAccess] = await Promise.all([
+    moduleAccess(config, "matching"),
+    moduleAccess(config, "visits"),
+    moduleAccess(config, "reservations"),
+  ]);
+  const showMatching = matchingAccess !== "closed";
+  const showVisits = visitsAccess !== "closed" && canReserve;
+  // When the reservation module is on, the aside's «احجز زيتونات» gives way to it: both hold trees through the
+  // same engine, but only this one carries the deposit, the deadline and the conditions §23 and §24 require, and
+  // two «احجز» forms on one screen is exactly the confusion the owner named. Switching the module back to
+  // «معطّل» restores the old card — which is also the way out if it is ever switched on before its tables are
+  // applied, the one state in which the section can only say so and name supabase/pending/bb_20_reservations.sql.
+  const showReservations = reservationsAccess !== "closed" && canReserve;
+  /** The tree-only hold in the aside, and the two reads that feed it: both stop the day the module is on. */
+  const showReserveTreesCard = canReserve && !showReservations;
 
   const [requests, attempts, notes, history, assignments, statuses, commercials, whatsappTemplate] = await Promise.all([
     supabase.from("interest_requests").select("*").eq("person_id", personId).order("created_at", { ascending: false }),
@@ -88,6 +146,107 @@ export default async function LeadDetailPage({ params }: PageProps<"/admin/leads
   const delegationName = new Map(config.delegations.map((d) => [d.id, d.name_ar]));
   const typeName = new Map(config.projectTypes.map((t) => [t.id, t.label_ar]));
   const latestRequest = requests.data?.[0];
+  // 0049: the two intakes, counted apart. This page reads interest_requests directly, so it sees request_kind.
+  const offerDemands = (requests.data ?? []).filter((request) => request.request_kind === "offer" && request.project_id);
+  const offerRequests = (requests.data ?? []).filter((request) => request.request_kind === "offer").length;
+  const calculatorRequests = (requests.data ?? []).length - offerRequests;
+
+  // ---------------------------------------------------------------------------
+  // The trees this person holds, and the ones they may still be given
+  // ---------------------------------------------------------------------------
+  //
+  // Reserving is the act the Back Office never had: public.staff_allocate_trees was written, tested and wrapped
+  // as a Server Action, and no screen called it, so 600 numbered trees sat at `available` and «we just give each
+  // tree a number or an id and associate it with the client» was something the product could not do.
+  //
+  // Nothing below counts a tree in TypeScript: the availability and the smallest basket are read through
+  // staff_offer_stock (../../projects/offer-stock, the one sanctioned reader), and the rows are the rows.
+  const [heldRead, { data: settingRows }, stocks] = await Promise.all([
+    supabase
+      .from("trees")
+      .select("id, code, state, allocated_at, project_id, request_id")
+      .eq("held_by", personId)
+      .order("project_id")
+      .order("seq")
+      .limit(HELD_LIMIT),
+    supabase.from("settings").select("key, value").in("key", ["audit.reason_min_length"]),
+    // Only for a reader who may actually reserve: one RPC per offer this person asked about, and none otherwise.
+    // None either once the reservation module is on — the card these feed is gone, and its replacement reads
+    // the same stock itself, beside the deposit and the deadline it also needs.
+    showReserveTreesCard
+      ? offerStocks(supabase, [...new Set(offerDemands.map((request) => request.project_id as string))])
+      : Promise.resolve(new Map<string, OfferStock>()),
+  ]);
+
+  const reasonMinValue = (settingRows ?? []).find((row) => row.key === "audit.reason_min_length")?.value;
+  const reasonMin = typeof reasonMinValue === "number" && Number.isFinite(reasonMinValue) ? reasonMinValue : 5;
+
+  const heldRows = heldRead.data ?? [];
+  const heldProjectIds = [...new Set(heldRows.map((tree) => tree.project_id))];
+  const { data: heldProjects } = heldProjectIds.length
+    ? await supabase.from("projects").select("id, name, code").in("id", heldProjectIds)
+    : { data: [] as { id: string; name: string; code: string }[] };
+  const heldProject = new Map((heldProjects ?? []).map((project) => [project.id, project]));
+
+  // Grouped by offer, in the order the read returned (project, then seq), so the codes read as the block they
+  // were handed out as. An available tree holds nobody, so it can never appear here (trees_holder_check).
+  const heldByOffer = new Map<string, HeldTree[]>();
+  for (const tree of heldRows) {
+    if (tree.state === "available") continue;
+    const trees = heldByOffer.get(tree.project_id) ?? [];
+    trees.push({ id: tree.id, code: tree.code, state: tree.state, allocatedAt: tree.allocated_at });
+    heldByOffer.set(tree.project_id, trees);
+  }
+  const heldOffers: HeldOffer[] = [...heldByOffer].map(([projectId, trees]) => ({
+    projectId,
+    offerName: heldProject.get(projectId)?.name ?? "عرض",
+    offerCode: heldProject.get(projectId)?.code ?? null,
+    trees,
+  }));
+
+  // How many trees each demand already produced, so a demand that is served says so and nobody reserves twice.
+  const heldPerRequest = new Map<string, number>();
+  for (const tree of heldRows) {
+    if (!tree.request_id) continue;
+    heldPerRequest.set(tree.request_id, (heldPerRequest.get(tree.request_id) ?? 0) + 1);
+  }
+
+  const stockLabels: StateLabels = {
+    reserved: settingText(config, "offers.stock_reserved_label", "المحجوزة") || "المحجوزة",
+    sold: settingText(config, "offers.stock_sold_label", "المباعة") || "المباعة",
+  };
+
+  // One demand, one line: the offer it named, what it asked for, and what that offer holds right now.
+  const reserveChoices: ReserveChoice[] = showReserveTreesCard
+    ? offerDemands.map((request) => {
+        const stock = stocks.get(request.project_id as string);
+        return {
+          requestId: request.id,
+          requestNo: request.request_no,
+          projectId: request.project_id as string,
+          offerName: request.project_name ?? "عرض بلا اسم",
+          offerCode: request.project_code,
+          askedTrees: typeof request.offer_trees === "number" ? request.offer_trees : null,
+          available: stock?.trees_available ?? 0,
+          minTrees: stock?.min_trees ?? 1,
+          numbered: stock ? stock.status !== "not_generated" : false,
+          // The plan the client asked for, built here because the labels and the money live on this side.
+          // Null until the offer intake records it (supabase/pending/bb_10_offer_payment_plan.sql); the card
+          // then says nothing rather than claiming a cash sale nobody asked for.
+          planLabel: request.payment_mode
+            ? [
+                PAYMENT_MODE_LABELS[request.payment_mode] ?? request.payment_mode,
+                typeof request.monthly_millimes === "number" ? `${amount(request.monthly_millimes)} شهرياً (مقدّر)` : null,
+              ]
+                .filter(Boolean)
+                .join(" · ")
+            : null,
+        };
+      })
+    : [];
+  // The demand the reader came from, when they followed «احجز زيتونات لهذا المطلب» on one of the cards below.
+  const reserveParam = (await searchParams).reserve;
+  const defaultRequestId = typeof reserveParam === "string" && UUID.test(reserveParam) ? reserveParam : null;
 
   const whatsappNumber = (person.whatsapp_e164 ?? person.phone_e164).replace(/\D/g, "");
   const whatsappText = whatsappTemplate.data?.body_ar
@@ -160,47 +319,233 @@ export default async function LeadDetailPage({ params }: PageProps<"/admin/leads
 
       <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_22rem]">
         <div className="space-y-6">
+          {/* What this person holds comes before what they asked for: a file answers «شنوّة يملك» first. */}
+          {heldOffers.length > 0 ? (
+            <HeldTreesSection
+              offers={heldOffers}
+              labels={stockLabels}
+              canContract={canContract}
+              canRelease={canRelease}
+              reasonMin={reasonMin}
+              cappedAt={heldRows.length >= HELD_LIMIT ? HELD_LIMIT : null}
+            />
+          ) : null}
+
           <section className="space-y-3">
-            <h2 className="text-lg font-semibold">المطالب ({requests.data?.length ?? 0})</h2>
+            <div className="flex flex-wrap items-baseline justify-between gap-2">
+              {/* The same word the nav, the breadcrumb and the list's own <h1> use — it said «المطالب» here
+                  and «مطالب الاستثمار» everywhere else. 2026-09-19. */}
+              <h2 className="text-lg font-semibold">
+                {ADMIN_LABELS["/admin/leads"]} ({requests.data?.length ?? 0})
+              </h2>
+              {offerRequests > 0 || calculatorRequests > 0 ? (
+                <p className="text-sm text-muted">
+                  <span className="tabular-nums">{formatCount(offerRequests)}</span> على عروض حقيقية ·{" "}
+                  <span className="tabular-nums">{formatCount(calculatorRequests)}</span> محاكاة تقديرية
+                </p>
+              ) : null}
+            </div>
             {(requests.data ?? []).map((request) => {
               const legacy = legacyAnswers(request);
+              // 0049: an offer demand names real stock. A calculator demand is a simulation and wears the
+              // estimate surface, so the two can never be read as the same thing.
+              const isOffer = request.request_kind === "offer";
+              // How this person wants to pay. Stored on every demand (interest_requests), shown beside the offer
+              // for an offer demand and in the general grid for a simulation — never twice.
+              const hasPlan =
+                request.payment_mode !== null ||
+                typeof request.monthly_millimes === "number" ||
+                typeof request.total_financed_millimes === "number" ||
+                request.duration_label_ar !== null;
               return (
-              <article key={request.id} className="card p-5">
+              <article
+                key={request.id}
+                id={`request-${request.id}`}
+                className={`card p-5 scroll-mt-24 target:border-forest ${isOffer ? "" : "card-estimate"}`.trim()}
+              >
                 <div className="flex flex-wrap items-center justify-between gap-2">
-                  <p dir="ltr" className="font-semibold text-forest tabular-nums">
-                    {request.request_no}
+                  <p className="flex flex-wrap items-center gap-2">
+                    <StatusPill tone={isOffer ? "brand" : "line"}>{REQUEST_KIND_LABELS[isOffer ? "offer" : "calculator"]}</StatusPill>
+                    <span dir="ltr" className="font-semibold text-forest tabular-nums">
+                      {request.request_no}
+                    </span>
                   </p>
                   <p className="flex items-center gap-2 text-sm text-muted tabular-nums">
                     {request.is_duplicate ? <span className="rounded bg-gold-soft px-1.5 py-0.5 text-xs text-forest-700">مكرّر</span> : null}
                     {formatDateTime(request.created_at)}
                   </p>
                 </div>
+
+                {isOffer ? (
+                  <div className="mt-4 rounded-xl border border-leaf/40 bg-leaf-soft/50 p-4">
+                    <p className="text-xs text-muted">العرض المطلوب</p>
+                    <p className="mt-0.5 flex flex-wrap items-baseline gap-2">
+                      {request.project_id ? (
+                        <Link
+                          href={`/admin/projects/${request.project_id}`}
+                          className="font-semibold text-forest underline-offset-4 hover:underline"
+                        >
+                          {request.project_name ?? "عرض بلا اسم"}
+                        </Link>
+                      ) : (
+                        <span className="font-semibold text-forest">{request.project_name ?? "عرض بلا اسم"}</span>
+                      )}
+                      {request.project_code ? (
+                        <span dir="ltr" className="text-xs text-muted">
+                          {request.project_code}
+                        </span>
+                      ) : null}
+                    </p>
+                    <DataList variant="grid" columns={4} className="mt-3 text-sm">
+                      {typeof request.offer_trees === "number" ? (
+                        <DataRow layout="stacked" label="الزيتونات المطلوبة">
+                          {formatCount(request.offer_trees)}
+                        </DataRow>
+                      ) : null}
+                      {typeof request.offer_price_per_tree_millimes === "number" ? (
+                        <DataRow layout="stacked" label="سعر الزيتونة">
+                          {amount(request.offer_price_per_tree_millimes)}
+                        </DataRow>
+                      ) : null}
+                      {typeof request.offer_total_price_millimes === "number" ? (
+                        <DataRow layout="stacked" label="السعر الجملي">
+                          {amount(request.offer_total_price_millimes)}
+                        </DataRow>
+                      ) : null}
+                      {typeof request.offer_annual_fee_total_millimes === "number" ? (
+                        <DataRow layout="stacked" label="معاليم الصيانة والتقليم في العام">
+                          {amount(request.offer_annual_fee_total_millimes)}
+                          {typeof request.offer_annual_fee_per_tree_millimes === "number" ? (
+                            <span className="mt-0.5 block text-xs font-normal text-muted">
+                              {amount(request.offer_annual_fee_per_tree_millimes)} للزيتونة
+                            </span>
+                          ) : null}
+                        </DataRow>
+                      ) : null}
+                    </DataList>
+                    {/* The plan, beside the offer that priced it. It used to sit in the general grid below, with
+                        the duration row deliberately blanked for an offer demand — so the screen could show a
+                        monthly amount and refuse to say over how many months. One block, all five terms. */}
+                    <div className="mt-3 border-t border-leaf/40 pt-3">
+                      <p className="text-xs text-muted">طريقة الخلاص المطلوبة</p>
+                      {hasPlan ? (
+                        <DataList variant="grid" columns={4} className="mt-2 text-sm">
+                          {request.payment_mode ? (
+                            <DataRow layout="stacked" numeric={false} label="طريقة الدفع">
+                              {PAYMENT_MODE_LABELS[request.payment_mode] ?? request.payment_mode}
+                            </DataRow>
+                          ) : null}
+                          {request.down_payment_percent !== null && request.down_payment_percent !== undefined ? (
+                            <DataRow layout="stacked" label="نسبة التسبقة">
+                              {formatPercent(request.down_payment_percent)}
+                              {typeof request.down_payment_amount_millimes === "number" ? (
+                                <span className="mt-0.5 block text-xs font-normal text-muted">
+                                  {amount(request.down_payment_amount_millimes)}
+                                </span>
+                              ) : null}
+                            </DataRow>
+                          ) : null}
+                          {request.duration_label_ar || typeof request.duration_months === "number" ? (
+                            <DataRow layout="stacked" label="مدة الدفع">
+                              {request.duration_label_ar ?? `${formatCount(request.duration_months ?? 0)} شهراً`}
+                              {/* The months only when the label does not already say them, so «7 سنوات» carries
+                                  «84 شهراً» and «84 شهراً» is never printed twice. */}
+                              {request.duration_label_ar && typeof request.duration_months === "number" ? (
+                                <span className="mt-0.5 block text-xs font-normal text-muted">
+                                  {formatCount(request.duration_months)} شهراً
+                                </span>
+                              ) : null}
+                            </DataRow>
+                          ) : null}
+                          {typeof request.total_financed_millimes === "number" ? (
+                            <DataRow layout="stacked" label="السعر بالتقسيط">
+                              {amount(request.total_financed_millimes)}
+                            </DataRow>
+                          ) : null}
+                          {typeof request.monthly_millimes === "number" ? (
+                            <DataRow layout="stacked" label="القسط الشهري المقدّر">
+                              {amount(request.monthly_millimes)} شهرياً
+                            </DataRow>
+                          ) : null}
+                        </DataList>
+                      ) : (
+                        /* Every offer demand sent before the offer form asked the question reads like this. The
+                           line says why it is empty and what to do about it, instead of showing nothing. */
+                        <p className="mt-1 text-sm text-forest-700">
+                          هذا المطلب ما فيهش طريقة خلاص: استمارة العرض ما كانتش تسأل عليها وقت إرساله. اسأل الحريف في المكالمة
+                          وسجّل الجواب في ملاحظة.
+                        </p>
+                      )}
+                    </div>
+                    <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
+                      <p className="text-xs text-muted">أسعار العرض وأقساطه كيما كانت وقت إرسال المطلب.</p>
+                      {/* The demand and the act it leads to, one beside the other: no id is ever copied by hand. */}
+                      {/* The demand and the act it leads to, one beside the other: no id is ever copied by hand.
+                          `?reserve=` keeps its job either way — it pre-selects this demand in the aside's card,
+                          and it is what «عروض تنفع لهذا الحريف» matches on, so following this link from a demand
+                          sent last year ranks the offers against THAT demand and not against the newest one.
+                          The reservation form picks its own demand from a list printing the same request
+                          numbers; pre-selecting it there needs a prop reserve-form.tsx does not take yet. */}
+                      {showReservations && request.project_id ? (
+                        <Link
+                          href={`/admin/leads/${person.id}?reserve=${request.id}#reservations`}
+                          className="text-sm font-semibold text-forest underline-offset-4 hover:underline"
+                        >
+                          احجز زيتونات وسجّل العربون →
+                        </Link>
+                      ) : showReserveTreesCard && request.project_id ? (
+                        <Link
+                          href={`/admin/leads/${person.id}?reserve=${request.id}#reserve-trees`}
+                          className="text-sm font-semibold text-forest underline-offset-4 hover:underline"
+                        >
+                          احجز زيتونات على هذا المطلب →
+                        </Link>
+                      ) : null}
+                    </div>
+                    {/* Reserved or sold: both are «this demand already produced trees», which is what stops a
+                        second reservation on the same demand by mistake. The states themselves are above. */}
+                    {heldPerRequest.get(request.id) ? (
+                      <p className="mt-2 text-sm text-forest">
+                        <span className="font-semibold tabular-nums">{formatCount(heldPerRequest.get(request.id) ?? 0)}</span> زيتونة
+                        مربوطة بهذا المطلب. أرقامها فوق في «زيتونات هذا الحريف».
+                      </p>
+                    ) : null}
+                  </div>
+                ) : (
+                  <p className="mt-3 text-sm text-forest-700">محاكاة تقديرية من الموقع: أرقام تتبع اختيارات الحريف، موش عرض عقاري.</p>
+                )}
+
                 <dl className="mt-4 grid gap-x-6 gap-y-3 text-sm sm:grid-cols-2">
-                  <DataRow layout="stacked" numeric={false} label="عدد الزيتونات">
-                    <span className="tabular-nums">{request.tree_count_label_ar ?? "بدون إجابة"}</span>
-                  </DataRow>
-                  <DataRow layout="stacked" numeric={false} label="مكان الاستثمار">
+                  {isOffer ? null : (
+                    <DataRow layout="stacked" numeric={false} label="عدد الزيتونات">
+                      <span className="tabular-nums">{request.tree_count_label_ar ?? "بدون إجابة"}</span>
+                    </DataRow>
+                  )}
+                  <DataRow layout="stacked" numeric={false} label={isOffer ? "ولاية العرض" : "مكان الاستثمار"}>
                     {request.invest_anywhere
                       ? "المكان غير مهم"
                       : request.invest_governorate_ids.map((id) => governorateName.get(id) ?? id).join("، ")}
                   </DataRow>
-                  <DataRow layout="stacked" numeric={false} label="يحب يملك">
-                    {request.scenario_labels.length > 0
-                      ? request.scenario_labels.join("، ")
-                      : request.project_type_unsure
-                        ? "ما يهمّوش النوع، يطلب اقتراحاً"
-                        : request.project_type_ids.map((id) => typeName.get(id) ?? "—").join("، ")}
-                    {request.plantation_systems.length > 0 || request.production_statuses.length > 0 ? (
-                      <span className="mt-0.5 block text-sm font-normal text-muted">
-                        {[
-                          request.plantation_systems.map((code) => PLANTATION_LABELS[code] ?? code).join("، "),
-                          request.production_statuses.map((code) => PRODUCTION_LABELS[code] ?? code).join("، "),
-                        ]
-                          .filter(Boolean)
-                          .join(" · ")}
-                      </span>
-                    ) : null}
-                  </DataRow>
+                  {/* An offer demand answers no project-type question: the offer itself is the answer. */}
+                  {isOffer ? null : (
+                    <DataRow layout="stacked" numeric={false} label="يحب يملك">
+                      {request.scenario_labels.length > 0
+                        ? request.scenario_labels.join("، ")
+                        : request.project_type_unsure
+                          ? "ما يهمّوش النوع، يطلب اقتراحاً"
+                          : request.project_type_ids.map((id) => typeName.get(id) ?? "—").join("، ")}
+                      {request.plantation_systems.length > 0 || request.production_statuses.length > 0 ? (
+                        <span className="mt-0.5 block text-sm font-normal text-muted">
+                          {[
+                            request.plantation_systems.map((code) => PLANTATION_LABELS[code] ?? code).join("، "),
+                            request.production_statuses.map((code) => PRODUCTION_LABELS[code] ?? code).join("، "),
+                          ]
+                            .filter(Boolean)
+                            .join(" · ")}
+                        </span>
+                      ) : null}
+                    </DataRow>
+                  )}
                   {/* Tree pricing addendum: what the visitor chose and the estimate shown at that moment. */}
                   {request.spacing_label_ar ? <DataRow layout="stacked" numeric={false} label="فئة المساحة">{request.spacing_label_ar}</DataRow> : null}
                   {typeof request.area_per_tree_m2 === "number" ? (
@@ -213,44 +558,56 @@ export default async function LeadDetailPage({ params }: PageProps<"/admin/leads
                       <span className="tabular-nums">{formatArea(request.total_area_m2)}</span>
                     </DataRow>
                   ) : null}
-                  {request.payment_mode ? <DataRow layout="stacked" numeric={false} label="طريقة الدفع">{PAYMENT_MODE_LABELS[request.payment_mode] ?? request.payment_mode}</DataRow> : null}
-                  {typeof request.price_per_tree_millimes === "number" ? (
+                  {/* The six plan rows below belong to a simulation; an offer demand shows the same plan inside
+                      its own green block above, where the offer that priced it is named. */}
+                  {!isOffer && request.payment_mode ? <DataRow layout="stacked" numeric={false} label="طريقة الدفع">{PAYMENT_MODE_LABELS[request.payment_mode] ?? request.payment_mode}</DataRow> : null}
+                  {/* An offer demand snapshots the same two amounts as the offer's own price, shown above. */}
+                  {!isOffer && typeof request.price_per_tree_millimes === "number" ? (
                     <DataRow layout="stacked" numeric={false} label="سعر الزيتونة المقدّر">
-                      <span className="tabular-nums">{estimate(request.price_per_tree_millimes)}</span>
+                      <span className="tabular-nums">{amount(request.price_per_tree_millimes)}</span>
                     </DataRow>
                   ) : null}
-                  {typeof request.total_price_millimes === "number" ? (
+                  {!isOffer && typeof request.total_price_millimes === "number" ? (
                     <DataRow layout="stacked" numeric={false} label="السعر الجملي المقدّر">
-                      <span className="tabular-nums">{estimate(request.total_price_millimes)}</span>
+                      <span className="tabular-nums">{amount(request.total_price_millimes)}</span>
                     </DataRow>
                   ) : null}
                   {/* Plan Q-1, Q-2: the percentage of the cash total and the amount it gave when the demand was sent. */}
-                  {request.down_payment_percent !== null && request.down_payment_percent !== undefined ? (
+                  {!isOffer && request.down_payment_percent !== null && request.down_payment_percent !== undefined ? (
                     <DataRow layout="stacked" numeric={false} label="نسبة التسبقة">
                       <span className="tabular-nums">{formatPercent(request.down_payment_percent)}</span>
                     </DataRow>
                   ) : null}
-                  {typeof request.down_payment_amount_millimes === "number" ? (
+                  {!isOffer && typeof request.down_payment_amount_millimes === "number" ? (
                     <DataRow layout="stacked" numeric={false} label="مبلغ التسبقة المقدّر">
-                      <span className="tabular-nums">{estimate(request.down_payment_amount_millimes)}</span>
+                      <span className="tabular-nums">{amount(request.down_payment_amount_millimes)}</span>
                     </DataRow>
                   ) : null}
-                  <DataRow layout="stacked" numeric={false} label="مدة الدفع">
-                    <span className="tabular-nums">{request.duration_label_ar ?? "بدون إجابة"}</span>
-                  </DataRow>
-                  {typeof request.total_financed_millimes === "number" ? (
+                  {isOffer ? null : (
+                    <DataRow layout="stacked" numeric={false} label="مدة الدفع">
+                      <span className="tabular-nums">{request.duration_label_ar ?? "بدون إجابة"}</span>
+                    </DataRow>
+                  )}
+                  {!isOffer && typeof request.total_financed_millimes === "number" ? (
                     <DataRow layout="stacked" numeric={false} label="السعر بالتقسيط">
-                      <span className="tabular-nums">{estimate(request.total_financed_millimes)}</span>
+                      <span className="tabular-nums">{amount(request.total_financed_millimes)}</span>
                     </DataRow>
                   ) : null}
-                  {typeof request.monthly_millimes === "number" ? (
+                  {!isOffer && typeof request.monthly_millimes === "number" ? (
                     <DataRow layout="stacked" numeric={false} label="القسط الشهري المقدّر">
-                      <span className="tabular-nums">{estimate(request.monthly_millimes)} شهرياً</span>
+                      <span className="tabular-nums">{amount(request.monthly_millimes)} شهرياً</span>
                     </DataRow>
                   ) : null}
-                  <DataRow layout="stacked" numeric={false} label="الهدف">{request.goal_label_ar}</DataRow>
-                  <DataRow layout="stacked" numeric={false} label="يحب يزور الأرض">{answerLabel(request.wants_visit, "لا، مازال")}</DataRow>
-                  <DataRow layout="stacked" numeric={false} label="يحب حل تمويل بنكي">{answerLabel(request.wants_bank_financing, "لا")}</DataRow>
+                  {/* The offer page asks neither of the three: an empty row would read as an unanswered question. */}
+                  {request.goal_label_ar ? (
+                    <DataRow layout="stacked" numeric={false} label="الهدف">{request.goal_label_ar}</DataRow>
+                  ) : null}
+                  {isOffer && request.wants_visit === null ? null : (
+                    <DataRow layout="stacked" numeric={false} label="يحب يزور الأرض">{answerLabel(request.wants_visit, "لا، مازال")}</DataRow>
+                  )}
+                  {isOffer && request.wants_bank_financing === null ? null : (
+                    <DataRow layout="stacked" numeric={false} label="يحب حل تمويل بنكي">{answerLabel(request.wants_bank_financing, "لا")}</DataRow>
+                  )}
                   <DataRow layout="stacked" numeric={false} label="التواصل">
                     {CHANNEL_LABELS[request.contact_channel]}
                     {request.contact_time_label_ar ? ` · ${request.contact_time_label_ar}` : " · أي وقت"}
@@ -286,6 +643,26 @@ export default async function LeadDetailPage({ params }: PageProps<"/admin/leads
             })}
           </section>
 
+          {/* STAGE 2 — the file stops being a record and becomes a call (report v3 §45).
+              The order is the order of the conversation, and it is why these three sit here and not in the
+              aside: above them is what this person holds and what they asked for, so the next question a
+              commercial asks out loud is «شنوّة نعرضلك» (المطابقة), then «تحب تجي تشوفها؟» (الزيارة), then
+              «نحجزلك ونسجّل العربون» (الحجز). Each one reads its own data and gates itself again in SQL; each
+              one is absent entirely — not a panel saying it is absent — while its module is «معطّل». */}
+          {showMatching ? <MatchingOffers personId={person.id} requestId={defaultRequestId} /> : null}
+          {showVisits ? <VisitCard personId={person.id} canBook={canReserve} /> : null}
+          {/* ?reserve=<id> is forwarded, so following «احجز زيتونات وسجّل العربون →» from a demand sent last year
+              opens the form on THAT demand. `key` remounts the client form when the reader follows a different
+              demand's link, exactly as the aside's ReserveTreesCard does at :687. */}
+          {showReservations ? (
+            <ReservationCard
+              key={defaultRequestId ?? "latest"}
+              personId={person.id}
+              personName={person.full_name}
+              requestId={defaultRequestId}
+            />
+          ) : null}
+
           <section className="space-y-3">
             <h2 className="text-lg font-semibold">سجل الملف</h2>
             {timeline.length === 0 ? (
@@ -311,6 +688,21 @@ export default async function LeadDetailPage({ params }: PageProps<"/admin/leads
         </div>
 
         <aside className="space-y-4">
+          {/* First in the aside because it is the act the file exists for: the demand becomes trees with numbers.
+              It is the WHOLE act only while «العربون والحجز» is off: a hold with no deposit and no deadline is
+              what §23 and §24 exist to replace, so when that module is on this card gives way to the section in
+              the main column, which takes the same trees through the same engine and records the rest. */}
+          {showReserveTreesCard ? (
+            <ReserveTreesCard
+              key={defaultRequestId ?? "latest"}
+              personId={person.id}
+              personName={person.full_name}
+              choices={reserveChoices}
+              reasonMin={reasonMin}
+              defaultRequestId={defaultRequestId}
+            />
+          ) : null}
+
           {canEdit ? (
             <>
               <section className="card p-4">
@@ -364,7 +756,13 @@ export default async function LeadDetailPage({ params }: PageProps<"/admin/leads
               </section>
             </>
           ) : (
-            <p className="card p-4 text-sm text-muted">اطلاع فقط: لا يمكنك تعديل هذا الملف.</p>
+            <p className="card p-4 text-sm leading-6 text-muted">
+              {canReserve
+                ? showReservations
+                  ? "المكالمات والحالة والملاحظات متاع الـCommercial المسؤول على الملفّ. إنت تقرا الملفّ، وتحجز الزيتونات وتسجّل العربون من «الحجز والعربون»."
+                  : "المكالمات والحالة والملاحظات متاع الـCommercial المسؤول على الملفّ. إنت تقرا الملفّ، وتحجز الزيتونات من فوق."
+                : "اطلاع فقط: لا يمكنك تعديل هذا الملف."}
+            </p>
           )}
 
           {isAdmin ? (
@@ -392,7 +790,7 @@ export default async function LeadDetailPage({ params }: PageProps<"/admin/leads
 }
 
 /** Amount snapshot of a demand; millimes are shown only when it has some. */
-function estimate(millimes: number): string {
+function amount(millimes: number): string {
   return formatMillimes(millimes, { withMillimes: millimes % 1000 !== 0 });
 }
 

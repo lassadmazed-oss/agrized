@@ -123,44 +123,48 @@ export function DemandMap({ tiles, unit, valueLabel, secondaryLabel, caption }: 
         ))}
       </div>
 
-      <details className="mt-4 text-sm">
-        <summary className="cursor-pointer font-semibold text-forest">عرض الجدول</summary>
-        <div className="mt-3 max-h-80 overflow-auto rounded-lg border border-line">
-          <table className="w-full text-sm">
-            <caption className="sr-only">{caption}</caption>
-            <thead className="sticky top-0 bg-paper text-xs text-muted">
-              <tr>
-                <th scope="col" className="px-3 py-2 text-start font-semibold">
-                  الولاية
-                </th>
-                <th scope="col" className="px-3 py-2 text-end font-semibold">
-                  {valueLabel}
-                </th>
-                {secondaryLabel ? (
+      {/* The scroll box is wrapped: the .disclosure gutter lands on the wrapper, so the framed table moves
+          under the summary's words as one piece instead of gaining an empty strip inside its own border. */}
+      <details className="disclosure mt-tight text-sm">
+        <summary className="text-forest">عرض الجدول</summary>
+        <div>
+          <div className="max-h-80 overflow-auto rounded-lg border border-line">
+            <table className="w-full text-sm">
+              <caption className="sr-only">{caption}</caption>
+              <thead className="sticky top-0 bg-paper text-xs text-muted">
+                <tr>
+                  <th scope="col" className="px-3 py-2 text-start font-semibold">
+                    الولاية
+                  </th>
                   <th scope="col" className="px-3 py-2 text-end font-semibold">
-                    {secondaryLabel}
+                    {valueLabel}
                   </th>
-                ) : null}
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-line">
-              {ranked.map((tile) => (
-                <tr key={tile.id}>
-                  <th scope="row" className="px-3 py-1.5 text-start font-normal">
-                    {tile.href ? (
-                      <Link href={tile.href} className="text-forest underline-offset-4 hover:underline">
-                        {tile.name}
-                      </Link>
-                    ) : (
-                      tile.name
-                    )}
-                  </th>
-                  <td className="px-3 py-1.5 text-end tabular-nums">{formatCount(tile.value)}</td>
-                  {secondaryLabel ? <td className="px-3 py-1.5 text-end tabular-nums">{formatCount(tile.secondary ?? 0)}</td> : null}
+                  {secondaryLabel ? (
+                    <th scope="col" className="px-3 py-2 text-end font-semibold">
+                      {secondaryLabel}
+                    </th>
+                  ) : null}
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody className="divide-y divide-line">
+                {ranked.map((tile) => (
+                  <tr key={tile.id}>
+                    <th scope="row" className="px-3 py-1.5 text-start font-normal">
+                      {tile.href ? (
+                        <Link href={tile.href} className="text-forest underline-offset-4 hover:underline">
+                          {tile.name}
+                        </Link>
+                      ) : (
+                        tile.name
+                      )}
+                    </th>
+                    <td className="px-3 py-1.5 text-end tabular-nums">{formatCount(tile.value)}</td>
+                    {secondaryLabel ? <td className="px-3 py-1.5 text-end tabular-nums">{formatCount(tile.secondary ?? 0)}</td> : null}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
       </details>
     </div>

@@ -1,806 +1,435 @@
+// One offer of real stock — OFF-TNAYEUR and its kind — not a simulation.
+//
+// The owner, looking at this page on 2026-09-18: «here it is messed up, I cannot control the right thing, the
+// calculation is too complicated and not that smart or useful, also the admin is not smart.» Everything he read
+// came from public.parcels, which holds no rows: «إجمالي الزيتونات» summed an empty table, «السعر للزيتونة» was
+// derived per lot and so came back undetermined, and the القطع tab asked him to cut the offer into pieces he had
+// just retired. Meanwhile 600 numbered trees and both prices were sitting in the database.
+//
+// So the page now reads the offer, not its lots:
+//   stock  → staff_offer_stock, through ../offer-stock (the one sanctioned reader)
+//   price  → staff_project_quote, through ./offer-quote (app.tree_price, computed in Postgres)
+//   trees  → public.trees, one row per olive tree, each with its own code
+// Nothing on this page multiplies, divides or sums money (PRJ-03): the totals are the database's own.
+//
+// Every read still goes through the same role gates: requireStaff() for the page, WRITE_ROLES to change anything,
+// FINANCE_ROLES for the internal costs (PRJ-03), TREE_ROLES to create or renumber inventory (app.can_manage_trees).
+
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
-import { ActionForm } from "@/components/admin/action-form";
-import { LegacyPricingNotice, treePricingReady } from "@/components/admin/legacy-pricing-notice";
-import { PricingEditor } from "@/components/admin/pricing-editor";
-import { ParcelPlan } from "@/components/site/parcel-plan";
-import { DataRow, EmptyState, FormField, StatusPill, TableCell, TableHeadCell } from "@/components/ui";
-import { hasRole, requireStaff, type StaffRole } from "@/lib/auth";
-import { getPublicConfig, optionsFor } from "@/lib/config";
+import { treePricingReady } from "@/components/admin/legacy-pricing-notice";
+import { SectionHeader, StatusPill } from "@/components/ui";
+import { hasRole, PRICE_ROLES, requireStaff, type StaffRole } from "@/lib/auth";
+import { getPublicConfig, optionsFor, settingText } from "@/lib/config";
 import { PLANTATION_LABELS, PRODUCTION_LABELS } from "@/lib/crm";
-import { formatArea, formatCount, formatMillimes } from "@/lib/format";
-import { effectiveParcelFigures, getStaffParcelPrices, PARCEL_PRICE_REASONS, type ParcelPrice } from "@/lib/parcel-prices";
-import { describePricing } from "@/lib/pricing-form";
-import {
-  COST_KIND_LABELS,
-  COST_KINDS_OFFERED,
-  PARCEL_STATUS_LABELS,
-  PARCEL_STATUS_TONES,
-  PROJECT_STATUS_LABELS,
-  PROJECT_STATUS_TONES,
-  PROPERTY_TYPE_LABELS,
-  type ParcelStatus,
-  type ProjectStatus,
-} from "@/lib/projects";
+import { formatCount } from "@/lib/format";
+import { IRRIGATION_LABELS } from "@/lib/land";
+import { projectStatusLabel, projectStatusTone } from "@/lib/projects";
 import { createClient } from "@/lib/supabase/server";
 
-import {
-  addProjectCost,
-  addProjectPicture,
-  moveProjectPicture,
-  removeProjectPicture,
-  saveParcel,
-  saveProject,
-  setProjectCover,
-} from "../actions";
+import { offerStock } from "../offer-stock";
+import { CardTab } from "./card-tab";
+import { PricingTab } from "./pricing-tab";
+import { CostsTab, type ProjectCost } from "./costs-tab";
+import { OfferIdentity, type AreaPerTree, type TreePrice } from "./identity";
+import { offerQuote, type OfferQuote } from "./offer-quote";
+import { OfferTabs, readOfferTab, type OfferTab } from "./offer-tabs";
+import { PicturesTab, type OfferPicture } from "./pictures-tab";
+import { SpacingAndPrice, type SpacingChoice } from "./spacing-price";
+import { OfferStockTiles, TreesTab, type HeldTree, type StockLabels } from "./trees-tab";
+// The filter comes from the plain module, never from the "use client" one: a Server Component that imports a
+// value across that boundary receives a client-reference proxy, not the value.
+import { isTreeFilter, type TreeFilter } from "./tree-filter";
 
-export const metadata: Metadata = { title: "مشروع" };
+export const metadata: Metadata = { title: "العرض" };
 
 const WRITE_ROLES = ["finance", "admin", "super_admin"] as const satisfies readonly StaffRole[];
 const FINANCE_ROLES = ["finance", "admin", "super_admin"] as const satisfies readonly StaffRole[];
+/** app.can_manage_trees (0054): numbering an offer's trees is stock keeping, not a sale. */
+const TREE_ROLES = ["agri_manager", "finance", "admin", "super_admin"] as const satisfies readonly StaffRole[];
+/**
+ * Releasing a held tree needs app.can_manage_trees AND app.can_see_person(held_by), because a tree that is not
+ * available always has a holder (0054 §7, the trees_holder_check). The two lists meet here: the agricultural
+ * manager numbers stock but reads no client file, so the database refuses their release and the button is not
+ * drawn for them. A commercial is the other way round and never keeps stock.
+ */
+const TREE_RELEASE_ROLES = ["finance", "admin", "super_admin"] as const satisfies readonly StaffRole[];
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+/** Fifty codes a screen: a phone scrolls them, and the four counts above already answer «how many». */
+const TREE_PAGE_SIZE = 50;
 
-export default async function ProjectDetailPage({ params }: PageProps<"/admin/projects/[id]">) {
+/** Pages under /projects show internal, published, sold-out and operating projects only. */
+const ON_SITE = ["internal", "published", "sold_out", "operating"];
+
+export default async function OfferPage({ params, searchParams }: PageProps<"/admin/projects/[id]">) {
   const session = await requireStaff();
   const { id } = await params;
   if (!UUID.test(id)) notFound();
 
   const canWrite = hasRole(session, WRITE_ROLES);
   const canSeeCosts = hasRole(session, FINANCE_ROLES);
+  const canManageTrees = hasRole(session, TREE_ROLES);
+  const canReleaseTrees = hasRole(session, TREE_RELEASE_ROLES);
+  // التسعير is shown to whoever may set a price, which is the same gate /admin/pricing has always had. A reader
+  // without it keeps بيانات العرض and الزيتونات, and never sees a tab they cannot use.
+  const canPrice = hasRole(session, PRICE_ROLES);
+  const tabs: OfferTab[] = [
+    "card",
+    "trees",
+    ...(canPrice ? (["pricing"] as const) : []),
+    ...(canSeeCosts ? (["costs"] as const) : []),
+  ];
+  const search = await searchParams;
+  const tab = readOfferTab(search.tab, tabs);
+  // Which held trees the الزيتونات tab lists, and where in them. Both live in the address, so a colleague can be
+  // sent «the sold ones of this offer, page 2» as a link.
+  const treeFilter: TreeFilter = isTreeFilter(search.state) ? search.state : "held";
+  const treePage = Math.min(Math.max(1, Math.trunc(Number(search.page)) || 1), 10_000);
+
   const supabase = await createClient();
   const config = await getPublicConfig();
 
-  const [{ data: project }, { data: defaultSetting }] = await Promise.all([
+  const [{ data: project }, { data: settingRows }] = await Promise.all([
     supabase.from("projects").select("*").eq("id", id).maybeSingle(),
-    supabase.from("settings").select("value").eq("key", "pricing.default").maybeSingle(),
+    supabase.from("settings").select("key, value").in("key", ["audit.reason_min_length"]),
   ]);
   if (!project) notFound();
-  const defaultPricing = defaultSetting?.value ?? null;
-  // Plan P5-3: a project that lists spacing classes sells trees with their area; each parcel picks one of them.
-  const { data: classRows } = await supabase
-    .from("project_spacing_classes")
-    .select("spacing:tree_spacing_classes(id, label_ar, area_m2)")
-    .eq("project_id", id);
-  const treeClasses = (classRows ?? []).flatMap((row) => (row.spacing ? [row.spacing] : []));
-  const projectHasPricing = describePricing(project.pricing).length > 0;
-  // Once the tree pricing exists, the jsonb formulas on this page only price parcels still on the legacy path.
-  const newPricing = treePricingReady(config);
-  const newPricingHref = `/admin/pricing?project=${id}`;
-  // What a parcel without its own formula uses: the project's, else the default.
-  const parcelInherit = {
-    label: "نفس صيغة المشروع",
-    hint: projectHasPricing ? "الصيغة المضبوطة في بيانات المشروع." : "المشروع يستعمل الصيغة الافتراضية من الإعدادات.",
-    lines: describePricing(projectHasPricing ? project.pricing : defaultPricing),
-  };
 
-  const [parcels, costs, media] = await Promise.all([
-    supabase.from("parcels").select("*").eq("project_id", id).order("sort_order").order("code"),
-    canSeeCosts ? supabase.from("project_costs").select("*").eq("project_id", id).order("created_at") : Promise.resolve({ data: [] }),
+  const reasonMinValue = (settingRows ?? []).find((row) => row.key === "audit.reason_min_length")?.value;
+  const reasonMin = typeof reasonMinValue === "number" && Number.isFinite(reasonMinValue) ? reasonMinValue : 1;
+
+  // Plan P5-3 / Q-13: the spacing class is what gives one tree its area, and the area is what prices it.
+  const [{ data: classRows }, media, stock] = await Promise.all([
+    supabase
+      .from("project_spacing_classes")
+      .select("spacing:tree_spacing_classes(id, label_ar, area_m2, row_spacing_m, tree_spacing_m, is_active)")
+      .eq("project_id", id),
     supabase
       .from("project_media")
       .select("id, url, alt_ar, caption_ar, is_cover, sort_order")
       .eq("project_id", id)
       .order("sort_order")
       .order("created_at"),
+    offerStock(supabase, id),
+  ]);
+  const attachedClasses = (classRows ?? []).flatMap((row) => (row.spacing ? [row.spacing as SpacingChoice] : []));
+  const pictures = (media.data ?? []) as OfferPicture[];
+
+  // The trees this quote is about: the rows that exist, never more than the offer declares (the database refuses
+  // a larger figure). The multiplication itself is Postgres's — nothing here computes money.
+  const declaredTrees = project.tree_count ?? 0;
+  const quoteTrees = stock.trees_total > 0 ? Math.min(stock.trees_total, declaredTrees || stock.trees_total) : declaredTrees;
+  const quote = await offerQuote(supabase, id, quoteTrees);
+
+  const newPricing = treePricingReady(config);
+  // Pricing this offer happens on this offer. It used to send the reader to /admin/pricing?project=<id>, which
+  // no longer holds anything about one offer — that page is the general rule the calculator estimates with.
+  const pricingHref = `/admin/projects/${id}?tab=pricing`;
+  const spacingHref = `/admin/projects/${id}?tab=pricing#spacing`;
+  const treesHref = `/admin/projects/${id}?tab=trees`;
+  const cardHref = `/admin/projects/${id}?tab=card`;
+  const demandsHref = `/admin/leads?request_kind=offer&project_id=${encodeURIComponent(id)}`;
+
+  // What stops the price from existing, in the owner's own vocabulary: when app.tree_price says the rule is
+  // incomplete it names only the margin, so the empty field is looked up and named here (Finance and Admin see
+  // the reason at all — app.can_price gates the breakdown).
+  const missingInput = quote?.reason === "margin_not_set" ? await missingPricingInput(supabase, id) : null;
+  const pricePerTree = treePriceOf(quote, { spacingHref, pricingHref, missingInput });
+
+  // «المساحة لكل زيتونة»: the class measures it exactly; the offer's own two numbers only estimate it.
+  const declaredArea = project.total_area_m2 && project.tree_count ? Number(project.total_area_m2) / project.tree_count : null;
+  const areaPerTree: AreaPerTree | null = quote?.areaPerTreeM2
+    ? { m2: Number(quote.areaPerTreeM2), source: "class" }
+    : declaredArea
+      ? { m2: Math.round(declaredArea * 100) / 100, source: "declared" }
+      : null;
+
+  const governorate = config.governorates.find((g) => g.id === project.governorate_id)?.name_ar ?? "";
+  const documents = optionsFor(config, "land_document")
+    .filter((option) => project.document_option_ids.includes(option.id))
+    .map((option) => option.label_ar);
+
+  // The four figures the owner named; their Arabic lives in settings (offers.stock_*, 0054), never here.
+  const label = (key: string, fallback: string) => settingText(config, key, fallback) || fallback;
+  const stockLabels: StockLabels = {
+    total: label("offers.stock_total_label", "إجمالي الزيتونات"),
+    available: label("offers.stock_available_label", "المتاحة"),
+    reserved: label("offers.stock_reserved_label", "المحجوزة"),
+    sold: label("offers.stock_sold_label", "المباعة"),
+  };
+
+  // PRJ-04: what is actually wrong with this offer, and where to go about it. Each of these can fire today —
+  // the three they replace all read parcel rows, so none of them ever could.
+  const warnings: { text: string; href?: string; action?: string }[] = [];
+  if (declaredTrees < 1) {
+    warnings.push({
+      text: "هذا العرض ما عندوش عدد زيتونات مكتوب: ما ينجّمش يترقّم وما يتباعش بالزيتونة.",
+      href: cardHref,
+      action: "اكتب عدد الأشجار",
+    });
+  }
+  if (stock.status === "partial") {
+    warnings.push({
+      text: `عدد الزيتونات المرقّمة (${formatCount(stock.trees_total)}) يختلف على العدد المصرّح به (${formatCount(
+        stock.trees_declared ?? 0,
+      )}).`,
+      href: treesHref,
+      action: "أعد الترقيم",
+    });
+  }
+  if (newPricing && attachedClasses.length === 0) {
+    warnings.push({
+      text: "هذا العرض بلا فئة مساحة: ما يتحسب حتى سعر للزيتونة، والموقع ما يعرض سعر وما يفتحش استمارة الاهتمام.",
+      href: spacingHref,
+      action: "اعتماد فئة المساحة",
+    });
+  }
+
+  const [costs, allClasses, treeRows, firstTree, lastTree] = await Promise.all([
+    canSeeCosts && tab === "costs"
+      ? supabase.from("project_costs").select("id, kind, label, amount_millimes").eq("project_id", id).order("created_at")
+      : Promise.resolve({ data: [] as ProjectCost[] }),
+    tab === "pricing"
+      ? supabase
+          .from("tree_spacing_classes")
+          .select("id, label_ar, area_m2, row_spacing_m, tree_spacing_m, is_active")
+          .order("sort_order")
+          .order("label_ar")
+      : Promise.resolve({ data: [] as SpacingChoice[] }),
+    // Only the trees somebody holds: the rest are available and identical, and 500 identical rows tell nobody
+    // anything. RLS already limits public.trees to staff (0054). One page at a time, and the total is counted by
+    // Postgres in the same statement — never summed here.
+    tab === "trees"
+      ? (treeFilter === "held"
+          ? supabase.from("trees").select("id, code, state, allocated_at, held_by", { count: "exact" }).eq("project_id", id).neq("state", "available")
+          : supabase.from("trees").select("id, code, state, allocated_at, held_by", { count: "exact" }).eq("project_id", id).eq("state", treeFilter)
+        )
+          .order("seq")
+          .range((treePage - 1) * TREE_PAGE_SIZE, treePage * TREE_PAGE_SIZE - 1)
+      : Promise.resolve({
+          data: [] as { id: string; code: string; state: HeldTree["state"]; allocated_at: string | null; held_by: string | null }[],
+          count: 0 as number | null,
+        }),
+    // The code range, read in tree order (seq), because a code is text and sorts alphabetically.
+    tab === "trees" ? supabase.from("trees").select("code").eq("project_id", id).order("seq").limit(1).maybeSingle() : Promise.resolve({ data: null }),
+    tab === "trees"
+      ? supabase.from("trees").select("code").eq("project_id", id).order("seq", { ascending: false }).limit(1).maybeSingle()
+      : Promise.resolve({ data: null }),
   ]);
 
-  const rows = parcels.data ?? [];
-  // Plan P5-3: on a tree-priced project a parcel's area and price follow from its trees (app.parcel_price).
-  const prices = await getStaffParcelPrices(supabase, id);
-  const figures = (parcel: (typeof rows)[number]) => effectiveParcelFigures(parcel, prices);
-  const pictures = media.data ?? [];
-  // Without a chosen cover the site uses the first picture in order.
-  const hasChosenCover = pictures.some((picture) => picture.is_cover);
-  const parcelArea = rows.reduce((sum, parcel) => sum + figures(parcel).area, 0);
-  const parcelTrees = rows.reduce((sum, parcel) => sum + (parcel.olive_tree_count ?? 0), 0);
-  const parcelValue = rows.reduce((sum, parcel) => sum + (figures(parcel).cash ?? 0), 0);
-  const costTotal = (costs.data ?? []).reduce((sum, cost) => sum + (cost.amount_millimes ?? 0), 0);
-  // Report v3 §35: what the parcels not withdrawn would bring at their cash price, against the recorded costs.
-  const expectedRevenue = rows
-    .filter((parcel) => parcel.status !== "withdrawn")
-    .reduce((sum, parcel) => sum + (figures(parcel).cash ?? 0), 0);
-  const expectedMargin = expectedRevenue - costTotal;
-  const governorate = config.governorates.find((g) => g.id === project.governorate_id)?.name_ar;
-
-  // PRJ-04: warn when the parcels do not add up to the project
-  const warnings: string[] = [];
-  if (project.total_area_m2 && parcelArea > Number(project.total_area_m2) + 0.5) {
-    warnings.push(`مجموع مساحات القطع (${formatCount(Math.round(parcelArea))} م²) أكبر من مساحة المشروع.`);
-  }
-  if (project.tree_count !== null && parcelTrees > project.tree_count) {
-    warnings.push(`مجموع زيتونات القطع (${formatCount(parcelTrees)}) أكبر من عدد أشجار المشروع.`);
-  }
-  // An available parcel priced at 0 is shown on the site as «السعر يُعلن لاحقاً», never as «0 د.ت».
-  const unpriced = rows.filter((parcel) => parcel.status === "available" && !figures(parcel).cash).length;
-  if (unpriced > 0) {
-    warnings.push(`فيه قطع متاحة بلا سعر (${formatCount(unpriced)}). لن تُعرض بسعر على الموقع.`);
-  }
-  // Pages under /projects show internal, published, sold-out and operating projects only.
-  const visibleOnSite = ["internal", "published", "sold_out", "operating"].includes(project.status);
+  // Who holds them. A commercial reads only their own files, so a name that RLS hides simply does not show.
+  const heldRows = treeRows.data ?? [];
+  const holderIds = [...new Set(heldRows.flatMap((tree) => (tree.held_by ? [tree.held_by] : [])))];
+  const holders =
+    holderIds.length > 0 ? await supabase.from("persons").select("id, full_name").in("id", holderIds) : { data: [] as { id: string; full_name: string }[] };
+  const holderName = new Map((holders.data ?? []).map((person) => [person.id, person.full_name]));
+  const held: HeldTree[] = heldRows.map((tree) => ({
+    id: tree.id,
+    code: tree.code,
+    state: tree.state,
+    allocatedAt: tree.allocated_at,
+    holderId: tree.held_by,
+    holderName: tree.held_by ? (holderName.get(tree.held_by) ?? null) : null,
+  }));
+  const codeRange = firstTree.data?.code && lastTree.data?.code ? { first: firstTree.data.code, last: lastTree.data.code } : null;
 
   return (
-    <div className="space-y-6">
-      <Link href="/admin/projects" className="text-sm font-semibold text-forest underline-offset-4 hover:underline">
-        → المشاريع والقطع
+    <div className="space-y-5">
+      <Link href="/admin/projects" className="inline-block text-sm font-semibold text-forest underline-offset-4 hover:underline">
+        → العروض
       </Link>
 
-      <header className="card flex flex-wrap items-start justify-between gap-4 p-5 sm:p-6">
-        <div className="space-y-1">
-          <div className="flex flex-wrap items-center gap-3">
-            <h1 className="section-title">{project.name}</h1>
-            <StatusPill toneClass={PROJECT_STATUS_TONES[project.status as ProjectStatus]}>
-              {PROJECT_STATUS_LABELS[project.status as ProjectStatus]}
-            </StatusPill>
-            {visibleOnSite ? (
-              <Link
-                href={`/projects/${encodeURIComponent(project.code)}`}
-                target="_blank"
-                className="text-sm font-semibold text-forest underline-offset-4 hover:underline"
-              >
+      <SectionHeader
+        level={1}
+        title={project.name}
+        badge={<StatusPill toneClass={projectStatusTone(project.status)}>{projectStatusLabel(project.status)}</StatusPill>}
+        description={
+          <span dir="ltr" className="inline-block text-sm">
+            {project.code}
+            {governorate ? ` · ${governorate}` : ""}
+          </span>
+        }
+        actions={
+          <>
+            {ON_SITE.includes(project.status) ? (
+              <Link href={`/projects/${encodeURIComponent(project.code)}`} target="_blank" className="btn btn-ghost btn-sm">
                 معاينة في الموقع ↗
               </Link>
             ) : null}
+            {/* From the offer to the demands made on it. public.crm_search_requests has filtered on
+                project_id since 0052 and parseLeadFilters reads it out of the address since 2026-09-19, so
+                this is the whole feature: until now a commercial standing on TX-00215 had no way to ask who
+                asked for it, and had to go to the list and rebuild the search by hand. */}
+            <Link href={demandsHref} className="btn btn-ghost btn-sm">
+              مطالب هذا العرض
+            </Link>
             {newPricing && canWrite ? (
-              <Link href={newPricingHref} className="text-sm font-semibold text-forest underline-offset-4 hover:underline">
-                التسعير الجديد لهذا المشروع
+              <Link href={pricingHref} className="btn btn-ghost btn-sm">
+                قواعد التسعير
               </Link>
             ) : null}
-          </div>
-          <p dir="ltr" className="text-end text-sm text-muted sm:text-start">
-            {project.code} · {governorate}
-          </p>
-        </div>
-        <dl className="grid grid-cols-2 gap-x-6 gap-y-2 text-sm sm:grid-cols-4">
-          <DataRow layout="stacked" label="القطع">{formatCount(rows.length)}</DataRow>
-          <DataRow layout="stacked" label="مساحة القطع">{formatCount(Math.round(parcelArea))} م²</DataRow>
-          <DataRow layout="stacked" label="زيتونات القطع">{formatCount(parcelTrees)}</DataRow>
-          <DataRow layout="stacked" label="قيمة القطع">{formatMillimes(parcelValue)}</DataRow>
-        </dl>
-      </header>
+          </>
+        }
+      />
+
+      <OfferIdentity
+        locationText={[project.location_description, governorate].filter(Boolean).join(" · ")}
+        totalAreaM2={project.total_area_m2 === null ? null : Number(project.total_area_m2)}
+        declaredTrees={project.tree_count}
+        variety={project.olive_variety}
+        ageYears={project.tree_age_years === null ? null : Number(project.tree_age_years)}
+        productionText={project.production_status ? (PRODUCTION_LABELS[project.production_status] ?? project.production_status) : null}
+        plantationText={project.plantation_system ? (PLANTATION_LABELS[project.plantation_system] ?? project.plantation_system) : null}
+        irrigationText={project.irrigation ? ((IRRIGATION_LABELS as Record<string, string>)[project.irrigation] ?? project.irrigation) : null}
+        areaPerTree={areaPerTree}
+        documents={documents}
+        pricePerTree={pricePerTree}
+      />
+
+      <OfferStockTiles stock={stock} labels={stockLabels} treesHref={treesHref} />
 
       {warnings.length > 0 ? (
         <ul className="space-y-2">
           {warnings.map((warning) => (
-            <li key={warning} className="rounded-xl bg-gold-soft px-4 py-3 text-sm text-forest-700">
-              {warning}
+            <li key={warning.text} className="flex flex-wrap items-center justify-between gap-3 rounded-xl bg-gold-soft px-4 py-3 text-sm text-forest-700">
+              <span>{warning.text}</span>
+              {warning.href ? (
+                <Link href={warning.href} className="font-semibold underline underline-offset-4">
+                  {warning.action}
+                </Link>
+              ) : null}
             </li>
           ))}
         </ul>
       ) : null}
 
-      <section className="space-y-3">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <h2 className="text-lg font-semibold">القطع</h2>
-          <p className="text-sm text-muted">المساحة وعدد الزيتونات والسعر حقول مستقلة لكل قطعة.</p>
+      <OfferTabs
+        projectId={id}
+        active={tab}
+        tabs={tabs}
+        counts={{ trees: stock.status === "not_generated" ? undefined : stock.trees_total }}
+      />
+
+      {/* «بيانات العرض» holds the three things that answer «what is this offer and what does the visitor see»:
+          its card, what prices it, and its pictures. See ./offer-tabs.tsx for why they are one tab and not four. */}
+      {tab === "card" ? (
+        <div className="space-y-8">
+          <CardTab project={project} config={config} canWrite={canWrite} />
+          <PicturesTab projectId={id} pictures={pictures} canWrite={canWrite} />
         </div>
-
-        {/* Report v3 §21: the plan staff read at a glance, each tile opening the parcel card */}
-        <ParcelPlan
-          title="مخطط القطع"
-          tiles={rows.map((parcel) => ({
-            id: parcel.id,
-            code: parcel.code,
-            status: parcel.status,
-            href: `/admin/projects/${id}/parcels/${parcel.id}`,
-            detail: `${formatCount(figures(parcel).area)} م²`,
-          }))}
-        />
-
-        {rows.length === 0 ? (
-          <EmptyState>لا توجد قطع بعد. أضف أول قطعة من الأسفل.</EmptyState>
-        ) : (
-          <div className="panel overflow-x-auto">
-            <table className="w-full min-w-[62rem] text-sm">
-              <thead className="bg-paper text-xs text-muted">
-                <tr>
-                  <TableHeadCell>القطعة</TableHeadCell>
-                  <TableHeadCell>المساحة</TableHeadCell>
-                  <TableHeadCell>نوع العقار</TableHeadCell>
-                  <TableHeadCell>الغراسة</TableHeadCell>
-                  <TableHeadCell>الزيتونات</TableHeadCell>
-                  <TableHeadCell>العمر</TableHeadCell>
-                  <TableHeadCell>الإنتاج</TableHeadCell>
-                  <TableHeadCell>الري</TableHeadCell>
-                  <TableHeadCell>سعر الحاضر</TableHeadCell>
-                  <TableHeadCell>الحالة</TableHeadCell>
-                  <TableHeadCell> </TableHeadCell>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-line">
-                {rows.map((parcel) => (
-                  <tr key={parcel.id} className="hover:bg-paper/60">
-                    <TableCell className="font-semibold">{parcel.code}</TableCell>
-                    <TableCell className="tabular-nums">{formatCount(figures(parcel).area)} م²</TableCell>
-                    <TableCell>{PROPERTY_TYPE_LABELS[parcel.property_type] ?? parcel.property_type}</TableCell>
-                    <TableCell>{parcel.plantation_system ? (PLANTATION_LABELS[parcel.plantation_system] ?? parcel.plantation_system) : "—"}</TableCell>
-                    <TableCell className="tabular-nums">{parcel.olive_tree_count ?? "—"}</TableCell>
-                    <TableCell className="tabular-nums">{parcel.tree_age_years ?? "—"}</TableCell>
-                    <TableCell>{parcel.production_status ? (PRODUCTION_LABELS[parcel.production_status] ?? parcel.production_status) : "—"}</TableCell>
-                    <TableCell>{parcel.irrigation === "irrigated" ? "مروية" : parcel.irrigation === "rainfed" ? "بعلية" : "—"}</TableCell>
-                    <TableCell className="tabular-nums">
-                      <ParcelPriceCell cash={figures(parcel).cash} price={figures(parcel).price} />
-                    </TableCell>
-                    <TableCell>
-                      <StatusPill toneClass={PARCEL_STATUS_TONES[parcel.status as ParcelStatus]}>
-                        {PARCEL_STATUS_LABELS[parcel.status as ParcelStatus]}
-                      </StatusPill>
-                    </TableCell>
-                    <TableCell>
-                      <Link href={`/admin/projects/${id}/parcels/${parcel.id}`} className="font-semibold text-forest underline-offset-4 hover:underline">
-                        البطاقة والـMatching
-                      </Link>
-                    </TableCell>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-
-        {canWrite ? (
-          <details className="rounded-2xl border border-dashed border-line-strong bg-paper/60">
-            <summary className="cursor-pointer list-none px-5 py-4 text-sm font-semibold text-forest [&::-webkit-details-marker]:hidden">
-              + إضافة قطعة
-            </summary>
-            <div className="border-t border-line px-5 py-5">
-              <ActionForm
-                action={saveParcel.bind(null, id, null)}
-                submitLabel="إضافة القطعة"
-                className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4"
-                buttonClassName="btn btn-primary sm:col-span-2 lg:col-span-4 lg:w-48"
-              >
-                <ParcelFields parcel={null} pricingInherit={parcelInherit} legacyNoticeHref={newPricing ? newPricingHref : null} treeClasses={treeClasses} nextOrder={(rows.at(-1)?.sort_order ?? 0) + 10} nextCode={`P${String(rows.length + 1).padStart(2, "0")}`} />
-              </ActionForm>
-            </div>
-          </details>
-        ) : null}
-      </section>
-
-      {/* Report v3 §20: the gallery of the public project page */}
-      <section className="space-y-3">
-        <div className="flex flex-wrap items-baseline justify-between gap-3">
-          <h2 className="text-lg font-semibold">صور المشروع</h2>
-          <p className="text-sm text-muted">تظهر في صفحة المشروع. الغلاف يظهر أولاً وفي بطاقة المشروع.</p>
-        </div>
-        <div className="card p-5">
-          {pictures.length > 0 ? (
-            <ul className="mb-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-              {pictures.map((picture, index) => {
-                const isCover = picture.is_cover || (!hasChosenCover && index === 0);
-                return (
-                  <li key={picture.id} className="card rounded-xl bg-paper p-2">
-                    <div className="relative aspect-4/3 overflow-hidden rounded-lg bg-leaf-soft">
-                      {/* eslint-disable-next-line @next/next/no-img-element -- admin preview of an uploaded file */}
-                      <img src={picture.url} alt={picture.alt_ar} className="size-full object-cover" />
-                      {isCover ? (
-                        <span className="absolute start-2 top-2 rounded-full bg-forest px-2 py-0.5 text-xs font-semibold text-paper">الغلاف</span>
-                      ) : null}
-                    </div>
-                    <p className="mt-2 text-sm">{picture.alt_ar}</p>
-                    {picture.caption_ar ? <p className="text-xs text-muted">{picture.caption_ar}</p> : null}
-                    {canWrite ? (
-                      <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm">
-                        {!picture.is_cover ? (
-                          <form action={setProjectCover.bind(null, id, picture.id)}>
-                            <button type="submit" className="font-semibold text-forest underline-offset-4 hover:underline">
-                              اجعلها الغلاف
-                            </button>
-                          </form>
-                        ) : null}
-                        {index > 0 ? (
-                          <form action={moveProjectPicture.bind(null, id, picture.id, -1)}>
-                            <button type="submit" className="font-medium text-ink/80 underline-offset-4 hover:underline">
-                              تقديم
-                            </button>
-                          </form>
-                        ) : null}
-                        {index < pictures.length - 1 ? (
-                          <form action={moveProjectPicture.bind(null, id, picture.id, 1)}>
-                            <button type="submit" className="font-medium text-ink/80 underline-offset-4 hover:underline">
-                              تأخير
-                            </button>
-                          </form>
-                        ) : null}
-                        <form action={removeProjectPicture.bind(null, id, picture.id)}>
-                          <button type="submit" className="font-medium text-danger underline-offset-4 hover:underline">
-                            حذف
-                          </button>
-                        </form>
-                      </div>
-                    ) : null}
-                  </li>
-                );
-              })}
-            </ul>
-          ) : (
-            <p className="mb-5 text-sm text-muted">لا توجد صور بعد. ما دام المشروع بلا صورة يظهر رسم بألوان العلامة.</p>
-          )}
-
-          {canWrite ? (
-            <ActionForm
-              action={addProjectPicture.bind(null, id)}
-              submitLabel="رفع الصورة"
-              pendingLabel="جارٍ الرفع…"
-              className="grid gap-3 sm:grid-cols-2 lg:grid-cols-[1.2fr_1fr_1fr_auto] lg:items-end"
-              buttonClassName="btn btn-secondary btn-sm"
-            >
-              <FormField size="sm" label="ملف الصورة">
-                <input
-                  name="file"
-                  type="file"
-                  required
-                  accept="image/jpeg,image/png,image/webp,image/avif"
-                  className="field py-2.5 file:me-3 file:rounded-lg file:border-0 file:bg-leaf-soft file:px-3 file:py-1.5 file:text-sm file:font-semibold file:text-forest"
-                />
-              </FormField>
-              <FormField size="sm" label="النص البديل">
-                <input name="alt" required maxLength={160} placeholder="مثال: صفوف زيتون شملالي عند مدخل الضيعة" className="field field-sm" />
-              </FormField>
-              <FormField size="sm" label="تعليق (اختياري)">
-                <input name="caption" maxLength={200} className="field field-sm" />
-              </FormField>
-            </ActionForm>
-          ) : null}
-        </div>
-      </section>
-
-      {canWrite ? (
-        <section className="space-y-3">
-          <h2 className="text-lg font-semibold">بيانات المشروع</h2>
-          <div className="card p-5">
-            <ActionForm
-              action={saveProject.bind(null, id)}
-              submitLabel="حفظ المشروع"
-              className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3"
-              buttonClassName="btn btn-secondary sm:col-span-2 lg:col-span-3 lg:w-48"
-            >
-              <FormField size="sm" label="الاسم">
-                <input name="name" defaultValue={project.name} required className="field" />
-              </FormField>
-              <FormField size="sm" label="الولاية">
-                <select name="governorate_id" defaultValue={project.governorate_id} className="field">
-                  {config.governorates.map((g) => (
-                    <option key={g.id} value={g.id}>
-                      {g.name_ar}
-                    </option>
-                  ))}
-                </select>
-              </FormField>
-              <FormField size="sm" label="نوع المشروع">
-                <select name="project_type_id" defaultValue={project.project_type_id ?? ""} className="field">
-                  <option value="">بدون</option>
-                  {config.projectTypes.map((type) => (
-                    <option key={type.id} value={type.id}>
-                      {type.label_ar}
-                    </option>
-                  ))}
-                </select>
-              </FormField>
-              <FormField size="sm" label="المساحة الجملية (م²)">
-                <input name="total_area_m2" defaultValue={project.total_area_m2 ?? ""} inputMode="decimal" dir="ltr" className="field text-left" />
-              </FormField>
-              <FormField size="sm" label="عدد الأشجار">
-                <input name="tree_count" defaultValue={project.tree_count ?? ""} inputMode="numeric" dir="ltr" className="field text-left" />
-              </FormField>
-              <FormField size="sm" label="عمر الأشجار (سنوات)">
-                <input name="tree_age_years" defaultValue={project.tree_age_years ?? ""} inputMode="decimal" dir="ltr" className="field text-left" />
-              </FormField>
-              <FormField size="sm" label="الصنف">
-                <input name="olive_variety" defaultValue={project.olive_variety ?? ""} className="field" />
-              </FormField>
-              <FormField size="sm" label="نظام الغراسة">
-                <select name="plantation_system" defaultValue={project.plantation_system ?? ""} className="field">
-                  <option value="">غير محدّد</option>
-                  {Object.entries(PLANTATION_LABELS).map(([value, label]) => (
-                    <option key={value} value={value}>
-                      {label}
-                    </option>
-                  ))}
-                </select>
-              </FormField>
-              <FormField size="sm" label="حالة الإنتاج">
-                <select name="production_status" defaultValue={project.production_status ?? ""} className="field">
-                  <option value="">غير محدّدة</option>
-                  {Object.entries(PRODUCTION_LABELS).map(([value, label]) => (
-                    <option key={value} value={value}>
-                      {label}
-                    </option>
-                  ))}
-                </select>
-              </FormField>
-              <FormField size="sm" label="الري">
-                <select name="irrigation" defaultValue={project.irrigation ?? ""} className="field">
-                  <option value="">غير محدّد</option>
-                  <option value="rainfed">بعلية</option>
-                  <option value="irrigated">مروية</option>
-                </select>
-              </FormField>
-              <FormField size="sm" label="المصاريف السنوية التقديرية للقطعة (د.ت)">
-                <input
-                  name="annual_costs_dinars"
-                  defaultValue={project.annual_costs_millimes !== null ? project.annual_costs_millimes / 1000 : ""}
-                  inputMode="decimal"
-                  dir="ltr"
-                  className="field text-left"
-                />
-              </FormField>
-              <FormField size="sm" label="الحالة">
-                <select name="status" defaultValue={project.status} className="field">
-                  {Object.entries(PROJECT_STATUS_LABELS).map(([value, label]) => (
-                    <option key={value} value={value}>
-                      {label}
-                    </option>
-                  ))}
-                </select>
-              </FormField>
-              <div className="sm:col-span-2 lg:col-span-3">
-                <FormField size="sm" label="وصف الموقع">
-                  <input name="location_description" defaultValue={project.location_description ?? ""} className="field" />
-                </FormField>
-              </div>
-
-              {/* Report v3 §20: what the public project page shows beyond the facts */}
-              <input type="hidden" name="page_fields" value="1" />
-              <div className="sm:col-span-2 lg:col-span-3">
-                <FormField size="sm" label="وصف المشروع (يظهر في صفحة المشروع)">
-                  <textarea
-                    name="description_ar"
-                    rows={5}
-                    maxLength={4000}
-                    defaultValue={project.description_ar ?? ""}
-                    className="field min-h-32"
-                  />
-                </FormField>
-                <p className="hint mt-1">بلا وعود ولا أرقام مردود أو ربح (PRN-01).</p>
-              </div>
-              <FormField size="sm" label="الماء">
-                <select
-                  name="water_available"
-                  defaultValue={project.water_available === true ? "yes" : project.water_available === false ? "no" : ""}
-                  className="field"
-                >
-                  <option value="">غير محدّد</option>
-                  <option value="yes">متوفّر</option>
-                  <option value="no">غير متوفّر</option>
-                </select>
-              </FormField>
-              <FormField size="sm" label="مصدر الماء">
-                <input name="water_note" maxLength={300} defaultValue={project.water_note ?? ""} placeholder="مثال: بئر عميقة داخل الضيعة" className="field" />
-              </FormField>
-              <FormField size="sm" label="النفاذ والطريق">
-                <input
-                  name="access_note"
-                  maxLength={300}
-                  defaultValue={project.access_note ?? ""}
-                  placeholder="مثال: طريق معبّدة حتى مدخل الضيعة"
-                  className="field"
-                />
-              </FormField>
-              <div className="sm:col-span-2 lg:col-span-3">
-                <FormField size="sm" label="رابط الفيديو (YouTube أو Vimeo يظهر داخل الصفحة، غيرهما يظهر كرابط)">
-                  <input
-                    name="video_url"
-                    type="url"
-                    maxLength={500}
-                    defaultValue={project.video_url ?? ""}
-                    placeholder="https://www.youtube.com/watch?v=…"
-                    dir="ltr"
-                    className="field text-left"
-                  />
-                </FormField>
-              </div>
-              <FormField size="sm" label="خط العرض">
-                <input name="latitude" defaultValue={project.latitude ?? ""} inputMode="decimal" placeholder="34.55" dir="ltr" className="field text-left" />
-              </FormField>
-              <FormField size="sm" label="خط الطول">
-                <input name="longitude" defaultValue={project.longitude ?? ""} inputMode="decimal" placeholder="10.30" dir="ltr" className="field text-left" />
-              </FormField>
-              <label className="choice self-end">
-                <input type="checkbox" name="show_location" defaultChecked={project.show_location} />
-                <span className="font-medium">إظهار الموقع على الخريطة في صفحة المشروع</span>
-              </label>
-              <OptionChecks
-                legend="الوثائق المتوفّرة (تظهر أسماؤها فقط، الملفات لا تُنشر)"
-                name="document_option_ids"
-                options={optionsFor(config, "land_document")}
-                chosen={project.document_option_ids}
-              />
-              <OptionChecks
-                legend="خدمات AgriZed في هذا المشروع (أسماء بلا أسعار)"
-                name="service_option_ids"
-                options={optionsFor(config, "agrized_service")}
-                chosen={project.service_option_ids}
-              />
-
-              <div className="space-y-3 sm:col-span-2 lg:col-span-3">
-                {newPricing ? <LegacyPricingNotice href={newPricingHref} /> : null}
-                <PricingEditor
-                  initial={project.pricing}
-                  inherit={{
-                    label: "الصيغة الافتراضية",
-                    hint: "نفس الصيغة المضبوطة في الإعدادات ← التسعير.",
-                    lines: describePricing(defaultPricing),
-                  }}
-                />
-              </div>
-            </ActionForm>
-          </div>
-        </section>
       ) : null}
 
-      {canSeeCosts ? (
-        <section className="space-y-3">
-          <div className="flex flex-wrap items-baseline justify-between gap-3">
-            <h2 className="text-lg font-semibold">التكاليف الداخلية</h2>
-            <p className="text-sm text-muted">لا تظهر للحرفاء ولا للـCommercials (PRJ-03).</p>
-          </div>
-          <div className="card p-5">
-            {(costs.data ?? []).length > 0 ? (
-              <ul className="mb-4 divide-y divide-line">
-                {(costs.data ?? []).map((cost) => (
-                  <li key={cost.id} className="flex items-center justify-between gap-4 py-2 text-sm">
-                    <span>
-                      {cost.label} <span className="text-xs text-muted">· {COST_KIND_LABELS[cost.kind] ?? cost.kind}</span>
-                    </span>
-                    <span className="tabular-nums">{formatMillimes(cost.amount_millimes)}</span>
-                  </li>
-                ))}
-                <li className="flex items-center justify-between gap-4 py-2 text-sm font-semibold">
-                  <span>المجموع</span>
-                  <span className="tabular-nums">{formatMillimes(costTotal)}</span>
-                </li>
-                <li className="flex items-center justify-between gap-4 py-2 text-sm">
-                  <span>المداخيل المتوقّعة (سعر الحاضر للقطع غير الموقوفة)</span>
-                  <span className="tabular-nums">{formatMillimes(expectedRevenue)}</span>
-                </li>
-                <li
-                  className={`flex items-center justify-between gap-4 py-2 text-sm font-semibold ${expectedMargin < 0 ? "text-danger" : "text-forest"}`}
-                >
-                  <span>الهامش المتوقّع</span>
-                  <span className="tabular-nums">{formatMillimes(expectedMargin)}</span>
-                </li>
-              </ul>
-            ) : (
-              <p className="mb-4 text-sm text-muted">لا توجد تكاليف مسجّلة.</p>
-            )}
-            <ActionForm
-              action={addProjectCost.bind(null, id)}
-              submitLabel="إضافة"
-              className="grid gap-3 sm:grid-cols-[1fr_13rem_10rem_auto] sm:items-end"
-              buttonClassName="btn btn-secondary btn-sm"
-            >
-              <FormField size="sm" label="البيان">
-                <input name="label" required className="field field-sm" />
-              </FormField>
-              <FormField size="sm" label="النوع">
-                <select name="kind" defaultValue="purchase" className="field field-sm">
-                  {COST_KINDS_OFFERED.map((kind) => (
-                    <option key={kind} value={kind}>
-                      {COST_KIND_LABELS[kind]}
-                    </option>
-                  ))}
-                </select>
-              </FormField>
-              <FormField size="sm" label="المبلغ (د.ت)">
-                <input name="amount_dinars" required inputMode="decimal" dir="ltr" className="field field-sm text-left" />
-              </FormField>
-            </ActionForm>
-          </div>
-        </section>
+      {tab === "trees" ? (
+        <TreesTab
+          // A new page or a new filter is a new list, so the selection never survives into rows nobody ticked.
+          key={`${treeFilter}-${treePage}`}
+          projectId={id}
+          offerCode={project.code}
+          stock={stock}
+          labels={stockLabels}
+          codeRange={codeRange}
+          held={held}
+          declaredTrees={project.tree_count}
+          canManage={canManageTrees}
+          canRelease={canReleaseTrees}
+          offerMinimum={project.min_trees_per_order}
+          filter={treeFilter}
+          page={treePage}
+          pageSize={TREE_PAGE_SIZE}
+          matched={treeRows.count ?? held.length}
+          reasonMin={reasonMin}
+        />
+      ) : null}
+
+      {/* «التسعير» holds everything that decides what one tree of this offer costs — starting with the spacing
+          class, which used to sit under بيانات العرض, one screen away from the rules that use it. */}
+      {tab === "pricing" && canPrice ? (
+        <div className="space-y-8">
+          <SpacingAndPrice
+            projectId={id}
+            attached={attachedClasses}
+            choices={(allClasses.data ?? []) as SpacingChoice[]}
+            pricePerTree={pricePerTree}
+            reasonMin={reasonMin}
+            canWrite={canWrite}
+            treePricingReady={newPricing}
+          />
+          <PricingTab projectId={id} />
+        </div>
+      ) : null}
+
+      {tab === "costs" && canSeeCosts ? (
+        <CostsTab projectId={id} costs={(costs.data ?? []) as ProjectCost[]} expectedRevenue={quote?.totalPriceMillimes ?? null} />
       ) : null}
     </div>
   );
 }
 
-export function ParcelFields({
-  parcel,
-  pricingInherit,
-  legacyNoticeHref = null,
-  treeClasses = [],
-  computed = null,
-  nextOrder = 0,
-  nextCode = "",
-}: {
-  /** The formula this parcel uses when it has none of its own. */
-  pricingInherit: { label: string; hint: string; lines: string[] };
-  /** Set once the tree pricing exists: this parcel's jsonb formula is then the legacy path only. */
-  legacyNoticeHref?: string | null;
-  /** Plan P5-3: the project's spacing classes; empty for a legacy project. */
-  // area_m2 is a generated column, so the generated types allow null.
-  treeClasses?: { id: string; label_ar: string; area_m2: number | null }[];
-  /** The parcel's computed area and price (app.parcel_price), shown read-only on a tree-priced project. */
-  computed?: ParcelPrice | null;
-  parcel: {
-    code: string;
-    area_m2: number | string;
-    property_type: string;
-    plantation_system: string | null;
-    olive_tree_count: number | null;
-    tree_age_years: number | string | null;
-    production_status: string | null;
-    irrigation: string | null;
-    cash_price_millimes: number;
-    annual_costs_millimes: number | null;
-    status: string;
-    sort_order: number;
-    notes: string | null;
-    pricing: unknown;
-    spacing_class_id?: string | null;
-  } | null;
-  nextOrder?: number;
-  nextCode?: string;
-}) {
-  const onTree = treeClasses.length > 0;
-
-  return (
-    <>
-      <FormField size="sm" label="رمز القطعة">
-        <input name="code" defaultValue={parcel?.code ?? nextCode} required dir="ltr" className="field text-left" />
-      </FormField>
-      {onTree ? (
-        <FormField size="sm" label="فئة المساحة">
-          <select name="spacing_class_id" defaultValue={parcel?.spacing_class_id ?? treeClasses[0]?.id ?? ""} required className="field">
-            {treeClasses.map((spacing) => (
-              <option key={spacing.id} value={spacing.id}>
-                {spacing.label_ar} · {formatArea(Number(spacing.area_m2))} للزيتونة
-              </option>
-            ))}
-          </select>
-        </FormField>
-      ) : (
-        <FormField size="sm" label="المساحة (م²)">
-          <input name="area_m2" defaultValue={parcel?.area_m2 ?? ""} required inputMode="decimal" dir="ltr" className="field text-left" />
-        </FormField>
-      )}
-      <FormField size="sm" label="نوع العقار">
-        <select name="property_type" defaultValue={parcel?.property_type ?? "planted"} className="field">
-          {Object.entries(PROPERTY_TYPE_LABELS).map(([value, label]) => (
-            <option key={value} value={value}>
-              {label}
-            </option>
-          ))}
-        </select>
-      </FormField>
-      <FormField size="sm" label="نظام الغراسة">
-        <select name="plantation_system" defaultValue={parcel?.plantation_system ?? ""} className="field">
-          <option value="">غير محدّد</option>
-          {Object.entries(PLANTATION_LABELS).map(([value, label]) => (
-            <option key={value} value={value}>
-              {label}
-            </option>
-          ))}
-        </select>
-      </FormField>
-      <FormField size="sm" label="عدد الزيتونات">
-        <input
-          name="olive_tree_count"
-          defaultValue={parcel?.olive_tree_count ?? ""}
-          required={onTree}
-          inputMode="numeric"
-          dir="ltr"
-          className="field text-left"
-        />
-      </FormField>
-      <FormField size="sm" label="عمر الزيتونات (سنوات)">
-        <input name="tree_age_years" defaultValue={parcel?.tree_age_years ?? ""} inputMode="decimal" dir="ltr" className="field text-left" />
-      </FormField>
-      <FormField size="sm" label="حالة الإنتاج">
-        <select name="production_status" defaultValue={parcel?.production_status ?? ""} className="field">
-          <option value="">غير محدّدة</option>
-          {Object.entries(PRODUCTION_LABELS).map(([value, label]) => (
-            <option key={value} value={value}>
-              {label}
-            </option>
-          ))}
-        </select>
-      </FormField>
-      <FormField size="sm" label="الري">
-        <select name="irrigation" defaultValue={parcel?.irrigation ?? ""} className="field">
-          <option value="">غير محدّد</option>
-          <option value="rainfed">بعلية</option>
-          <option value="irrigated">مروية</option>
-        </select>
-      </FormField>
-      {onTree ? (
-        <div className="space-y-1.5">
-          <span className="block text-sm font-semibold">المساحة والسعر</span>
-          <p className="rounded-xl bg-paper px-3 py-2.5 text-sm tabular-nums">
-            {computed?.on_tree_pricing && computed.total_area_m2 ? formatArea(computed.total_area_m2) : "تتحسب من عدد الزيتونات"}
-            {computed?.cash_total_millimes ? ` · ${formatMillimes(computed.cash_total_millimes)}` : ""}
-          </p>
-        </div>
-      ) : (
-        <FormField size="sm" label="سعر الحاضر (د.ت)">
-          <input
-            name="cash_price_dinars"
-            defaultValue={parcel ? parcel.cash_price_millimes / 1000 : ""}
-            required
-            inputMode="decimal"
-            dir="ltr"
-            className="field text-left"
-          />
-        </FormField>
-      )}
-      <FormField size="sm" label="المصاريف السنوية (د.ت)">
-        <input
-          name="annual_costs_dinars"
-          defaultValue={parcel?.annual_costs_millimes !== null && parcel?.annual_costs_millimes !== undefined ? parcel.annual_costs_millimes / 1000 : ""}
-          inputMode="decimal"
-          dir="ltr"
-          className="field text-left"
-        />
-      </FormField>
-      <FormField size="sm" label="الحالة">
-        <select name="status" defaultValue={parcel?.status ?? "available"} className="field">
-          {Object.entries(PARCEL_STATUS_LABELS).map(([value, label]) => (
-            <option key={value} value={value}>
-              {label}
-            </option>
-          ))}
-        </select>
-      </FormField>
-      <FormField size="sm" label="الترتيب">
-        <input type="number" name="sort_order" defaultValue={parcel?.sort_order ?? nextOrder} min={0} dir="ltr" className="field text-left" />
-      </FormField>
-      <div className="sm:col-span-2 lg:col-span-4">
-        <FormField size="sm" label="ملاحظات">
-          <input name="notes" defaultValue={parcel?.notes ?? ""} className="field" />
-        </FormField>
-      </div>
-      {onTree ? null : (
-        <div className="space-y-3 sm:col-span-2 lg:col-span-4">
-          {legacyNoticeHref ? <LegacyPricingNotice href={legacyNoticeHref} /> : null}
-          <PricingEditor initial={parcel?.pricing ?? null} inherit={pricingInherit} />
-        </div>
-      )}
-    </>
-  );
-}
-
-/** Checkboxes over an option list (PRN-02): the values live in «الإعدادات ← القوائم», not in the code. */
-function OptionChecks({
-  legend,
-  name,
-  options,
-  chosen,
-}: {
-  legend: string;
-  name: string;
-  options: { id: string; label_ar: string }[];
-  chosen: string[];
-}) {
-  return (
-    <fieldset className="sm:col-span-2 lg:col-span-3">
-      <legend className="text-sm font-semibold">{legend}</legend>
-      {options.length === 0 ? (
-        <p className="hint mt-1">القائمة فارغة. أضف قيماً من الإعدادات ← القوائم.</p>
-      ) : (
-        <div className="mt-2 flex flex-wrap gap-2">
-          {options.map((option) => (
-            <label key={option.id} className="choice">
-              <input type="checkbox" name={name} value={option.id} defaultChecked={chosen.includes(option.id)} />
-              <span>{option.label_ar}</span>
-            </label>
-          ))}
-        </div>
-      )}
-    </fieldset>
-  );
-}
-
-/** A tree parcel shows its computed price, or what blocks it; a legacy parcel its typed price. */
-function ParcelPriceCell({ cash, price }: { cash: number | null; price: ParcelPrice | null }) {
-  if (price?.on_tree_pricing && !cash) {
-    return <span className="text-xs text-danger">{(price.reason && PARCEL_PRICE_REASONS[price.reason]) ?? "السعر ما تحسبش."}</span>;
+/**
+ * The price per tree, or the one thing standing in its way — named, with the screen that supplies it.
+ * «يتحدّد بعد اعتماد فئة المساحة» was the old answer to every case: passive, and false on both live offers.
+ */
+function treePriceOf(
+  quote: OfferQuote | null,
+  links: { spacingHref: string; pricingHref: string; missingInput: string | null },
+): TreePrice {
+  if (!quote) return null;
+  if (quote.pricing === "ok" && quote.pricePerTreeMillimes) {
+    return { millimes: quote.pricePerTreeMillimes, annualMillimes: quote.annualFeePerTreeMillimes };
   }
-  return (
-    <>
-      {formatMillimes(cash ?? 0)}
-      {price?.on_tree_pricing && price.price_per_tree_millimes ? (
-        <span className="block text-xs text-muted">{formatMillimes(price.price_per_tree_millimes)} للزيتونة</span>
-      ) : null}
-    </>
-  );
+  if (quote.pricing === "legacy") {
+    return {
+      blocked: "ما فمّاش فئة مساحة لهذا العرض: علّم التباعد باش يتحسب سعر الزيتونة.",
+      href: links.spacingHref,
+      action: "علّم فئة المساحة",
+    };
+  }
+  if (quote.spacingStatus === "required") {
+    return { blocked: "العرض فيه أكثر من فئة مساحة: خلّي وحدة برك.", href: links.spacingHref, action: "اختر فئة وحدة" };
+  }
+  if (quote.reason === "spacing_not_found" || quote.spacingStatus === "not_allowed") {
+    return {
+      blocked: "فئة المساحة متاع هذا العرض تعطّلت: فعّلها ولا اختار وحدة أخرى.",
+      href: links.spacingHref,
+      action: "بدّل فئة المساحة",
+    };
+  }
+  if (quote.reason === "margin_not_set") {
+    return {
+      blocked: links.missingInput ?? "قواعد التسعير مازالت ناقصة.",
+      href: links.pricingHref,
+      action: "افتح قواعد التسعير",
+    };
+  }
+  return { blocked: "السعر ما تحسبش. تثبّت من قواعد التسعير متاع هذا العرض.", href: links.pricingHref, action: "افتح قواعد التسعير" };
+}
+
+/**
+ * app.tree_price returns one reason, 'margin_not_set', for four different empty fields (0045:80), and the Back
+ * Office used to translate it as «اضبط الهامش» — sending the owner to change the margin when what is missing is
+ * the land price. So the resolved rule is read here, offer row first then the global one, and the first empty
+ * field is named. Finance and Admin only: tree_pricing_rules is closed to everyone else (0031), and so is the
+ * reason that brings us here.
+ */
+async function missingPricingInput(supabase: Awaited<ReturnType<typeof createClient>>, projectId: string): Promise<string | null> {
+  const { data } = await supabase
+    .from("tree_pricing_rules")
+    .select("project_id, land_price_per_m2_millimes, planting_cost_per_tree_millimes, price_rounding_millimes, margin_mode")
+    .or(`project_id.eq.${projectId},project_id.is.null`);
+  const rows = data ?? [];
+  if (rows.length === 0) return null;
+
+  const own = rows.find((row) => row.project_id === projectId);
+  const global = rows.find((row) => row.project_id === null);
+  const resolved = <K extends "land_price_per_m2_millimes" | "planting_cost_per_tree_millimes" | "price_rounding_millimes" | "margin_mode">(
+    key: K,
+  ) => own?.[key] ?? global?.[key] ?? null;
+
+  if (resolved("land_price_per_m2_millimes") === null) return "ثمن المتر المربع مازال ما تكتبش في قواعد التسعير.";
+  if (resolved("planting_cost_per_tree_millimes") === null) return "تكلفة الغراسة للزيتونة مازالت ما تكتبش في قواعد التسعير.";
+  if (resolved("margin_mode") === null) return "هامش AgriZed مازال ما تضبطش في قواعد التسعير.";
+  if (resolved("price_rounding_millimes") === null) return "تدوير السعر مازال ما تضبطش في قواعد التسعير.";
+  return null;
 }

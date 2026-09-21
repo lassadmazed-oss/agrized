@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 
 import { formatPercent } from "@/components/admin/tree-pricing-inputs";
-import { DataTable, EmptyState, StatusPill, type Column } from "@/components/ui";
+import { DataTable, EmptyState, StatTile, StatusPill, type Column } from "@/components/ui";
 import { ADMIN_ROLES, CRM_READ_ROLES, hasRole, requireStaff } from "@/lib/auth";
 import { getPublicConfig, optionsFor } from "@/lib/config";
 import { CHANNEL_LABELS, PLANTATION_LABELS, PRODUCTION_LABELS, STAGE_TONES } from "@/lib/crm";
@@ -20,7 +20,11 @@ import {
   parseLeadFilters,
   PAYMENT_MODE_LABELS,
   PAYMENT_MODES,
+  REQUEST_KIND_FILTER_LABELS,
+  REQUEST_KIND_LABELS,
+  type RequestKind,
 } from "./filters";
+import { offerOf, offerSnapshots, requestKindOf } from "./offer-snapshot";
 
 export const metadata: Metadata = { title: "مطالب الاستثمار" };
 
@@ -59,12 +63,23 @@ export default async function LeadsPage({ searchParams }: PageProps<"/admin/lead
   }
 
   const rows = search.data ?? [];
+  type LeadRow = (typeof rows)[number];
   const firstRow = rows[0];
   const total = firstRow?.total_count ?? 0;
   const requestsTotal = firstRow?.requests_total ?? 0;
   const personsTotal = firstRow?.persons_total ?? 0;
   const treesTotal = firstRow?.trees_total ?? 0;
   const pageCount = Math.max(1, Math.ceil(total / PAGE_SIZE));
+
+  // Which intake wrote each demand is the search function's own answer since 0052 — it returns request_kind and
+  // filters on it in SQL, so the page shows the rows it was given and the counts above the table are exact. Only
+  // the four offer PRICE columns are still missing from its RETURNS TABLE, and those are what this read brings
+  // (see ./offer-snapshot).
+  const snapshots = await offerSnapshots(supabase, rows.map((row) => row.id));
+  const kindOf = (row: LeadRow) => requestKindOf(row);
+
+  const pageOffers = rows.filter((row) => kindOf(row) === "offer").length;
+  const pageCalculators = rows.filter((row) => kindOf(row) === "calculator").length;
 
   const governorateName = new Map(config.governorates.map((g) => [g.id, g.name_ar]));
   const delegationName = new Map(config.delegations.map((d) => [d.id, d.name_ar]));
@@ -96,14 +111,22 @@ export default async function LeadsPage({ searchParams }: PageProps<"/admin/lead
     .filter((c) => c.profile?.is_active)
     .map((c) => ({ id: c.user_id, name: c.profile?.full_name || "—" }));
 
-  const investLabel = (row: (typeof rows)[number]) =>
+  const investLabel = (row: LeadRow) =>
     row.invest_anywhere
       ? "المكان غير مهم"
       : row.invest_governorate_ids.map((id) => governorateName.get(id) ?? id).join("، ");
-  const wantsLabel = (row: (typeof rows)[number]) =>
-    row.scenario_labels.length > 0 ? row.scenario_labels.join("، ") : row.project_type_unsure ? "ما يهمّوش النوع" : "—";
+  const wantsLabel = (row: LeadRow) =>
+    row.scenario_labels.length > 0 ? row.scenario_labels.join("، ") : row.project_type_unsure ? "ما يهمّوش النوع" : null;
 
-  type LeadRow = (typeof rows)[number];
+  /** The badge that tells the two intakes apart. Nothing is shown when nothing says which one it was. */
+  const kindBadge = (row: LeadRow) => {
+    const kind = kindOf(row);
+    if (!kind) return null;
+    return (
+      <StatusPill tone={kind === "offer" ? "brand" : "line"}>{REQUEST_KIND_LABELS[kind]}</StatusPill>
+    );
+  };
+
   const selectColumn: Column<LeadRow> = {
     key: "select",
     header: <SelectAllCheckbox formId={BULK_FORM_ID} label="تحديد كل الملفات في هذه الصفحة" />,
@@ -124,19 +147,36 @@ export default async function LeadsPage({ searchParams }: PageProps<"/admin/lead
   const columns: Column<LeadRow>[] = [
     ...(isAdmin ? [selectColumn] : []),
     {
-      key: "request_no",
-      header: "رقم المطلب",
+      key: "request",
+      header: "المطلب",
       // The phone card is itself one <a> (rowHref), so this cell's <Link> must stay off it.
       mobile: "hidden",
+      headClassName: "w-44",
       cell: (row) => (
         <>
-          <Link href={`/admin/leads/${row.person_id}`} dir="ltr" className="font-semibold text-forest underline-offset-4 hover:underline">
-            {row.request_no}
-          </Link>
+          <div className="flex flex-wrap items-center gap-1.5">
+            {kindBadge(row)}
+            {/* The row leads to this demand, not merely to its file: two demands of one person open apart. */}
+            <Link
+              href={requestHref(row)}
+              dir="ltr"
+              className="font-semibold text-forest underline-offset-4 hover:underline"
+            >
+              {row.request_no}
+            </Link>
+          </div>
           <div className="mt-0.5 text-xs text-muted tabular-nums">{formatDateTime(row.created_at)}</div>
           {row.is_duplicate ? <span className="mt-1 inline-block rounded bg-gold-soft px-1.5 py-0.5 text-[0.7rem] text-forest-700">مكرّر</span> : null}
         </>
       ),
+    },
+    {
+      // Phone card only: the same badge, beside the status.
+      key: "kind",
+      header: "النوع",
+      desktop: false,
+      mobile: "aside",
+      cell: (row) => kindBadge(row),
     },
     { key: "full_name", header: "الاسم", className: "font-medium", mobile: "title", cell: (row) => row.full_name },
     {
@@ -151,26 +191,94 @@ export default async function LeadsPage({ searchParams }: PageProps<"/admin/lead
         </>
       ),
     },
+    {
+      // Real stock, named. A simulation has nothing to put here, and that is the point.
+      key: "offer",
+      header: "العرض",
+      className: "max-w-56",
+      cell: (row) => {
+        const offer = offerOf(row, snapshots);
+        if (!offer) return kindOf(row) === "calculator" ? <span className="text-muted">محاكاة، بلا عرض</span> : "—";
+        return (
+          <>
+            <span className="font-medium">{offer.project_name ?? "عرض بلا اسم"}</span>
+            {offer.project_code ? (
+              <div className="text-xs text-muted" dir="ltr">
+                {offer.project_code}
+              </div>
+            ) : null}
+            {typeof offer.offer_trees === "number" ? (
+              <div className="text-xs text-muted tabular-nums">{formatCount(offer.offer_trees)} زيتونة من العرض</div>
+            ) : null}
+          </>
+        );
+      },
+    },
     { key: "trees", header: "الزيتونات", numeric: true, className: "font-medium", cell: (row) => row.tree_count_label_ar ?? "—" },
     {
       key: "spacing",
       header: "الفئة والسعر",
       className: "whitespace-nowrap",
+      cell: (row) => {
+        const offer = offerOf(row, snapshots);
+        const price = offer?.offer_total_price_millimes ?? row.total_price_millimes;
+        return (
+          <>
+            {row.spacing_label_ar ? (
+              <>
+                <span className="font-medium">{row.spacing_label_ar}</span>
+                {typeof row.area_per_tree_m2 === "number" ? (
+                  <div className="text-xs text-muted tabular-nums">{formatArea(row.area_per_tree_m2)} للزيتونة</div>
+                ) : null}
+              </>
+            ) : (
+              "—"
+            )}
+            {row.payment_mode ? <div className="text-xs text-muted">{PAYMENT_MODE_LABELS[row.payment_mode] ?? row.payment_mode}</div> : null}
+            {typeof price === "number" ? (
+              // An offer carries its own price; a simulation carries an estimate. Never the same word.
+              <div className={`text-xs tabular-nums ${offer ? "font-semibold text-forest" : ""}`.trim()}>
+                {offer ? "سعر العرض" : "مقدّر"}: {formatMillimes(price)}
+              </div>
+            ) : null}
+          </>
+        );
+      },
+    },
+    {
+      key: "invest",
+      header: "يدوّر على",
+      className: "max-w-52",
+      cell: (row) => {
+        // An offer demand answers neither question: the place is the offer's own, and no type was asked.
+        const wants = kindOf(row) === "offer" ? null : wantsLabel(row);
+        return (
+          <>
+            {investLabel(row) || "—"}
+            {wants ? <div className="text-xs text-muted">{wants}</div> : null}
+            {row.plantation_systems.length > 0 ? (
+              <div className="text-xs text-muted">{row.plantation_systems.map((code) => PLANTATION_LABELS[code] ?? code).join("، ")}</div>
+            ) : null}
+          </>
+        );
+      },
+    },
+    {
+      // The plan the caller asked about: the percentage, the duration, and the figure they actually rang about —
+      // the monthly. crm_search_requests returns all three; the monthly was read by nothing until now, so a
+      // commercial scanning the queue had to open the file for the one number the call is about.
+      key: "down_payment",
+      header: "التسبقة والمدة",
+      numeric: true,
       cell: (row) => (
         <>
-          {row.spacing_label_ar ? (
-            <>
-              <span className="font-medium">{row.spacing_label_ar}</span>
-              {typeof row.area_per_tree_m2 === "number" ? (
-                <div className="text-xs text-muted tabular-nums">{formatArea(row.area_per_tree_m2)} للزيتونة</div>
-              ) : null}
-            </>
-          ) : (
-            "—"
-          )}
-          {row.payment_mode ? <div className="text-xs text-muted">{PAYMENT_MODE_LABELS[row.payment_mode] ?? row.payment_mode}</div> : null}
-          {typeof row.total_price_millimes === "number" ? (
-            <div className="text-xs tabular-nums">مقدّر: {formatMillimes(row.total_price_millimes)}</div>
+          {downPaymentSummary(row.down_payment_percent, row.down_payment_amount_millimes) ?? "—"}
+          {row.duration_label_ar ? <div className="text-xs text-muted">{row.duration_label_ar}</div> : null}
+          {typeof row.monthly_millimes === "number" ? (
+            // PRN-01: an estimate is named as one, here in the cell's own title.
+            <div className="text-xs text-muted tabular-nums" title="قسط شهري مقدّر حسب أسعار وقت إرسال المطلب.">
+              {formatMillimes(row.monthly_millimes)} شهرياً (مقدّر)
+            </div>
           ) : null}
         </>
       ),
@@ -182,31 +290,6 @@ export default async function LeadsPage({ searchParams }: PageProps<"/admin/lead
         <>
           {governorateName.get(row.residence_governorate_id)}
           {row.residence_delegation_id ? <div className="text-xs text-muted">{delegationName.get(row.residence_delegation_id)}</div> : null}
-        </>
-      ),
-    },
-    { key: "invest", header: "الاستثمار", className: "max-w-44", cell: (row) => investLabel(row) },
-    {
-      key: "wants",
-      header: "يحب يملك",
-      className: "max-w-52",
-      cell: (row) => (
-        <>
-          {wantsLabel(row)}
-          {row.plantation_systems.length > 0 ? (
-            <div className="text-xs text-muted">{row.plantation_systems.map((code) => PLANTATION_LABELS[code] ?? code).join("، ")}</div>
-          ) : null}
-        </>
-      ),
-    },
-    {
-      key: "down_payment",
-      header: "التسبقة والمدة",
-      numeric: true,
-      cell: (row) => (
-        <>
-          {downPaymentSummary(row.down_payment_percent, row.down_payment_amount_millimes) ?? "—"}
-          {row.duration_label_ar ? <div className="text-xs text-muted">{row.duration_label_ar}</div> : null}
         </>
       ),
     },
@@ -231,6 +314,17 @@ export default async function LeadsPage({ searchParams }: PageProps<"/admin/lead
     },
   ];
 
+  // Real stock first: it is the side of the product that sells, and the one the list used to hide.
+  const kindTabs: { key: string; label: string; kind?: RequestKind; active: boolean }[] = [
+    { key: "all", label: "كل الطلبات", kind: undefined, active: !filters.request_kind },
+    ...(["offer", "calculator"] as const).map((kind) => ({
+      key: kind,
+      label: REQUEST_KIND_FILTER_LABELS[kind],
+      kind,
+      active: filters.request_kind === kind,
+    })),
+  ];
+
   return (
     <div className="space-y-6">
       <header className="flex flex-wrap items-end justify-between gap-4">
@@ -239,26 +333,63 @@ export default async function LeadsPage({ searchParams }: PageProps<"/admin/lead
           <p className="mt-1 text-muted">
             {hasRole(session, ["commercial"]) && !hasRole(session, ["admin", "super_admin", "finance", "legal"])
               ? "المطالب المسندة إليك."
-              : "كل المطالب المسجّلة، مع البحث حسب عدد الزيتونات والطلب والقدرة المالية."}
+              : "كل المطالب المسجّلة: طلبات على عروض حقيقية، ومحاكاة تقديرية من الموقع."}
           </p>
         </div>
         {isAdmin ? (
-          <a href={`/admin/leads/export?${filtersToQuery({ ...filters, people: false })}`} className="btn btn-secondary">
+          <a href={`/admin/leads/export?${filtersToQuery({ ...filters, people: false })}`} className="btn btn-secondary btn-sm">
             تصدير CSV (كل المطالب المطابقة)
           </a>
         ) : null}
       </header>
 
-      <details open={hasActiveFilters(filters)} className="panel group">
-        <summary className="flex cursor-pointer list-none items-center justify-between px-5 py-4 font-semibold [&::-webkit-details-marker]:hidden">
+      {/* The separation the whole Back Office turns on: a demand on real stock, or a simulation. */}
+      <nav aria-label="نوع الطلب" className="flex flex-wrap items-center gap-2">
+        <span className="text-sm text-muted">يعرض:</span>
+        {kindTabs.map((tab) => (
+          <Link
+            key={tab.key}
+            href={`/admin/leads?${filtersToQuery({ ...filters, request_kind: tab.kind })}`}
+            aria-current={tab.active ? "true" : undefined}
+            className="chip"
+          >
+            {tab.label}
+          </Link>
+        ))}
+        {/* «مطالب هذا العرض» on the offer page links here with project_id in the address (0052 filters on it in
+            SQL). A filter nobody can see is a trap — the list would look empty for no visible reason — so it
+            says which offer it is narrowed to and carries its own way out. The name comes from the rows
+            themselves; an offer with no demand yet has no row to name it, and says so. */}
+        {filters.project_id ? (
+          <>
+            <span className="chip" aria-current="true">
+              العرض: {rows.find((row) => row.project_name)?.project_name ?? "بلا مطالب بعد"}
+            </span>
+            <Link href={`/admin/leads?${filtersToQuery({ ...filters, project_id: undefined })}`} className="text-sm font-semibold text-forest underline-offset-4 hover:underline">
+              إلغاء تحديد العرض
+            </Link>
+          </>
+        ) : null}
+      </nav>
+
+      {/* The house disclosure: the row, its 3rem tap target, the drawn marker at the start and the indent of
+          the body come with `.disclosure` — see globals.css. The hint keeps its place at the end of the row
+          with ms-auto, because the summary is a flex row whose first item is now the marker. */}
+      <details open={hasActiveFilters(filters)} className="panel disclosure group">
+        <summary className="font-semibold">
           البحث والفلاتر
-          <span className="text-sm font-normal text-muted group-open:hidden">اضغط لعرض الفلاتر</span>
+          <span className="ms-auto text-sm font-normal text-muted group-open:hidden">اضغط لعرض الفلاتر</span>
         </summary>
-        <form method="get" action="/admin/leads" className="grid gap-4 border-t border-line px-5 py-5 sm:grid-cols-2 lg:grid-cols-4">
+        <form method="get" action="/admin/leads" className="grid gap-4 border-t border-line pt-cozy sm:grid-cols-2 lg:grid-cols-4">
           {people ? <input type="hidden" name="people" value="1" /> : null}
+          {/* Chosen above the panel; kept across a search so the two intakes never merge again by accident. */}
+          {filters.request_kind ? <input type="hidden" name="request_kind" value={filters.request_kind} /> : null}
+          {/* Same reason, for the offer arrived at from «مطالب هذا العرض»: a GET form submits only its own
+              fields, so without this line searching inside one offer would silently widen to all of them. */}
+          {filters.project_id ? <input type="hidden" name="project_id" value={filters.project_id} /> : null}
 
           <FilterField label="بحث" className="sm:col-span-2">
-            <input name="q" defaultValue={filters.q} placeholder="الاسم، الهاتف أو رقم المطلب" className="field" />
+            <input name="q" defaultValue={filters.q} placeholder="الاسم، الهاتف أو رقم المطلب" className="field field-sm" />
           </FilterField>
 
           {/* §47: the olive tree is the unit the demand is expressed in, so it leads the filters. */}
@@ -275,7 +406,7 @@ export default async function LeadsPage({ searchParams }: PageProps<"/admin/lead
                 defaultValue={filters.trees_min}
                 placeholder="من"
                 aria-label="عدد الزيتونات: من"
-                className="field"
+                className="field field-sm"
                 dir="ltr"
               />
               <input
@@ -288,7 +419,7 @@ export default async function LeadsPage({ searchParams }: PageProps<"/admin/lead
                 defaultValue={filters.trees_max}
                 placeholder="إلى"
                 aria-label="عدد الزيتونات: إلى"
-                className="field"
+                className="field field-sm"
                 dir="ltr"
               />
             </div>
@@ -309,7 +440,7 @@ export default async function LeadsPage({ searchParams }: PageProps<"/admin/lead
           </fieldset>
 
           <FilterField label="ولاية الاستثمار">
-            <select name="invest_governorate_id" defaultValue={filters.invest_governorate_id ?? ""} className="field">
+            <select name="invest_governorate_id" defaultValue={filters.invest_governorate_id ?? ""} className="field field-sm">
               <option value="">الكل</option>
               {config.governorates.map((g) => (
                 <option key={g.id} value={g.id}>
@@ -321,7 +452,7 @@ export default async function LeadsPage({ searchParams }: PageProps<"/admin/lead
           </FilterField>
 
           <FilterField label="نوع المشروع">
-            <select name="project_type_id" defaultValue={filters.project_type_id ?? ""} className="field">
+            <select name="project_type_id" defaultValue={filters.project_type_id ?? ""} className="field field-sm">
               <option value="">الكل</option>
               {config.projectTypes.map((t) => (
                 <option key={t.id} value={t.id}>
@@ -333,7 +464,7 @@ export default async function LeadsPage({ searchParams }: PageProps<"/admin/lead
           </FilterField>
 
           <FilterField label="فئة المساحة">
-            <select name="spacing_class_id" defaultValue={filters.spacing_class_id ?? ""} className="field">
+            <select name="spacing_class_id" defaultValue={filters.spacing_class_id ?? ""} className="field field-sm">
               <option value="">الكل</option>
               {(spacingClasses.data ?? []).map((spacing) => (
                 <option key={spacing.id} value={spacing.id}>
@@ -345,7 +476,7 @@ export default async function LeadsPage({ searchParams }: PageProps<"/admin/lead
           </FilterField>
 
           <FilterField label="نظام الغراسة">
-            <select name="plantation_system" defaultValue={filters.plantation_system ?? ""} className="field">
+            <select name="plantation_system" defaultValue={filters.plantation_system ?? ""} className="field field-sm">
               <option value="">الكل</option>
               {plantations.map((option) => (
                 <option key={option.id} value={option.code ?? ""}>
@@ -356,7 +487,7 @@ export default async function LeadsPage({ searchParams }: PageProps<"/admin/lead
           </FilterField>
 
           <FilterField label="حالة الإنتاج">
-            <select name="production_status" defaultValue={filters.production_status ?? ""} className="field">
+            <select name="production_status" defaultValue={filters.production_status ?? ""} className="field field-sm">
               <option value="">الكل</option>
               {Object.entries(PRODUCTION_LABELS).map(([value, label]) => (
                 <option key={value} value={value}>
@@ -368,7 +499,7 @@ export default async function LeadsPage({ searchParams }: PageProps<"/admin/lead
 
           {/* Plan Q-1: the down payment is a percentage of the cash total; the amount lists are retired (Q-7). */}
           <FilterField label="نسبة التسبقة">
-            <select name="down_payment_percent" defaultValue={filters.down_payment_percent ?? ""} className="field">
+            <select name="down_payment_percent" defaultValue={filters.down_payment_percent ?? ""} className="field field-sm">
               <option value="">الكل</option>
               {percentOptions.map((option) => (
                 <option key={option.value} value={option.value}>
@@ -386,7 +517,7 @@ export default async function LeadsPage({ searchParams }: PageProps<"/admin/lead
             options={durations.map((option) => ({ id: option.id, label_ar: option.label_ar, value: String(option.min_number) }))}
           />
           <FilterField label="طريقة الدفع">
-            <select name="payment_mode" defaultValue={filters.payment_mode ?? ""} className="field">
+            <select name="payment_mode" defaultValue={filters.payment_mode ?? ""} className="field field-sm">
               <option value="">الكل</option>
               {PAYMENT_MODES.map((paymentMode) => (
                 <option key={paymentMode} value={paymentMode}>
@@ -396,7 +527,7 @@ export default async function LeadsPage({ searchParams }: PageProps<"/admin/lead
             </select>
           </FilterField>
           <FilterField label="يحب يزور الأرض">
-            <select name="wants_visit" defaultValue={filters.wants_visit ?? ""} className="field">
+            <select name="wants_visit" defaultValue={filters.wants_visit ?? ""} className="field field-sm">
               <option value="">الكل</option>
               <option value="true">نعم</option>
               <option value="false">لا، مازال</option>
@@ -404,7 +535,7 @@ export default async function LeadsPage({ searchParams }: PageProps<"/admin/lead
           </FilterField>
 
           <FilterField label="يحب حل تمويل بنكي">
-            <select name="wants_bank_financing" defaultValue={filters.wants_bank_financing ?? ""} className="field">
+            <select name="wants_bank_financing" defaultValue={filters.wants_bank_financing ?? ""} className="field field-sm">
               <option value="">الكل</option>
               <option value="true">نعم</option>
               <option value="false">لا</option>
@@ -412,7 +543,7 @@ export default async function LeadsPage({ searchParams }: PageProps<"/admin/lead
           </FilterField>
 
           <FilterField label="الهدف">
-            <select name="goal_code" defaultValue={filters.goal_code ?? ""} className="field">
+            <select name="goal_code" defaultValue={filters.goal_code ?? ""} className="field field-sm">
               <option value="">الكل</option>
               {goals.map((goal) => (
                 <option key={goal.id} value={goal.code ?? ""}>
@@ -423,7 +554,7 @@ export default async function LeadsPage({ searchParams }: PageProps<"/admin/lead
           </FilterField>
 
           <FilterField label="ولاية الإقامة">
-            <select name="residence_governorate_id" defaultValue={filters.residence_governorate_id ?? ""} className="field">
+            <select name="residence_governorate_id" defaultValue={filters.residence_governorate_id ?? ""} className="field field-sm">
               <option value="">الكل</option>
               {config.governorates.map((g) => (
                 <option key={g.id} value={g.id}>
@@ -434,7 +565,7 @@ export default async function LeadsPage({ searchParams }: PageProps<"/admin/lead
           </FilterField>
 
           <FilterField label="حالة الملف">
-            <select name="status_id" defaultValue={filters.status_id ?? ""} className="field">
+            <select name="status_id" defaultValue={filters.status_id ?? ""} className="field field-sm">
               <option value="">الكل</option>
               {(statuses.data ?? []).map((status) => (
                 <option key={status.id} value={status.id}>
@@ -446,7 +577,7 @@ export default async function LeadsPage({ searchParams }: PageProps<"/admin/lead
 
           {isAdmin ? (
             <FilterField label="المسؤول">
-              <select name="assigned_to" defaultValue={filters.assigned_to ?? ""} className="field">
+              <select name="assigned_to" defaultValue={filters.assigned_to ?? ""} className="field field-sm">
                 <option value="">الكل</option>
                 <option value="none">بدون مسؤول</option>
                 {(commercials.data ?? []).map((c) => (
@@ -460,22 +591,22 @@ export default async function LeadsPage({ searchParams }: PageProps<"/admin/lead
           ) : null}
 
           <FilterField label="من تاريخ">
-            <input type="date" name="from" defaultValue={filters.from} className="field" dir="ltr" />
+            <input type="date" name="from" defaultValue={filters.from} className="field field-sm" dir="ltr" />
           </FilterField>
           <FilterField label="إلى تاريخ">
-            <input type="date" name="to" defaultValue={filters.to} className="field" dir="ltr" />
+            <input type="date" name="to" defaultValue={filters.to} className="field field-sm" dir="ltr" />
           </FilterField>
           <FilterField label="المصدر (utm_source)">
-            <input name="source" defaultValue={filters.source} placeholder="facebook، direct…" className="field" dir="ltr" />
+            <input name="source" defaultValue={filters.source} placeholder="facebook، direct…" className="field field-sm" dir="ltr" />
           </FilterField>
 
           <div className="flex flex-wrap items-center gap-3 sm:col-span-2 lg:col-span-4">
             <CheckboxLabel name="duplicates_only" checked={filters.duplicates_only} label="المطالب المكرّرة فقط" />
             <div className="ms-auto flex gap-2">
-              <Link href="/admin/leads" className="btn btn-ghost">
+              <Link href="/admin/leads" className="btn btn-ghost btn-sm">
                 مسح الفلاتر
               </Link>
-              <button type="submit" className="btn btn-primary">
+              <button type="submit" className="btn btn-primary btn-sm">
                 بحث
               </button>
             </div>
@@ -483,37 +614,40 @@ export default async function LeadsPage({ searchParams }: PageProps<"/admin/lead
         </form>
       </details>
 
-      <section aria-label="نتيجة البحث" className="flex flex-wrap items-end justify-between gap-4">
-        <div>
-          <p className="text-lg">
-            <span className="text-3xl font-semibold text-ink tabular-nums">{formatCount(people ? personsTotal : requestsTotal)}</span>{" "}
-            <span className="text-muted">{people ? "شخص مطابق" : "مطلب مطابق"}</span>
-            <span className="text-muted"> · </span>
-            <span className="font-semibold tabular-nums">{formatCount(people ? requestsTotal : personsTotal)}</span>{" "}
-            <span className="text-muted">{people ? "مطلب" : "شخص"}</span>
-            <span className="text-muted"> · </span>
-            <span className="font-semibold tabular-nums">{formatCount(treesTotal)}</span> <span className="text-muted">زيتونة مطلوبة</span>
-          </p>
-          <p className="mt-0.5 text-xs text-muted">الزيتونات: الحد الأدنى لكل اختيار، دون المطالب المكرّرة.</p>
-        </div>
-        <nav aria-label="طريقة العرض" className="card flex gap-1 rounded-xl p-1">
+      <section aria-label="نتيجة البحث" className="grid gap-3 sm:grid-cols-3">
+        <StatTile
+          label={people ? "شخص مطابق" : "مطلب مطابق"}
+          value={people ? personsTotal : requestsTotal}
+          note={
+            rows.length > 0 ? (
+              <>
+                في هذه الصفحة: <span className="tabular-nums">{formatCount(pageOffers)}</span> عرض ·{" "}
+                <span className="tabular-nums">{formatCount(pageCalculators)}</span> محاكي
+              </>
+            ) : null
+          }
+        />
+        <StatTile label={people ? "مطلب" : "شخص"} value={people ? requestsTotal : personsTotal} />
+        <StatTile label="زيتونة مطلوبة" value={treesTotal} note="الحد الأدنى لكل اختيار، دون المطالب المكرّرة." />
+      </section>
+
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <nav aria-label="طريقة العرض" className="flex flex-wrap gap-2">
           {[
             { key: "requests", label: "مطلب في كل سطر", active: !people, href: `/admin/leads?${filtersToQuery({ ...filters, people: false })}` },
             { key: "people", label: "شخص في كل سطر", active: people, href: `/admin/leads?${filtersToQuery({ ...filters, people: true })}` },
           ].map((option) => (
-            <Link
-              key={option.key}
-              href={option.href}
-              aria-current={option.active ? "page" : undefined}
-              className={`rounded-lg px-3 py-1.5 text-sm ${
-                option.active ? "bg-forest font-semibold text-paper" : "text-muted hover:bg-paper hover:text-ink"
-              }`}
-            >
+            <Link key={option.key} href={option.href} aria-current={option.active ? "true" : undefined} className="chip">
               {option.label}
             </Link>
           ))}
         </nav>
-      </section>
+        {rows.length > 0 ? (
+          <p className="text-xs text-muted">
+            <span className="tabular-nums">{formatCount(rows.length)}</span> سطر في هذه الصفحة
+          </p>
+        ) : null}
+      </div>
 
       {rows.length === 0 ? (
         <EmptyState
@@ -544,14 +678,14 @@ export default async function LeadsPage({ searchParams }: PageProps<"/admin/lead
             columns={columns}
             rows={rows}
             rowKey={(row) => row.id}
-            rowHref={(row) => `/admin/leads/${row.person_id}`}
-            minWidth="84rem"
+            rowHref={(row) => requestHref(row)}
+            minWidth="88rem"
           />
 
           {pageCount > 1 ? (
             <nav aria-label="الصفحات" className="flex items-center justify-between gap-4">
               {page > 1 ? (
-                <Link href={`/admin/leads?${filtersToQuery(filters, { page: String(page - 1) })}`} className="btn btn-secondary">
+                <Link href={`/admin/leads?${filtersToQuery(filters, { page: String(page - 1) })}`} className="btn btn-secondary btn-sm">
                   السابق
                 </Link>
               ) : (
@@ -561,7 +695,7 @@ export default async function LeadsPage({ searchParams }: PageProps<"/admin/lead
                 الصفحة {page} من {pageCount}
               </span>
               {page < pageCount ? (
-                <Link href={`/admin/leads?${filtersToQuery(filters, { page: String(page + 1) })}`} className="btn btn-secondary">
+                <Link href={`/admin/leads?${filtersToQuery(filters, { page: String(page + 1) })}`} className="btn btn-secondary btn-sm">
                   التالي
                 </Link>
               ) : (
@@ -573,6 +707,11 @@ export default async function LeadsPage({ searchParams }: PageProps<"/admin/lead
       )}
     </div>
   );
+}
+
+/** The file, opened on this very demand: the person page gives every demand an anchor of its own. */
+function requestHref(row: { person_id: string; id: string }): string {
+  return `/admin/leads/${row.person_id}#request-${row.id}`;
 }
 
 function FilterField({ label, className = "", children }: { label: string; className?: string; children: React.ReactNode }) {
@@ -614,7 +753,7 @@ function RangeField({
     <fieldset className="space-y-1.5">
       <legend className="text-sm font-semibold">{label}</legend>
       <div className="grid grid-cols-2 gap-2">
-        <select name={nameMin} defaultValue={min ?? ""} className="field" aria-label={`${label}: من`}>
+        <select name={nameMin} defaultValue={min ?? ""} className="field field-sm" aria-label={`${label}: من`}>
           <option value="">من</option>
           {options.map((option) => (
             <option key={option.id} value={option.value}>
@@ -622,7 +761,7 @@ function RangeField({
             </option>
           ))}
         </select>
-        <select name={nameMax} defaultValue={max ?? ""} className="field" aria-label={`${label}: إلى`}>
+        <select name={nameMax} defaultValue={max ?? ""} className="field field-sm" aria-label={`${label}: إلى`}>
           <option value="">إلى</option>
           {options.map((option) => (
             <option key={option.id} value={option.value}>

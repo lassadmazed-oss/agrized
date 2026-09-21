@@ -81,7 +81,7 @@ export function PricingEditor({ initial, inherit }: PricingEditorProps) {
           {inherit.lines.length > 0 ? (
             <Lines title="الصيغة اللي باش تتطبّق:" lines={inherit.lines} />
           ) : (
-            <p className="text-sm text-muted">ما فماش صيغة مضبوطة بعد. القطع باش تظهر بلا أمثلة تقسيط حتى تختار طريقة.</p>
+            <p className="text-sm text-muted">ما فماش صيغة مضبوطة بعد. العروض باش تظهر بلا أمثلة تقسيط حتى تختار طريقة.</p>
           )}
         </div>
       ) : null}
@@ -214,7 +214,7 @@ export function PricingEditor({ initial, inherit }: PricingEditorProps) {
         )
       ) : null}
 
-      <p className="hint">الأمثلة بالأرقام الحقيقية تظهر في بطاقة كل قطعة، محسوبة من قاعدة البيانات بهذه الصيغة.</p>
+      <p className="hint">الأمثلة بالأرقام الحقيقية تظهر في بطاقة كل عرض، محسوبة من قاعدة البيانات بهذه الصيغة.</p>
     </div>
   );
 }

@@ -8,10 +8,9 @@ import { createClient } from "@/lib/supabase/server";
 import { CostItemsList } from "./cost-items";
 import { Section } from "./fields";
 import { MarkupsForm } from "./markups-form";
-import { ProjectSection } from "./project-section";
 import { RatesSection } from "./rates-section";
 import { RuleForm } from "./rule-form";
-import { readSimulation, simulationQuery, SimulatorSection } from "./simulator-section";
+import { readSimulation, SimulatorSection } from "./simulator-section";
 import { SpacingSection } from "./spacing-section";
 import type { CostItem, DownPercent, Duration, DurationItem, Markup, PricingRule, ProjectOption, SpacingClass } from "./types";
 
@@ -25,7 +24,6 @@ const CONTENTS = [
   { id: "extra-costs", label: "المصاريف الإضافية" },
   { id: "rates", label: "نِسَب التسبقة والمدد" },
   { id: "markups", label: "الزيادة حسب المدة" },
-  { id: "project-rules", label: "قواعد مشروع" },
   { id: "simulator", label: "محاكاة السعر" },
 ];
 
@@ -44,19 +42,8 @@ export default async function PricingPage({ searchParams }: PageProps<"/admin/pr
 
   const supabase = await createClient();
 
-  // Plan P1-2 and Q-13: what the selected project narrows. No rows means the whole active list.
-  const loadProjectPercentIds = async (): Promise<string[]> => {
-    if (!projectParam) return [];
-    const { data, error } = await supabase.from("project_down_payment_percents").select("option_item_id").eq("project_id", projectParam);
-    if (error) throw new Error(`Pricing page failed: ${error.message}`);
-    return (data ?? []).map((row) => row.option_item_id);
-  };
-  const loadProjectClassIds = async (): Promise<string[]> => {
-    if (!projectParam) return [];
-    const { data, error } = await supabase.from("project_spacing_classes").select("spacing_class_id").eq("project_id", projectParam);
-    if (error) throw new Error(`Pricing page failed: ${error.message}`);
-    return (data ?? []).map((row) => row.spacing_class_id);
-  };
+  // What one offer narrows — its allowed down-payment percentages and spacing classes — is read and written on
+  // that offer's own «التسعير» tab now, so this page no longer loads either.
 
   const [
     config,
@@ -67,8 +54,6 @@ export default async function PricingPage({ searchParams }: PageProps<"/admin/pr
     projectsResult,
     settingsResult,
     profilesResult,
-    projectPercentIds,
-    projectClassIds,
   ] = await Promise.all([
     getPublicConfig(),
     supabase
@@ -86,8 +71,6 @@ export default async function PricingPage({ searchParams }: PageProps<"/admin/pr
     supabase.from("projects").select("id, code, name").order("code"),
     supabase.from("settings").select("key, value").in("key", ["audit.reason_min_length", "pricing.max_months"]),
     supabase.from("profiles").select("id, full_name"),
-    loadProjectPercentIds(),
-    loadProjectClassIds(),
   ]);
   for (const result of [classesResult, rulesResult, itemsResult, markupsResult, projectsResult, settingsResult]) {
     if (result.error) throw new Error(`Pricing page failed: ${result.error.message}`);
@@ -119,8 +102,9 @@ export default async function PricingPage({ searchParams }: PageProps<"/admin/pr
 
   const globalRule = rules.find((rule) => rule.project_id === null) ?? null;
   const globalMarkups = markups.filter((markup) => markup.project_id === null);
+  // `selected` is still read: the simulator lets you try the general rule against one offer's own values, which
+  // is a preview and not an edit. Editing that offer happens on the offer, in its «التسعير» tab.
   const selected = projects.find((project) => project.id === projectParam) ?? null;
-  const withOwnRules = new Set([...rules, ...items, ...markups].flatMap((row) => (row.project_id ? [row.project_id] : [])));
   const marginMissing = !globalRule || globalRule.margin_mode === null;
   const simulation = readSimulation(params, { classes, projects, durations, percents });
 
@@ -206,31 +190,14 @@ export default async function PricingPage({ searchParams }: PageProps<"/admin/pr
         />
       </Section>
 
-      <Section
-        id="project-rules"
-        title="قواعد خاصة بمشروع"
-        note="مشروع بلا قواعد خاصة يتبع القواعد العامة. في قواعد المشروع، كل خانة فارغة تتبع القيمة العامة المكتوبة داخلها."
-      >
-        <ProjectSection
-          projects={projects}
-          requestedId={projectParam}
-          withOwnRules={withOwnRules}
-          rule={selected ? (rules.find((rule) => rule.project_id === selected.id) ?? null) : null}
-          globalRule={globalRule}
-          items={selected ? items.filter((item) => item.project_id === selected.id) : []}
-          markups={selected ? markups.filter((markup) => markup.project_id === selected.id) : []}
-          globalMarkups={globalMarkups}
-          durations={durations}
-          percents={percents}
-          classes={classes}
-          projectPercentIds={selected ? projectPercentIds : []}
-          projectClassIds={selected ? projectClassIds : []}
-          maxMonths={maxMonths}
-          reasonMin={reasonMin}
-          keep={simulationQuery(simulation)}
-        />
-      </Section>
+      {/* «قواعد خاصة بمشروع» used to stand here, with a project picker on top of it. It is gone from this page
+          (owner, 2026-09-19: «each project offer should have its own pricing details, not from the /pricing
+          page — all in the offer details page»). Pricing one offer now happens on that offer, in its «التسعير»
+          tab: src/app/admin/(panel)/projects/[id]/pricing-tab.tsx, which reads and writes exactly the same
+          tables through exactly the same forms and Server Actions. Nothing about the data model moved.
 
+          What is left on this page is the general rule — the one the calculator on /start estimates with, and
+          the fallback an offer inherits until it sets a value of its own. */}
       <SimulatorSection
         simulation={simulation}
         classes={classes}

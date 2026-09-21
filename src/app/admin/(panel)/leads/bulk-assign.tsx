@@ -3,6 +3,7 @@
 import { useActionState, useEffect, useState } from "react";
 
 import type { ActionResult } from "@/components/admin/action-form";
+import { ConfirmButton } from "@/components/admin/confirm-button";
 import { formatCount } from "@/lib/format";
 
 type Commercial = { id: string; name: string };
@@ -33,6 +34,11 @@ type BulkAssignBarProps = {
   action: (previous: ActionResult, formData: FormData) => Promise<ActionResult>;
   commercials: Commercial[];
   filtersQuery: string;
+  /**
+   * How many persons the search matches — the exact number that will move, not a ceiling. It used to be an
+   * upper bound because the transfer re-filtered on the intake itself; 0052 filters request_kind and
+   * project_id in SQL, so the count above the table and the transfer now come from the same query.
+   */
   matchingPersons: number;
 };
 
@@ -60,11 +66,9 @@ export function BulkAssignBar({ formId, action, commercials, filtersQuery, match
     <form
       id={formId}
       action={formAction}
-      onSubmit={(event) => {
-        if (scope === "all" && !window.confirm(`سيتم تحويل ${formatCount(matchingPersons)} ملف مطابق للبحث. هل تريد المواصلة؟`)) {
-          event.preventDefault();
-        }
-      }}
+      /* The question used to be window.confirm(): a browser dialog, left-to-right in an Arabic product, in the
+         browser's language rather than ours, and blocking the main thread. It is asked inside the page now, by
+         the button itself — see ./confirm-button and the submit control below. */
       className="card hidden flex-wrap items-end gap-4 px-5 py-4 md:flex"
     >
       <input type="hidden" name="filters" value={filtersQuery} />
@@ -109,9 +113,19 @@ export function BulkAssignBar({ formId, action, commercials, filtersQuery, match
         <input name="reason" maxLength={500} placeholder="مثال: توزيع ملفات ولاية جديدة" className="field" />
       </label>
 
-      <button type="submit" disabled={pending || count === 0} className="btn btn-primary">
-        {pending ? "جارٍ التحويل…" : `تحويل ${formatCount(count)} ملف`}
-      </button>
+      {/* «كل النتائج» moves every file the current search matched, which may be far more than anyone has
+          looked at, so that one asks first. Transferring the files a reader ticked themselves does not: they
+          are looking at exactly what they chose, and a question about it teaches them nothing. */}
+      <ConfirmButton
+        type="submit"
+        ask={scope === "all"}
+        disabled={pending || count === 0}
+        label={pending ? "جارٍ التحويل…" : `تحويل ${formatCount(count)} ملف`}
+        question={`باش يتحوّلو ${formatCount(matchingPersons)} ملف — كل اللي طالع في البحث توّا، موش اللي معلّم برك.`}
+        confirmLabel={`حوّل ${formatCount(matchingPersons)} ملف`}
+        cancelLabel="رجوع"
+        className="btn btn-primary btn-sm"
+      />
 
       {state ? (
         <p role={state.ok ? "status" : "alert"} className={`basis-full text-sm font-medium ${state.ok ? "text-success" : "text-danger"}`}>

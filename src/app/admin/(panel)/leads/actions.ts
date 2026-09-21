@@ -31,6 +31,12 @@ export async function assignPersons(_previous: ActionResult, formData: FormData)
 
   if (formData.get("scope") === "all") {
     const filters = parseLeadFilters(Object.fromEntries(new URLSearchParams(String(formData.get("filters") ?? ""))));
+    // The search filters on request_kind and project_id inside the database since 0052 (verified against the
+    // live function on 2026-09-19), so «كل الملفات المطابقة للبحث» is exactly what the RPC returns. It used
+    // to page the DEMANDS instead of the persons whenever a kind filter was on, and re-test each row here
+    // against a snapshot read of interest_requests — one extra read per batch of 500, and a set of persons
+    // built from a different query than the count the admin was shown before pressing the button. Both are
+    // gone: `people: true` pages one row per person, the same shape the list counted.
     for (let offset = 0; offset < MAX_ROWS; offset += BATCH) {
       const { data, error } = await supabase.rpc("crm_search_requests", {
         p: { ...filtersToRpc(filters), people: true },
@@ -38,8 +44,9 @@ export async function assignPersons(_previous: ActionResult, formData: FormData)
         p_offset: offset,
       });
       if (error) return { ok: false, message: "تعذّر جلب الملفات المطابقة للبحث. حدّث الصفحة وحاول مرة أخرى." };
-      for (const row of data ?? []) personIds.add(row.person_id);
-      if ((data ?? []).length < BATCH) break;
+      const rows = data ?? [];
+      for (const row of rows) personIds.add(row.person_id);
+      if (rows.length < BATCH) break;
     }
   } else {
     for (const value of formData.getAll("person_ids")) {

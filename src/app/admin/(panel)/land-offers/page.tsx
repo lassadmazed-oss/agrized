@@ -2,13 +2,16 @@ import type { Metadata } from "next";
 import Link from "next/link";
 
 import { DataRow, EmptyState, StatusPill } from "@/components/ui";
+import { ADMIN_LABELS } from "@/components/admin/nav-model";
 import { LAND_OFFER_ROLES, requireStaff } from "@/lib/auth";
 import { getPublicConfig } from "@/lib/config";
 import { formatCount, formatDateTime, formatMillimes } from "@/lib/format";
 import { IRRIGATION_LABELS, LAND_STATUS_LABELS, LAND_STATUS_TONES, type LandOfferStatus } from "@/lib/land";
 import { createClient } from "@/lib/supabase/server";
 
-export const metadata: Metadata = { title: "عروض الأراضي" };
+// The nav row, the breadcrumb, the tab and the heading are one word, read from one place: the section used to
+// be «أراضٍ معروضة علينا» in the trail and «عروض الأراضي» on the page it opened. 2026-09-19.
+export const metadata: Metadata = { title: ADMIN_LABELS["/admin/land-offers"] };
 
 const PAGE_SIZE = 50;
 
@@ -51,7 +54,7 @@ export default async function LandOffersPage({ searchParams }: PageProps<"/admin
   return (
     <div className="space-y-6">
       <header>
-        <h1 className="section-title">عروض الأراضي</h1>
+        <h1 className="section-title">{ADMIN_LABELS["/admin/land-offers"]}</h1>
         <p className="mt-2 max-w-2xl leading-7 text-muted">
           عروض أصحاب الأراضي والضيعات. لا يُنشر أي عرض، وكل عرض يمر بالمراجعة القانونية والفنية والميدانية.
         </p>

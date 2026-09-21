@@ -97,9 +97,9 @@ export default async function UsersPage() {
                 </div>
 
                 {canManage ? (
-                  <details className="mt-4 border-t border-line pt-4">
-                    <summary className="cursor-pointer text-sm font-semibold text-forest">إدارة الحساب</summary>
-                    <div className="mt-4 grid gap-6 lg:grid-cols-[1fr_auto]">
+                  <details className="disclosure mt-4 border-t border-line">
+                    <summary className="text-sm font-semibold text-forest">إدارة الحساب</summary>
+                    <div className="grid gap-6 lg:grid-cols-[1fr_auto]">
                       <ActionForm action={updateUserRoles.bind(null, profile.id)} submitLabel="حفظ الأدوار" buttonClassName="btn btn-secondary min-h-10">
                         <RoleCheckboxes selected={roles} canGrantSuper={isSuper} />
                       </ActionForm>
