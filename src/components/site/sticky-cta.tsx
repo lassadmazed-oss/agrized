@@ -4,10 +4,21 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 
 // Pages that carry their own bottom action: /start (its continue button keeps the visitor's choices, which a
-// plain /register link would drop), the two forms (/register, /land) and parcel pages («أنا مهتم بهذه القطعة»).
+// plain /register link would drop), the two forms (/register, /land) and everything under /projects.
 // On a phone the bar lands exactly where those pages put their own button, and inside a form it invites the
 // visitor to begin what they are already doing (owner, 2026-09-18: «there is double buttons»).
-const OWN_ACTION = [/^\/start\/?$/, /^\/register\/?$/, /^\/land\/?$/, /^\/projects\/[^/]+\/[^/]+\/?$/];
+//
+// The whole offers side is excluded, not only one offer (owner, 2026-09-19). This bar carries the site-wide
+// door, which is the calculator — an estimate. On the catalogue and on the coverage map the visitor is
+// standing in front of real, numbered, priced stock, and every card there is already a door into it; a fixed
+// bar that is the biggest thing on a 375px screen must not pull him out of the offers and into a simulation,
+// which is the one confusion the owner has named twice.
+const OWN_ACTION = [
+  /^\/start\/?$/,
+  /^\/register\/?$/,
+  /^\/land\/?$/,
+  /^\/projects(?:\/.*)?$/,
+];
 
 /**
  * The site's main button (primaryCta: label and target from settings, report v3 §17), always within reach

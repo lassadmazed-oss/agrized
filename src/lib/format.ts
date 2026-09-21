@@ -46,3 +46,16 @@ export function formatSpacing(rowMetres: number, treeMetres: number, unit = "م"
   const n = new Intl.NumberFormat("en-US", { maximumFractionDigits: 2 });
   return `${n.format(rowMetres)} × ${n.format(treeMetres)} ${unit}`;
 }
+
+/**
+ * A month and its year, for a date whose day says nothing — «سبتمبر 2024» under a client's name.
+ * Arabic month names with Western digits (`-u-nu-latn`), so a figure reads the same here as in every other
+ * number on the site.
+ */
+export function formatMonthYear(value: string | Date): string {
+  return new Intl.DateTimeFormat("ar-TN-u-nu-latn", {
+    timeZone: TIME_ZONE,
+    month: "long",
+    year: "numeric",
+  }).format(new Date(value));
+}

@@ -36,6 +36,12 @@
 
 html {
   background: var(--color-paper);
+  /* Every public page carries a bar across its top — sticky on most of them, floating over the photograph on
+     the home page — so an anchor jump («وين وصلنا؟» → #million) would otherwise land the heading it jumped to
+     underneath that bar. The sections set `scroll-mt-20` themselves; this is what tops it up to clear the
+     taller floating bar at every width and leave a little air above the heading. Scroll padding on the
+     scroller and scroll margin on the target add together, which is why this number is small. */
+  scroll-padding-block-start: 2.5rem;
 }
 
 body {
@@ -67,7 +73,7 @@ body {
     gap: 0.5rem;
     min-height: 3rem;
     padding-inline: 1.25rem;
-    border-radius: 0.75rem;
+    border-radius: var(--radius-control);
     font-weight: 600;
     font-size: 1rem;
     line-height: 1.2;
@@ -107,7 +113,7 @@ body {
   .field {
     width: 100%;
     min-height: 3rem;
-    border-radius: 0.75rem;
+    border-radius: var(--radius-control);
     border: 1.5px solid var(--color-line-strong);
     background: var(--color-surface);
     padding: 0.625rem 0.875rem;
@@ -158,9 +164,25 @@ body {
   .choice:hover {
     border-color: var(--color-leaf);
   }
+  /* A chosen answer fills. It used to tint — leaf-soft with ink text — everywhere except two screens that
+     overrode it to a solid forest fill, and those two did not agree with each other either (one carried a
+     shadow). Forty call sites, three appearances of «this is my answer». The fill wins because it is the one a
+     reader recognises across a row without comparing: a tint reads as a hover on a phone, and on the payment
+     question, where the tiles are the whole decision, the tinted version was the thing every redesign kept
+     being asked to fix. Moving it here retires both overrides and settles the other thirty-eight at once. */
   .choice:has(input:checked) {
     border-color: var(--color-forest);
-    background: var(--color-leaf-soft);
+    background: var(--color-forest);
+    color: var(--color-surface);
+  }
+  /* The native control sits on the fill now, so its own accent has to invert with it. */
+  .choice:has(input:checked) input {
+    accent-color: var(--color-surface);
+  }
+  /* A hint inside a chosen row is quiet against paper and would be unreadable against the fill. */
+  .choice:has(input:checked) .hint,
+  .choice:has(input:checked) .text-muted {
+    color: color-mix(in oklab, var(--color-surface) 82%, transparent);
   }
   .choice:has(input:focus-visible) {
     outline: 2px solid var(--color-gold-bright);
@@ -204,10 +226,8 @@ body {
   /* Radius. --radius-card is 1rem on purpose: that is what rounded-2xl resolves to today, so a .card
      and a not-yet-migrated hand-written card keep the same corner. Tailwind's own --radius-* keys are
      left untouched, so every existing rounded-* utility still means what it meant. */
-  --radius-control: 0.75rem; /* .btn and .field today */
-  --radius-chip: 0.625rem;
+  --radius-control: 0.75rem; /* .btn and .field */
   --radius-card: 1rem;
-  --radius-panel: 1.25rem;
   --radius-pill: 9999px;
 
   /* Elevation, in ink. Geometry and alphas harvested from the redesign branch, recoloured to this
@@ -304,7 +324,7 @@ body {
   }
 
   /* A status word. The tone — background, text and ring — still comes from the map the call site
-     already holds (STAGE_TONES, PARCEL_STATUS_TONES, LAND_STATUS_TONES…), so .pill replaces only the
+     already holds (STAGE_TONES, PROJECT_STATUS_TONES, LAND_STATUS_TONES…), so .pill replaces only the
      shape: `inline-flex whitespace-nowrap rounded-full px-2.5 py-1 text-xs font-semibold`. */
   .pill {
     display: inline-flex;
@@ -384,5 +404,211 @@ body {
   .label-sm {
     font-size: var(--text-caption);
     margin-bottom: 0.25rem;
+  }
+}
+
+@layer components {
+  /*
+   * One way to open and close things.
+   *
+   * The public site has two disclosures and they agree on nothing. The home page's FAQ is a 3rem row
+   * carrying a gold marker that turns when it opens — the whole row is the tap target, and you can see it
+   * opens before you touch it. The footer's photo credits are a 12px grey sentence whose only affordance
+   * is hover:underline: a control that cannot be seen on the device most visitors use, in a box about a
+   * third of the minimum tap size. The FAQ was right. It just said so in ten utilities per question, which
+   * is why the footer could not simply copy it. What follows says it once, so a <details> becomes
+   * presentable by gaining a class:
+   *
+   *   <details class="disclosure">
+   *     <summary>مصادر الصور</summary>
+   *     <p>…</p>
+   *   </details>
+   *
+   * and a run of them by naming the set — the hairline between rows comes with it, so the FAQ's
+   * `panel mt-cozy divide-y divide-line` plus a p-cozy on every summary and a px-cozy pb-cozy on every
+   * answer becomes two class names and nothing at the call sites:
+   *
+   *   <div class="panel disclosure-list">
+   *     <details class="disclosure">…</details>
+   *     …
+   *   </div>
+   *
+   * The marker is drawn, not typed: two gradients crossing inside a 0.875rem box. So it cannot be
+   * selected with the text, it cannot go missing from a font, and it becomes an × by rotating 45° — the
+   * gesture the FAQ already taught. It sits at the start of the row, which in RTL is the right, where the
+   * reading eye arrives before the words; saying «this opens» after the sentence has been read is saying
+   * it too late. Being the summary's own ::before, it follows `direction` and never needs a side named.
+   *
+   * Nothing about the body animates, on purpose. A height transition is what makes a disclosure shove the
+   * page under a reader who is looking further down, and it also defeats the browser's own scroll
+   * anchoring, which is the thing that keeps their view still while a box above it grows. Only the marker
+   * moves, and the prefers-reduced-motion rule at the top of this file already stops even that for a
+   * reader who asked for none.
+   *
+   * The focus ring is the page's own: :focus-visible at the top of this file puts a gold outline on the
+   * summary, and because the summary is the full row, the ring shows the whole tap target.
+   */
+  .disclosure {
+    --disclosure-inset: 0rem;
+    --disclosure-marker: 0.875rem;
+    /* the marker and the gap after it: what the summary's words are indented by, and therefore what the
+       answer under them has to be indented by too */
+    --disclosure-gutter: calc(var(--disclosure-marker) + var(--spacing-snug));
+  }
+
+  /* A disclosure that is its own surface, and one row of a set, inset themselves. A lone one standing in a
+     column of text keeps the column's edge, so its summary still lines up with the sentences around it. */
+  .disclosure.card,
+  .disclosure.panel,
+  .disclosure-list > .disclosure {
+    --disclosure-inset: var(--spacing-cozy);
+  }
+
+  .disclosure > summary {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-snug);
+    min-block-size: 3rem; /* the row is the tap target, not the words in it */
+    padding-block: var(--spacing-snug);
+    padding-inline: var(--disclosure-inset);
+    font-weight: 600;
+    list-style: none; /* the browser's own triangle is never ours */
+    cursor: pointer;
+    -webkit-user-select: none;
+    user-select: none; /* two taps open and close it; they never select the question */
+    scroll-margin-block: var(--spacing-cozy);
+  }
+  .disclosure > summary::-webkit-details-marker {
+    display: none; /* Safari before 16.4 */
+  }
+  .disclosure > summary::before {
+    content: "";
+    flex: none;
+    inline-size: var(--disclosure-marker);
+    block-size: var(--disclosure-marker);
+    color: var(--color-gold);
+    background:
+      linear-gradient(currentColor 0 0) center / 100% 2px no-repeat,
+      linear-gradient(currentColor 0 0) center / 2px 100% no-repeat;
+    transition: transform 150ms, color 150ms;
+  }
+  .disclosure > summary:hover::before {
+    color: var(--color-forest);
+  }
+  .disclosure[open] > summary::before {
+    transform: rotate(45deg);
+  }
+
+  /* Whatever the call site put after the summary — a paragraph, a table, a form — starts where the
+     summary's own words start, so an answer sits under its question instead of hanging past it, and it
+     closes the box off at the bottom. Only the spacing is set here; the type and the tone of an answer are
+     content, and stay at the call site. */
+  .disclosure > summary ~ * {
+    padding-inline-start: calc(var(--disclosure-inset) + var(--disclosure-gutter));
+    padding-inline-end: var(--disclosure-inset);
+  }
+  .disclosure > summary ~ :last-child {
+    padding-block-end: var(--spacing-cozy);
+  }
+
+  .disclosure-list > .disclosure + .disclosure {
+    border-block-start: 1px solid var(--color-line);
+  }
+}
+
+@layer components {
+  /*
+   * The header bar, and the two things it cannot say in a utility.
+   *
+   * 1 · WHERE IT SITS. On every public page but one the bar is what it has always been: a sticky bar at the
+   *     top of the flow. /projects, /start, /register and /land begin with their own content at the very top
+   *     of the page, and a bar taken out of the flow would cover the first thing each of them says.
+   *
+   *     The home page is the one page that opens with a full-bleed photograph, and the reference draws the
+   *     bar floating ON that photograph — the picture is visible above it and past its rounded end. That is
+   *     `position: fixed`, and the hero already reserves the room for it (landing/hero.tsx: the band's own
+   *     top padding is written to suit a bar either way, so nothing below has to know).
+   *
+   *     The page says which it is, because only the page knows: it renders a marker and this reads it. With
+   *     the marker gone the bar falls back to sticky, which is every other page's behaviour — so the failure
+   *     mode is «the home page looks like the rest of the site», never a bar that covers a heading. It is
+   *     written here rather than as a utility because a utility cannot ask what is inside <main>, and
+   *     `position` is set here rather than with `sticky top-0` because utilities win over this layer and
+   *     would beat the override.
+   *
+   * 2 · WHICH SECTION IS CURRENT. The drawing underlines it in gold. Knowing the current path on the client
+   *     means `usePathname()`, which means the bar stops being a server component; the honest server-side
+   *     answer is that the page tells us, the same marker doing both jobs. Today that marks «الرئيسية» on
+   *     the home page and nothing anywhere else — no underline is a gap, a wrong underline is a lie, and
+   *     this one cannot be wrong. `aria-current="page"` is the general hook for any caller that does know
+   *     which of its links is current.
+   */
+  .site-header {
+    position: sticky;
+    top: 0;
+    z-index: 40;
+  }
+  body:has([data-page="home"]) .site-header {
+    position: fixed;
+    inset-inline: 0;
+  }
+
+  /* A screen that carries its own top bar does not also get the site's one.
+     The offer on a phone opens with a back control and a share control over its picture (the owner's
+     drawing of that screen, 2026-09-21), and stacking the logo bar above them makes two headers where the
+     reader wanted the offer — 68px of an 812px screen spent naming the site they are already inside.
+     The media query is what keeps this honest: `[data-offer-phone]` is rendered at every width (it is the
+     `md:hidden` phone screen, hidden by a utility, not removed), so without the query this would take the
+     header off the desktop page as well, where the phone screen is invisible and the bar is the only
+     navigation there is. 48rem is `md`, the one line the whole phone shell is cut on.
+
+     `[data-phone-screen]` is the same marker under a name that is not about one screen: the catalogue's
+     phone layout (the owner's drawing of that screen, same day) carries a bar of its own too — the way
+     back and the name of the page. Both names are honoured so neither screen has to change hands to be
+     read; `[data-offer-phone]` can fold into the general one whenever the offer screen is next touched. */
+  @media (width < 48rem) {
+    body:has([data-offer-phone]) .site-header,
+    body:has([data-phone-screen]) .site-header {
+      display: none;
+    }
+  }
+
+  .nav-link {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    min-block-size: 2.75rem; /* a 44px target, though it is a word on a wide screen */
+    padding-inline: 0.75rem;
+    font-size: var(--text-label);
+    font-weight: 500;
+    line-height: 1.4;
+    color: var(--color-muted);
+    text-decoration: none;
+    transition: color 150ms;
+  }
+  .nav-link:hover {
+    color: var(--color-forest);
+  }
+  /* The gold bar: the width of the word, rounded, a little under it. It is drawn at every width and only
+     revealed, so nothing moves when a section becomes the current one. */
+  .nav-link::after {
+    content: "";
+    position: absolute;
+    inset-inline: 0.75rem;
+    inset-block-end: 0.375rem;
+    block-size: 3px;
+    border-radius: var(--radius-pill);
+    background: var(--color-gold-bright);
+    opacity: 0;
+    transition: opacity 150ms;
+  }
+  .nav-link[aria-current="page"],
+  body:has([data-page="home"]) .nav-link[data-nav="home"] {
+    color: var(--color-forest-700);
+    font-weight: 700;
+  }
+  .nav-link[aria-current="page"]::after,
+  body:has([data-page="home"]) .nav-link[data-nav="home"]::after {
+    opacity: 1;
   }
 }

@@ -2,16 +2,39 @@ import type { Metadata } from "next";
 import Link from "next/link";
 
 import { ComingSoon, PreviewBanner } from "@/components/site/module-gate";
-import { ParcelCard } from "@/components/site/parcel-card";
-import { ProjectCard } from "@/components/site/project-card";
-import { EmptyState } from "@/components/ui";
-import { getPublicConfig, optionsFor, settingText, type PublicConfig } from "@/lib/config";
+import { OfferCard } from "@/components/site/offer-card";
+import {
+  areaPerTree,
+  getOfferStocks,
+  LegalNotes,
+  offerCardLabels,
+  offersTitle,
+  offerTreePrice,
+  stockCounted,
+} from "@/components/site/offers";
+import { RemotePhoto } from "@/components/site/site-photo";
+import { estimateLabel } from "@/components/site/site-header";
+import { EmptyState, SectionHeader } from "@/components/ui";
+import { getPublicConfig, settingText, type PublicConfig } from "@/lib/config";
+import { PLANTATION_LABELS, PRODUCTION_LABELS } from "@/lib/crm";
+import { formatCount, formatMillimes } from "@/lib/format";
 import { moduleAccess } from "@/lib/modules";
-import { OFFER_TYPE_LABELS, offerTypeOf, type OfferType } from "@/lib/projects";
-import { parcelHref, projectHref } from "@/lib/public-hrefs";
-import { getPublicParcels, getPublicProjects, publicMode, type PublicParcel } from "@/lib/public-projects";
+import { projectStatusLabel, projectStatusTone } from "@/lib/projects";
+import { projectHref } from "@/lib/public-hrefs";
+import { getPublicProjects, publicMode, type PublicProject } from "@/lib/public-projects";
 
-// The name of the section belongs to the Back Office, the browser tab included (owner, 2026-09-18).
+import { ProjectsPhone, type PhoneOffer } from "./projects-phone";
+
+/**
+ * The catalogue of offers.
+ *
+ * Until 2026-09-18 the lower half of this page was a grid of parcels read from `public_parcels()`, with
+ * six filters over parcel columns. `public.parcels` holds no row, so that grid was structurally empty and
+ * its «ما فماش قطع متاحة» sat directly under a header announcing 600 available trees — the page
+ * contradicted itself on every load. The owner removed the layer: «remove the pieces thing, its simply
+ * selling the trees». What is left is the offers, each one carrying the count of its own trees, and the
+ * two filters that were never about parcels — the governorate and its delegation.
+ */
 export async function generateMetadata(): Promise<Metadata> {
   const config = await getPublicConfig();
   return {
@@ -19,7 +42,7 @@ export async function generateMetadata(): Promise<Metadata> {
     description: settingText(
       config,
       "projects.meta_description",
-      "قطع زيتون بمساحتها وعدد زيتوناتها ونوع غراستها وحالة إنتاجها. بلا وعود.",
+      "عروض زيتون حقيقية: كل عرض بعدد زيتوناته والمساحة اللي تجي مع كل زيتونة ونوع غراستها وحالة إنتاجها. بلا وعود.",
     ),
   };
 }
@@ -31,22 +54,13 @@ export const dynamic = "force-dynamic";
 type Filters = {
   gov: number | null;
   del: number | null;
-  type: OfferType | null;
-  trees: string | null;
-  area: string | null;
-  price: number | null;
   available: boolean;
 };
 
-const MAX_PRICE_DINARS = 10_000_000;
-
-/**
- * The name of the section, everywhere it is named (owner, 2026-09-18: «عروضنا»). Emptying offers.title falls
- * back to the older projects.title, so the section is renamed from the Back Office without a deploy.
- */
-export function offersTitle(config: PublicConfig): string {
-  return settingText(config, "offers.title") || settingText(config, "projects.title", "المشاريع المتوفّرة");
-}
+// This module exports nothing but the route: the shared offer vocabulary — areaPerTree, offerCardLabels,
+// offersTitle, offerTreePrice and the stock reader — lives in `@/components/site/offers`, and the home page
+// imports it from there. Re-exporting it here made another page drag a whole route module into its graph.
+// The `offerStock(project, parcels)` shim that stood here until the home page moved is gone with it.
 
 export default async function ProjectsPage({ searchParams }: PageProps<"/projects">) {
   const config = await getPublicConfig();
@@ -56,160 +70,238 @@ export default async function ProjectsPage({ searchParams }: PageProps<"/project
   }
 
   const mode = publicMode(access);
-  const [projects, parcels] = await Promise.all([getPublicProjects(mode), getPublicParcels(mode)]);
+  const projects = await getPublicProjects(mode);
   const filters = readFilters(await searchParams, config);
-  const shown = parcels.filter((parcel) => matches(parcel, filters, config));
+  const shown = projects.filter((project) => matches(project, filters));
 
-  const open = projects.filter((project) => project.status === "published" || project.status === "internal");
-  const closed = projects.filter((project) => project.status === "sold_out" || project.status === "operating");
+  const open = shown.filter((project) => project.status === "published" || project.status === "internal");
+  const closed = shown.filter((project) => project.status === "sold_out" || project.status === "operating");
   const place = (governorateId: number) => config.governorates.find((g) => g.id === governorateId)?.name_ar ?? "";
-  const pricePending = settingText(config, "projects.price_pending", "السعر يُعلن لاحقاً.");
-  const maxMonths = longestDuration(config);
+  // The price of a tree exists for the visitor only while the pricing module is open to them (FLAG-02).
+  const pricingOpen = (await moduleAccess(config, "pricing")) !== "closed";
+
+  // One reading of the stock per offer, shared by the cards and by the figure in the header. It is a
+  // count of rows in `public.trees` (public_offer_stock, 0054) — not the offer's declared tree_count, and
+  // never a price: the stock RPC carries no money key at all and is gated on the projects module alone.
+  const stockOf = await getOfferStocks(
+    shown.map((project) => project.id),
+    mode,
+  );
+  // An offer whose trees are not numbered yet has an unknown stock, so it is left out of the total
+  // instead of adding a confident 0 to it.
+  const treesAvailable = open.reduce((sum, project) => {
+    const stock = stockOf.get(project.id);
+    return stockCounted(stock) ? sum + stock.available : sum;
+  }, 0);
+
+  // «زيتونة متاحة» is the tree unit with the state the trees are counted by — the same pair of words the
+  // figure in the header carries. The home page prints the same card, so the labels live in one place.
+  const cardLabels = offerCardLabels(config);
+  const offerCard = (project: PublicProject) => {
+    const stock = stockOf.get(project.id);
+    return (
+      <OfferCard
+        key={project.id}
+        project={project}
+        stock={
+          stockCounted(stock)
+            ? { available: stock.available, reserved: stock.reserved, sold: stock.sold }
+            : { available: null, reserved: 0, sold: 0 }
+        }
+        href={projectHref(project.code)}
+        place={place(project.governorate_id)}
+        areaPerTreeM2={areaPerTree(project)}
+        pricePerTreeMillimes={offerTreePrice(project, pricingOpen)}
+        labels={cardLabels}
+      />
+    );
+  };
+
+  /*
+   * The same catalogue, arranged for a phone (owner, 2026-09-21, on a drawing of this screen). <ProjectsPhone>
+   * owns everything below `md` — the breakpoint the phone shell's own tab bar uses — and the sections under it
+   * own `md` and up, unchanged.
+   *
+   * Nothing is read twice: the rows below are the offers, stocks and prices this page already resolved, each
+   * formatted once. The filter row is built from the words the offers themselves carry, so it can never offer
+   * a choice that matches nothing, and a list typed in here would be the hard-coded list CLAUDE.md forbids.
+   */
+  const treeUnit = settingText(config, "start.trees_unit", "زيتونة");
+  const offerWords = (project: PublicProject) =>
+    [
+      project.production_status ? (PRODUCTION_LABELS[project.production_status] ?? project.production_status) : null,
+      project.plantation_system ? (PLANTATION_LABELS[project.plantation_system] ?? project.plantation_system) : null,
+    ].filter((word): word is string => Boolean(word));
+
+  const phoneOffer = (project: PublicProject): PhoneOffer => {
+    const stock = stockOf.get(project.id);
+    const counted = stockCounted(stock);
+    const trees = counted ? stock.available : (project.tree_count ?? 0);
+    const price = offerTreePrice(project, pricingOpen);
+    return {
+      id: project.id,
+      href: projectHref(project.code),
+      name: project.name,
+      place: place(project.governorate_id),
+      // The count is what is free to buy once the trees are numbered, so it is named as such; an offer whose
+      // trees are not numbered yet states its own declared count under the bare unit.
+      trees: `${formatCount(trees)} ${counted ? cardLabels.available : treeUnit}`,
+      price: price === null ? null : `${cardLabels.from} ${formatMillimes(price)}`,
+      status:
+        project.status === "published"
+          ? null
+          : { label: projectStatusLabel(project.status), toneClass: projectStatusTone(project.status) },
+      facets: offerWords(project),
+      search: [project.name, place(project.governorate_id), project.code].join(" ").toLowerCase(),
+      image: (
+        <RemotePhoto
+          url={project.cover_url}
+          alt={project.cover_alt_ar}
+          seed={project.id}
+          sizes="(min-width: 768px) 0px, 6rem"
+          // The thumbnail fills the row rather than reserving a ratio of its own: the row's height is set
+          // by the words beside it, and a square in a taller card leaves a notch of blank card under it.
+          // `size-full`, not `absolute inset-0`: RemotePhoto's own box is `relative`, and Tailwind defines
+          // `relative` after `absolute`, so the latter would lose and the box would collapse to nothing.
+          className="size-full"
+        />
+      ),
+    };
+  };
+
+  const phoneOffers = [...open, ...closed].map(phoneOffer);
+  /** Every word at least one shown offer carries, in the order the offers put them. */
+  const phoneFacets = [...new Set(shown.flatMap(offerWords))];
 
   return (
     <>
       {access === "preview" ? <PreviewBanner /> : null}
 
-      <section className="mx-auto max-w-6xl px-4 pb-8 pt-10 sm:px-6 sm:pt-14">
-        <div className="flex flex-wrap items-end justify-between gap-4">
-          <div className="max-w-2xl">
-            <h1 className="font-display text-4xl font-bold text-forest sm:text-5xl">{offersTitle(config)}</h1>
-            <p className="mt-3 leading-7 text-muted">
-              {settingText(
-                config,
-                "projects.intro",
-                "كل مشروع يحدّد وحدته: قدّاش من زيتونة وقدّاش من مساحة. الأرقام تختلف من مشروع لآخر، فتبدا من عدد الزيتونات ونوريوك الباقي حسب المشروع.",
-              )}
+      <ProjectsPhone
+        title={offersTitle(config)}
+        backHref="/"
+        offers={phoneOffers}
+        facets={phoneFacets}
+        copy={{
+          all: settingText(config, "offers.filter_all", "الكل"),
+          search: settingText(config, "offers.search_placeholder", "إبحث عن مشروع..."),
+          empty: settingText(
+            config,
+            "projects.empty_text",
+            "ما فماش عروض بهذه المعايير توّا. سجّل مطلبك ونعلموك أول ما يتوفّر عرض يشبه اللي تحب.",
+          ),
+          pricePending: cardLabels.pricePending,
+          open: offersTitle(config),
+        }}
+      />
+
+      {/* The opening: what this page is, in one measure, with the one figure that answers «is there
+          anything left?». The map link moved down to the filters, where the governorate is chosen.
+
+          On a phone the figure used to sit BETWEEN the paragraph and the list — a number floating in the
+          gap between an explanation and the thing it explains. The three parts are one grid now: the name
+          of the page, then the figure, then the sentence, in that reading order on a phone (design
+          direction §2.2, «الرقم هو البطل» — the figure is read before the prose that qualifies it), and on
+          a wide screen the figure moves into a column of its own beside both lines. */}
+      <section className="mx-auto hidden max-w-6xl px-4 pb-cozy pt-section sm:px-6 sm:pt-band md:block">
+        <div className="grid gap-cozy lg:grid-cols-[1fr_auto] lg:items-end lg:gap-x-roomy">
+          <h1 className="section-title lg:col-start-1 lg:row-start-1">{offersTitle(config)}</h1>
+          {/* justify-self, not self: in the flex column this used to be, `self-start` was the cross axis and
+              kept the tile at the width of its figure. In a grid it is the block axis, and the tile stretched
+              to the full 705px of a tablet row — one figure marooned in a white box, which is the exact fault
+              this pass is removing from the offer page's hero panel. */}
+          {treesAvailable > 0 ? (
+            <p className="stat panel justify-self-start self-start px-roomy py-cozy lg:col-start-2 lg:row-span-2 lg:row-start-1 lg:self-end">
+              <span className="stat-figure">{formatCount(treesAvailable)}</span>
+              <span className="stat-label">{cardLabels.available}</span>
             </p>
-          </div>
-          <Link href="/projects/map" className="btn btn-secondary">
-            شوف الولايات
-          </Link>
+          ) : null}
+          <p className="max-w-[34rem] text-body text-muted lg:col-start-1 lg:row-start-2">
+            {settingText(
+              config,
+              "projects.intro",
+              "كل مشروع يحدّد وحدته: قدّاش من زيتونة وقدّاش من مساحة. الأرقام تختلف من مشروع لآخر، فتبدا من عدد الزيتونات ونوريوك الباقي حسب المشروع.",
+            )}
+          </p>
         </div>
       </section>
 
       {open.length > 0 ? (
-        <section className="mx-auto max-w-6xl px-4 pb-10 sm:px-6">
-          <h2 className="text-lg font-semibold text-ink">
-            {settingText(config, "projects.open_title", "المشاريع المفتوحة")}
-          </h2>
-          <ul className="mt-4 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
-            {open.map((project) => (
-              <ProjectCard key={project.id} project={project} href={projectHref(project.code)} place={place(project.governorate_id)} />
-            ))}
-          </ul>
+        <section className="mx-auto hidden max-w-6xl px-4 pb-band pt-cozy sm:px-6 md:block">
+          {/* «المشاريع المفتوحة» is a heading only when there is a second set to tell it apart from. On a
+              page whose <h1> already says «عروضنا» and whose next object is the offers themselves, it was a
+              second title saying nearly the same thing — and at level 2 it printed at 18px over card titles
+              of 24px, a list heading smaller than its own items. When the closed set is on the page the two
+              need naming, and both are named at the same size. */}
+          {closed.length > 0 ? (
+            <SectionHeader
+              title={settingText(config, "projects.open_title", "المشاريع المفتوحة")}
+              level={1}
+              as="h2"
+              className="mb-cozy"
+            />
+          ) : null}
+          <ul className="grid gap-cozy sm:grid-cols-2 lg:grid-cols-3">{open.map(offerCard)}</ul>
         </section>
       ) : null}
 
-      <section className="border-y border-line bg-surface">
-        <div className="mx-auto max-w-6xl px-4 py-10 sm:px-6">
+      {/* A dense band, on purpose: the offers above breathe, the choices are read as controls. */}
+      <section className="hidden border-y border-line bg-surface md:block">
+        <div className="mx-auto max-w-6xl px-4 py-section sm:px-6">
           <FilterForm filters={filters} config={config} />
 
           {shown.length === 0 ? (
             <EmptyState
-              className="mt-8 bg-paper"
+              className="mt-cozy bg-paper"
+              // It used to read «سجّل مطلبك» and open /register — a fifth word for one act, on a page that
+              // redirects straight back to /start. The calculator is where the journey starts, and it is
+              // named here with the word every other surface gives it. 2026-09-19.
               action={
-                <Link href="/register" className="btn btn-primary">
-                  سجّل مطلبك
+                <Link href="/start" className="btn btn-primary">
+                  {estimateLabel(config)}
                 </Link>
               }
             >
               {settingText(
                 config,
                 "projects.empty_text",
-                "ما فماش قطع متاحة بهذه المعايير توّا. سجّل مطلبك ونعلموك أول ما تتوفر قطعة تشبه اللي تحب.",
+                "ما فماش عروض بهذه المعايير توّا. سجّل مطلبك ونعلموك أول ما يتوفّر عرض يشبه اللي تحب.",
               )}
             </EmptyState>
-          ) : (
-            <ul className="mt-8 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
-              {shown.map((parcel) => (
-                <ParcelCard
-                  key={parcel.id}
-                  parcel={parcel}
-                  href={parcelHref(parcel.project_code, parcel.code)}
-                  place={`${parcel.project_name} · ${place(parcel.governorate_id)}`}
-                  pricePending={pricePending}
-                  maxMonths={maxMonths}
-                />
-              ))}
-            </ul>
-          )}
+          ) : null}
 
           <LegalNotes config={config} />
         </div>
       </section>
 
       {closed.length > 0 ? (
-        <section className="mx-auto max-w-6xl px-4 py-10 sm:px-6">
-          <h2 className="text-lg font-semibold text-ink">{settingText(config, "projects.closed_title", "مشاريع مكتملة")}</h2>
-          <ul className="mt-4 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
-            {closed.map((project) => (
-              <ProjectCard key={project.id} project={project} href={projectHref(project.code)} place={place(project.governorate_id)} />
-            ))}
-          </ul>
+        <section className="mx-auto hidden max-w-6xl px-4 py-section sm:px-6 md:block">
+          <SectionHeader title={settingText(config, "projects.closed_title", "مشاريع مكتملة")} level={1} as="h2" />
+          <ul className="mt-cozy grid gap-cozy sm:grid-cols-2 lg:grid-cols-3">{closed.map(offerCard)}</ul>
         </section>
       ) : null}
     </>
   );
 }
 
-/**
- * The longest duration in the Back Office's `duration` list (months). That list comes with the
- * duration-based pricing of report v3 §8; until it exists nothing is shown rather than a guessed cap.
- */
-export function longestDuration(config: PublicConfig): number | null {
-  const months = optionsFor(config, "duration")
-    .map((option) => Number(option.min_number))
-    .filter((value) => Number.isFinite(value) && value > 0);
-  return months.length > 0 ? Math.max(...months) : null;
-}
-
 function readFilters(params: Record<string, string | string[] | undefined>, config: PublicConfig): Filters {
   const text = (value: string | string[] | undefined) => (typeof value === "string" && value ? value : null);
   const gov = Number(text(params.gov));
   const del = Number(text(params.del));
-  const type = text(params.type);
-  const trees = text(params.trees);
-  const area = text(params.area);
-  const price = Number(text(params.price));
   const validGov = config.governorates.some((g) => g.id === gov) ? gov : null;
   return {
     gov: validGov,
     // A delegation only counts when it belongs to the chosen governorate.
     del: validGov !== null && config.delegations.some((d) => d.id === del && d.governorate_id === validGov) ? del : null,
-    type: type && type in OFFER_TYPE_LABELS ? (type as OfferType) : null,
-    trees: trees && optionsFor(config, "tree_count").some((option) => option.id === trees) ? trees : null,
-    area: area && optionsFor(config, "desired_area").some((option) => option.id === area) ? area : null,
-    price: Number.isFinite(price) && price > 0 && price <= MAX_PRICE_DINARS ? price : null,
     available: text(params.available) === "1",
   };
 }
 
-function inRange(value: number, option: { min_number: number | null; max_number: number | null } | undefined): boolean {
-  if (!option || option.min_number === null) return true; // an open choice filters nothing
-  if (value < Number(option.min_number)) return false;
-  return option.max_number === null || value <= Number(option.max_number);
-}
-
-function matches(parcel: PublicParcel, filters: Filters, config: PublicConfig): boolean {
-  if (filters.gov !== null && parcel.governorate_id !== filters.gov) return false;
-  if (filters.del !== null && parcel.delegation_id !== filters.del) return false;
-  if (filters.type && offerTypeOf(parcel) !== filters.type) return false;
-  if (filters.available && !parcel.offered) return false;
-  if (filters.price !== null && (parcel.cash_price_millimes === null || parcel.cash_price_millimes > filters.price * 1000)) {
-    return false;
-  }
-  if (filters.area && !inRange(parcel.area_m2, optionsFor(config, "desired_area").find((item) => item.id === filters.area))) {
-    return false;
-  }
-  // Bare land has no trees yet, so a tree count never hides it.
-  if (
-    filters.trees &&
-    parcel.property_type !== "bare_land" &&
-    !inRange(parcel.olive_tree_count ?? 0, optionsFor(config, "tree_count").find((item) => item.id === filters.trees))
-  ) {
-    return false;
-  }
+/** The filters read the offer itself now: where it is, and whether it is still on sale. */
+function matches(project: PublicProject, filters: Filters): boolean {
+  if (filters.gov !== null && project.governorate_id !== filters.gov) return false;
+  if (filters.del !== null && project.delegation_id !== filters.del) return false;
+  if (filters.available && !project.offered) return false;
   return true;
 }
 
@@ -217,14 +309,29 @@ function FilterForm({ filters, config }: { filters: Filters; config: PublicConfi
   const delegations = filters.gov === null ? [] : config.delegations.filter((d) => d.governorate_id === filters.gov);
 
   return (
-    <form method="get" action="/projects" className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4 lg:items-end">
-      <p className="text-sm leading-6 text-muted sm:col-span-2 lg:col-span-4">
-        {settingText(
-          config,
-          "projects.filters_hint",
-          "صفّي حسب الولاية أو نوع العرض أو السعر أو المساحة أو عدد الزيتونات. الأراضي البيضاء تظهر دايماً مهما كان عدد الزيتونات المختار.",
-        )}
-      </p>
+    /* The filters are a tray, not loose fields: on a white band hairline selects and a bordered
+       checkbox read as debris next to the offer cards above them, which are all surface and shadow.
+       .panel gives the set one edge; bg-paper separates it from the white band it sits on. */
+    <form
+      method="get"
+      action="/projects"
+      className="panel grid gap-snug bg-paper p-cozy sm:grid-cols-2 sm:p-roomy lg:grid-cols-4 lg:items-end"
+    >
+      {/* The map belongs to the sentence about choosing a governorate, not to the top of the page on
+          its own (owner, 2026-09-18: the button floated with no relationship to anything). */}
+      <div className="flex flex-wrap items-center justify-between gap-snug sm:col-span-2 lg:col-span-4">
+        <p className="max-w-[44rem] text-caption leading-6 text-muted">
+          {settingText(
+            config,
+            "projects.filters_hint",
+            "صفّي حسب الولاية والمعتمدية، ولا ورّي كان العروض اللي مازالت مفتوحة. كل عرض يقول قدّاش من زيتونة فيه وقدّاش مازال متاح.",
+          )}
+        </p>
+        <Link href="/projects/map" className="btn btn-ghost shrink-0">
+          شوف الولايات
+          <span aria-hidden="true">←</span>
+        </Link>
+      </div>
       <label className="block">
         <span className="label">الولاية</span>
         <select name="gov" defaultValue={filters.gov ?? ""} className="field">
@@ -247,53 +354,6 @@ function FilterForm({ filters, config }: { filters: Filters; config: PublicConfi
           ))}
         </select>
       </label>
-      <label className="block">
-        <span className="label">نوع العرض</span>
-        <select name="type" defaultValue={filters.type ?? ""} className="field">
-          <option value="">الكل</option>
-          {Object.entries(OFFER_TYPE_LABELS).map(([value, label]) => (
-            <option key={value} value={value}>
-              {label}
-            </option>
-          ))}
-        </select>
-      </label>
-      <label className="block">
-        <span className="label">أقصى سعر حاضر (د.ت)</span>
-        <input
-          type="number"
-          name="price"
-          min={1}
-          max={MAX_PRICE_DINARS}
-          step={500}
-          defaultValue={filters.price ?? ""}
-          inputMode="numeric"
-          dir="ltr"
-          className="field text-left"
-        />
-      </label>
-      <label className="block">
-        <span className="label">المساحة</span>
-        <select name="area" defaultValue={filters.area ?? ""} className="field">
-          <option value="">الكل</option>
-          {optionsFor(config, "desired_area").map((option) => (
-            <option key={option.id} value={option.id}>
-              {option.label_ar}
-            </option>
-          ))}
-        </select>
-      </label>
-      <label className="block">
-        <span className="label">عدد الزيتونات</span>
-        <select name="trees" defaultValue={filters.trees ?? ""} className="field">
-          <option value="">الكل</option>
-          {optionsFor(config, "tree_count").map((option) => (
-            <option key={option.id} value={option.id}>
-              {option.label_ar}
-            </option>
-          ))}
-        </select>
-      </label>
       <label className="choice self-end">
         <input type="checkbox" name="available" value="1" defaultChecked={filters.available} />
         <span className="font-medium">المتوفّر فقط</span>
@@ -307,14 +367,5 @@ function FilterForm({ filters, config }: { filters: Filters; config: PublicConfi
         </Link>
       </div>
     </form>
-  );
-}
-
-export function LegalNotes({ config }: { config: PublicConfig }) {
-  return (
-    <div className="mt-8 max-w-3xl space-y-2 text-sm leading-6">
-      <p className="rounded-xl bg-gold-soft/50 px-4 py-3 text-ink/80">{settingText(config, "legal.parcel_card_note")}</p>
-      <p className="text-muted">{settingText(config, "legal.no_guarantee_notice")}</p>
-    </div>
   );
 }
