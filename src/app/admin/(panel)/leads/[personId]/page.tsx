@@ -24,6 +24,7 @@ import { createClient } from "@/lib/supabase/server";
 import { offerStocks, type OfferStock } from "../../projects/offer-stock";
 import { PAYMENT_MODE_LABELS, REQUEST_KIND_LABELS } from "../filters";
 import { addContactAttempt, addNote, assignPerson, updateStatus } from "./actions";
+import { ContractCard } from "./contract-card";
 import { HeldTreesSection, type HeldOffer, type HeldTree, type StateLabels } from "./held-trees";
 import { MatchingOffers } from "./matching-offers";
 import { ReservationCard } from "./reservation-card";
@@ -90,10 +91,11 @@ export default async function LeadDetailPage({ params, searchParams }: PageProps
   //
   // The role gate is drawn a second time on top of it, and it is the one the database draws: `canReserve` is
   // app.can_see_person, which is the same test staff_create_reservation and staff_book_visit run in SQL.
-  const [matchingAccess, visitsAccess, reservationsAccess] = await Promise.all([
+  const [matchingAccess, visitsAccess, reservationsAccess, contractsAccess] = await Promise.all([
     moduleAccess(config, "matching"),
     moduleAccess(config, "visits"),
     moduleAccess(config, "reservations"),
+    moduleAccess(config, "contracts"),
   ]);
   const showMatching = matchingAccess !== "closed";
   const showVisits = visitsAccess !== "closed" && canReserve;
@@ -105,6 +107,15 @@ export default async function LeadDetailPage({ params, searchParams }: PageProps
   const showReservations = reservationsAccess !== "closed" && canReserve;
   /** The tree-only hold in the aside, and the two reads that feed it: both stop the day the module is on. */
   const showReserveTreesCard = canReserve && !showReservations;
+  // STAGE 3. One card, not two: «العقد والأقساط» carries the contract AND its schedule, because a schedule
+  // without its contract is a list of amounts nobody agreed to. It is gated on `contracts` alone — the card
+  // reads the `installments` state itself, from the same RPC that would refuse the write, so this screen and
+  // the refusal cannot disagree about which switch is off.
+  //
+  // The card survives its own tables being absent: before the migration is applied it says so in one sentence
+  // and names the draft. That is what makes it safe to mount today, with both flags still «معطّل» — nobody
+  // sees it until the owner presses the switch, and if he presses it early he gets a sentence, not a 500.
+  const showContracts = contractsAccess !== "closed" && canReserve;
 
   const [requests, attempts, notes, history, assignments, statuses, commercials, whatsappTemplate] = await Promise.all([
     supabase.from("interest_requests").select("*").eq("person_id", personId).order("created_at", { ascending: false }),
@@ -662,6 +673,10 @@ export default async function LeadDetailPage({ params, searchParams }: PageProps
               requestId={defaultRequestId}
             />
           ) : null}
+          {/* STAGE 3, and the next two things said in the same phone call: «نكتبو العقد», then «الأقساط».
+              It sits after the hold because that is the order the conversation has — a contract is made FROM a
+              reservation, and §14's «converted» is written nowhere else in the database. */}
+          {showContracts ? <ContractCard personId={person.id} personName={person.full_name} /> : null}
 
           <section className="space-y-3">
             <h2 className="text-lg font-semibold">سجل الملف</h2>

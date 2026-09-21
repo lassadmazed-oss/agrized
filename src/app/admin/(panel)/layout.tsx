@@ -109,6 +109,14 @@ function navFor(session: StaffSession, config: PublicConfig): NavGroup[] {
         // anything while it is off; each says which state it is in and which switch changes it.
         row("/admin/visits", "visits", { roles: CRM_READ_ROLES, flag: "visits" }),
         row("/admin/reservations", "reservations", { roles: CRM_READ_ROLES, flag: "reservations" }),
+        // STAGE 3, and the same rule as the two above: the row opens while the module is «معطّل», because the
+        // Back Office is where a module is prepared. What is different about these two is that their TABLES
+        // are not applied yet either — supabase/pending/bb_60_contracts_installments.sql is a draft — so both
+        // screens answer a missing function as its own case and say the module is not installed, naming the
+        // file. That is the one condition under which restoring a row is honest: it leads somewhere that
+        // tells the truth. The five rows this nav removed in 2026-09-18 were removed for failing it.
+        row("/admin/contracts", "contracts", { roles: CRM_READ_ROLES, flag: "contracts" }),
+        row("/admin/installments", "payments", { roles: PRICE_ROLES, flag: "installments" }),
       ],
     }),
     row("/admin/projects", "offers", {
