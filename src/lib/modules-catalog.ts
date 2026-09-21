@@ -34,6 +34,20 @@ export const IMPLEMENTED_MODULES = [
   "subscriptions",
   "harvest",
   "zitounti",
+  // STAGE 3, 2026-09-21 — العقود ووعد البيع · الأقساط والخلاص. Added only now that their tables exist:
+  // 0072_contracts_installments.sql is applied, which is the order this file's own comment insists on, and
+  // both flags are 'disabled' exactly as the migration left them.
+  //
+  // ONE OF THE TWO SWITCHES IS NOT REVERSIBLE THE WAY A SWITCH USUALLY IS. The setting
+  // contracts.deposit_counts_toward_down_payment — does the عربون count toward the تسبقة — is read when a
+  // contract is CREATED and frozen onto it as deposit_credited_millimes, so that flipping the setting can
+  // never change what an already-signed client owes. That is right, and it means every contract written
+  // before the owner answers is permanently stamped with the seeded answer (false). Turning `contracts` on
+  // does not leave the question open; it starts answering it one contract at a time. The other question,
+  // installments.first_due_rule, is seeded 'manual' and is correctable per contract — Finance types the
+  // date and the database refuses to guess.
+  "contracts",
+  "installments",
 ] as const;
 
 export const FLAG_STATE_LABELS = {

@@ -1,4 +1,4 @@
--- bb · العقود ووعد البيع + الأقساط — the two modules that turn a hold into a sale and a sale into a schedule.
+-- 0072 · العقود ووعد البيع + الأقساط — the two modules that turn a hold into a sale and a sale into a schedule.
 -- Report v3 §28 (العقود), §29 (الأقساط), §30 (طرق الدفع), §31 (التأخير في الدفع); cahier v2 §34 (Promise to
 -- Sell), §35 (الأقساط), §36 (التأخير), §38 (التملّك). Module flags: `contracts` and `installments`, BOTH left
 -- 'disabled' — the owner presses the switch himself.

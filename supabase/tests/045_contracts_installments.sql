@@ -1,7 +1,7 @@
 -- العقود ووعد البيع + الأقساط: a reservation becomes a contract, and a contract becomes a schedule that
 -- money is recorded against. Report v3 §28-§31, cahier v2 §34-§36 and §38.
--- Migration supabase/pending/bb_60_contracts_installments.sql (rename this file's first line when it is
--- numbered). The task asked for 044; 044_offers_filter_copy.sql already exists, so this file is 045.
+-- Migration supabase/migrations/0072_contracts_installments.sql (applied 2026-09-21).
+-- The task asked for 044; 044_offers_filter_copy.sql already exists, so this file is 045.
 --
 -- Runs against the live database inside a rolled-back transaction: offers with unused codes, fresh staff
 -- accounts, unused phone numbers, and every setting and flag it measures pinned INSIDE the transaction. Every
@@ -19,7 +19,7 @@ do $$
 begin
   if to_regclass('public.contracts') is null then
     raise exception
-      'supabase/pending/bb_60_contracts_installments.sql is not applied yet, and this test file belongs to it. Dry-run both together: node --env-file=.env scripts/db-dry-run.mjs supabase/pending/bb_60_contracts_installments.sql supabase/tests/045_contracts_installments.sql';
+      'supabase/migrations/0072_contracts_installments.sql is not applied on this database, and this test file belongs to it. Apply it with: npm run db:migrate';
   end if;
 end $$;
 

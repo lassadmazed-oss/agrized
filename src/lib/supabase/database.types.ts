@@ -240,6 +240,280 @@ export type Database = {
           },
         ]
       }
+      contract_installments: {
+        Row: {
+          amount_millimes: number
+          contract_id: string
+          created_at: string
+          due_on: string
+          id: string
+          note: string | null
+          seq: number
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          amount_millimes: number
+          contract_id: string
+          created_at?: string
+          due_on: string
+          id?: string
+          note?: string | null
+          seq: number
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          amount_millimes?: number
+          contract_id?: string
+          created_at?: string
+          due_on?: string
+          id?: string
+          note?: string | null
+          seq?: number
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "contract_installments_contract_id_fkey"
+            columns: ["contract_id"]
+            isOneToOne: false
+            referencedRelation: "contracts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contract_installments_updated_by_fkey"
+            columns: ["updated_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      contracts: {
+        Row: {
+          cancel_reason: string | null
+          cancelled_at: string | null
+          cancelled_by: string | null
+          created_at: string
+          created_by: string | null
+          deposit_credited_millimes: number
+          down_payment_millimes: number
+          down_payment_percent: number | null
+          duration_months: number | null
+          first_due_on: string | null
+          id: string
+          installments_count: number | null
+          kind_label_ar: string | null
+          kind_option_id: string | null
+          last_installment_millimes: number | null
+          legal_document_ref: string | null
+          markup_bp: number | null
+          method_label_ar: string | null
+          method_option_id: string | null
+          monthly_millimes: number | null
+          note: string | null
+          owned_at: string | null
+          owned_by: string | null
+          payment_mode: string
+          person_id: string
+          plan_shortened: boolean | null
+          price_per_tree_millimes: number
+          project_id: string
+          reference_no: string
+          remaining_millimes: number | null
+          request_id: string | null
+          reservation_id: string
+          schedule_generated_at: string | null
+          settled_at: string | null
+          signed_by: string | null
+          signed_on: string | null
+          status: Database["public"]["Enums"]["contract_status"]
+          total_financed_millimes: number | null
+          total_price_millimes: number
+          trees_count: number
+          trees_released: boolean
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          cancel_reason?: string | null
+          cancelled_at?: string | null
+          cancelled_by?: string | null
+          created_at?: string
+          created_by?: string | null
+          deposit_credited_millimes?: number
+          down_payment_millimes: number
+          down_payment_percent?: number | null
+          duration_months?: number | null
+          first_due_on?: string | null
+          id?: string
+          installments_count?: number | null
+          kind_label_ar?: string | null
+          kind_option_id?: string | null
+          last_installment_millimes?: number | null
+          legal_document_ref?: string | null
+          markup_bp?: number | null
+          method_label_ar?: string | null
+          method_option_id?: string | null
+          monthly_millimes?: number | null
+          note?: string | null
+          owned_at?: string | null
+          owned_by?: string | null
+          payment_mode: string
+          person_id: string
+          plan_shortened?: boolean | null
+          price_per_tree_millimes: number
+          project_id: string
+          reference_no: string
+          remaining_millimes?: number | null
+          request_id?: string | null
+          reservation_id: string
+          schedule_generated_at?: string | null
+          settled_at?: string | null
+          signed_by?: string | null
+          signed_on?: string | null
+          status?: Database["public"]["Enums"]["contract_status"]
+          total_financed_millimes?: number | null
+          total_price_millimes: number
+          trees_count: number
+          trees_released?: boolean
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          cancel_reason?: string | null
+          cancelled_at?: string | null
+          cancelled_by?: string | null
+          created_at?: string
+          created_by?: string | null
+          deposit_credited_millimes?: number
+          down_payment_millimes?: number
+          down_payment_percent?: number | null
+          duration_months?: number | null
+          first_due_on?: string | null
+          id?: string
+          installments_count?: number | null
+          kind_label_ar?: string | null
+          kind_option_id?: string | null
+          last_installment_millimes?: number | null
+          legal_document_ref?: string | null
+          markup_bp?: number | null
+          method_label_ar?: string | null
+          method_option_id?: string | null
+          monthly_millimes?: number | null
+          note?: string | null
+          owned_at?: string | null
+          owned_by?: string | null
+          payment_mode?: string
+          person_id?: string
+          plan_shortened?: boolean | null
+          price_per_tree_millimes?: number
+          project_id?: string
+          reference_no?: string
+          remaining_millimes?: number | null
+          request_id?: string | null
+          reservation_id?: string
+          schedule_generated_at?: string | null
+          settled_at?: string | null
+          signed_by?: string | null
+          signed_on?: string | null
+          status?: Database["public"]["Enums"]["contract_status"]
+          total_financed_millimes?: number | null
+          total_price_millimes?: number
+          trees_count?: number
+          trees_released?: boolean
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "contracts_cancelled_by_fkey"
+            columns: ["cancelled_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contracts_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contracts_kind_option_id_fkey"
+            columns: ["kind_option_id"]
+            isOneToOne: false
+            referencedRelation: "option_items"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contracts_method_option_id_fkey"
+            columns: ["method_option_id"]
+            isOneToOne: false
+            referencedRelation: "option_items"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contracts_owned_by_fkey"
+            columns: ["owned_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contracts_person_id_fkey"
+            columns: ["person_id"]
+            isOneToOne: false
+            referencedRelation: "persons"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contracts_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contracts_request_id_fkey"
+            columns: ["request_id"]
+            isOneToOne: false
+            referencedRelation: "crm_requests"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contracts_request_id_fkey"
+            columns: ["request_id"]
+            isOneToOne: false
+            referencedRelation: "interest_requests"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contracts_reservation_id_fkey"
+            columns: ["reservation_id"]
+            isOneToOne: true
+            referencedRelation: "reservations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contracts_signed_by_fkey"
+            columns: ["signed_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contracts_updated_by_fkey"
+            columns: ["updated_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       delegations: {
         Row: {
           governorate_id: number
@@ -1687,8 +1961,10 @@ export type Database = {
       payments: {
         Row: {
           amount_millimes: number
+          contract_id: string | null
           created_at: string
           id: string
+          installment_id: string | null
           kind: Database["public"]["Enums"]["payment_kind"]
           method_label_ar: string | null
           method_option_id: string | null
@@ -1708,8 +1984,10 @@ export type Database = {
         }
         Insert: {
           amount_millimes: number
+          contract_id?: string | null
           created_at?: string
           id?: string
+          installment_id?: string | null
           kind: Database["public"]["Enums"]["payment_kind"]
           method_label_ar?: string | null
           method_option_id?: string | null
@@ -1729,8 +2007,10 @@ export type Database = {
         }
         Update: {
           amount_millimes?: number
+          contract_id?: string | null
           created_at?: string
           id?: string
+          installment_id?: string | null
           kind?: Database["public"]["Enums"]["payment_kind"]
           method_label_ar?: string | null
           method_option_id?: string | null
@@ -1749,6 +2029,20 @@ export type Database = {
           voided_by?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "payments_contract_id_fkey"
+            columns: ["contract_id"]
+            isOneToOne: false
+            referencedRelation: "contracts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payments_installment_id_fkey"
+            columns: ["installment_id"]
+            isOneToOne: false
+            referencedRelation: "contract_installments"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "payments_method_option_id_fkey"
             columns: ["method_option_id"]
@@ -3966,11 +4260,33 @@ export type Database = {
         Returns: Json
       }
       staff_book_visit: { Args: { p: Json; p_reason?: string }; Returns: Json }
+      staff_cancel_contract: {
+        Args: { p_contract: string; p_reason: string; p_release: boolean }
+        Returns: Json
+      }
       staff_close_reservation: {
         Args: {
           p_outcome: string
           p_reason: string
           p_release: boolean
+          p_reservation: string
+        }
+        Returns: Json
+      }
+      staff_contract: { Args: { p_contract: string }; Returns: Json }
+      staff_contracts: {
+        Args: { p_filter?: string; p_limit?: number; p_project?: string }
+        Returns: Json
+      }
+      staff_create_contract: {
+        Args: {
+          p_down_payment_millimes: number
+          p_duration_months: number
+          p_kind: string
+          p_method: string
+          p_note: string
+          p_payment_mode: string
+          p_reason: string
           p_reservation: string
         }
         Returns: Json
@@ -4010,12 +4326,20 @@ export type Database = {
         Args: { p_days: number; p_reason: string; p_reservation: string }
         Returns: Json
       }
+      staff_generate_schedule: {
+        Args: { p_contract: string; p_reason: string }
+        Returns: Json
+      }
       staff_generate_trees: {
         Args: { p_project: string; p_reason: string }
         Returns: Json
       }
       staff_harvest_overview: { Args: { p_project?: string }; Returns: Json }
       staff_harvest_season: { Args: { p_season: string }; Returns: Json }
+      staff_installments: {
+        Args: { p_filter?: string; p_limit?: number }
+        Returns: Json
+      }
       staff_match_offers: {
         Args: { p_limit?: number; p_request: string }
         Returns: Json
@@ -4030,6 +4354,7 @@ export type Database = {
         }
         Returns: Json
       }
+      staff_person_contracts: { Args: { p_person: string }; Returns: Json }
       staff_person_reservations: { Args: { p_person: string }; Returns: Json }
       staff_person_visits: { Args: { p_person: string }; Returns: Json }
       staff_project_parcel_prices: {
@@ -4059,6 +4384,20 @@ export type Database = {
           p_received_at: string
           p_reference: string
           p_reservation: string
+        }
+        Returns: Json
+      }
+      staff_record_installment: {
+        Args: {
+          p_amount_millimes: number
+          p_contract: string
+          p_installment: string
+          p_kind: string
+          p_method: string
+          p_note: string
+          p_reason: string
+          p_received_at: string
+          p_reference: string
         }
         Returns: Json
       }
@@ -4123,6 +4462,10 @@ export type Database = {
         Args: { p: Json; p_reason: string }
         Returns: string
       }
+      staff_set_contract_owned: {
+        Args: { p_contract: string; p_owned_on: string; p_reason: string }
+        Returns: Json
+      }
       staff_set_harvest_choice: {
         Args: {
           p_note: string
@@ -4168,6 +4511,16 @@ export type Database = {
         Args: { p_reason: string; p_season: string }
         Returns: Json
       }
+      staff_sign_contract: {
+        Args: {
+          p_contract: string
+          p_first_due_on: string
+          p_legal_ref: string
+          p_reason: string
+          p_signed_on: string
+        }
+        Returns: Json
+      }
       staff_subscription_preview: {
         Args: { p_person: string; p_project: string }
         Returns: Json
@@ -4183,6 +4536,16 @@ export type Database = {
           p_project?: string
           p_spacing_class: string
           p_trees?: number
+        }
+        Returns: Json
+      }
+      staff_update_installment: {
+        Args: {
+          p_amount_millimes: number
+          p_due_on: string
+          p_installment: string
+          p_note: string
+          p_reason: string
         }
         Returns: Json
       }
@@ -4219,6 +4582,7 @@ export type Database = {
         | "wrong_number"
         | "callback"
         | "not_interested"
+      contract_status: "draft" | "signed" | "completed" | "cancelled"
       flag_state: "disabled" | "internal" | "public"
       harvest_choice_source: "client" | "staff" | "auto"
       harvest_season_status:
@@ -4424,6 +4788,7 @@ export const Constants = {
         "callback",
         "not_interested",
       ],
+      contract_status: ["draft", "signed", "completed", "cancelled"],
       flag_state: ["disabled", "internal", "public"],
       harvest_choice_source: ["client", "staff", "auto"],
       harvest_season_status: [
