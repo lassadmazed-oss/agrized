@@ -141,7 +141,16 @@ export default async function PanelLayout({ children }: LayoutProps<"/admin">) {
   const roles = session.roles.map((role) => ROLE_LABELS[role]).join("، ");
 
   return (
-    <div className="min-h-dvh bg-paper lg:grid lg:grid-cols-[15rem_minmax(0,1fr)]">
+    /* translate="no" — the Back Office is never to be machine-translated.
+       The owner opened /admin/visits on 2026-09-21 and got French: «طبّق» had become "plat" (طبق, a dish),
+       «من تاريخ» had become "De l'histoire", «الحرفاء» — customers, in Tunisian — had become "Des artisans",
+       and the offers' own names had been rewritten («عرض طريق المطار» → "Tournée aéroportuaire"). Nothing in
+       this codebase is French; `<html lang="ar" dir="rtl">` is set and correct, and the browser was doing it.
+       A staff screen that silently renames a client's offer and turns a button into a noun is worse than one
+       in a language the reader has to work at, so translation is refused here. It is NOT refused on the
+       public site: a visitor who wants the marketing pages in another language is making a fair choice, and
+       this attribute is scoped to the panel so that choice survives. */
+    <div translate="no" className="min-h-dvh bg-paper lg:grid lg:grid-cols-[15rem_minmax(0,1fr)]">
       {/* The sidebar, on the brand's own dark green rather than on a scale of transparent paper. */}
       <aside className="sticky top-0 hidden h-dvh flex-col gap-5 overflow-y-auto bg-forest-700 px-3 py-5 lg:flex">
         <div className="flex items-center gap-2.5 px-2">

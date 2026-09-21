@@ -19,7 +19,9 @@ export default async function AdminLoginPage({ searchParams }: PageProps<"/admin
   const { next } = await searchParams;
 
   return (
-    <div className="grid min-h-dvh place-items-center bg-paper px-4 py-10">
+    /* translate="no" for the same reason as the panel layout: this is Back Office, Arabic only, and a
+        machine translation of the sign-in screen renames the fields a reader is about to type into. */
+    <div translate="no" className="grid min-h-dvh place-items-center bg-paper px-4 py-10">
       <div className="w-full max-w-sm">
         <div className="text-center">
           <Wordmark className="text-4xl" />

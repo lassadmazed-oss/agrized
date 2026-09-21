@@ -25,7 +25,9 @@ export default async function SetupPage({ searchParams }: PageProps<"/admin/setu
   const emails = await listSuperAdminEmails();
 
   return (
-    <div className="grid min-h-dvh place-items-center bg-paper px-4 py-10">
+    /* translate="no" for the same reason as the panel layout: this is Back Office, Arabic only, and a
+        machine translation of the first-run setup screen renames the fields a reader is about to type into. */
+    <div translate="no" className="grid min-h-dvh place-items-center bg-paper px-4 py-10">
       <div className="w-full max-w-md">
         <div className="text-center">
           <Wordmark className="text-4xl" />
