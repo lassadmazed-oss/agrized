@@ -64,7 +64,14 @@ async function callVisitRpc(name: string, args: Record<string, unknown>): Promis
   const supabase = await createClient();
   // The same one-line cast as ./visit-data: the RPCs arrive with supabase/pending/bb_21_visits.sql, so the
   // generated types do not know them until that draft is applied and `npm run db:types` is run.
-  const rpc = supabase.rpc as unknown as (fn: string, params: Record<string, unknown>) => Promise<RpcAnswer>;
+  // `.bind(supabase)` is not decoration: supabase-js reads `this.rest` inside rpc(), so calling the method
+  // detached from its client throws «Cannot read properties of undefined (reading 'rest')» before a request is
+  // ever made. ./agri/read.ts and ./harvest/rpc.ts already bind theirs; these did not, and the visits board
+  // crashed the dashboard the moment the owner switched the module on (2026-09-21).
+  const rpc = supabase.rpc.bind(supabase) as unknown as (
+    fn: string,
+    params: Record<string, unknown>,
+  ) => Promise<RpcAnswer>;
   return rpc(name, args);
 }
 

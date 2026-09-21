@@ -144,7 +144,9 @@ export async function MatchingOffers({ personId, requestId }: { personId: string
     );
   }
 
-  const rpc = supabase.rpc as unknown as MatchRpc;
+  // Bound, not detached: supabase-js reads `this.rest` inside rpc(), and an unbound call throws
+  // «Cannot read properties of undefined (reading 'rest')» before the request leaves. 2026-09-21.
+  const rpc = supabase.rpc.bind(supabase) as unknown as MatchRpc;
   const { data, error } = await rpc("staff_match_offers", { p_request: demand.id });
   if (error) {
     // THE MODULE IS ON BUT ITS DRAFT IS NOT APPLIED. That state is reachable — the owner can switch a module on

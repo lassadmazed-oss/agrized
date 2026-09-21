@@ -2,12 +2,14 @@ import "server-only";
 
 // The two reads of the visits module, in one place: the board and one client's visits.
 //
-// WHY A CAST LIVES HERE AND NOWHERE ELSE. public.visits and its RPCs arrive with
-// supabase/pending/bb_21_visits.sql, which is a DRAFT — it has not been applied, so `npm run db:types` has not
-// regenerated src/lib/supabase/database.types.ts and supabase.rpc() does not know these three names yet. Rather
-// than scatter `as never` through two screens, the untyped call is made once, here, and everything above it
-// reads the typed shapes of ./visit-model. The day the migration is applied and the types are regenerated, the
-// cast in callVisitRpc is the only line to delete.
+// WHY A CAST LIVES HERE AND NOWHERE ELSE. The untyped call is made once, here, and everything above it reads
+// the typed shapes of ./visit-model rather than scattering `as never` through two screens.
+//
+// The reason the cast was written is gone: the draft it waited for landed as supabase/migrations/0064_visits.sql
+// and is applied (verified against the database on 2026-09-21, alongside 0063 and 0065), and
+// database.types.ts now carries staff_visit_board and staff_person_visits. What still needs the cast is only
+// this helper's shape — it takes the function name as a plain `string`, and supabase.rpc() is overloaded on
+// literal names. Give the two callers their literal names and the cast goes with the helper.
 //
 // Nothing here computes anything. The grouping by day, the counts, the booking window and every Arabic word
 // arrive from Postgres (app.visit_terms, app.visit_status_label, app.visit_payload); these functions only ask.
@@ -20,7 +22,14 @@ type RpcAnswer = { data: unknown; error: { message: string; code?: string } | nu
 
 async function callVisitRpc(name: string, args: Record<string, unknown>): Promise<RpcAnswer> {
   const supabase = await createClient();
-  const rpc = supabase.rpc as unknown as (fn: string, params: Record<string, unknown>) => Promise<RpcAnswer>;
+  // `.bind(supabase)` is not decoration: supabase-js reads `this.rest` inside rpc(), so calling the method
+  // detached from its client throws «Cannot read properties of undefined (reading 'rest')» before a request is
+  // ever made. ./agri/read.ts and ./harvest/rpc.ts already bind theirs; these did not, and the visits board
+  // crashed the dashboard the moment the owner switched the module on (2026-09-21).
+  const rpc = supabase.rpc.bind(supabase) as unknown as (
+    fn: string,
+    params: Record<string, unknown>,
+  ) => Promise<RpcAnswer>;
   return rpc(name, args);
 }
 
