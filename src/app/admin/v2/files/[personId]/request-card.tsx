@@ -68,6 +68,10 @@ export type RequestDetails = Pick<
   | "created_at"
   | "request_kind"
   | "project_name"
+  | "project_code"
+  | "price_per_tree_millimes"
+  | "production_statuses"
+  | "source"
   | "offer_trees"
   | "tree_count_label_ar"
   | "desired_area_label_ar"
@@ -133,6 +137,21 @@ function answered(request: RequestDetails, governorates: Governorates): Answer[]
 
   const rows: Array<{ label: string; value: string | null; wide?: boolean }> = [
     { label: "العرض", value: request.project_name, wide: true },
+    { label: "كود العرض", value: request.project_code },
+    {
+      label: "سعر الزيتونة",
+      value: request.price_per_tree_millimes ? formatMillimes(request.price_per_tree_millimes) : null,
+    },
+    { label: "حالة الإنتاج", value: (request.production_statuses ?? []).join("، ") || null },
+    {
+      // Where the lead actually came from: the calculator, an offer page, a campaign link. It was in
+      // every row since the first intake and on no screen.
+      label: "جا من",
+      value:
+        request.source && typeof request.source === "object" && "landing_path" in request.source
+          ? String((request.source as { landing_path?: unknown }).landing_path ?? "") || null
+          : null,
+    },
     {
       label: "عدد الزيتونات",
       value: request.tree_count_label_ar ?? (request.offer_trees ? `${formatCount(request.offer_trees)} زيتونة` : null),

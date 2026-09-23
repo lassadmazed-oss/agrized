@@ -63,7 +63,7 @@ export default async function FilePage({ params }: PageProps<"/admin/v2/files/[p
   const { data: person } = await supabase
     .from("persons")
     .select(
-      "id, full_name, phone_e164, status_id, cin, cin_issued_on, birth_date, birth_place, address_line, owner:profiles!persons_assigned_to_fkey(full_name)",
+      "id, full_name, phone_e164, whatsapp_e164, email, status_id, cin, cin_issued_on, birth_date, birth_place, address_line, owner:profiles!persons_assigned_to_fkey(full_name)",
     )
     .eq("id", personId)
     .maybeSingle();
@@ -83,7 +83,7 @@ export default async function FilePage({ params }: PageProps<"/admin/v2/files/[p
     supabase
       .from("interest_requests")
       .select(
-        "id, request_no, created_at, request_kind, project_name, offer_trees, tree_count_label_ar, desired_area_label_ar, spacing_label_ar, area_per_tree_m2, total_area_m2, payment_mode, total_price_millimes, down_payment_percent, down_payment_amount_millimes, monthly_millimes, duration_label_ar, duration_months, budget_label_ar, priority_label_ar, goal_label_ar, down_payment_label_ar, installment_label_ar, wants_visit, wants_bank_financing, contact_channel, contact_time_label_ar, residence_governorate_id, invest_governorate_ids, invest_anywhere, scenario_labels",
+        "id, request_no, created_at, request_kind, project_name, offer_trees, tree_count_label_ar, desired_area_label_ar, spacing_label_ar, area_per_tree_m2, total_area_m2, payment_mode, total_price_millimes, down_payment_percent, down_payment_amount_millimes, monthly_millimes, duration_label_ar, duration_months, budget_label_ar, priority_label_ar, goal_label_ar, down_payment_label_ar, installment_label_ar, wants_visit, wants_bank_financing, contact_channel, contact_time_label_ar, residence_governorate_id, invest_governorate_ids, invest_anywhere, scenario_labels, price_per_tree_millimes, project_code, production_statuses, source",
         { count: "exact" },
       )
       .eq("person_id", personId)
@@ -121,7 +121,10 @@ export default async function FilePage({ params }: PageProps<"/admin/v2/files/[p
   const treesTotal = treesCount ?? treeList.length;
   const notesTotal = notesCount ?? noteList.length;
   const olderTotal = Math.max((requestsCount ?? history.length) - 1, 0);
-  const digits = person.phone_e164 ? person.phone_e164.replace(/[^0-9]/g, "") : "";
+  // The client can hand over a WhatsApp number different from the one he is called on — the intake stores
+  // both and every screen so far assumed they were the same.
+  const whatsapp = person.whatsapp_e164 ?? person.phone_e164;
+  const digits = whatsapp ? whatsapp.replace(/[^0-9]/g, "") : "";
 
   return (
     <Screen
@@ -157,6 +160,22 @@ export default async function FilePage({ params }: PageProps<"/admin/v2/files/[p
         {person.cin ? (
           <span dir="ltr" className="text-[0.6875rem] tabular-nums text-muted">
             {person.cin}
+          </span>
+        ) : null}
+
+        {/* The e-mail was collected by both intake forms from the first day and printed on no screen in
+            either admin — a client who wrote one could only be reached by phone. */}
+        {person.email ? (
+          <a dir="ltr" href={`mailto:${person.email}`} className="text-[0.6875rem] text-muted hover:underline">
+            {person.email}
+          </a>
+        ) : null}
+
+        {/* And when WhatsApp is a DIFFERENT number, say so: the button below goes to that one, and a
+            commercial who dials the wrong one loses the lead to silence. */}
+        {person.whatsapp_e164 && person.whatsapp_e164 !== person.phone_e164 ? (
+          <span dir="ltr" className="text-[0.6875rem] tabular-nums text-muted">
+            WhatsApp {person.whatsapp_e164}
           </span>
         ) : null}
 
