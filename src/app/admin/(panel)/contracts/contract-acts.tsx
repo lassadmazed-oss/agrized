@@ -28,7 +28,7 @@ import { ReasonField } from "@/components/admin/reason-field";
 import { formatCount } from "@/lib/format";
 
 import { cancelContract, generateSchedule, setOwned, signContract } from "./actions";
-import { formatAmount, isOpen, type Contract } from "./contract-model";
+import { formatAmount, isOpen, type Contract } from "@/lib/backoffice/contracts/model";
 import { useAct } from "./use-act";
 
 type Act = "sign" | "schedule" | "owned" | "cancel";

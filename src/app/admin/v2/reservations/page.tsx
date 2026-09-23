@@ -4,8 +4,8 @@ import { requireStaff } from "@/lib/auth";
 import { formatCount, formatMillimes } from "@/lib/format";
 import { createClient } from "@/lib/supabase/server";
 
-import { readReservations } from "../../(panel)/reservations/read";
-import { FILTER_LABELS, parseFilter, RESERVATION_FILTERS } from "../../(panel)/reservations/reservation-model";
+import { readReservations } from "@/lib/backoffice/reservations/read";
+import { FILTER_LABELS, parseFilter, RESERVATION_FILTERS } from "@/lib/backoffice/reservations/model";
 import { Filter, Filters, Row, Rows, Screen } from "../ui";
 
 export const metadata: Metadata = { title: "الحجوزات" };

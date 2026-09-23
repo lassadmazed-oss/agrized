@@ -40,8 +40,8 @@ import { formatCount } from "@/lib/format";
 import { createClient } from "@/lib/supabase/server";
 
 import { ContractBlock, type PaymentMethod } from "../../contracts/contract-block";
-import { isOpen } from "../../contracts/contract-model";
-import { readPersonContracts } from "../../contracts/read";
+import { isOpen } from "@/lib/backoffice/contracts/model";
+import { readPersonContracts } from "@/lib/backoffice/contracts/read";
 import { CONTRACT_ROLES } from "../../contracts/roles";
 import { SignForm, type ContractKind } from "../../contracts/sign-form";
 

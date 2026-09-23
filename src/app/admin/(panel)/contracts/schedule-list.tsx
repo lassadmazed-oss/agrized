@@ -34,7 +34,7 @@ import {
   type Installment,
   type Receipt,
   formatAmount,
-} from "./contract-model";
+} from "@/lib/backoffice/contracts/model";
 import { RecordPaymentForm, type PaymentMethod } from "./payment-forms";
 import { useAct } from "./use-act";
 

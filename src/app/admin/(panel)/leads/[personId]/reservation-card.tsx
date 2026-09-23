@@ -30,8 +30,8 @@ import { flagState, getPublicConfig, optionsFor } from "@/lib/config";
 import { formatCount } from "@/lib/format";
 import { createClient } from "@/lib/supabase/server";
 
-import { offerStocks } from "../../projects/offer-stock";
-import { readPersonReservations } from "../../reservations/read";
+import { offerStocks } from "@/lib/backoffice/offers/stock";
+import { readPersonReservations } from "@/lib/backoffice/reservations/read";
 import { ReservationBlock, type PaymentMethod } from "../../reservations/reservation-block";
 import { ReserveForm, type ReserveChoice } from "../../reservations/reserve-form";
 

@@ -24,7 +24,7 @@ import { PROJECT_STATUS_LABELS, projectStatusLabel, projectStatusTone } from "@/
 import { createClient } from "@/lib/supabase/server";
 
 import { saveProject } from "./actions";
-import { offerStocks, totalStock, type OfferStock } from "./offer-stock";
+import { offerStocks, totalStock, type OfferStock } from "@/lib/backoffice/offers/stock";
 
 export const metadata: Metadata = { title: "العروض" };
 

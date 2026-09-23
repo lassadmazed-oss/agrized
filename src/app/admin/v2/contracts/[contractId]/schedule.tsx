@@ -7,7 +7,7 @@ import { formatCount, formatDate, formatMillimes } from "@/lib/format";
 
 import { Popup } from "../../popup";
 
-import { recordInstallment } from "../../../(panel)/installments/actions";
+import { recordInstallment } from "@/lib/backoffice/installments/actions";
 
 export type Line = {
   id: string;

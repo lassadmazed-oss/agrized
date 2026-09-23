@@ -27,8 +27,8 @@ import { ReasonField } from "@/components/admin/reason-field";
 import { StatusPill } from "@/components/ui";
 import { formatCount, formatDate, formatDateTime, formatMillimes } from "@/lib/format";
 
-import { closeReservation, extendReservation, recordDeposit, voidPayment } from "./actions";
-import { daysLeftLabel, RESERVATION_TONES, type Reservation, type ReservationResult } from "./reservation-model";
+import { closeReservation, extendReservation, recordDeposit, voidPayment } from "@/lib/backoffice/reservations/actions";
+import { daysLeftLabel, RESERVATION_TONES, type Reservation, type ReservationResult } from "@/lib/backoffice/reservations/model";
 
 export type PaymentMethod = { id: string; label: string };
 

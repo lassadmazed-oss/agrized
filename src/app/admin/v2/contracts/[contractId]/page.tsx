@@ -6,7 +6,7 @@ import { requireStaff } from "@/lib/auth";
 import { formatCount, formatDate, formatMillimes } from "@/lib/format";
 import { createClient } from "@/lib/supabase/server";
 
-import { readContract } from "../../../(panel)/contracts/read";
+import { readContract } from "@/lib/backoffice/contracts/read";
 
 import { Schedule } from "./schedule";
 

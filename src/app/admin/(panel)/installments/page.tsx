@@ -8,8 +8,8 @@ import { formatCount } from "@/lib/format";
 import { createClient } from "@/lib/supabase/server";
 
 import { InstallmentBlock, type PaymentMethod } from "./installment-block";
-import { FILTER_LABELS, INSTALLMENT_FILTERS, parseFilter, type InstallmentFilter } from "./installment-model";
-import { readInstallments } from "./rpc";
+import { FILTER_LABELS, INSTALLMENT_FILTERS, parseFilter, type InstallmentFilter } from "@/lib/backoffice/installments/model";
+import { readInstallments } from "@/lib/backoffice/installments/rpc";
 
 export const metadata: Metadata = { title: "الأقساط" };
 

@@ -25,7 +25,7 @@ import "server-only";
 
 import type { createClient } from "@/lib/supabase/server";
 
-import { parseList, type InstallmentFilter, type InstallmentList } from "./installment-model";
+import { parseList, type InstallmentFilter, type InstallmentList } from "@/lib/backoffice/installments/model";
 
 type StaffClient = Awaited<ReturnType<typeof createClient>>;
 

@@ -7,7 +7,7 @@ import { PRICE_ROLES, requireStaff } from "@/lib/auth";
 import { getPublicConfig } from "@/lib/config";
 import { moduleAccess } from "@/lib/modules";
 
-import { dinarsToMillimes, textValue, wholeNumber } from "../pricing/form-values";
+import { dinarsToMillimes, textValue, wholeNumber } from "@/lib/backoffice/pricing/form-values";
 import { harvestErrorMessage } from "./messages";
 import { FILE_ROLES, GROVE_ROLES } from "./roles";
 import { harvestRpc } from "./rpc";

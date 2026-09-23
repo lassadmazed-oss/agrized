@@ -21,9 +21,9 @@ import {
   stageWorthShowing,
   type Contract,
   formatAmount,
-} from "../contract-model";
+} from "@/lib/backoffice/contracts/model";
 import { DownPaymentCard, type PaymentMethod } from "../payment-forms";
-import { readContract } from "../read";
+import { readContract } from "@/lib/backoffice/contracts/read";
 import { CANCEL_ROLES, CONTRACT_ROLES } from "../roles";
 import { PaymentLines, ScheduleList } from "../schedule-list";
 

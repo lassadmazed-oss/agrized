@@ -26,8 +26,8 @@ import { intakeErrorMessage, isKnownIntakeError } from "@/lib/errors";
 import { PUBLIC_PROJECTS_TAG } from "@/lib/public-projects";
 import { createClient } from "@/lib/supabase/server";
 
-import { parseReservation, type ReservationResult } from "./reservation-model";
-import { callPending } from "./read";
+import { parseReservation, type ReservationResult } from "@/lib/backoffice/reservations/model";
+import { callPending } from "@/lib/backoffice/reservations/read";
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 

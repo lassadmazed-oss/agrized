@@ -3,7 +3,7 @@ import { getPublicConfig } from "@/lib/config";
 import { PLANTATION_LABELS, PRODUCTION_LABELS } from "@/lib/crm";
 import { createClient } from "@/lib/supabase/server";
 
-import { filtersToRpc, parseLeadFilters, PAYMENT_MODE_LABELS, REQUEST_KIND_LABELS } from "../filters";
+import { filtersToRpc, parseLeadFilters, PAYMENT_MODE_LABELS, REQUEST_KIND_LABELS } from "@/lib/backoffice/leads/filters";
 import { offerOf, offerSnapshots, requestKindOf } from "../offer-snapshot";
 
 const BATCH = 500;

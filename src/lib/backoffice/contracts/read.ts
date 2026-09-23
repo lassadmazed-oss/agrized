@@ -30,7 +30,7 @@ import {
   type ContractFilter,
   type ContractList,
   type PersonContracts,
-} from "./contract-model";
+} from "@/lib/backoffice/contracts/model";
 
 type StaffClient = Awaited<ReturnType<typeof createClient>>;
 

@@ -6,7 +6,7 @@ import { requireStaff } from "@/lib/auth";
 import { formatCount, formatDate, formatMillimes } from "@/lib/format";
 import { createClient } from "@/lib/supabase/server";
 
-import { readReservation } from "../../../(panel)/reservations/read";
+import { readReservation } from "@/lib/backoffice/reservations/read";
 
 import { DepositForm } from "./deposit-form";
 

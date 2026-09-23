@@ -21,9 +21,9 @@ import { moduleAccess } from "@/lib/modules";
 import { formatPhone } from "@/lib/phone";
 import { createClient } from "@/lib/supabase/server";
 
-import { offerStocks, type OfferStock } from "../../projects/offer-stock";
-import { PAYMENT_MODE_LABELS, REQUEST_KIND_LABELS } from "../filters";
-import { addContactAttempt, addNote, assignPerson, updateStatus } from "./actions";
+import { offerStocks, type OfferStock } from "@/lib/backoffice/offers/stock";
+import { PAYMENT_MODE_LABELS, REQUEST_KIND_LABELS } from "@/lib/backoffice/leads/filters";
+import { addContactAttempt, addNote, assignPerson, updateStatus } from "@/lib/backoffice/leads/actions";
 import { ContractCard } from "./contract-card";
 import { HeldTreesSection, type HeldOffer, type HeldTree, type StateLabels } from "./held-trees";
 import { MatchingOffers } from "./matching-offers";

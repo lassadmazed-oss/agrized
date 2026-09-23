@@ -5,7 +5,7 @@ import { useState, useTransition } from "react";
 
 import { Popup } from "../../popup";
 
-import { recordDeposit } from "../../../(panel)/reservations/actions";
+import { recordDeposit } from "@/lib/backoffice/reservations/actions";
 
 /**
  * تسجيل العربون — the act a reservation exists to wait for.

@@ -23,7 +23,7 @@ import {
   type Reservation,
   type ReservationFilter,
   type ReservationList,
-} from "./reservation-model";
+} from "@/lib/backoffice/reservations/model";
 
 type StaffClient = Awaited<ReturnType<typeof createClient>>;
 

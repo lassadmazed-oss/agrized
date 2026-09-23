@@ -4,8 +4,8 @@ import { requireStaff } from "@/lib/auth";
 import { formatCount, formatDate, formatMillimes } from "@/lib/format";
 import { createClient } from "@/lib/supabase/server";
 
-import { FILTER_LABELS, INSTALLMENT_FILTERS, parseFilter } from "../../(panel)/installments/installment-model";
-import { readInstallments } from "../../(panel)/installments/rpc";
+import { FILTER_LABELS, INSTALLMENT_FILTERS, parseFilter } from "@/lib/backoffice/installments/model";
+import { readInstallments } from "@/lib/backoffice/installments/rpc";
 import { Filter, Filters, Row, Rows, Screen } from "../ui";
 
 export const metadata: Metadata = { title: "الأقساط" };

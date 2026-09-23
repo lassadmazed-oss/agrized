@@ -7,7 +7,7 @@ import type { ActionResult } from "@/components/admin/action-form";
 import { Popup } from "../../popup";
 
 import { saveIdentity } from "./identity-actions";
-import { addNote, updateStatus } from "../../../(panel)/leads/[personId]/actions";
+import { addNote, updateStatus } from "@/lib/backoffice/leads/actions";
 
 type Status = { id: string; label_ar: string };
 

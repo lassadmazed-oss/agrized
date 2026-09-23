@@ -21,7 +21,7 @@ import { SectionHeader } from "@/components/ui";
 import { intakeErrorMessage } from "@/lib/errors";
 import { formatCount, formatMillimes } from "@/lib/format";
 
-import { createReservation } from "./actions";
+import { createReservation } from "@/lib/backoffice/reservations/actions";
 
 /** One demand this person sent on a real offer, with that offer's stock and reservation terms right now. */
 export type ReserveChoice = {

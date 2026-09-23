@@ -20,7 +20,7 @@ import "server-only";
 
 import type { createClient } from "@/lib/supabase/server";
 
-import { REQUEST_KINDS, type RequestKind } from "./filters";
+import { REQUEST_KINDS, type RequestKind } from "@/lib/backoffice/leads/filters";
 
 type StaffClient = Awaited<ReturnType<typeof createClient>>;
 

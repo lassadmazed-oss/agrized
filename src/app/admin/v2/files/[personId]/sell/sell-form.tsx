@@ -5,7 +5,7 @@ import { useState, useTransition } from "react";
 
 import { formatMillimes } from "@/lib/format";
 
-import { createReservation } from "../../../../(panel)/reservations/actions";
+import { createReservation } from "@/lib/backoffice/reservations/actions";
 
 export type SellOffer = {
   id: string;

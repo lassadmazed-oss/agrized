@@ -9,8 +9,8 @@ import { CRM_READ_ROLES, hasRole, requireStaff } from "@/lib/auth";
 import { formatArea, formatCount, formatMillimes } from "@/lib/format";
 import { createClient } from "@/lib/supabase/server";
 
-import { PAYMENT_MODE_LABELS } from "../leads/filters";
-import { RANGES, resolveRange, type DemandStats } from "./demand-stats";
+import { PAYMENT_MODE_LABELS } from "@/lib/backoffice/leads/filters";
+import { RANGES, resolveRange, type DemandStats } from "@/lib/backoffice/leads/dates";
 
 export const metadata: Metadata = { title: "التحليلات وخريطة الطلب" };
 

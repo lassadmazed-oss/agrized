@@ -5,8 +5,8 @@ import { notFound } from "next/navigation";
 import { requireStaff } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 
-import { offerStocks } from "../../../../(panel)/projects/offer-stock";
-import { readOfferTerms } from "../../../../(panel)/reservations/read";
+import { offerStocks } from "@/lib/backoffice/offers/stock";
+import { readOfferTerms } from "@/lib/backoffice/reservations/read";
 
 import { SellForm, type SellOffer } from "./sell-form";
 

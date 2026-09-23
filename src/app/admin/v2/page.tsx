@@ -4,8 +4,8 @@ import { EmptyState, StatTile } from "@/components/ui";
 import { ADMIN_ROLES, CRM_READ_ROLES, hasRole, PRICE_ROLES, requireStaff } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 
-import { tunisToday } from "../(panel)/analytics/demand-stats";
-import { readInstallments } from "../(panel)/installments/rpc";
+import { tunisToday } from "@/lib/backoffice/leads/dates";
+import { readInstallments } from "@/lib/backoffice/installments/rpc";
 
 export const metadata: Metadata = { title: "اليوم" };
 

@@ -36,9 +36,9 @@ import { intakeErrorMessage, isKnownIntakeError } from "@/lib/errors";
 import { PUBLIC_PROJECTS_TAG } from "@/lib/public-projects";
 import { createClient } from "@/lib/supabase/server";
 
-import { dinarsToMillimes } from "../pricing/form-values";
-import { parseContract, type ContractResult, type MoneyResult } from "./contract-model";
-import { callPending, type RpcFailure } from "./read";
+import { dinarsToMillimes } from "@/lib/backoffice/pricing/form-values";
+import { parseContract, type ContractResult, type MoneyResult } from "@/lib/backoffice/contracts/model";
+import { callPending, type RpcFailure } from "@/lib/backoffice/contracts/read";
 import { CANCEL_ROLES, CONTRACT_ROLES } from "./roles";
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;

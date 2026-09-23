@@ -1,6 +1,6 @@
 import { formatArea, formatCount, formatDate, formatMillimes } from "@/lib/format";
 
-import { PAYMENT_MODE_LABELS, REQUEST_KIND_LABELS } from "../../../(panel)/leads/filters";
+import { PAYMENT_MODE_LABELS, REQUEST_KIND_LABELS } from "@/lib/backoffice/leads/filters";
 
 export type RequestDetails = {
   id: string;

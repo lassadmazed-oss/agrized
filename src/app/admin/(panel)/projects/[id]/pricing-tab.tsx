@@ -19,8 +19,8 @@ import { moduleAccess } from "@/lib/modules";
 import { projectStatusLabel } from "@/lib/projects";
 import { createClient } from "@/lib/supabase/server";
 
-import { PAYMENT_MODE_LABELS } from "../../leads/filters";
-import { offerStock } from "../offer-stock";
+import { PAYMENT_MODE_LABELS } from "@/lib/backoffice/leads/filters";
+import { offerStock } from "@/lib/backoffice/offers/stock";
 import { AllowedChoicesForm } from "../../pricing/allowed-choices-form";
 import { CostItemsList } from "../../pricing/cost-items";
 import { DeleteForm } from "../../pricing/fields";

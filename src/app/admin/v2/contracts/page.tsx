@@ -4,8 +4,8 @@ import { requireStaff } from "@/lib/auth";
 import { formatCount, formatMillimes } from "@/lib/format";
 import { createClient } from "@/lib/supabase/server";
 
-import { CONTRACT_FILTERS, FILTER_LABELS, parseFilter } from "../../(panel)/contracts/contract-model";
-import { readContracts } from "../../(panel)/contracts/read";
+import { CONTRACT_FILTERS, FILTER_LABELS, parseFilter } from "@/lib/backoffice/contracts/model";
+import { readContracts } from "@/lib/backoffice/contracts/read";
 import { Filter, Filters, Row, Rows, Screen } from "../ui";
 
 export const metadata: Metadata = { title: "العقود" };
