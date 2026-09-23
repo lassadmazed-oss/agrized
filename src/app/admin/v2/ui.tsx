@@ -130,3 +130,55 @@ export function Row({
     </li>
   );
 }
+
+/**
+ * The identity of a record, as a grid instead of a column.
+ *
+ * A contract has eleven facts on it. Stacked one per line they are eleven rows of ~46px — some 500px of
+ * page, each row carrying one short value against a 1900px-wide screen that is otherwise empty. The same
+ * eleven facts in three columns are four rows, read in one glance, and the screen stops looking like a
+ * receipt printer.
+ *
+ * A fact with nothing in it is not drawn at all, so a cash contract does not show «—» where an instalment
+ * plan would have been.
+ */
+export function Facts({ children }: { children: ReactNode }) {
+  return <dl className="card grid gap-x-8 gap-y-2.5 p-4 sm:grid-cols-2 lg:grid-cols-3">{children}</dl>;
+}
+
+export function Fact({ label, children }: { label: string; children?: ReactNode }) {
+  if (children === null || children === undefined || children === "") return null;
+  return (
+    <div className="min-w-0">
+      <dt className="text-[0.6875rem] leading-tight text-muted">{label}</dt>
+      <dd className="truncate text-sm font-semibold leading-snug text-ink">{children}</dd>
+    </div>
+  );
+}
+
+/** The two or three figures a screen leads with. Half the padding of a StatTile, same legibility. */
+export function Tiles({ children }: { children: ReactNode }) {
+  return <div className="grid gap-2 sm:grid-cols-3">{children}</div>;
+}
+
+export function Tile({
+  label,
+  value,
+  note,
+  tone,
+}: {
+  label: string;
+  value: ReactNode;
+  note?: ReactNode;
+  tone?: "danger";
+}) {
+  return (
+    <div className="card px-3 py-2.5">
+      <p className="text-[0.6875rem] leading-tight text-muted">{label}</p>
+      <p className={`font-display text-xl font-bold leading-tight tabular-nums ${tone === "danger" ? "text-danger" : "text-forest"}`}>
+        {value}
+      </p>
+      {note ? <p className="text-[0.6875rem] leading-tight text-muted">{note}</p> : null}
+    </div>
+  );
+}

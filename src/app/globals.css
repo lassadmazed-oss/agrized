@@ -805,15 +805,26 @@ body {
     border-radius: 1rem 1rem 0 0;
     box-shadow: var(--shadow-card, 0 -8px 32px -12px rgb(27 42 31 / 0.25));
   }
-  /* Phone: pinned to the bottom edge. */
-  .popup {
+  /*
+   * EVERY LAYOUT RULE IS SCOPED TO [open], and that is not a detail.
+   *
+   * The browser's own stylesheet carries `dialog:not([open]) { display: none }`. Setting `display` on the
+   * element unconditionally beats that rule, and a closed dialog then sits in the page as an ordinary
+   * block — which is exactly what happened: a white box with the last popup's title stuck in the header,
+   * no backdrop, and an empty body because its content only mounts while open. A dialog must be allowed
+   * to be display:none when it is shut.
+   *
+   * Phone: pinned to the bottom edge, where the thumb is. Desktop: centred.
+   */
+  .popup[open] {
     position: fixed;
     inset: auto 0 0 0;
+    display: grid;
+    place-items: end center;
   }
   @media (min-width: 640px) {
-    .popup {
+    .popup[open] {
       inset: 0;
-      display: grid;
       place-items: center;
     }
     .popup-panel {

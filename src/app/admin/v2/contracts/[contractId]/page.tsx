@@ -2,11 +2,12 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
+import { readContract } from "@/lib/backoffice/contracts/read";
 import { requireStaff } from "@/lib/auth";
 import { formatCount, formatDate, formatMillimes } from "@/lib/format";
 import { createClient } from "@/lib/supabase/server";
 
-import { readContract } from "@/lib/backoffice/contracts/read";
+import { Fact, Facts, Screen, Tile, Tiles } from "../../ui";
 
 import { Schedule } from "./schedule";
 
@@ -15,15 +16,17 @@ export const metadata: Metadata = { title: "العقد" };
 /**
  * عقد — what was sold, what was paid, and what is still owed.
  *
- * THE UNSIGNED CONTRACT IS CALLED OUT AT THE TOP. `schedulePending` means signed, on instalments, and with no
- * schedule — and a draft has none either. In both states the contract appears in no finance queue, because
- * staff_installments has nothing to list. Money nobody can see is the worst failure this screen can hide, so
- * it is the first thing on it.
+ * THE IDENTITY IS A GRID, NOT A COLUMN. Eleven facts stacked one per line ran 500px down a screen that is
+ * 1900px wide and empty either side of them (owner, 2026-09-23). The same eleven in three columns are four
+ * rows and one glance.
  *
- * `treesSold` AND `treesStillReserved` ARE PRINTED WHEN THEY DISAGREE with the contract's own count. The
- * contract says what was sold; public.trees says what is actually marked sold this second. §46 forbids the
- * system from selling 501 of 500, and the only way to keep that promise is to show the divergence rather
- * than pick whichever number looks better.
+ * THE UNSIGNED CONTRACT IS CALLED OUT AT THE TOP. `schedulePending` means signed, on instalments, with no
+ * schedule — and a draft has none either. In both states the contract appears in no finance queue, because
+ * staff_installments has nothing to list. Money nobody can see is the worst thing this screen could hide.
+ *
+ * `treesSold` AND `treesStillReserved` ARE PRINTED ONLY WHEN THEY DISAGREE with the contract's own count.
+ * The contract says what was sold; public.trees says what is marked sold this second. §46 forbids selling
+ * 501 of 500, and the only way to keep that promise is to show the divergence rather than pick a number.
  */
 export default async function ContractPage({ params }: PageProps<"/admin/v2/contracts/[contractId]">) {
   await requireStaff();
@@ -34,96 +37,99 @@ export default async function ContractPage({ params }: PageProps<"/admin/v2/cont
   if (!contract) notFound();
 
   const instalments = contract.paymentMode === "installments";
+  const left = contract.money.installmentsCount - contract.money.installmentsPaidCount;
 
   return (
-    <div className="space-y-5">
-      <div className="flex flex-wrap items-baseline justify-between gap-2">
-        <h1 className="section-title" dir="ltr">
-          {contract.referenceNo}
-        </h1>
-        <Link href="/admin/v2/contracts" className="text-sm text-muted hover:text-forest">
-          رجوع للعقود
+    <Screen
+      title={contract.referenceNo}
+      action={
+        <Link href="/admin/v2/contracts" className="text-xs text-muted hover:text-forest">
+          رجوع
         </Link>
-      </div>
-
+      }
+    >
       {contract.schedulePending || (instalments && !contract.scheduleGeneratedAt) ? (
-        <p className="card border-gold/50 p-4 text-sm text-forest">
-          هذا العقد بالتقسيط وما عندوش جدول أقساط، ومعناها ما يظهر في حتّى قائمة أقساط. يلزم يتمضى، ومن بعد
-          يتولّد الجدول.
+        <p className="card border-gold/50 px-3 py-2.5 text-sm text-forest">
+          عقد بالتقسيط بلا جدول — ما يظهرش في قائمة الأقساط. يلزم يتمضى، ومن بعد يتولّد الجدول.
         </p>
       ) : null}
 
-      <div className="grid gap-3 sm:grid-cols-3">
-        <div className="card p-4">
-          <p className="stat-label">السعر الجملي</p>
-          <p className="stat-figure">{formatMillimes(contract.totalPriceMillimes)}</p>
-          <p className="text-xs text-muted">{formatCount(contract.treesCount)} زيتونة</p>
-        </div>
-        <div className="card p-4">
-          <p className="stat-label">المتبقّي</p>
-          <p className="stat-figure">
-            {contract.remainingMillimes === null ? "—" : formatMillimes(contract.remainingMillimes)}
-          </p>
-          <p className="text-xs text-muted">{instalments ? "بالتقسيط" : "بالحاضر"}</p>
-        </div>
-        <div className="card p-4">
-          <p className="stat-label">الأقساط الباقية</p>
-          <p className="stat-figure">
-            {contract.money.installmentsCount > 0
-              ? `${formatCount(contract.money.installmentsCount - contract.money.installmentsPaidCount)} / ${formatCount(contract.money.installmentsCount)}`
-              : "—"}
-          </p>
-          {contract.money.nextDueOn ? (
-            <p className="text-xs text-muted">
-              الجاي {formatDate(contract.money.nextDueOn)}
-              {contract.money.nextDueMillimes ? ` · ${formatMillimes(contract.money.nextDueMillimes)}` : ""}
-            </p>
-          ) : contract.monthlyMillimes ? (
-            <p className="text-xs text-muted">القسط {formatMillimes(contract.monthlyMillimes)}</p>
-          ) : null}
-        </div>
-      </div>
+      <Tiles>
+        <Tile
+          label="السعر الجملي"
+          value={formatMillimes(contract.totalPriceMillimes)}
+          note={`${formatCount(contract.treesCount)} زيتونة`}
+        />
+        <Tile
+          label="المتبقّي"
+          value={contract.remainingMillimes === null ? "—" : formatMillimes(contract.remainingMillimes)}
+          note={instalments ? "بالتقسيط" : "بالحاضر"}
+        />
+        <Tile
+          label="الأقساط الباقية"
+          value={
+            contract.money.installmentsCount > 0
+              ? `${formatCount(left)} / ${formatCount(contract.money.installmentsCount)}`
+              : "—"
+          }
+          note={
+            contract.money.nextDueOn
+              ? `الجاي ${formatDate(contract.money.nextDueOn)}${
+                  contract.money.nextDueMillimes ? ` · ${formatMillimes(contract.money.nextDueMillimes)}` : ""
+                }`
+              : contract.monthlyMillimes
+                ? `القسط ${formatMillimes(contract.monthlyMillimes)}`
+                : undefined
+          }
+          tone={contract.money.missedCount > 0 ? "danger" : undefined}
+        />
+      </Tiles>
 
-      <div className="card divide-y divide-line p-4">
-        <Row label="العميل">
+      <Facts>
+        <Fact label="العميل">
           <Link href={`/admin/v2/files/${contract.personId}`} className="text-forest hover:underline">
             {contract.personName ?? "بلا اسم"}
           </Link>
-        </Row>
-        {contract.personPhone ? (
-          <Row label="التلفون">
-            <span dir="ltr">{contract.personPhone}</span>
-          </Row>
-        ) : null}
-        <Row label="العرض">{contract.offerName ?? "—"}</Row>
-        <Row label="الحجز">
-          <Link href={`/admin/v2/reservations/${contract.reservationId}`} className="text-forest hover:underline" dir="ltr">
+        </Fact>
+        <Fact label="التلفون">
+          {contract.personPhone ? <span dir="ltr">{contract.personPhone}</span> : undefined}
+        </Fact>
+        <Fact label="العرض">{contract.offerName ?? undefined}</Fact>
+        <Fact label="الحجز">
+          <Link
+            href={`/admin/v2/reservations/${contract.reservationId}`}
+            className="text-forest hover:underline"
+            dir="ltr"
+          >
             {contract.reservationNo ?? "—"}
           </Link>
-        </Row>
-        <Row label="الزيتونات">
-          {formatCount(contract.treesCount)}
-          {contract.treesSold !== contract.treesCount ? ` (تباعت ${formatCount(contract.treesSold)})` : ""}
-          {contract.treesStillReserved > 0 ? ` · ${formatCount(contract.treesStillReserved)} مازالت محجوزة` : ""}
-        </Row>
-        {contract.firstCode ? (
-          <Row label="الأرقام">
+        </Fact>
+        <Fact label="الزيتونات">
+          {`${formatCount(contract.treesCount)}${
+            contract.treesSold !== contract.treesCount ? ` (تباعت ${formatCount(contract.treesSold)})` : ""
+          }${contract.treesStillReserved > 0 ? ` · ${formatCount(contract.treesStillReserved)} محجوزة` : ""}`}
+        </Fact>
+        <Fact label="الأرقام">
+          {contract.firstCode ? (
             <span dir="ltr">
               {contract.firstCode}
               {contract.lastCode && contract.lastCode !== contract.firstCode ? ` → ${contract.lastCode}` : ""}
             </span>
-          </Row>
-        ) : null}
-        {contract.kindLabel ? <Row label="نوع العقد">{contract.kindLabel}</Row> : null}
-        <Row label="الحالة">{contract.statusLabel}</Row>
-        <Row label="الإمضاء">
-          {contract.signedOn ? formatDate(contract.signedOn) : "ما تمضاش"}
-        </Row>
-        {contract.legalDocumentRef ? <Row label="رقم الوثيقة">{contract.legalDocumentRef}</Row> : null}
-        {contract.reservationDepositMillimes > 0 ? (
-          <Row label="العربون">{formatMillimes(contract.reservationDepositMillimes)}</Row>
-        ) : null}
-      </div>
+          ) : undefined}
+        </Fact>
+        <Fact label="نوع العقد">{contract.kindLabel ?? undefined}</Fact>
+        <Fact label="الحالة">{contract.statusLabel}</Fact>
+        <Fact label="الإمضاء">{contract.signedOn ? formatDate(contract.signedOn) : "ما تمضاش"}</Fact>
+        <Fact label="رقم الوثيقة">{contract.legalDocumentRef ?? undefined}</Fact>
+        <Fact label="العربون">
+          {contract.reservationDepositMillimes > 0
+            ? formatMillimes(contract.reservationDepositMillimes)
+            : undefined}
+        </Fact>
+        <Fact label="الخلاصات">
+          {contract.payments.length > 0 ? formatCount(contract.payments.length) : undefined}
+        </Fact>
+      </Facts>
 
       <Schedule
         contractId={contract.id}
@@ -139,35 +145,6 @@ export default async function ContractPage({ params }: PageProps<"/admin/v2/cont
           daysLate: line.daysLate,
         }))}
       />
-
-      {contract.payments.length > 0 ? (
-        <section className="space-y-2">
-          <h2 className="text-sm font-semibold text-muted">الخلاصات ({formatCount(contract.payments.length)})</h2>
-          <ul className="grid gap-2">
-            {contract.payments.map((payment) => (
-              <li key={payment.id} className="card flex items-center justify-between gap-3 p-3 text-sm">
-                <span className="font-semibold text-ink">{formatMillimes(payment.amountMillimes)}</span>
-                <span className="text-xs text-muted">{formatDate(payment.receivedAt)}</span>
-              </li>
-            ))}
-          </ul>
-        </section>
-      ) : null}
-
-      {instalments ? (
-        <Link href="/admin/v2/installments" className="btn btn-secondary w-full sm:w-auto">
-          شوف الأقساط
-        </Link>
-      ) : null}
-    </div>
-  );
-}
-
-function Row({ label, children }: { label: string; children: React.ReactNode }) {
-  return (
-    <div className="flex items-baseline justify-between gap-3 py-2">
-      <span className="text-xs text-muted">{label}</span>
-      <span className="text-sm font-semibold text-ink">{children}</span>
-    </div>
+    </Screen>
   );
 }
