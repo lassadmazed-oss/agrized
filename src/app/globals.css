@@ -110,6 +110,13 @@ body {
     cursor: not-allowed;
   }
 
+  @media (width >= 40rem) {
+    .choice {
+      min-height: 3.25rem;
+      padding: 0.75rem 1rem;
+    }
+  }
+
   .field {
     width: 100%;
     min-height: 3rem;
@@ -153,8 +160,12 @@ body {
     display: flex;
     align-items: center;
     gap: 0.75rem;
-    min-height: 3.25rem;
-    padding: 0.75rem 1rem;
+    /* 3.25rem with 12px/16px of padding is right for a row carrying two words and an icon, and twice what a
+       two-digit count needs. On a phone, where a grid of these IS the screen, it shrinks to a 44px target —
+       still the accessible minimum, and four rows of them stop being four screens (owner, 2026-09-22:
+       «takes too much space»). The comfortable size returns from sm. */
+    min-height: 2.75rem;
+    padding: 0.5rem 0.75rem;
     border: 1.5px solid var(--color-line-strong);
     border-radius: 0.875rem;
     background: var(--color-surface);
@@ -644,6 +655,21 @@ body {
     display: flex;
     inline-size: max-content;
     will-change: transform;
+    /*
+     * NO `gap` ON THIS TRACK, AND NO PADDING (owner, 2026-09-22: «it doesn't have that seamless animation
+     * feel, it lagged and has a reset point»). That reset was arithmetic, not performance.
+     *
+     * The loop works by rendering the list twice and travelling exactly 50 % — which is only the width of
+     * one copy if the track is exactly two copies and nothing else. `gap: 8px` between 2N cards lays down
+     * 2N−1 gaps, not 2N: half the track is one gap SHORT of one copy, so every lap jumped 4px and the eye
+     * read it as a stutter at a fixed point. A left pad on the track added its own offset on top.
+     *
+     * The spacing lives on the cards instead (`margin-inline-end`), so each card is one indivisible unit,
+     * the track is exactly 2N of them, and half of it is exactly N. The seam then lands on a copy of the
+     * first card and there is nothing to see.
+     */
+    gap: 0;
+    padding-inline: 0;
     /* WHICH WAY IT DRIFTS DEPENDS ON THE WRITING DIRECTION, and getting this wrong does not look like a
        reversed animation — it looks like the content vanishing. In an RTL row the first item sits at the
        RIGHT edge and the track overflows to the left, so translating the track further left pulls it out of
@@ -680,6 +706,18 @@ body {
    * different property from `animation-duration`, so it wins on the cascade rather than fighting it, and it
    * leaves the track sitting at its start: the first copy, static and complete.
    */
+  /* The second strip on a screen runs the other way (owner, 2026-09-22: «the opposite side to the top one»).
+     Two bands drifting the same way read as one surface sliding; against each other they read as two. It is
+     the same keyframes played backwards, so the geometry — and the seamlessness — is identical. */
+  .marquee-track-reverse {
+    animation-direction: reverse;
+  }
+
+  /* The gap, moved off the track and onto the cards, where it cannot break the halving. */
+  .marquee-track > * {
+    margin-inline-end: var(--marquee-gap, 0.5rem);
+  }
+
   @media (prefers-reduced-motion: reduce) {
     .marquee-track {
       animation: none !important;
@@ -781,5 +819,113 @@ body {
       opacity: 1 !important;
       transform: none !important;
     }
+  }
+}
+
+/* The hero slideshow (components/site/landing/photo-slideshow.tsx). The keyframes are generated per frame
+   count next to the stack — their percentages depend on how many photographs the owner uploaded — so what
+   belongs here is only the rule that stops it. Someone who has asked their system for less movement gets the
+   first photograph, held. */
+@media (prefers-reduced-motion: reduce) {
+  .az-slide-track {
+    animation: none !important;
+  }
+}
+/* The track is sized in container query units, so the frame has to be a container to measure. */
+.az-slideshow {
+  container-type: inline-size;
+}
+
+/*
+ * A row that scrolls sideways under the thumb, with no rail drawn under it.
+ *
+ * The filter row on /projects is `overflow-x-auto`, and on every engine that reserves space for a
+ * scrollbar that draws a grey track the full width of the row — a hard horizontal bar under the chips
+ * that belongs to no element on the page and reads as a broken divider (owner, 2026-09-22: «it's not
+ * seamless»). A touch row is scrolled by dragging it, so the rail is furniture for a gesture nobody makes
+ * here. The row still scrolls; the keyboard still reaches every chip, because each one is a real button.
+ */
+@layer utilities {
+  .rail-none {
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+  .rail-none::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+/*
+ * How tall the phone's bottom bar is, as a number the rest of the app can read.
+ *
+ * The bar is `position: fixed`, so it is outside the flow and nothing below it knows it is there. A form's
+ * own «التالي» is `sticky bottom-0`, which sticks to the bottom of the VIEWPORT — which is exactly where the
+ * bar is. Measured on /start: the button occupied 784–832px and the bar began at 769, so the primary action
+ * of the calculator was behind the navigation on every step.
+ *
+ * One token, used by the bar for the room it reserves and by anything sticky for how far to sit above it, so
+ * the two can never drift apart. Zero from `md`, where the bar is not drawn at all.
+ */
+:root {
+  --tabbar-h: 4.75rem;
+}
+@media (width >= 48rem) {
+  :root {
+    --tabbar-h: 0rem;
+  }
+}
+
+/*
+ * No double-tap zoom on anything you tap (owner, 2026-09-22: «remove the auto zoom when typing or the
+ * double click»).
+ *
+ * TWO DIFFERENT ZOOMS, TWO DIFFERENT CAUSES.
+ *
+ *  · Double-tap. A mobile browser waits after a tap to see whether a second one is coming, and zooms if it
+ *    is. `touch-action: manipulation` tells it this element is never a zoom target, which removes both the
+ *    zoom and the wait — taps feel immediate as a side effect.
+ *  · Typing. iOS Safari zooms when a focused field's text is under 16px. Every public field is `.field`,
+ *    which is 1rem for exactly this reason (see the note there), so the cause is already handled — this
+ *    rule makes it explicit for the few inputs that carry their own type size.
+ *
+ * WHAT IS DELIBERATELY NOT DONE: `maximum-scale=1, user-scalable=no` on the viewport. It would kill both
+ * zooms in one line and also take pinch-zoom away from everyone, including a reader who needs it to read
+ * this site at all. That is a WCAG 1.4.4 failure, and the two rules below fix the actual complaint without
+ * it. Pinch-to-zoom keeps working.
+ */
+a,
+button,
+label,
+summary,
+select,
+[role="button"],
+[role="tab"] {
+  touch-action: manipulation;
+}
+
+input,
+textarea,
+select {
+  touch-action: manipulation;
+  /* Never below the 16px that makes iOS zoom the page on focus. */
+  font-size: max(1rem, inherit);
+}
+
+/*
+ * ANSWERS ARE ARABIC-ONLY ON A PHONE; QUESTIONS STAY BILINGUAL.
+ *
+ * /start is bilingual by decision (owner, 2026-09-12). On a 390px screen that doubles the height of every
+ * answer, and for most of them it doubles nothing else: «24 × 24 م» / «24 × 24 m» and «576 م²» / «576 m²»
+ * are the SAME DIGITS with a translated unit letter, printed twice, on a tile a thumb is meant to scan.
+ * Six lines per option to say one measurement (owner, 2026-09-22: «less text in each space, more about the
+ * question and the answer»).
+ *
+ * So the rule is placed on what is being ANSWERED, never on what is being ASKED: a question is a sentence
+ * and really does differ between the two languages, so it keeps both. Everything inside `[data-answers]`
+ * drops its French line below `sm` and gets it back above.
+ */
+@media (width < 40rem) {
+  [data-answers] [data-bi-fr] {
+    display: none;
   }
 }

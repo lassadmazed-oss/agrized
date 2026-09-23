@@ -130,16 +130,21 @@ export async function SiteHeader({ tagline, showInterestCta, showProjects }: Sit
           photograph running past it. `max-w-full` keeps it inside the screen if the tagline is ever made
           longer. From md up, where the card carries the button and then the nav, it spans again exactly as
           it did. Nothing is added to fill it: navigation on a phone belongs to the tab bar at the foot. */}
-      <div className="me-auto w-fit max-w-full overflow-hidden rounded-[1.5rem] bg-surface shadow-[var(--shadow-float)] md:mx-auto md:w-auto md:max-w-7xl lg:rounded-[1.75rem]">
-        <div className="flex items-center gap-cozy px-3 py-2 sm:px-4 lg:px-6 lg:py-3">
+      {/* THE PILL IS A WIDE-SCREEN THING (owner, 2026-09-22: «i dont like this, this ugly»). A white rounded
+          box with a float shadow exists so the bar can sit ON the desktop hero photograph. A phone screen
+          opens on paper, so the pill floats over nothing, and a heavy shadow with nothing under it reads as
+          a card that lost its page. On a phone it is a plain bar on the page ground with a hairline under
+          it; the pill returns from `md`, where the photograph it was drawn for actually is. */}
+      <div className="me-auto w-full max-w-full overflow-hidden border-b border-line bg-paper md:mx-auto md:w-auto md:max-w-7xl md:rounded-[1.5rem] md:border-0 md:bg-surface md:shadow-[var(--shadow-float)] lg:rounded-[1.75rem]">
+        <div className="flex items-center gap-cozy px-3 py-2 max-md:justify-end sm:px-4 lg:px-6 lg:py-3">
           {/* THE LOCKUP: mark, then the name with what the name promises under it. Stacking the tagline
               rather than setting it beside the wordmark is what lets it show at EVERY width — it used to
               appear only from xl up, which is to say almost never. */}
-          <Link href="/" className="flex shrink-0 items-center gap-snug rounded-xl" aria-label="AgriZed، الصفحة الرئيسية">
+          <Link href="/" className="flex shrink-0 flex-row-reverse items-center gap-snug rounded-xl" aria-label="AgriZed، الصفحة الرئيسية">
             <OliveLeafMark className="size-10 lg:size-12" />
             <span className="flex flex-col">
-              <Wordmark className="text-[1.5rem] leading-none lg:text-[1.85rem]" />
-              {tagline ? <span className="mt-1 text-[0.78rem] leading-tight text-muted">{tagline}</span> : null}
+              <Wordmark className="text-[1.25rem] leading-none md:text-[1.5rem] lg:text-[1.85rem]" />
+              {tagline ? <span className="mt-0.5 text-[0.6875rem] leading-tight text-muted md:mt-1 md:text-[0.78rem]">{tagline}</span> : null}
             </span>
           </Link>
 

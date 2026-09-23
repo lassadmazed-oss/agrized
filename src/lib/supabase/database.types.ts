@@ -4013,6 +4013,32 @@ export type Database = {
         Args: { p_active: boolean; p_user: string }
         Returns: undefined
       }
+      claim_notifications: {
+        Args: { p_limit?: number }
+        Returns: {
+          attempts: number
+          body: string
+          channel: string
+          created_at: string
+          id: string
+          last_error: string | null
+          provider: string | null
+          provider_message_id: string | null
+          related_entity: string | null
+          related_id: string | null
+          scheduled_at: string
+          sent_at: string | null
+          status: Database["public"]["Enums"]["notification_status"]
+          template_key: string | null
+          to_phone_e164: string
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "notification_outbox"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
       compute_installment_plan: {
         Args: {
           p_cash_millimes: number
@@ -4103,6 +4129,18 @@ export type Database = {
           p_entity: string
           p_entity_id?: string
           p_reason?: string
+        }
+        Returns: undefined
+      }
+      mark_notification_failed: {
+        Args: { p_error: string; p_id: string; p_provider?: string }
+        Returns: undefined
+      }
+      mark_notification_sent: {
+        Args: {
+          p_id: string
+          p_provider: string
+          p_provider_message_id?: string
         }
         Returns: undefined
       }
@@ -4230,6 +4268,7 @@ export type Database = {
         }
         Returns: Json
       }
+      release_stuck_notifications: { Args: never; Returns: number }
       review_land_offer: {
         Args: {
           p_next_status?: Database["public"]["Enums"]["land_offer_status"]

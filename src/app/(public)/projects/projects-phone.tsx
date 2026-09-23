@@ -30,6 +30,13 @@ export type PhoneOffer = {
   place: string;
   /** «100 زيتونة», formatted by the page. */
   trees: string;
+  /** «49 م²», the land one tree comes with, or null when the offer does not publish it. */
+  areaPerTree: string | null;
+  /**
+   * How much of the offer is already spoken for, 0–100, or null when the trees are not numbered yet.
+   * Reserved plus contracted over the whole stock — a figure `public.trees` already holds, never an estimate.
+   */
+  takenPercent: number | null;
   /** «4,491 د.ت», or null while prices are closed to this visitor (PRJ-03). */
   price: string | null;
   /** The status word of an offer that is no longer selling; open offers carry none. */
@@ -47,7 +54,17 @@ export type ProjectsPhoneProps = {
   offers: PhoneOffer[];
   /** Every word that occurs on at least one offer, in the order the page put them. */
   facets: string[];
-  copy: { all: string; search: string; empty: string; pricePending: string; open: string };
+  copy: {
+    all: string;
+    search: string;
+    empty: string;
+    pricePending: string;
+    open: string;
+    /** `start.from_prefix` — «ابتداءً من», set small under the price so the figure keeps the weight. */
+    from: string;
+    /** What the share bar counts, e.g. «عليها طلبات». */
+    taken: string;
+  };
 };
 
 export function ProjectsPhone({ title, backHref, offers, facets, copy }: ProjectsPhoneProps) {
@@ -98,7 +115,7 @@ export function ProjectsPhone({ title, backHref, offers, facets, copy }: Project
 
         {/* 3 · One tap, one facet. «الكل» is not a value, it is the absence of one. */}
         {facets.length > 0 ? (
-          <div className="-mx-4 mt-3 flex gap-2 overflow-x-auto px-4 pb-1">
+          <div className="rail-none -mx-4 mt-3 flex gap-2 overflow-x-auto px-4 pb-0.5">
             <FacetChip label={copy.all} current={facet === null} onPick={() => setFacet(null)} />
             {facets.map((word) => (
               <FacetChip key={word} label={word} current={facet === word} onPick={() => setFacet(word)} />
@@ -106,39 +123,73 @@ export function ProjectsPhone({ title, backHref, offers, facets, copy }: Project
           </div>
         ) : null}
 
-        {/* 4 · The offers, as rows: the picture, what it is called, where it is, how many trees, what one
-            costs — and the door, where the thumb already is. */}
+        {/* 4 · The offers, as rows (tightened 2026-09-22 on the owner's word, «save more space»).
+            What changed, and why each thing earned or lost its room:
+             · the thumbnail went from 6rem to 4.25rem, which is the height of the three lines beside it, so
+               the picture and the words finish level and the row is as tall as its content and no taller;
+             · place and tree count were two lines of their own. They are facts of one breath, so they share
+               a line as chips, and the land per tree — published, and the thing a buyer compares offers on —
+               fits in the room that saved;
+             · the 2.25rem arrow tile at the foot is gone. The whole row is already one link, so it was a
+               second door to the same place charging a line of height for the privilege. The price took its
+               end of the row instead, where the eye was going anyway;
+             · the share bar is new. It is reserved + contracted over the whole stock, a figure the trees
+               table already holds, and it answers «is there anything left» without a second tap.
+            Four rows now fit where two did. */}
         {shown.length > 0 ? (
-          <ul className="mt-4 space-y-3">
+          <ul className="mt-4 space-y-2">
             {shown.map((offer) => (
               <li key={offer.id}>
-                <Link href={offer.href} className="card flex items-stretch gap-3 p-3 hover:border-forest">
-                  <div className="relative w-24 flex-none overflow-hidden rounded-xl">{offer.image}</div>
+                <Link href={offer.href} className="card flex items-stretch gap-2.5 p-2.5 hover:border-forest">
+                  <div className="relative size-17 flex-none overflow-hidden rounded-xl">{offer.image}</div>
 
-                  <div className="flex min-w-0 flex-1 flex-col">
-                    <p className="truncate font-display text-xl font-bold leading-tight text-forest">{offer.name}</p>
-                    {offer.place ? <p className="mt-0.5 truncate text-sm text-muted">{offer.place}</p> : null}
-                    <p className="mt-0.5 text-sm text-muted">{offer.trees}</p>
-
-                    <div className="mt-auto flex items-end justify-between gap-2 pt-1.5">
+                  <div className="flex min-w-0 flex-1 flex-col justify-center gap-1.5">
+                    {/* Name and price share the top line: the two things a row is scanned for. */}
+                    <div className="flex items-start gap-2">
+                      <p className="min-w-0 flex-1 truncate font-display text-lg font-bold leading-tight text-forest">
+                        {offer.name}
+                      </p>
                       {offer.price ? (
-                        <p className="flex items-center gap-1.5">
-                          <CoinIcon />
-                          <span className="font-display text-xl font-bold tabular-nums text-forest">{offer.price}</span>
+                        <p className="flex-none text-end leading-none">
+                          <span className="font-display text-lg font-bold tabular-nums text-gold">{offer.price}</span>
+                          <span className="mt-0.5 block text-[0.625rem] leading-none text-muted">{copy.from}</span>
                         </p>
                       ) : (
-                        <p className="text-caption text-muted">{copy.pricePending}</p>
+                        <span className="w-16 flex-none text-end text-[0.625rem] leading-tight text-muted">{copy.pricePending}</span>
                       )}
-                      <span
-                        aria-hidden="true"
-                        className="flex size-9 flex-none items-center justify-center rounded-xl bg-forest text-paper"
-                      >
-                        <ArrowGo />
-                      </span>
                     </div>
 
-                    {offer.status ? (
-                      <span className={`pill mt-1.5 self-start ${offer.status.toneClass}`}>{offer.status.label}</span>
+                    {/* One line of facts, in the order they are asked: where, how many, how much land each. */}
+                    <ul className="flex flex-wrap items-center gap-1">
+                      {offer.place ? <li className="pill pill-line">{offer.place}</li> : null}
+                      <li className="pill pill-line">{offer.trees}</li>
+                      {offer.areaPerTree ? <li className="pill pill-line">{offer.areaPerTree}</li> : null}
+                      {offer.status ? (
+                        <li className={`pill ${offer.status.toneClass}`}>{offer.status.label}</li>
+                      ) : null}
+                    </ul>
+
+                    {/* A share nobody has taken yet is the same «0٪» on every offer, which is a line of
+                        height spent saying nothing — the same reason the card drops its zero buckets. The bar
+                        appears once the figure has moved. */}
+                    {offer.takenPercent !== null && offer.takenPercent > 0 ? (
+                      <div className="flex items-center gap-2">
+                        <span
+                          aria-hidden="true"
+                          className="h-1 flex-1 overflow-hidden rounded-full bg-line"
+                        >
+                          <span
+                            className="block h-full rounded-full bg-leaf"
+                            style={{ inlineSize: `${offer.takenPercent}%` }}
+                          />
+                        </span>
+                        <span className="flex-none text-[0.625rem] leading-none text-muted">
+                          <span dir="ltr" className="tabular-nums">
+                            {offer.takenPercent}٪
+                          </span>{" "}
+                          {copy.taken}
+                        </span>
+                      </div>
                     ) : null}
                   </div>
                 </Link>
@@ -185,13 +236,6 @@ function ArrowBack() {
   );
 }
 
-function ArrowGo() {
-  return (
-    <svg viewBox="0 0 24 24" aria-hidden="true" className="size-5" fill="none" stroke="currentColor" strokeWidth="2">
-      <path d="M20 12H4m0 0 6-6m-6 6 6 6" strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
-  );
-}
 
 function SearchIcon() {
   return (
@@ -209,10 +253,3 @@ function SearchIcon() {
   );
 }
 
-function CoinIcon() {
-  return (
-    <svg viewBox="0 0 24 24" aria-hidden="true" className="size-4 flex-none text-gold" fill="currentColor">
-      <path d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20Zm.9 15.4v1.1h-1.6v-1.05c-1.2-.12-2.2-.62-2.8-1.25l.85-1.2c.6.5 1.4.9 2.35.9.9 0 1.45-.37 1.45-.98 0-.6-.5-.86-1.7-1.2-1.6-.44-2.7-1-2.7-2.5 0-1.25.9-2.1 2.3-2.33V7.5h1.6v1.06c1 .12 1.8.5 2.4 1.02l-.8 1.22c-.55-.42-1.25-.74-2.05-.74-.86 0-1.3.36-1.3.88 0 .58.55.8 1.75 1.14 1.66.47 2.65 1.1 2.65 2.57 0 1.3-.9 2.2-2.4 2.44Z" />
-    </svg>
-  );
-}

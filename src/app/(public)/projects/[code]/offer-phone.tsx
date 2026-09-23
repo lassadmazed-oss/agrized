@@ -6,8 +6,6 @@ import { useEffect, useRef, useState, type ReactNode } from "react";
 import { ProjectVideo } from "@/components/site/project-video";
 import { formatMillimes } from "@/lib/format";
 
-import { quoteOffer } from "./offer-actions";
-
 /**
  * The offer, as a phone reads it (owner, 2026-09-21, on a drawing of this screen).
  *
@@ -45,6 +43,12 @@ export type OfferPhoneProps = {
   backHref: string;
   /** The cover, rendered by the page — see the note above. */
   cover: ReactNode;
+  /**
+   * Every picture of the offer, cover first, for the hero to slide through (owner, 2026-09-22: «add a
+   * sliding effect for the images … to feel more alive»). One picture, or none, falls back to `cover` and
+   * no animation: a single frame sliding into itself is a twitch.
+   */
+  slides?: ReactNode[];
   place: string;
   placeNote: string;
   mapHref: string | null;
@@ -58,6 +62,14 @@ export type OfferPhoneProps = {
   price: { perTree: number | null; total: number | null };
   trees: { opening: number; min: number; max: number };
   description: string;
+  /**
+   * The four facts a buyer checks before the price, as ONE bar with hairlines between the cells
+   * (owner, 2026-09-22, redesign canvas). They used to be a wrap of loose pills: a pill carries a value
+   * and no label, so «49 م²» and «2.45 هـ» sat side by side with nothing saying which was which, and a
+   * wrap of six of them cost two lines and read as decoration. Four labelled cells cost one.
+   * Empty falls back to the pills below, so an offer that publishes nothing loses nothing.
+   */
+  headline?: OfferPhoneFact[];
   facts: { title: string; rows: OfferPhoneFact[] }[];
   photos: OfferPhotoItem[];
   videoUrl: string | null;
@@ -94,55 +106,26 @@ export type OfferPhoneProps = {
 type TabKey = "info" | "photos" | "location" | "documents";
 
 export function OfferPhone(props: OfferPhoneProps) {
-  const { copy, trees: bounds } = props;
-  const [trees, setTrees] = useState(bounds.opening);
-  /** The figures on screen and the count they were quoted for; while they differ the price is stale. */
-  const [price, setPrice] = useState(props.price);
-  const [quotedFor, setQuotedFor] = useState(bounds.opening);
-  /** Derived, not stored: the figures are stale from the tap until the answer lands. */
-  const quoting = trees !== quotedFor;
+  const { copy } = props;
+  /* The price of ONE tree, as the page quoted it. It used to be state with a debounced re-quote behind it,
+     because the counter could change the basket; the counter is gone, so the figure cannot move and the
+     whole machine — state, ticket, timer, server action — went with it. The form's own page re-quotes
+     properly, and `submit_offer_request` prices the request again on submit regardless. */
+  const price = props.price;
   const [copied, setCopied] = useState(false);
-  const request = useRef(0);
 
   const tabs: { key: TabKey; label: string; shown: boolean }[] = [
+    // The place leads: where the land is decides whether the rest of the page is worth reading.
+    { key: "location", label: copy.tabLocation, shown: Boolean(props.place || props.mapHref || props.accessNote) },
     {
       key: "info",
       label: copy.tabInfo,
       shown: Boolean(props.description) || props.facts.length > 0 || props.services.length > 0,
     },
     { key: "photos", label: copy.tabPhotos, shown: props.photos.length > 0 || Boolean(props.videoUrl) },
-    { key: "location", label: copy.tabLocation, shown: Boolean(props.place || props.mapHref || props.accessNote) },
     { key: "documents", label: copy.tabDocuments, shown: props.documents.length > 0 },
   ];
   const visibleTabs = tabs.filter((tab) => tab.shown);
-  const [tab, setTab] = useState<TabKey>(visibleTabs[0]?.key ?? "info");
-
-  // The price of a basket is the database's answer, never `perTree × trees`: an offer may price its trees
-  // in classes, and the intake prices the request again on submit. So the counter asks, and until the answer
-  // comes back the figures on screen are the ones that were quoted last — dimmed, never wrong.
-  useEffect(() => {
-    if (trees === quotedFor) return;
-    const ticket = (request.current += 1);
-    const timer = setTimeout(() => {
-      void quoteOffer({
-        projectId: props.projectId,
-        trees,
-        paymentMode: null,
-        downPercentOptionId: null,
-        durationOptionId: null,
-      })
-        .then((quote) => {
-          if (ticket !== request.current) return; // a later count already won
-          if (quote && quote.pricing === "ok") {
-            setPrice({ perTree: quote.price_per_tree_millimes, total: quote.total_price_millimes });
-          }
-          setQuotedFor(trees);
-        });
-    }, 300);
-    return () => clearTimeout(timer);
-  }, [trees, quotedFor, props.projectId]);
-
-  const step = (by: number) => setTrees((count) => Math.min(bounds.max, Math.max(bounds.min, count + by)));
 
   /** The offer's own link, shared the way a phone shares: the sheet when there is one, the clipboard otherwise. */
   async function share() {
@@ -201,9 +184,9 @@ export function OfferPhone(props: OfferPhoneProps) {
           </div>
         </div>
 
-        {/* 2 · The place itself, edge to edge. */}
+        {/* 2 · The place itself, edge to edge — and moving, when the offer has more than one picture. */}
         <figure className="relative">
-          {props.cover}
+          <HeroSlides slides={props.slides ?? []} fallback={props.cover} />
           {props.status ? (
             <span className={`pill absolute end-4 top-4 ${props.status.toneClass}`}>{props.status.label}</span>
           ) : null}
@@ -228,7 +211,19 @@ export function OfferPhone(props: OfferPhoneProps) {
             </p>
           ) : null}
 
-          {props.figures.length > 0 ? (
+          {props.headline && props.headline.length > 0 ? (
+            <div className="card mt-3 flex items-center">
+              {props.headline.map((cell, index) => (
+                <div key={cell.label} className="flex flex-1 items-center">
+                  {index > 0 ? <span aria-hidden="true" className="h-7 w-px flex-none bg-line" /> : null}
+                  <p className="flex-1 px-1 py-2 text-center">
+                    <span className="block text-[0.8125rem] font-bold leading-none text-ink">{cell.value}</span>
+                    <span className="mt-1 block text-[0.5625rem] leading-tight text-muted">{cell.label}</span>
+                  </p>
+                </div>
+              ))}
+            </div>
+          ) : props.figures.length > 0 ? (
             <ul className="mt-3 flex flex-wrap gap-1.5">
               {props.figures.map((figure) => (
                 <li key={figure} className="pill pill-line px-2.5 py-1.5 text-[0.72rem] font-medium text-ink">
@@ -267,91 +262,58 @@ export function OfferPhone(props: OfferPhoneProps) {
               <p className="text-sm leading-6 text-muted">{copy.pricePending}</p>
             )}
 
-            <div className="mt-3.5 flex items-center justify-between gap-4">
-              <div className="flex flex-col gap-1">
-                <span className="text-[0.72rem] leading-none text-muted">{copy.total}</span>
-                <span
-                  aria-live="polite"
-                  className={`text-[1.125rem] font-bold leading-none tabular-nums text-forest transition-opacity ${
-                    quoting ? "opacity-50" : ""
-                  }`}
-                >
-                  {priced && price.total !== null ? formatMillimes(price.total) : "—"}
-                </span>
-              </div>
-
-              {/* A numeric control reads the same in both directions, so it keeps its own LTR frame:
-                  minus, count, plus, exactly as drawn. The drawing's is a soft-cornered rectangle, not the
-                  pill this was: a pill reads as a chip you choose, a rectangle reads as a field you set. */}
-              <div dir="ltr" className="flex items-center rounded-[0.625rem] border border-line-strong p-0.5">
-                <StepButton onClick={() => step(-1)} disabled={trees <= bounds.min} label={copy.minus}>
-                  −
-                </StepButton>
-                <output className="min-w-7 text-center text-[0.9375rem] font-semibold tabular-nums">{trees}</output>
-                <StepButton onClick={() => step(1)} disabled={trees >= bounds.max} label={copy.plus}>
-                  +
-                </StepButton>
-              </div>
-            </div>
-
+            {/* THE COUNTER IS GONE (owner, 2026-09-22: «remove the − + thing»). It asked «how many» on a
+                page whose job is «what is this», and it asked it twice: the form — its own page since the
+                same day — opens on the same question and prices it properly. What stays here is the price
+                of ONE tree, which is a fact about the offer rather than a decision about a basket. */}
             {/* PRN-01: an amount never appears without the note that says what it is. */}
             {priced && copy.priceNote ? (
               <p className="mt-3 text-caption leading-6 text-muted">{copy.priceNote}</p>
             ) : null}
           </div>
 
-          {props.formHref ? (
-            <a href={props.formHref} className="btn btn-primary mt-4 min-h-[2.625rem] w-full rounded-[0.625rem] text-[0.95rem]">
-              {copy.book}
-            </a>
-          ) : null}
         </div>
 
-        {/* 5 · Everything else, behind four words instead of four screens. */}
-        {visibleTabs.length > 0 ? (
-          <div className="border-t border-line">
-            {/* The drawing's tabs are words in a row that starts at the start edge, each underlined only as
-                wide as itself — not four equal columns spanning the screen with a rule under a whole third
-                of it. `flex-1` was doing the spanning, so it goes; the row scrolls sideways instead if a
-                fourth word ever makes it too long, which is what keeps it from wrapping into two lines. */}
-            <div
-              role="tablist"
-              className="flex items-stretch gap-5 overflow-x-auto px-4 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
-            >
-              {visibleTabs.map((item) => {
-                const current = item.key === tab;
-                return (
-                  <button
-                    key={item.key}
-                    type="button"
-                    role="tab"
-                    aria-selected={current}
-                    aria-controls={`offer-panel-${item.key}`}
-                    id={`offer-tab-${item.key}`}
-                    onClick={() => setTab(item.key)}
-                    className={`shrink-0 whitespace-nowrap border-b-2 py-3 text-[0.8rem] transition-colors ${
-                      current ? "border-forest font-bold text-forest" : "border-transparent font-medium text-muted"
-                    }`}
-                  >
-                    {item.label}
-                  </button>
-                );
-              })}
-            </div>
-
-            <div
-              role="tabpanel"
-              id={`offer-panel-${tab}`}
-              aria-labelledby={`offer-tab-${tab}`}
-              className="px-4 py-5"
-            >
-              {tab === "info" ? <InfoPanel {...props} /> : null}
-              {tab === "photos" ? <PhotosPanel {...props} /> : null}
-              {tab === "location" ? <LocationPanel {...props} /> : null}
-              {tab === "documents" ? <DocumentsPanel {...props} /> : null}
-            </div>
+        {/* 4b · THE DOOR, FLOATING (owner, 2026-09-22: «make it a floating button at the bottom of the
+            page»). It used to be a button in the flow, a screen and a half above the end: a reader deep in
+            «مستندات» had to scroll back to act. Fixed above the tab bar it is reachable from anywhere on the
+            page, and it wears the form's own words — «سجّل اهتمامك بهذا العرض» — so the control and the page
+            it opens say the same thing. The spacer below keeps it from covering the last section. */}
+        {props.formHref ? (
+          <div className="fixed inset-x-0 bottom-[var(--tabbar-h)] z-30 border-t border-line bg-surface/95 px-4 py-3 backdrop-blur md:hidden">
+            <a href={props.formHref} className="btn btn-primary min-h-12 w-full gap-2 rounded-2xl text-[0.95rem]">
+              {copy.book}
+              <span aria-hidden="true">←</span>
+            </a>
           </div>
         ) : null}
+
+        {/* 5 · Everything else, all of it, one section after another (owner, 2026-09-22: «show them all
+            without the buttons»).
+ 
+            It was four tabs. Tabs are a good trade when the panels are long and a reader wants one of them;
+            here they were three short blocks — a few facts, a map, a list of documents — and the cost was
+            that two thirds of what the offer publishes was invisible until someone thought to tap a word.
+            On a screen a thumb already scrolls, a heading is cheaper than a control: nothing is hidden,
+            nothing needs discovering, and the page is barely longer than the tallest panel used to be. */}
+        {visibleTabs.length > 0 ? (
+          <div className="border-t border-line">
+            {visibleTabs.map((item) => (
+              <section key={item.key} className="border-b border-line px-4 py-5 last:border-b-0">
+                <h2 className="mb-3 font-display text-lg font-bold text-forest">{item.label}</h2>
+                {item.key === "info" ? <InfoPanel {...props} /> : null}
+                {item.key === "photos" ? <PhotosPanel {...props} /> : null}
+                {item.key === "location" ? <LocationPanel {...props} /> : null}
+                {item.key === "documents" ? <DocumentsPanel {...props} /> : null}
+              </section>
+            ))}
+          </div>
+        ) : null}
+
+        {/* Room for the floating door, at the END of the scroll — which is the only place it covers
+            anything. It used to sit where the inline button had been, halfway up the page, and opened an
+            80px hole between the price and the first section. */}
+        {props.formHref ? <div aria-hidden="true" className="h-20 md:hidden" /> : null}
       </div>
     </div>
   );
@@ -424,19 +386,45 @@ function PhotosPanel({ photos, videoUrl, name, copy }: OfferPhoneProps) {
 
 function LocationPanel({ place, placeNote, mapHref, accessNote, copy }: OfferPhoneProps) {
   return (
-    <div className="space-y-4">
+    <div className="space-y-3">
+      {/* A DRAWN preview, not a map (owner, 2026-09-22: «add a preview for the place box»).
+ 
+          It is deliberately a sketch and not a screenshot of the real coordinates: a static map needs a
+          keyed tile service this project does not have, and a picture of the WRONG place would be worse
+          than no picture at all. What this gives is the shape of the thing — roads, a plot, a pin — so the
+          box reads as a location rather than as a link, and the button under it opens the real map at the
+          offer's own coordinates, which is where an exact answer belongs. */}
+      {mapHref ? (
+        <a href={mapHref} target="_blank" rel="noopener noreferrer" className="block overflow-hidden rounded-2xl border border-line">
+          <div className="relative aspect-[2/1] bg-[#EDEADC]">
+            <svg viewBox="0 0 320 160" preserveAspectRatio="xMidYMid slice" className="absolute inset-0 size-full" aria-hidden="true">
+              <rect width="320" height="160" fill="#EDEADC" />
+              <g stroke="#DAD5C2" strokeWidth="1">
+                <path d="M0 32h320M0 64h320M0 96h320M0 128h320M40 0v160M80 0v160M120 0v160M160 0v160M200 0v160M240 0v160M280 0v160" />
+              </g>
+              <path d="M-10 120 Q 80 96 160 112 T 330 92" fill="none" stroke="#CFC8B0" strokeWidth="7" />
+              <path d="M40 -10 Q 70 64 130 104 T 190 170" fill="none" stroke="#CFC8B0" strokeWidth="5" />
+              <path d="M150 56 L228 68 L236 112 L158 102 Z" fill="#7CA03F" fillOpacity="0.32" stroke="#4F7527" strokeWidth="2" />
+              <g transform="translate(192,84)">
+                <path d="M0 12 C 0 12 -10 2 -10 -5 A 10 10 0 0 1 10 -5 C 10 2 0 12 0 12 Z" fill="#1B4429" />
+                <circle cx="0" cy="-5" r="3.5" fill="#E7C566" />
+              </g>
+            </svg>
+            <span className="absolute inset-x-0 bottom-0 flex items-center justify-center gap-2 bg-forest-700/85 py-2 text-caption font-semibold text-paper">
+              {copy.mapCta}
+              <span aria-hidden="true">←</span>
+            </span>
+          </div>
+        </a>
+      ) : null}
+
       {place ? <p className="text-[1.0625rem] font-bold text-forest">{place}</p> : null}
       {placeNote ? <p className="leading-7 text-ink/80">{placeNote}</p> : null}
       {accessNote ? (
         <section>
-          <h2 className="text-sm font-semibold text-muted">{copy.accessTitle}</h2>
+          <h3 className="text-sm font-semibold text-muted">{copy.accessTitle}</h3>
           <p className="mt-1 leading-7 text-ink/80">{accessNote}</p>
         </section>
-      ) : null}
-      {mapHref ? (
-        <a href={mapHref} target="_blank" rel="noopener noreferrer" className="btn btn-secondary w-full">
-          {copy.mapCta}
-        </a>
       ) : null}
     </div>
   );
@@ -457,29 +445,6 @@ function DocumentsPanel({ documents, copy }: OfferPhoneProps) {
   );
 }
 
-function StepButton({
-  onClick,
-  disabled,
-  label,
-  children,
-}: {
-  onClick: () => void;
-  disabled: boolean;
-  label: string;
-  children: string;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      disabled={disabled}
-      aria-label={label}
-      className="flex size-8 items-center justify-center rounded-lg text-lg font-semibold text-muted transition-colors hover:bg-leaf-soft hover:text-forest disabled:opacity-35 disabled:hover:bg-transparent"
-    >
-      {children}
-    </button>
-  );
-}
 
 /** Points the way the reader came from, which on an RTL page is to the right. */
 function ChevronBack() {
@@ -507,5 +472,78 @@ function PinIcon() {
       <path d="M12 21s7-5.6 7-11a7 7 0 1 0-14 0c0 5.4 7 11 7 11Z" strokeLinejoin="round" />
       <circle cx="12" cy="10" r="2.5" />
     </svg>
+  );
+}
+
+/**
+ * The hero: swipeable, and moving on its own (owner, 2026-09-22: «make the thing slidable and make the
+ * slides faster»).
+ *
+ * WHY THIS IS NOT THE CSS SLIDER THE BANNERS USE. A keyframe animation cannot be dragged — the browser owns
+ * the transform, so a finger on it does nothing and the picture keeps marching. The banners are decoration
+ * and that is fine; a gallery is something a reader wants to control. So this is a native scroll-snap strip:
+ * the finger scrolls it because that is what scrolling is, and a timer nudges it along when nobody is
+ * touching it.
+ *
+ * The timer yields to the hand, and does not come back. Once someone has swiped, they are reading at their
+ * own pace, and a carousel that resumes stealing the frame after a polite pause is the thing everyone hates
+ * about carousels. It also stops for `prefers-reduced-motion`, where `scrollTo` is called without smoothing
+ * so nothing glides.
+ */
+function HeroSlides({ slides, fallback }: { slides: ReactNode[]; fallback: ReactNode }) {
+  const strip = useRef<HTMLDivElement | null>(null);
+  const [active, setActive] = useState(0);
+  /** Set the moment a finger touches the strip; the auto-advance never runs again after it. */
+  const taken = useRef(false);
+
+  const count = slides.length;
+
+  useEffect(() => {
+    if (count < 2) return;
+    const reduce = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches ?? false;
+    const timer = setInterval(() => {
+      const el = strip.current;
+      if (!el || taken.current) return;
+      const next = (Math.round(el.scrollLeft / el.clientWidth) + 1) % count;
+      // The strip is RTL, so its scrollLeft runs negative; `next * width` with the sign of the current
+      // scroll keeps the arithmetic direction-agnostic instead of guessing at the engine's convention.
+      const sign = el.scrollLeft <= 0 ? -1 : 1;
+      el.scrollTo({ left: sign * next * el.clientWidth, behavior: reduce ? "auto" : "smooth" });
+    }, 2600);
+    return () => clearInterval(timer);
+  }, [count]);
+
+  if (count < 2) return <>{slides[0] ?? fallback}</>;
+
+  return (
+    <div className="relative">
+      <div
+        ref={strip}
+        onPointerDown={() => {
+          taken.current = true;
+        }}
+        onScroll={(event) => {
+          const el = event.currentTarget;
+          setActive(Math.round(Math.abs(el.scrollLeft) / el.clientWidth) % count);
+        }}
+        className="rail-none flex snap-x snap-mandatory overflow-x-auto overscroll-x-contain"
+      >
+        {slides.map((slide, index) => (
+          <div key={index} className="w-full flex-none snap-center">
+            {slide}
+          </div>
+        ))}
+      </div>
+
+      {/* Which one is showing, and how many there are. */}
+      <div className="pointer-events-none absolute inset-x-0 bottom-3 flex justify-center gap-1.5">
+        {slides.map((_, index) => (
+          <span
+            key={index}
+            className={`h-1.5 rounded-full transition-all ${index === active ? "w-4 bg-paper" : "w-1.5 bg-paper/60"}`}
+          />
+        ))}
+      </div>
+    </div>
   );
 }

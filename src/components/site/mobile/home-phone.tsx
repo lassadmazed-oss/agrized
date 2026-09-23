@@ -1,0 +1,304 @@
+import Link from "next/link";
+import type { ReactNode } from "react";
+
+import { formatCount } from "@/lib/format";
+
+/**
+ * The home screen, as a phone reads it (owner, 2026-09-22, from the redesign canvas: «fully remake them to
+ * match the designs»).
+ *
+ * WHAT THIS REPLACES. Below `md` the page used to be <AppHero> + <AppStats> + <OffersTicker>: a greeting on
+ * paper, a photographic card, four separate tiles and a sliding strip of offer names. Three components, three
+ * grounds, and nothing on the screen that said what a visitor is meant to do first. This is one screen with
+ * one rhythm, in the canvas's order:
+ *
+ *   1 · the hero card — the promise, and the two doors out of it;
+ *   2 · the figures, in ONE bar with hairlines between them rather than four floating tiles;
+ *   3 · the two entry cards — the part that was missing entirely, and the reason the rest is shorter;
+ *   4 · the offers, two per line, compact;
+ *   5 · where the counter has got to.
+ *
+ * WHY THE TWO ENTRY CARDS ARE THE POINT. The canvas splits the visitor in two before anything else: someone
+ * with an offer in mind, and someone who only knows they want olive trees. They need different things — the
+ * first wants to get out of the way fast, the second wants to be asked what suits them — and the old screen
+ * sent both down the same door. Naming the split on the home screen is what makes the two intake flows
+ * legible instead of arbitrary.
+ *
+ * WHAT THE CANVAS DRAWS AND THIS DOES NOT. A notification bell, an avatar and «أهلاً بيك يا …». There is no
+ * public account in this product: nobody has told us their name, the bell would ring for nothing and the
+ * avatar would be a stranger's face. A control that does nothing is worse than a missing one — it teaches a
+ * visitor the app is a picture of an app. The brand lockup stays, the furniture of a signed-in app does not.
+ *
+ * Every figure is the database's. The canvas prints invented ones, as a drawing should; a page that printed
+ * them would be telling a stranger something untrue on the screen where they decide whether this is real.
+ */
+
+export type HomePhoneStat = {
+  label: string;
+  /** Null when nothing honest answers it — the cell is dropped rather than shown as a zero. */
+  value: number | null;
+  /** «+» before a figure that keeps growing. Never on a fixed one like the governorates. */
+  growing?: boolean;
+};
+
+export type HomePhoneOffer = {
+  id: string;
+  href: string;
+  name: string;
+  place: string;
+  /** «49 م²» — the land one tree comes with, or null when the offer does not publish it. */
+  areaPerTree: string | null;
+  /** «454 د.ت», or null while the pricing module keeps prices closed (PRJ-03). */
+  price: string | null;
+  image: ReactNode;
+};
+
+export type HomePhoneProps = {
+  /** The photographic card at the top: whatever the hero strip already shows. */
+  hero: ReactNode;
+  /** The sliding quote cards, above everything. Null when the owner emptied `site.quotes`. */
+  quotes?: ReactNode;
+  copy: {
+    badge: string;
+    line: string;
+    exploreCta: string;
+    /** The door for someone who has not chosen an offer — «ما نعرفش نبدا». */
+    guideCta: string;
+    offersTitle: string;
+    all: string;
+    from: string;
+    /** The two entry cards. */
+    guideTitle: string;
+    guideNote: string;
+    pickTitle: string;
+    pickNote: string;
+    progressTitle: string;
+  };
+  stats: readonly HomePhoneStat[];
+  offers: readonly HomePhoneOffer[];
+  /** Where to send someone who wants to be asked what suits them, and someone who wants the catalogue. */
+  guideHref: string;
+  offersHref: string;
+  /** The counter line, already worded by the page, or null while the statistics module is closed. */
+  progressNote: string | null;
+  /** 0–100, how far the counter has come. Null when there is nothing to draw. */
+  progressPercent: number | null;
+};
+
+export function HomePhone({
+  hero,
+  quotes,
+  copy,
+  stats,
+  offers,
+  guideHref,
+  offersHref,
+  progressNote,
+  progressPercent,
+}: HomePhoneProps) {
+  const shownStats = stats.filter((stat) => stat.value !== null);
+
+  return (
+    // `data-phone-screen` is the marker the stylesheet reads to take the site's own header off a phone that
+    // carries its own furniture — the same hook /projects and the offer screen already set.
+    <div data-phone-screen="" className="md:hidden">
+      <div className="mx-auto max-w-md px-4 pb-6 pt-3">
+        {/* 0 · The quote strip, over the photograph and under nothing. */}
+        {quotes}
+
+        {/* 1 · The hero. The whole card is the link target for the primary door; the second door is a
+            separate control, because «ما نعرفش نبدا» goes somewhere else entirely. */}
+        <section className="relative overflow-hidden rounded-3xl shadow-[var(--shadow-card)]">
+          <div className="absolute inset-0">{hero}</div>
+          {/* Bottom-weighted: the sky is why the photograph is here, the words live on its foot. */}
+          <div
+            aria-hidden="true"
+            className="absolute inset-0 bg-gradient-to-t from-forest-700/94 via-forest-700/55 to-forest-700/15"
+          />
+          <div className="relative flex min-h-[13rem] flex-col justify-end p-4">
+            {copy.badge ? (
+              <span className="mb-2 inline-flex self-start items-center gap-1.5 rounded-full border border-surface/25 bg-surface/15 px-2.5 py-1 text-[0.6875rem] font-medium text-paper backdrop-blur-sm">
+                <LeafGlyph />
+                {copy.badge}
+              </span>
+            ) : null}
+            <p className="font-display text-[1.75rem] font-bold leading-[1.15] text-surface">{copy.line}</p>
+            <div className="mt-3 flex flex-wrap gap-2">
+              <Link
+                href={offersHref}
+                className="inline-flex min-h-11 items-center gap-2 rounded-full bg-surface px-4 text-label font-semibold text-ink transition-transform active:scale-[0.98]"
+              >
+                {copy.exploreCta}
+                <ArrowGo className="size-4" />
+              </Link>
+              <Link
+                href={guideHref}
+                className="inline-flex min-h-11 items-center rounded-full border-[1.5px] border-surface/40 px-4 text-label font-semibold text-surface"
+              >
+                {copy.guideCta}
+              </Link>
+            </div>
+          </div>
+        </section>
+
+        {/* 2 · The figures. ONE bar with hairlines, not four floating tiles: four cards on four grounds read
+            as four separate claims, and these are one fact about the same thing. */}
+        {shownStats.length > 0 ? (
+          <section className="card mt-3 flex items-center">
+            {shownStats.map((stat, index) => (
+              <div key={stat.label} className="flex flex-1 items-center">
+                {index > 0 ? <span aria-hidden="true" className="h-7 w-px flex-none bg-line" /> : null}
+                <p className="flex-1 py-2.5 text-center">
+                  <span className="block font-display text-lg font-bold leading-none tabular-nums text-forest">
+                    {stat.growing ? "+" : ""}
+                    {formatCount(stat.value as number)}
+                  </span>
+                  <span className="mt-1 block text-[0.625rem] leading-none text-muted">{stat.label}</span>
+                </p>
+              </div>
+            ))}
+          </section>
+        ) : null}
+
+        {/* 3 · The split. Two doors, named by what the visitor already knows, not by what we want to sell. */}
+        <section className="mt-3 grid grid-cols-2 gap-2">
+          <Link
+            href={guideHref}
+            className="flex flex-col gap-1.5 rounded-2xl bg-forest-700 p-3 text-paper transition-transform active:scale-[0.99]"
+          >
+            <span className="flex size-7 items-center justify-center rounded-[0.625rem] bg-gold-bright/20">
+              <SearchGlyph className="size-4 text-gold-bright" />
+            </span>
+            <span className="text-[0.8125rem] font-semibold leading-tight">{copy.guideTitle}</span>
+            <span className="text-[0.625rem] leading-[1.4] text-paper/70">{copy.guideNote}</span>
+          </Link>
+          <Link
+            href={offersHref}
+            className="card flex flex-col gap-1.5 p-3 transition-transform active:scale-[0.99]"
+          >
+            <span className="flex size-7 items-center justify-center rounded-[0.625rem] bg-gold-soft">
+              <GridGlyph className="size-4 text-gold" />
+            </span>
+            <span className="text-[0.8125rem] font-semibold leading-tight text-ink">{copy.pickTitle}</span>
+            <span className="text-[0.625rem] leading-[1.4] text-muted">{copy.pickNote}</span>
+          </Link>
+        </section>
+
+        {/* 4 · The offers, sliding (owner, 2026-09-22: «make this section slide infinitely»). A two-per-line
+            grid showed four of thirteen and gave no sign the rest existed; a strip that never stops says
+            «there are more» without a control and without a second screen. The same .marquee primitive the
+            rest of the site uses: the list is rendered twice and the track travels exactly -50%, so the seam
+            lands on an identical copy and nothing here has to know how many offers there are. The second copy
+            is aria-hidden — it is the same offers, and a reader told there are twenty-six is told wrong. */}
+        {offers.length > 0 ? (
+          <section className="mt-4">
+            <div className="flex items-baseline justify-between px-0">
+              <h2 className="font-display text-xl font-bold text-forest">{copy.offersTitle}</h2>
+              <Link href={offersHref} className="text-caption font-semibold text-forest">
+                {copy.all} ←
+              </Link>
+            </div>
+            <div className="marquee -mx-4 mt-2" style={{ ["--marquee-duration" as string]: "48s" }}>
+              <div className="marquee-track marquee-track-reverse">
+                {offers.map((offer) => (
+                  <OfferTile key={offer.id} offer={offer} from={copy.from} />
+                ))}
+                {offers.map((offer) => (
+                  <OfferTile key={`echo-${offer.id}`} offer={offer} from={copy.from} echo />
+                ))}
+              </div>
+            </div>
+          </section>
+        ) : null}
+
+        {/* 5 · Where the counter has got to. One line and one bar: the long version is its own band on the
+            wide screen, and repeating it here would cost the screen its shape. */}
+        {progressNote ? (
+          <section className="card mt-3 p-3">
+            <div className="flex items-baseline justify-between gap-2">
+              <p className="text-[0.8125rem] font-semibold text-ink">{copy.progressTitle}</p>
+              <p className="text-[0.625rem] text-muted">{progressNote}</p>
+            </div>
+            {progressPercent !== null ? (
+              <span aria-hidden="true" className="mt-2 block h-1.5 overflow-hidden rounded-full bg-line">
+                <span
+                  className="block h-full rounded-full bg-leaf"
+                  style={{ inlineSize: `${Math.min(100, Math.max(2, progressPercent))}%` }}
+                />
+              </span>
+            ) : null}
+          </section>
+        ) : null}
+      </div>
+    </div>
+  );
+}
+
+/**
+ * One offer in the sliding strip.
+ *
+ * The picture is the point (owner, 2026-09-22: «the images not visible … show more of the img»). It used to
+ * be 56px under 76px of words — a third of the tile was the photograph and two thirds were a two-line name
+ * with a floor under it, a meta line and a price line. Now it is 112px of photograph over one line of name,
+ * with the place and the price sharing the last row: the same four facts in half the text height, and the
+ * grove is the first thing seen rather than a strip above the caption.
+ *
+ * Fixed width, because a track of items that size to their own text stutters as it slides.
+ */
+function OfferTile({ offer, from, echo }: { offer: HomePhoneOffer; from: string; echo?: boolean }) {
+  return (
+    <Link href={offer.href} aria-hidden={echo || undefined} tabIndex={echo ? -1 : undefined} className="card w-44 flex-none overflow-hidden">
+      <div className="relative h-28 overflow-hidden">{offer.image}</div>
+      <div className="p-2">
+        <p className="truncate text-[0.75rem] font-semibold leading-tight text-ink">{offer.name}</p>
+        <div className="mt-1 flex items-baseline justify-between gap-1.5">
+          <span className="min-w-0 truncate text-[0.625rem] leading-none text-muted">
+            {[offer.place, offer.areaPerTree].filter(Boolean).join(" · ")}
+          </span>
+          {offer.price ? (
+            <span className="flex-none whitespace-nowrap">
+              <span className="font-display text-sm font-bold leading-none tabular-nums text-gold">{offer.price}</span>
+              <span className="ms-0.5 text-[0.5rem] leading-none text-muted">{from}</span>
+            </span>
+          ) : null}
+        </div>
+      </div>
+    </Link>
+  );
+}
+
+function LeafGlyph() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true" className="size-3" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M11 20C11 12 14 7 21 4c1 7-2 13-10 14z" />
+    </svg>
+  );
+}
+
+function ArrowGo({ className }: { className: string }) {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true" className={className} fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M20 12H4m0 0 6-6m-6 6 6 6" />
+    </svg>
+  );
+}
+
+function SearchGlyph({ className }: { className: string }) {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true" className={className} fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="11" cy="11" r="7" />
+      <path d="m20 20-3.2-3.2" />
+    </svg>
+  );
+}
+
+function GridGlyph({ className }: { className: string }) {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true" className={className} fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <rect x="3" y="3" width="7.5" height="7.5" rx="2" />
+      <rect x="13.5" y="3" width="7.5" height="7.5" rx="2" />
+      <rect x="3" y="13.5" width="7.5" height="7.5" rx="2" />
+      <rect x="13.5" y="13.5" width="7.5" height="7.5" rx="2" />
+    </svg>
+  );
+}

@@ -19,6 +19,12 @@ import { usePathname } from "next/navigation";
  * exists while its module does. «أرضك» appears with the landowner intake, «حسابي» with زيتونتي — that screen
  * was built on 2026-09-21 and is real, but no buyer can sign in yet, so today its tab reaches a staff member
  * previewing the module and nobody else.
+ *
+ * THE BAR IS FLAT (owner, 2026-09-22). The simulator used to be drawn as a tile lifted above the bar. With
+ * every module open that is a five-tab bar with a centred action; with the modules that are actually open it
+ * is a three-tab bar whose middle tab floats for no reason anyone can see, overlapping the page above it. A
+ * bar whose shape depends on how many flags happen to be on is a bar that looks broken half the time, so
+ * every tab is drawn the same way and the current one is marked by ground, not by height.
  */
 
 export type Tab = {
@@ -27,17 +33,59 @@ export type Tab = {
   icon: "home" | "offers" | "calculator" | "land" | "account";
 };
 
+/** Stroke icons, drawn on the 24px grid the rest of the app uses. */
 const ICONS: Record<Tab["icon"], React.ReactNode> = {
-  home: <path d="M12 3 3 10.2V21h6v-6h6v6h6V10.2L12 3Z" />,
-  /* «حسابي». It is built but it is not automatically in the bar: the layout adds it only while the زيتونتي
-     module is open, which is the same rule as every other tab here — a tab exists when its module does. */
-  account: <path d="M12 12a5 5 0 1 0 0-10 5 5 0 0 0 0 10Zm0 2c-5 0-9 2.7-9 6v2h18v-2c0-3.3-4-6-9-6Z" />,
-  offers: <path d="M4 20V10h4v10H4Zm6 0V4h4v16h-4Zm6 0v-7h4v7h-4Z" />,
-  calculator: (
-    <path d="M6 2h12a2 2 0 0 1 2 2v16a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2Zm1 3v3h10V5H7Zm0 6v2h2v-2H7Zm4 0v2h2v-2h-2Zm4 0v2h2v-2h-2ZM7 15v2h2v-2H7Zm4 0v2h2v-2h-2Zm4 0v4h2v-4h-2ZM7 19v-2h2v2H7Zm4 0v-2h2v2h-2Z" />
+  home: (
+    <>
+      <path d="M3 10.5 12 3l9 7.5" />
+      <path d="M5 9.8V21h14V9.8" />
+    </>
   ),
-  land: <path d="M3 19 8 8l4.5 7L15 11l6 8H3Zm4-11.5A2.25 2.25 0 1 0 7 3a2.25 2.25 0 0 0 0 4.5Z" />,
+  offers: (
+    <>
+      <rect x="3" y="3" width="7.5" height="7.5" rx="2" />
+      <rect x="13.5" y="3" width="7.5" height="7.5" rx="2" />
+      <rect x="3" y="13.5" width="7.5" height="7.5" rx="2" />
+      <rect x="13.5" y="13.5" width="7.5" height="7.5" rx="2" />
+    </>
+  ),
+  calculator: (
+    <>
+      <rect x="4" y="2" width="16" height="20" rx="3" />
+      <path d="M8 6h8" />
+      <path d="M8 11h.01M12 11h.01M16 11h.01M8 15h.01M12 15h.01M16 15v3" />
+    </>
+  ),
+  land: (
+    <>
+      <path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0z" />
+      <circle cx="12" cy="10" r="2.8" />
+    </>
+  ),
+  account: (
+    <>
+      <circle cx="12" cy="8" r="4" />
+      <path d="M4.5 21a7.5 7.5 0 0 1 15 0" />
+    </>
+  ),
 };
+
+function Icon({ name, className }: { name: Tab["icon"]; className: string }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      aria-hidden="true"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={className}
+    >
+      {ICONS[name]}
+    </svg>
+  );
+}
 
 /** A tab owns the page it points at and everything under it, so /projects/OFF-X keeps «عروضنا» lit. */
 function isCurrent(pathname: string, href: string): boolean {
@@ -53,35 +101,30 @@ export function TabBar({ tabs }: { tabs: readonly Tab[] }) {
     <>
       {/* Room for the bar, so it never covers the end of the footer. Sized with it, and it keeps the
           data-sticky-cta hook the confirmation screens already use to hide the bottom furniture. */}
-      <div aria-hidden="true" data-sticky-cta="" className="h-20 md:hidden" />
+      <div aria-hidden="true" data-sticky-cta="" className="h-[var(--tabbar-h)] md:hidden" />
 
       <nav
         aria-label="التنقّل"
         data-sticky-cta=""
-        className="fixed inset-x-0 bottom-0 z-40 border-t border-line bg-paper/95 pb-[max(0.5rem,env(safe-area-inset-bottom))] pt-1.5 backdrop-blur md:hidden"
+        className="fixed inset-x-0 bottom-0 z-40 border-t border-line bg-surface pb-[max(0.5rem,env(safe-area-inset-bottom))] pt-1.5 shadow-[0_-6px_18px_-12px_rgb(27_42_31_/_0.35)] md:hidden"
       >
         <ul className="mx-auto flex max-w-lg items-stretch">
           {tabs.map((tab) => {
             const current = isCurrent(pathname, tab.href);
+
             return (
               <li key={tab.href} className="flex-1">
                 <Link
                   href={tab.href}
                   aria-current={current ? "page" : undefined}
-                  className={`flex min-h-14 flex-col items-center justify-center gap-0.5 rounded-xl transition-colors ${
-                    current ? "text-forest" : "text-muted"
+                  className={`mx-1 flex min-h-15 flex-col items-center justify-center gap-1.5 rounded-2xl transition-colors ${
+                    current ? "bg-leaf-soft text-forest" : "text-muted"
                   }`}
                 >
-                  <svg viewBox="0 0 24 24" aria-hidden="true" className={`size-6 ${current ? "fill-forest" : "fill-muted"}`}>
-                    {ICONS[tab.icon]}
-                  </svg>
-                  <span className={`text-[0.6875rem] leading-none ${current ? "font-bold" : "font-medium"}`}>{tab.label}</span>
-                  {/* The lit tab carries a mark of its own, so the bar still reads for someone who cannot tell
-                      the two greens apart. */}
-                  <span
-                    aria-hidden="true"
-                    className={`mt-0.5 h-0.5 w-6 rounded-full ${current ? "bg-gold-bright" : "bg-transparent"}`}
-                  />
+                  <Icon name={tab.icon} className="size-6" />
+                  <span className={`text-[0.75rem] leading-none ${current ? "font-bold" : "font-medium"}`}>
+                    {tab.label}
+                  </span>
                 </Link>
               </li>
             );

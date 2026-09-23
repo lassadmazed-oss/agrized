@@ -248,7 +248,11 @@ function PickTile({
   picked: boolean;
   onPick: () => void;
 }) {
-  const skin = `choice min-h-11 grow basis-24 justify-center text-center ${picked ? CHOSEN : ""}`;
+  // A tile fills its grid cell and nothing more. It used to carry `grow basis-24`, which let flex hand the
+  // row's leftover width to the last tile: five counts came out as two, two, and one stretched across the
+  // whole form (owner, 2026-09-22, on a screenshot of exactly that). The groups below are grids now, so every
+  // tile in a group is the same width whether the row is full or not.
+  const skin = `choice min-h-11 w-full justify-center text-center ${picked ? CHOSEN : ""}`;
 
   // A count sets a text field, so it is a button with aria-pressed; a plan answer is one of a radio group
   // and keeps its input, so the keyboard walks the group with the arrow keys.
@@ -657,21 +661,21 @@ export function OfferInterestForm(props: OfferInterestFormProps) {
 
   return (
     <>
-      <section id="offer-form" ref={formRef} className="card scroll-mt-24 p-5 sm:p-6">
-        <h2 className="font-display text-2xl font-bold text-forest">{props.title}</h2>
-        {props.intro ? <p className="mt-2 leading-7 text-muted">{props.intro}</p> : null}
+      <section id="offer-form" ref={formRef} className="card scroll-mt-24 p-4 max-sm:border-0 max-sm:bg-transparent max-sm:p-0 max-sm:shadow-none sm:p-6">
+        <h2 className="font-display text-xl font-bold text-forest sm:text-2xl">{props.title}</h2>
+        {props.intro ? <p className="mt-1.5 text-[0.8125rem] leading-5 text-muted sm:mt-2 sm:text-base sm:leading-7">{props.intro}</p> : null}
 
         {/* A rhythm a phone can walk: the questions this offer asks, the figures they change, then who to
             call back — three blocks a hairline apart instead of one column of eleven equal fields. */}
-        <form onSubmit={onSubmit} noValidate className="mt-6 space-y-7">
-          <div className="space-y-6">
+        <form onSubmit={onSubmit} noValidate className="mt-4 space-y-5 sm:mt-6 sm:space-y-7">
+          <div className="space-y-4 sm:space-y-6">
             {/* The offer's own question: how many of its trees. Everything else is who to call back. */}
             <div>
               <label htmlFor="offer-trees" className="label">
                 {props.treesLabel}
               </label>
               {usablePicks.length > 0 ? (
-                <div className="mt-2 flex flex-wrap gap-2">
+                <div className="mt-2 grid grid-cols-3 gap-2 sm:grid-cols-4">
                   {usablePicks.map((count) => (
                     <PickTile
                       key={count}
@@ -693,7 +697,7 @@ export function OfferInterestForm(props: OfferInterestFormProps) {
                 onChange={(event) => update("trees", event.target.value)}
                 aria-invalid={Boolean(errors.trees)}
                 aria-describedby={errors.trees ? "offer-trees-error" : "offer-trees-hint"}
-                className="field mt-3 max-w-40 text-center tabular-nums"
+                className="field mt-2 h-11 max-w-32 text-center tabular-nums sm:mt-3 sm:h-12 sm:max-w-40"
               />
               {errors.trees ? (
                 <p id="offer-trees-error" className="error-text">
@@ -715,7 +719,7 @@ export function OfferInterestForm(props: OfferInterestFormProps) {
                 <fieldset>
                   <legend className="label">{props.payment.title}</legend>
                   {props.payment.hint ? <p className="hint mt-1.5">{props.payment.hint}</p> : null}
-                  <div className="mt-2 grid gap-2 sm:grid-cols-2">
+                  <div className="mt-2 grid grid-cols-2 gap-2">
                     <PickTile
                       name="offerPaymentMode"
                       label={props.payment.cash}
@@ -750,7 +754,7 @@ export function OfferInterestForm(props: OfferInterestFormProps) {
                   <fieldset>
                     <legend className="label">{props.payment.downTitle}</legend>
                     {props.payment.downHint ? <p className="hint mt-1.5">{props.payment.downHint}</p> : null}
-                    <div className="mt-2 flex flex-wrap gap-2">
+                    <div className="mt-2 grid grid-cols-3 gap-2 sm:grid-cols-4">
                       {props.downPercents.map((option) => (
                         <PickTile
                           key={option.id}
@@ -773,7 +777,7 @@ export function OfferInterestForm(props: OfferInterestFormProps) {
 
                   <fieldset>
                     <legend className="label">{props.payment.durationTitle}</legend>
-                    <div className="mt-2 flex flex-wrap gap-2">
+                    <div className="mt-2 grid grid-cols-3 gap-2 sm:grid-cols-4">
                       {props.durations.map((option) => (
                         <PickTile
                           key={option.id}
@@ -1105,7 +1109,7 @@ export function OfferInterestForm(props: OfferInterestFormProps) {
           belongs to the page the visitor is standing on, instead of the two mid-page buttons that repeated
           the form's own title 144px above it. */}
       {!formSeen ? (
-        <div className="fixed inset-x-0 bottom-0 z-30 border-t border-line bg-surface/95 px-4 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] backdrop-blur md:hidden">
+        <div className="fixed inset-x-0 bottom-[var(--tabbar-h)] z-30 border-t border-line bg-surface/95 px-4 py-3 backdrop-blur md:hidden">
           <a href="#offer-form" className="btn btn-primary w-full">
             {props.submitLabel}
           </a>

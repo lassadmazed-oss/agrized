@@ -4,22 +4,26 @@ import { AreaSection } from "@/components/site/landing/area-section";
 import { ClosingCta } from "@/components/site/landing/closing-cta";
 import { CounterBand } from "@/components/site/landing/counter-band";
 import { Faq } from "@/components/site/landing/faq";
-import { Hero, heroCopy, heroPromises } from "@/components/site/landing/hero";
+import { Hero, heroCopy, heroPromises, HERO_SLOTS } from "@/components/site/landing/hero";
 import { HeroStats, heroStatColumns } from "@/components/site/landing/hero-stats";
 import { homeOffers, OffersSection } from "@/components/site/landing/offers-section";
 import { OffersTicker } from "@/components/site/landing/offers-ticker";
+import { PhotoSlideshow } from "@/components/site/landing/photo-slideshow";
 import { ServicesMap } from "@/components/site/landing/services-map";
 import { Steps } from "@/components/site/landing/steps";
 import { TreePicks } from "@/components/site/landing/tree-picks";
 import { TrustStrip, trustPoints } from "@/components/site/landing/trust-strip";
 import { TwinCards, twinCardsCopy } from "@/components/site/landing/twin-cards";
-import { AppHero } from "@/components/site/mobile/app-hero";
-import { AppStats, type AppStat } from "@/components/site/mobile/app-stats";
-import { getOfferStocks } from "@/components/site/offers";
+import { HomePhone, type HomePhoneOffer } from "@/components/site/mobile/home-phone";
+import { QuoteStrip, type Quote } from "@/components/site/mobile/quote-strip";
+import { type AppStat } from "@/components/site/mobile/app-stats";
+import { areaPerTree, getOfferStocks, offersTitle, offerTreePrice } from "@/components/site/offers";
 import { estimateLabel, landTitle } from "@/components/site/site-header";
-import { SitePhoto } from "@/components/site/site-photo";
+import { RemotePhoto, SitePhoto } from "@/components/site/site-photo";
 import { flagState, getPublicConfig, optionsFor, settingJson, settingText } from "@/lib/config";
+import { formatArea, formatCount, formatMillimes } from "@/lib/format";
 import { getMillionProgress } from "@/lib/million";
+import { projectHref } from "@/lib/public-hrefs";
 import { getPublicProjects, type PublicProject } from "@/lib/public-projects";
 
 /**
@@ -122,6 +126,10 @@ export default async function HomePage() {
   // from the Back Office is the worst thing to leave in the code of a page whose argument is «بلا وعود».
   const trust = trustPoints(config);
 
+  // FLAG-02: a tree price exists for a visitor only while the pricing module is public. The flag alone
+  // decides here, never moduleAccess — this page is prerendered for everyone and must not read a session.
+  const pricingOpen = flagState(config, "pricing") === "public";
+
   /**
    * The phone's 2×2, in the mock-up's order: olive trees · investors · hectares · governorates.
    *
@@ -149,6 +157,33 @@ export default async function HomePage() {
     { label: settingText(config, "site.stat_governorates", "ولاية"), value: config.governorates.length || null, icon: "place" },
   ];
 
+  /**
+   * The four compact offer cards on the phone home. Same offers, same stock read and same prices the
+   * catalogue already resolved above — formatted once, here, so <HomePhone> stays a drawing and makes no
+   * decision about money or units.
+   */
+  const phoneHomeOffers: HomePhoneOffer[] = offers.slice(0, 12).map((offer) => {
+    const price = offerTreePrice(offer, pricingOpen);
+    const area = areaPerTree(offer);
+    return {
+      id: offer.id,
+      href: projectHref(offer.code),
+      name: offer.name,
+      place: place(offer.governorate_id),
+      areaPerTree: area ? formatArea(Math.round(area)) : null,
+      price: price === null ? null : formatMillimes(price),
+      image: (
+        <RemotePhoto
+          url={offer.cover_url}
+          alt={offer.cover_alt_ar}
+          seed={offer.id}
+          sizes="(min-width: 768px) 0px, 45vw"
+          className="size-full"
+        />
+      ),
+    };
+  });
+
   // The number in the drawn stepper on the calculator card: a real Back Office option, never a typed «25».
   const sampleTreeCount = optionsFor(config, "tree_count").find((option) => option.min_number)?.min_number ?? null;
 
@@ -169,15 +204,45 @@ export default async function HomePage() {
           desktop hero squashed — that composition is a headline, two sub-lines, two buttons, a promises card and
           a four-column slab, and at 375 it is four scrolls before a visitor reaches anything they can act on.
           Below md this replaces it; from md the drawing's hero takes over unchanged. */}
-      <AppHero config={config} href={offersOpen ? "/projects" : "/start"} />
-      <AppStats stats={appStats} />
+      <HomePhone
+        hero={<PhotoSlideshow config={config} slots={HERO_SLOTS} priority sizes="100vw" />}
+        quotes={<QuoteStrip quotes={settingJson<Quote[]>(config, "site.quotes", [])} />}
+        copy={{
+          badge: settingText(config, "site.app_greeting_note", "نحو مستقبل أكثر خضرة"),
+          line: settingText(config, "site.app_hero_line", "زيتونتك اليوم… أصل لعمر كامل."),
+          exploreCta: settingText(config, "site.app_hero_cta", "شوف العروض"),
+          guideCta: settingText(config, "site.app_guide_cta", "عاونّي نختار"),
+          offersTitle: offersTitle(config),
+          all: settingText(config, "offers.filter_all", "الكل"),
+          from: settingText(config, "start.from_prefix", "ابتداءً من"),
+          guideTitle: settingText(config, "site.app_guide_title", "إلقى العرض المناسب"),
+          guideNote: settingText(config, "site.app_guide_note", "جاوب على بعض الأسئلة باش نعاونك تختار."),
+          pickTitle: settingText(config, "site.app_pick_title", "إكتشف العروض"),
+          pickNote: settingText(config, "site.app_pick_note", "تصفّح العروض المتوفّرة واختار بسهولة."),
+          progressTitle: settingText(config, "million.title", "وين وصلنا؟"),
+        }}
+        stats={appStats}
+        offers={phoneHomeOffers}
+        guideHref="/start"
+        offersHref={offersOpen ? "/projects" : "/start"}
+        progressNote={
+          progress?.treesRequested != null
+            ? `${formatCount(progress.treesRequested)} ${settingText(config, "site.tab_trees", "زيتونة")}`
+            : null
+        }
+        progressPercent={
+          progress?.treesRequested != null && progress.goal
+            ? Math.round((progress.treesRequested / progress.goal) * 100)
+            : null
+        }
+      />
 
       {/* 01b · THE OFFERS, MOVING (owner, 2026-09-21: «add another banner under it showing our offers to see
           movement like infinite sliding»). It sits directly under the hero on every width, which is the whole
           point of it: the first thing that moves after the photograph is the real stock, named and priced.
           It carries no cover photographs — see the component for why — and it repeats no figure the section
           further down does not already show. */}
-      <div className="reveal"><OffersTicker config={config} offers={offers} /></div>
+      <div className="reveal hidden md:block"><OffersTicker config={config} offers={offers} /></div>
 
       <div className="hidden md:block">
         <Hero
@@ -197,6 +262,13 @@ export default async function HomePage() {
           }
         />
       </div>
+
+      {/* EVERYTHING BELOW IS THE WIDE SCREEN'S PAGE (owner, 2026-09-22: «fully remake them to match the
+          designs»). It used to render on a phone as well, under the phone's own screen: <HomePhone> is 832px
+          tall and these bands added about 7,000px of a second, different home page beneath it. That is why the
+          redesign «could not be seen» — it was there, and then the old page carried on for nine more screens.
+          They are one subtree now, hidden below `md`, so the phone home is the phone screen and nothing else. */}
+      <div className="hidden md:block">
 
       {/* 02 · THE TWO DOORS, straddling the photograph's bottom edge: the calculator, which answers with an
           example, and the offers, which are real land. They are told apart by surface as well as by colour —
@@ -272,6 +344,8 @@ export default async function HomePage() {
           </div>
         </section>
       ) : null}
+
+      </div>
 
       {/* The closing band that used to sit here is gone. It printed the wordmark, `site.closing_title` and
           `site.vision_text` over `home.closing`, about 140px above a footer that printed the wordmark and

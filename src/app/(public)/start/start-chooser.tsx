@@ -53,6 +53,9 @@ export type ValueItem = { icon: ValueIconKey; ar: string; fr?: string };
 
 /** Every text on the page, resolved from `settings` on the server (MIL-02, PRN-02). */
 export type StartCopy = SummaryCopy & {
+  /** The phone bar: what this screen is, and where its way back goes. */
+  screenTitle: string;
+  homeLabel: string;
   /** What this page is, said on the page: «حاسبة تقديرية». Emptying `start.eyebrow` removes the badge. */
   eyebrow: string;
   eyebrowFr: string;
@@ -487,14 +490,37 @@ export function StartChooser({
   };
 
   return (
-    <div className="mx-auto max-w-6xl px-4 py-8 sm:px-6">
-      <div className="mb-6">{breadcrumb}</div>
+    <div data-phone-screen=""
+      className="mx-auto flex min-h-[calc(100dvh-var(--tabbar-h))] max-w-6xl flex-col px-4 py-4 sm:block sm:min-h-0 sm:px-6 sm:py-8">
+      <div className="mb-6 hidden md:block">{breadcrumb}</div>
+
+      {/* THE PHONE'S OWN BAR (owner, 2026-09-22: «a full redesign, better saving space»). The screen opened
+          with a site lockup, a breadcrumb, a badge, a step line and a progress rail — five stacked rows,
+          about 150px, before the question. All five said one of two things: what this is, and how far in you
+          are. So it is one row that says both, with the way back where a thumb expects it. */}
+      <div className="mb-3 flex items-center gap-2 md:hidden">
+        <Link
+          href="/"
+          aria-label={copy.homeLabel || "الرئيسية"}
+          className="flex size-9 flex-none items-center justify-center rounded-xl text-forest hover:bg-leaf-soft"
+        >
+          <svg viewBox="0 0 24 24" aria-hidden="true" className="size-5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M4 12h16m0 0-6-6m6 6-6 6" />
+          </svg>
+        </Link>
+        <span className="min-w-0 flex-1 truncate font-display text-base font-bold text-forest">
+          {copy.screenTitle || "احسب مشروعك"}
+        </span>
+        <span className="flex-none text-[0.6875rem] text-muted">
+          {index + 1}/{steps.length}
+        </span>
+      </div>
 
       {/* Owner, 2026-09-18: «الـMain Form موش عرض». The badge says what the screen is before the visitor answers
           anything: everything else here — a step counter, a bar, a summary titled «مشروعك المبدئي» — reads like
           a purchase being prepared, and the one word that said otherwise sat far down the figures card. */}
       {copy.eyebrow ? (
-        <p className="pill mb-snug bg-gold-soft text-forest ring-1 ring-gold/30">
+        <p className="pill mb-snug hidden bg-gold-soft text-forest ring-1 ring-gold/30 sm:inline-flex">
           <span aria-hidden="true" className="size-1.5 rounded-full bg-gold-bright" />
           <Bi ar={copy.eyebrow} fr={copy.eyebrowFr} frClassName="text-[0.9em] font-normal opacity-80" />
         </p>
@@ -509,35 +535,35 @@ export function StartChooser({
        * therefore drew a gold box around the title. An inline style wins. Nothing is lost: the heading is not a
        * control and is only ever focused in code.
        */}
-      <h1 ref={headingRef} tabIndex={-1} style={{ outline: "none" }} className="section-title mt-6 max-w-2xl">
-        <Bi ar={questionTitle[activeStep].ar} fr={questionTitle[activeStep].fr} frClassName="mt-1 text-end text-[0.6em] text-muted" />
+      <h1 ref={headingRef} tabIndex={-1} style={{ outline: "none" }} className="mt-3 max-w-2xl text-xl font-bold leading-tight text-forest sm:section-title sm:mt-6">
+        <Bi ar={questionTitle[activeStep].ar} fr={questionTitle[activeStep].fr} frClassName="mt-0.5 text-end text-[0.62em] font-normal text-muted" />
       </h1>
 
       {activeStep === "trees" && copy.subtitle ? (
-        <p className="mt-3 max-w-2xl text-lg leading-8 text-muted">
-          <Bi ar={copy.subtitle} fr={copy.subtitleFr} frClassName="text-end text-[0.85em] leading-6 opacity-85" />
+        <p className="mt-1.5 max-w-2xl text-[0.8125rem] leading-5 text-muted sm:mt-3 sm:text-lg sm:leading-8">
+          <Bi ar={copy.subtitle} fr={copy.subtitleFr} frClassName="hidden text-end text-[0.85em] leading-6 opacity-85 sm:block" />
         </p>
       ) : null}
       {activeStep === "spacing" && copy.spacingHint ? (
         <p id={spacingHintId} className="hint mt-2 max-w-xl">
-          <Bi ar={copy.spacingHint} fr={copy.spacingHintFr} frClassName="text-end text-[0.9em] opacity-85" />
+          <Bi ar={copy.spacingHint} fr={copy.spacingHintFr} frClassName="hidden text-end text-[0.9em] opacity-85 sm:block" />
         </p>
       ) : null}
       {activeStep === "payment" && copy.paymentHint ? (
         <p className="hint mt-2 max-w-xl">
-          <Bi ar={copy.paymentHint} fr={copy.paymentHintFr} frClassName="text-end text-[0.9em] opacity-85" />
+          <Bi ar={copy.paymentHint} fr={copy.paymentHintFr} frClassName="hidden text-end text-[0.9em] opacity-85 sm:block" />
         </p>
       ) : null}
       {activeStep === "down" && copy.downPercentHint ? (
         <p className="hint mt-2 max-w-xl">
-          <Bi ar={copy.downPercentHint} fr={copy.downPercentHintFr} frClassName="text-end text-[0.9em] opacity-85" />
+          <Bi ar={copy.downPercentHint} fr={copy.downPercentHintFr} frClassName="hidden text-end text-[0.9em] opacity-85 sm:block" />
         </p>
       ) : null}
 
       {/* The question and the figures, side by side from `lg` up and stacked below it. Both columns start at the
           top of the row: centring the question against the card left a screen-deep gap between a two-chip
           question and its own title, and pushed the chips below the fold on a laptop. */}
-      <div className="mt-roomy grid gap-roomy lg:grid-cols-[minmax(0,1fr)_22rem] lg:items-start">
+      <div className="mt-3 grid gap-4 sm:mt-roomy sm:gap-roomy lg:grid-cols-[minmax(0,1fr)_22rem] lg:items-start">
         {/* On the last screen this column holds what happens next instead of a question. The figures are read
             first on a phone and keep their place beside it on a wide screen, so the order flips only there. */}
         <div className={isSummary ? "order-2 lg:order-1" : undefined}>
@@ -545,7 +571,7 @@ export function StartChooser({
         {activeStep === "trees" ? (
           <fieldset>
             <legend className="sr-only">{copy.title}</legend>
-            <ul className="grid grid-cols-2 gap-4 sm:grid-cols-3">
+            <ul data-answers className="grid grid-cols-4 gap-1.5 sm:grid-cols-3 sm:gap-4">
               {treeCounts.map((option) => {
                 const tagline = option.code ? taglines[option.code] : undefined;
                 const picked = treeId === option.id;
@@ -576,17 +602,19 @@ export function StartChooser({
                 );
               })}
 
-              <li>
+              <li className="col-span-4 sm:col-span-1">
                 {/* A typed number is not a click, so this card moves on with the button below. */}
                 <label
                   htmlFor={customInputId}
                   id="custom"
-                  className={`${treeCardClass(customSelected, "light")} relative scroll-mt-24 ${customSelected ? "shadow-[var(--shadow-card)]" : ""}`}
+                  className={`${treeCardClass(customSelected, "light")} relative scroll-mt-24 max-sm:flex-row max-sm:flex-wrap max-sm:items-center max-sm:justify-between max-sm:gap-x-3 max-sm:gap-y-1 max-sm:px-3 max-sm:text-start ${customSelected ? "shadow-[var(--shadow-card)]" : ""}`}
                 >
                   {customSelected ? <PickedMark /> : null}
-                  <OliveMark trees={customValid && customNumber !== null ? customNumber : 1} className="text-leaf" />
-                  <span id={`${customInputId}-label`} className="font-display text-2xl font-bold leading-tight text-forest">
-                    <Bi ar={copy.customLabel} fr={copy.customLabelFr} />
+                  <span className="hidden sm:contents">
+                    <OliveMark trees={customValid && customNumber !== null ? customNumber : 1} className="text-leaf" />
+                  </span>
+                  <span id={`${customInputId}-label`} className="font-display text-base font-bold leading-tight text-forest sm:text-2xl">
+                    <Bi ar={copy.customLabel} fr={copy.customLabelFr} frClassName="hidden sm:block" />
                   </span>
                   <input
                     id={customInputId}
@@ -607,18 +635,18 @@ export function StartChooser({
                     aria-labelledby={`${customInputId}-label`}
                     aria-describedby={`${customInputId}-hint`}
                     aria-invalid={customInvalid || undefined}
-                    className="field mt-3 text-center tabular-nums"
+                    className="field text-center tabular-nums max-sm:mt-0 max-sm:h-10 max-sm:w-28 sm:mt-3"
                   />
-                  <span id={`${customInputId}-hint`} className={`block ${customInvalid ? "error-text" : "hint mt-1.5"}`}>
-                    <Bi ar={customHintAr} fr={customHintFr} frClassName="text-[0.9em] opacity-85" />
+                  <span id={`${customInputId}-hint`} className={`block max-sm:w-full max-sm:text-[0.6875rem] max-sm:leading-4 ${customInvalid ? "error-text" : "hint mt-1.5"}`}>
+                    <Bi ar={customHintAr} fr={customHintFr} frClassName="hidden text-[0.9em] opacity-85 sm:block" />
                   </span>
                   {taglines.custom ? (
-                    <>
+                    <span className="hidden sm:contents">
                       <span aria-hidden="true" className="my-2 h-px w-10 bg-line-strong" />
                       <span className="text-sm leading-5 text-muted">
                         <Bi ar={taglines.custom.ar} fr={taglines.custom.fr} frClassName="text-[0.85em] opacity-80" />
                       </span>
-                    </>
+                    </span>
                   ) : null}
                 </label>
               </li>
@@ -630,11 +658,11 @@ export function StartChooser({
         {activeStep === "spacing" ? (
           <fieldset aria-describedby={copy.spacingHint ? spacingHintId : undefined}>
             <legend className="sr-only">{copy.spacingTitle}</legend>
-            <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+            <ul data-answers className="grid grid-cols-3 gap-1.5 sm:gap-3">
               {spacingClasses.map((option) => (
                 <li key={option.id}>
                   {/* pe-8 is unconditional so the tick never reflows the card when it appears. */}
-                  <label className="choice relative h-full flex-col items-start justify-start gap-1 pe-8">
+                  <label className="choice relative h-full flex-col items-start justify-start gap-0.5 pe-7 sm:gap-1 sm:pe-8">
                     <input
                       type="radio"
                       name={`${groupId}-spacing`}
@@ -644,24 +672,24 @@ export function StartChooser({
                       className="sr-only"
                     />
                     {spacingId === option.id ? <PickedMark /> : null}
-                    <span className="block font-semibold leading-snug text-ink">
+                    <span className="block text-[0.8125rem] font-semibold leading-tight text-ink sm:text-base sm:leading-snug">
                       <Bi ar={option.label_ar} fr={option.label_fr} frClassName="text-[0.85em] text-muted" />
                     </span>
-                    <span className="block text-sm text-muted tabular-nums">
+                    <span className="block text-[0.6875rem] leading-tight text-muted tabular-nums sm:text-sm">
                       <Bi
                         ar={formatSpacing(option.row_spacing_m, option.tree_spacing_m)}
                         fr={formatSpacing(option.row_spacing_m, option.tree_spacing_m, "m")}
                         frClassName="text-[0.95em] opacity-85"
                       />
                     </span>
-                    <span className="mt-auto block pt-1 font-display text-xl font-bold text-forest tabular-nums">
+                    <span className="mt-auto block pt-0.5 font-display text-base font-bold text-forest tabular-nums sm:pt-1 sm:text-xl">
                       <Bi ar={formatArea(option.area_m2)} fr={formatArea(option.area_m2, "m²")} frClassName="text-[0.7em] text-muted" />
                     </span>
                   </label>
                 </li>
               ))}
               <li>
-                <label className="choice relative h-full justify-center px-8 text-center">
+                <label className="choice relative h-full justify-center px-7 text-center text-[0.8125rem] sm:px-8 sm:text-base">
                   <input
                     type="radio"
                     name={`${groupId}-spacing`}
@@ -684,7 +712,7 @@ export function StartChooser({
         {activeStep === "type" ? (
           <fieldset>
             <legend className="sr-only">{copy.styleQuestion}</legend>
-            <ul className="grid gap-3 sm:grid-cols-2">
+            <ul data-answers className="grid gap-2 sm:grid-cols-2 sm:gap-3">
               {scenarios.map((option) => (
                 <li key={option.id}>
                   <label className={`choice h-full items-start ${withPictures ? "sm:flex-col sm:items-stretch" : ""}`}>
@@ -818,7 +846,7 @@ export function StartChooser({
 
         {/* 5 · The figures, beside the questions on every screen, following each answer. */}
         {showFigures ? (
-          <aside className={isSummary ? "order-1 lg:order-2" : undefined}>
+          <aside className={isSummary ? "order-1 lg:order-2" : "max-lg:hidden"}>
             {/* A simulation never wears the shape of stock: the warm dashed .card-estimate surface, no elevation,
                 and the disclaimer stamped across the head of the card rather than left as a footnote at the
                 bottom. The wording is `start.estimate_note` (MIL-02) — blanking that setting is still the only
@@ -832,13 +860,17 @@ export function StartChooser({
                 <p className="flex items-start gap-2 border-b border-dashed border-gold/50 bg-gold-soft/70 px-4 py-3 text-xs font-semibold leading-5 text-forest sm:px-5">
                   <EstimateIcon />
                   <span>
-                    <Bi ar={copy.estimateNote} fr={copy.estimateNoteFr} frClassName="text-end text-[0.95em] font-normal opacity-80" />
+                    <Bi ar={copy.estimateNote} fr={copy.estimateNoteFr} frClassName="hidden text-end text-[0.95em] font-normal opacity-80 sm:block" />
                   </span>
                 </p>
               ) : null}
 
               {/* What the visitor picked, plus the areas and prices the database quoted for it (docs/tree-area-and-cost.md). */}
-              <div aria-busy={busy || undefined} className={`p-4 transition-opacity sm:p-5 ${busy ? "opacity-60" : ""}`}>
+              <div
+                data-answers
+                aria-busy={busy || undefined}
+                className={`p-4 transition-opacity sm:p-5 ${busy ? "opacity-60" : ""}`}
+              >
                 {leadRow?.value ? (
                   <div className="stat border-b border-dashed border-gold/40 pb-4">
                     <span className="stat-figure">
@@ -890,9 +922,20 @@ export function StartChooser({
         )}
       </div>
 
+      {/* The running estimate, as a phone can afford it: one line, the figure that moves, above the way
+          forward. The card it stands in for is `max-lg:hidden` during the questions — see the note there. */}
+      {showFigures && !isSummary && leadRow?.value ? (
+        <div className="mt-3 flex items-baseline justify-between gap-3 rounded-xl border border-dashed border-gold/50 bg-gold-soft/60 px-3 py-2 lg:hidden">
+          <span className="text-[0.6875rem] leading-tight text-forest/80">{leadRow.label.ar}</span>
+          <span className="font-display text-base font-bold leading-none tabular-nums text-forest">
+            {leadRow.value.ar}
+          </span>
+        </div>
+      ) : null}
+
       {/* The hint belongs above the bar: pinned, the bar covered it. */}
       {activeStep === "trees" && !hasTrees && copy.continueHint ? (
-        <p className="mt-6 max-w-xl text-muted">
+        <p className="mt-3 hidden max-w-xl text-[0.75rem] leading-5 text-muted sm:mt-6 sm:block sm:text-base sm:leading-7">
           <Bi ar={copy.continueHint} fr={copy.continueHintFr} frClassName="text-end text-[0.85em] opacity-85" />
         </p>
       ) : null}
@@ -903,7 +946,7 @@ export function StartChooser({
       <div
         className={`mt-8 flex gap-3 ${
           activeStep === "trees"
-            ? "sticky bottom-0 -mx-4 border-t border-line bg-paper/95 px-4 py-3 backdrop-blur sm:static sm:mx-0 sm:border-0 sm:bg-transparent sm:px-0 sm:py-0"
+            ? "sticky bottom-[var(--tabbar-h)] -mx-4 mt-auto border-t border-line bg-paper/95 px-4 py-3 backdrop-blur sm:static sm:mt-8 sm:mx-0 sm:border-0 sm:bg-transparent sm:px-0 sm:py-0"
             : ""
         }`}
       >
@@ -961,7 +1004,9 @@ function rowStep(key: SummaryRowKey, steps: StepKey[]): StepKey | null {
 function Progress({ step, total }: { step: number; total: number }) {
   return (
     <div>
-      <p className="text-sm font-medium text-muted">
+      {/* The phone's bar already carries «1/5», so the sentence would be the same fact twice, one line
+          apart. It keeps its place from md up, where there is no bar. */}
+      <p className="hidden text-sm font-medium text-muted md:block">
         الخطوة <span className="tabular-nums">{step}</span> من <span className="tabular-nums">{total}</span>
       </p>
       <div
@@ -970,7 +1015,7 @@ function Progress({ step, total }: { step: number; total: number }) {
         aria-valuemax={total}
         aria-valuenow={step}
         aria-label="التقدم في الحاسبة"
-        className="mt-2 h-1.5 overflow-hidden rounded-full bg-line"
+        className="h-1.5 overflow-hidden rounded-full bg-line md:mt-2"
       >
         <div className="h-full rounded-full bg-leaf transition-[width] duration-300" style={{ width: `${(step / total) * 100}%` }} />
       </div>
@@ -993,15 +1038,15 @@ function SummaryItem({
     // A long label and a long amount wrap onto two lines rather than push each other off a phone; `ms-auto`
     // keeps the value against the far edge whether it shares the line or takes its own.
     <div
-      className={`group relative flex flex-wrap items-start justify-between gap-x-4 gap-y-1 py-2.5 ${
+      className={`group relative flex flex-wrap items-start justify-between gap-x-4 gap-y-0.5 py-1.5 sm:py-2.5 ${
         onEdit ? "hover:bg-gold-soft/50" : ""
       }`}
     >
-      <dt className="min-w-0 text-sm text-muted">
+      <dt className="min-w-0 text-[0.8125rem] text-muted sm:text-sm">
         <Bi ar={label.ar} fr={label.fr} frClassName="text-[0.85em]" />
       </dt>
       {/* The French line is an LTR block, so "start" there is the same edge as "end" of the RTL cell. */}
-      <dd className="ms-auto min-w-0 text-end font-semibold text-ink tabular-nums">
+      <dd className="ms-auto min-w-0 text-end text-[0.875rem] font-semibold text-ink tabular-nums sm:text-base">
         {value ? <Bi ar={value.ar} fr={value.fr} frClassName="text-[0.78em] text-start text-muted" /> : "—"}
         {notes.map((note) => (
           <span key={note.ar} className="mt-1 block text-xs font-normal text-muted">
@@ -1014,7 +1059,10 @@ function SummaryItem({
             list keeps its dl > div > (dt, dd) shape. */}
         {onEdit ? (
           <>
-            <span aria-hidden="true" className="mt-0.5 block text-xs font-semibold text-forest underline-offset-4 group-hover:underline">
+            <span
+              aria-hidden="true"
+              className="ms-2 inline text-[0.6875rem] font-semibold text-forest underline-offset-4 group-hover:underline sm:mt-0.5 sm:block sm:text-xs"
+            >
               تبديل
             </span>
             <button type="button" onClick={onEdit} className="absolute inset-0 rounded-lg">
@@ -1047,13 +1095,16 @@ function ChoiceGrid({
       <legend className="sr-only">{legend}</legend>
       {/* The chosen chip is filled, not outlined: on a row of five amounts a coloured edge reads as decoration.
           .choice is 3.25rem tall, so every one of them is still a tap target. */}
-      <div className={`grid gap-3 ${twoColumns ? "grid-cols-1 sm:grid-cols-2" : "grid-cols-2 sm:grid-cols-3"}`}>
+      <div
+        data-answers
+        className={`grid gap-2 sm:gap-3 ${twoColumns ? "grid-cols-2 sm:grid-cols-2" : "grid-cols-3 sm:grid-cols-3"}`}
+      >
         {options.map((option) => {
           const picked = value === option.id;
           return (
             <label
               key={option.id}
-              className={`choice justify-center ${picked ? "shadow-[var(--shadow-card)]" : ""}`}
+              className={`choice justify-center text-center text-[0.8125rem] sm:text-base ${picked ? "shadow-[var(--shadow-card)]" : ""}`}
             >
               <input
                 type="radio"

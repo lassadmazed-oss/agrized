@@ -13,7 +13,9 @@
     "db:migrate": "node --env-file=.env scripts/db-migrate.mjs",
     "db:types": "node --env-file=.env scripts/db-types.mjs",
     "db:test": "node --env-file=.env scripts/db-test.mjs",
-    "demo:projects": "node --env-file=.env scripts/seed-demo-projects.mjs"
+    "demo:projects": "node --env-file=.env scripts/seed-demo-projects.mjs",
+    "sms:dispatch": "node --env-file=.env scripts/sms-dispatch.mjs",
+    "photos:olive": "node --env-file=.env scripts/seed-olive-photos.mjs"
   },
   "dependencies": {
     "@supabase/ssr": "^0.12.7",

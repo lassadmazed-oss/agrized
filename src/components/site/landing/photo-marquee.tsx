@@ -91,7 +91,7 @@ export function PhotoMarquee({
         ["--marquee-duration" as string]: `${seconds * shown.length}s`,
       }}
     >
-      <div className="marquee-track h-full">
+      <div className="marquee-track h-full" style={{ ["--marquee-gap" as string]: "0px" }}>
         {frames(0)}
         <div aria-hidden="true" className="contents">
           {frames(1)}

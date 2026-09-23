@@ -21,6 +21,9 @@ export function startCopy(config: PublicConfig): StartCopy {
     offersTitleFr: text("register.offers_title_fr"),
     offersLabel: text("site.cta_offers_label"),
     offersLabelFr: text("site.cta_offers_label_fr"),
+    /** The phone bar's own title and the label of its way back. Existing keys: no new copy to write. */
+    screenTitle: text("start.estimate_cta", "احسب مشروعك"),
+    homeLabel: text("start.home_label", "الرئيسية"),
     title: text("site.trees_question", "قدّاش زيتونة تحب تبدا بيهم؟"),
     titleFr: text("site.trees_question_fr"),
     subtitle: text("site.trees_subtitle", "اختيارك يمشي معك للخطوة الموالية. تنجم تبدّلو وقت اللي تحب."),
