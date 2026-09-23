@@ -146,6 +146,14 @@ export default async function ReservationPage({ params }: PageProps<"/admin/v2/r
         note={reservation.note}
       />
 
+      {/* The way forward. A hold exists to become a sale; the screen that holds it should say so. */}
+      <Link
+        href={`/admin/v2/reservations/${reservation.id}/complete`}
+        className="btn btn-primary w-full sm:w-auto"
+      >
+        أتمّ البيع
+      </Link>
+
       <Facts>
         <Fact label="العميل">
           <Link href={`/admin/v2/files/${reservation.personId}`} className="text-forest hover:underline">

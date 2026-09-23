@@ -42,7 +42,7 @@ import { createClient } from "@/lib/supabase/server";
 import { ContractBlock, type PaymentMethod } from "../../contracts/contract-block";
 import { isOpen } from "@/lib/backoffice/contracts/model";
 import { readPersonContracts } from "@/lib/backoffice/contracts/read";
-import { CONTRACT_ROLES } from "../../contracts/roles";
+import { CONTRACT_ROLES } from "@/lib/backoffice/contracts/roles";
 import { SignForm, type ContractKind } from "../../contracts/sign-form";
 
 export type ContractCardProps = {

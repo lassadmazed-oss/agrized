@@ -27,7 +27,7 @@ import { useState, type FormEvent } from "react";
 import { ReasonField } from "@/components/admin/reason-field";
 import { formatCount } from "@/lib/format";
 
-import { cancelContract, generateSchedule, setOwned, signContract } from "./actions";
+import { cancelContract, generateSchedule, setOwned, signContract } from "@/lib/backoffice/contracts/actions";
 import { formatAmount, isOpen, type Contract } from "@/lib/backoffice/contracts/model";
 import { useAct } from "./use-act";
 

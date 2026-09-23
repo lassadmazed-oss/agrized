@@ -10,6 +10,7 @@ import { createClient } from "@/lib/supabase/server";
 import { Fact, Facts, Screen, Tile, Tiles } from "../../ui";
 
 import { Schedule } from "./schedule";
+import { SignForm } from "./sign-form";
 
 export const metadata: Metadata = { title: "العقد" };
 
@@ -49,9 +50,17 @@ export default async function ContractPage({ params }: PageProps<"/admin/v2/cont
       }
     >
       {contract.schedulePending || (instalments && !contract.scheduleGeneratedAt) ? (
-        <p className="card border-gold/50 px-3 py-2.5 text-sm text-forest">
-          عقد بالتقسيط بلا جدول — ما يظهرش في قائمة الأقساط. يلزم يتمضى، ومن بعد يتولّد الجدول.
-        </p>
+        <div className="card flex flex-wrap items-center gap-3 border-gold/50 px-3 py-2.5 text-sm text-forest">
+          <span className="min-w-0 flex-1">
+            عقد بالتقسيط بلا جدول — ما يظهرش في قائمة الأقساط.
+          </span>
+          <SignForm contractId={contract.id} instalments={instalments} />
+        </div>
+      ) : !contract.signedOn ? (
+        <div className="card flex flex-wrap items-center gap-3 border-gold/50 px-3 py-2.5 text-sm text-forest">
+          <span className="min-w-0 flex-1">هذا العقد مازال ما تمضاش.</span>
+          <SignForm contractId={contract.id} instalments={instalments} />
+        </div>
       ) : null}
 
       <Tiles>

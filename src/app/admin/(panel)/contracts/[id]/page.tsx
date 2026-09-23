@@ -24,7 +24,7 @@ import {
 } from "@/lib/backoffice/contracts/model";
 import { DownPaymentCard, type PaymentMethod } from "../payment-forms";
 import { readContract } from "@/lib/backoffice/contracts/read";
-import { CANCEL_ROLES, CONTRACT_ROLES } from "../roles";
+import { CANCEL_ROLES, CONTRACT_ROLES } from "@/lib/backoffice/contracts/roles";
 import { PaymentLines, ScheduleList } from "../schedule-list";
 
 export const metadata: Metadata = { title: "العقد" };
