@@ -176,7 +176,19 @@ function answered(request: RequestDetails, governorates: Governorates): Answer[]
     },
     {
       label: "القسط الشهري",
-      value: request.monthly_millimes ? formatMillimes(request.monthly_millimes) : request.installment_label_ar,
+      /*
+       * A PLAN THAT COULD NOT BE PRICED SAYS SO, and this is not a cosmetic choice.
+       *
+       * When a client picks instalments over a duration the pricing table cannot quote — the global
+       * financing_markups start at 36 months while the calculator offers 12 and 24 — the intake stores
+       * payment_mode = 'installments' and leaves monthly, financed total and down-payment amount null
+       * (verified on AGZ-2026-000045, submitted through the real form). Rendering nothing there is
+       * indistinguishable from a cash sale, so a commercial phones a client who was quoted a monthly on
+       * screen with no idea what he was told. The row now states the gap instead of hiding it.
+       */
+      value: request.monthly_millimes
+        ? formatMillimes(request.monthly_millimes)
+        : request.installment_label_ar ?? (request.payment_mode === "installments" ? "ما تحسبش" : null),
     },
     { label: "مدة الدفع", value: request.duration_label_ar ?? (months ? `${formatCount(months)} شهر` : null) },
     { label: "الميزانية", value: request.budget_label_ar },

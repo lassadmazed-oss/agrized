@@ -37,6 +37,9 @@ const LINKS = [
   { href: "/admin/v2/reservations", label: "الحجوزات" },
   { href: "/admin/v2/contracts", label: "العقود" },
   { href: "/admin/v2/installments", label: "الأقساط" },
+  // The stock, and one field that finds a tree by the number a client reads down the phone.
+  { href: "/admin/v2/offers", label: "العروض" },
+  { href: "/admin/v2/trees", label: "الزيتونات" },
 ] as const;
 
 export function WorkflowNav() {

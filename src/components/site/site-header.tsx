@@ -138,7 +138,7 @@ export async function SiteHeader({ tagline, showInterestCta, showProjects }: Sit
           opens on paper, so the pill floats over nothing, and a heavy shadow with nothing under it reads as
           a card that lost its page. On a phone it is a plain bar on the page ground with a hairline under
           it; the pill returns from `md`, where the photograph it was drawn for actually is. */}
-      <div className="me-auto w-full max-w-full overflow-hidden border-b border-line bg-paper md:mx-auto md:w-auto md:max-w-7xl md:rounded-[1.5rem] md:border-0 md:bg-surface md:shadow-[var(--shadow-float)] lg:rounded-[1.75rem]">
+      <div className="me-auto w-full max-w-full overflow-hidden border-b border-line bg-paper md:mx-auto md:w-auto md:max-w-6xl md:rounded-[1.5rem] md:border-0 md:bg-surface md:shadow-[var(--shadow-float)] lg:rounded-[1.75rem]">
         <div className="flex items-center gap-cozy px-3 py-2 max-md:justify-end sm:px-4 lg:px-6 lg:py-3">
           {/* THE LOCKUP: mark, then the name with what the name promises under it. Stacking the tagline
               rather than setting it beside the wordmark is what lets it show at EVERY width — it used to
