@@ -4396,6 +4396,15 @@ export type Database = {
         }
         Returns: Json
       }
+      staff_create_person: {
+        Args: {
+          p_email?: string
+          p_full_name: string
+          p_governorate_id?: number
+          p_phone: string
+        }
+        Returns: Json
+      }
       staff_create_reservation: {
         Args: {
           p_note: string

@@ -5,31 +5,24 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { AnswerText } from "./answer-text";
 
 /**
- * The floating assistant (owner, 2026-09-23: «a floating circle I can move around»).
+ * The assistant, as a pinned circle and a centred panel.
  *
- * WHY IT IS DRAGGABLE AND WHY THAT IS NOT DECORATION. A fixed bubble on a phone covers something: the
- * offer page's own floating CTA, the bottom of a form, the last row of a list. Rather than pick a corner
- * that is wrong on some page, the circle is picked up and put down wherever the reader wants it, and where
- * they put it is remembered for next time.
+ * IT USED TO BE DRAGGABLE and it is not any more (owner, 2026-09-23: «i don't like how it's movable»). The
+ * defence was that a fixed circle covers something on some page and the reader should be able to shove it
+ * aside. What that bought in practice was a control nobody could find twice: it sat somewhere different on
+ * every screen, it moved under a thumb that meant to press it, and a tap that wobbled six pixels was a drag.
+ * It now sits at the end edge above the tab bar, always, and the machinery that moved and remembered it —
+ * the spot ref, the clamp, the localStorage entry, the resize handler — went with it.
  *
- * WHY THE POSITION IS NOT REACT STATE. Dragging fires a pointer event per frame. Held in state, each one
- * would re-render the circle *and* the open conversation behind it. The spot lives in a ref and is written
- * straight to the element's style — the one thing effects are actually for, keeping an external system (the
- * DOM) in step. React re-renders here only when the conversation changes.
- *
- * DRAG AND TAP ARE THE SAME GESTURE, so they are told apart by distance: under DRAG_SLOP pixels the pointer
- * went down and up in the same place and the reader meant to tap. Without that, every tap that wobbled by a
- * pixel would move the circle instead of opening it.
+ * THE PANEL IS CENTRED rather than hanging off the circle's corner: a bottom sheet on a phone, a centred
+ * card from `sm`. A conversation is the thing you are doing while it is open, so it belongs in the middle of
+ * the screen and not pinned to the button that opened it.
  *
  * WHAT THE PANEL KNOWS. Nothing. It posts a question to /api/assistant and prints what comes back. The
  * offers, the prices, the persona and the limits are assembled on the server on every request, so this file
  * holds no business values and cannot fall out of date.
  */
-
-const STORAGE_KEY = "agrized.assistant.spot";
 const BUBBLE = 56; // px, matches size-14
-const EDGE = 12; // px kept between the circle and the viewport edge
-const DRAG_SLOP = 6; // px of movement below which the gesture was a tap, not a drag
 
 type Message = { role: "user" | "assistant"; content: string; allowed?: string[] };
 
@@ -41,25 +34,6 @@ export type AssistantCopy = {
   unavailable: string;
 };
 
-type Spot = { x: number; y: number };
-
-/** Keeps the circle on screen — after a resize, a rotation, or a spot saved on a wider window. */
-function clampSpot({ x, y }: Spot): Spot {
-  const maxX = Math.max(EDGE, window.innerWidth - BUBBLE - EDGE);
-  const maxY = Math.max(EDGE, window.innerHeight - BUBBLE - EDGE);
-  return { x: Math.min(Math.max(x, EDGE), maxX), y: Math.min(Math.max(y, EDGE), maxY) };
-}
-
-/** The spot the CSS below already renders: inline-start, lifted clear of the phone's tab bar. */
-function defaultSpot(): Spot {
-  const styles = getComputedStyle(document.documentElement);
-  const rootSize = Number.parseFloat(styles.fontSize) || 16;
-  const tabBar = Number.parseFloat(styles.getPropertyValue("--tabbar-h")) || 0;
-  const rtl = document.documentElement.dir === "rtl";
-  const x = rtl ? window.innerWidth - BUBBLE - EDGE : EDGE;
-  return clampSpot({ x, y: window.innerHeight - BUBBLE - (tabBar * rootSize + 16) });
-}
-
 export function AssistantBubble({ copy }: { copy: AssistantCopy }) {
   const [open, setOpen] = useState(false);
   const [messages, setMessages] = useState<Message[]>([]);
@@ -67,46 +41,8 @@ export function AssistantBubble({ copy }: { copy: AssistantCopy }) {
   const [busy, setBusy] = useState(false);
 
   const bubble = useRef<HTMLButtonElement>(null);
-  const spot = useRef<Spot | null>(null);
-  const drag = useRef<{ dx: number; dy: number; startX: number; startY: number; moved: boolean } | null>(null);
   const scroller = useRef<HTMLDivElement>(null);
   const field = useRef<HTMLInputElement>(null);
-
-  /** Moves the circle. The element is positioned by left/top from here on, so the CSS defaults are cleared. */
-  const place = useCallback((next: Spot) => {
-    spot.current = next;
-    const element = bubble.current;
-    if (!element) return;
-    element.style.insetInlineStart = "auto";
-    element.style.bottom = "auto";
-    element.style.left = `${next.x}px`;
-    element.style.top = `${next.y}px`;
-  }, []);
-
-  // The saved spot is per-browser: the server cannot know it, so it is applied once the element exists.
-  useEffect(() => {
-    let saved: Spot | null = null;
-    try {
-      const raw = window.localStorage.getItem(STORAGE_KEY);
-      if (raw) {
-        const parsed = JSON.parse(raw) as Partial<Spot>;
-        if (typeof parsed.x === "number" && typeof parsed.y === "number") saved = { x: parsed.x, y: parsed.y };
-      }
-    } catch {
-      // Private window, blocked storage, or a value from an older shape. The default spot is fine.
-    }
-    // Nothing to do when there is no saved spot: the CSS below already draws the circle in the default
-    // place, and moving it there again would only risk a visible jump.
-    if (saved) place(clampSpot(saved));
-  }, [place]);
-
-  useEffect(() => {
-    const onResize = () => {
-      if (spot.current) place(clampSpot(spot.current));
-    };
-    window.addEventListener("resize", onResize);
-    return () => window.removeEventListener("resize", onResize);
-  }, [place]);
 
   useEffect(() => {
     if (!open) return;
@@ -121,49 +57,6 @@ export function AssistantBubble({ copy }: { copy: AssistantCopy }) {
   useEffect(() => {
     scroller.current?.scrollTo({ top: scroller.current.scrollHeight, behavior: "smooth" });
   }, [messages, busy]);
-
-  const onPointerDown = (event: React.PointerEvent<HTMLButtonElement>) => {
-    const current = spot.current ?? defaultSpot();
-    spot.current = current;
-    event.currentTarget.setPointerCapture(event.pointerId);
-    drag.current = {
-      dx: event.clientX - current.x,
-      dy: event.clientY - current.y,
-      startX: event.clientX,
-      startY: event.clientY,
-      moved: false,
-    };
-  };
-
-  const onPointerMove = (event: React.PointerEvent<HTMLButtonElement>) => {
-    const state = drag.current;
-    if (!state) return;
-
-    // Measured from where the finger went down, not from the circle's clamped position: against an edge the
-    // circle stops moving while the finger keeps going, and that is still a drag, not a tap.
-    if (!state.moved && Math.hypot(event.clientX - state.startX, event.clientY - state.startY) > DRAG_SLOP) {
-      state.moved = true;
-    }
-    if (state.moved) place(clampSpot({ x: event.clientX - state.dx, y: event.clientY - state.dy }));
-  };
-
-  const onPointerUp = (event: React.PointerEvent<HTMLButtonElement>) => {
-    const state = drag.current;
-    drag.current = null;
-    event.currentTarget.releasePointerCapture?.(event.pointerId);
-
-    if (state && !state.moved) {
-      setOpen((was) => !was);
-      return;
-    }
-    if (spot.current) {
-      try {
-        window.localStorage.setItem(STORAGE_KEY, JSON.stringify(spot.current));
-      } catch {
-        // Nothing to do: the circle simply starts from the default next time.
-      }
-    }
-  };
 
   const send = useCallback(
     async (question: string) => {
@@ -213,9 +106,10 @@ export function AssistantBubble({ copy }: { copy: AssistantCopy }) {
         <div
           role="dialog"
           aria-label={copy.title}
-          className="fixed z-50 flex flex-col overflow-hidden rounded-2xl border border-line bg-surface shadow-float
-                     start-3 bottom-[calc(var(--tabbar-h)+5rem)]
-                     h-[min(28rem,calc(100dvh-var(--tabbar-h)-9rem))] w-[min(23rem,calc(100vw-1.5rem))]"
+          className="fixed inset-x-0 bottom-0 z-50 mx-auto flex w-full max-w-[30rem] flex-col overflow-hidden
+                     rounded-t-2xl border border-line bg-surface shadow-float
+                     h-[min(32rem,85dvh)]
+                     sm:inset-0 sm:my-auto sm:rounded-2xl"
         >
           <header className="flex items-center gap-3 border-b border-line bg-forest px-4 py-3 text-surface">
             <span className="grid size-9 place-items-center rounded-full bg-surface/15" aria-hidden="true">
@@ -311,26 +205,22 @@ export function AssistantBubble({ copy }: { copy: AssistantCopy }) {
       ) : null}
 
       {/*
-        The inline style is the pre-drag position, written here rather than as a class so that `place()` can
-        take the element over with left/top on the first drag without the two fighting.
+        IT DOES NOT MOVE ANY MORE (owner, 2026-09-23: «i don't like how it's movable»).
+        Dragging was defended as letting a visitor shove the circle off whatever it covers, but a control that
+        wanders is a control nobody can find twice: it lands somewhere different on every screen, it moves
+        under a thumb that meant to press it, and its position is remembered by nothing. It sits at the end
+        edge, above the tab bar, always.
       */}
       <button
         ref={bubble}
         type="button"
-        onPointerDown={onPointerDown}
-        onPointerMove={onPointerMove}
-        onPointerUp={onPointerUp}
-        onPointerCancel={onPointerUp}
+        onClick={() => setOpen((value) => !value)}
         aria-label={open ? "سكّر المساعد" : copy.title}
         aria-expanded={open}
-        style={{
-          insetInlineStart: EDGE,
-          bottom: "calc(var(--tabbar-h) + 1rem)",
-          width: BUBBLE,
-          height: BUBBLE,
-        }}
-        className="fixed z-50 grid touch-none place-items-center rounded-full bg-forest text-surface shadow-float
-                   transition-transform active:scale-95"
+        style={{ width: BUBBLE, height: BUBBLE }}
+        className="fixed z-50 grid place-items-center rounded-full bg-forest text-surface shadow-float
+                   transition-transform active:scale-95
+                   end-3 bottom-[calc(var(--tabbar-h)+1rem)] md:bottom-4"
       >
         {open ? <CloseMark /> : <LeafMark />}
       </button>

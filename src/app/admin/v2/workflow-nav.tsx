@@ -34,6 +34,8 @@ import { Popup } from "./popup";
 const LINKS = [
   { href: "/admin/v2", label: "اليوم" },
   { href: "/admin/v2/files", label: "الملفات" },
+  // The sale starts here, not inside a file: most customers never filled a form.
+  { href: "/admin/v2/sell", label: "بيع" },
   { href: "/admin/v2/reservations", label: "الحجوزات" },
   { href: "/admin/v2/contracts", label: "العقود" },
   { href: "/admin/v2/installments", label: "الأقساط" },

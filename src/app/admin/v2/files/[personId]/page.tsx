@@ -195,11 +195,16 @@ export default async function FilePage({ params }: PageProps<"/admin/v2/files/[p
           «بيع» is never mistaken for «شوف». A file you cannot advance from the screen you are reading is a
           report. */}
       <div className="flex flex-wrap items-center gap-2">
-        {person.cin ? (
-          <Link href={`/admin/v2/files/${person.id}/sell`} className="btn btn-primary btn-sm">
-            بيع زيتونات
-          </Link>
-        ) : null}
+        {/*
+          THE BUTTON IS ALWAYS HERE, even with no CIN on the file (owner, 2026-09-23: «where is the page I
+          sell from, I don't get it»). Hiding it left most files with no visible way into a sale and nothing
+          saying why — a reader cannot act on a rule they cannot see. The sale itself is still refused
+          without an identity, on the next screen, which states the reason and links to the form that fixes
+          it. A guard that explains itself beats a button that disappears.
+        */}
+        <Link href={`/admin/v2/files/${person.id}/sell`} className="btn btn-primary btn-sm">
+          بيع زيتونات
+        </Link>
 
         <FileActions
           personId={person.id}
