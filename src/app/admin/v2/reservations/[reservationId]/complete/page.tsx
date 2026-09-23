@@ -3,11 +3,14 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import { readReservation } from "@/lib/backoffice/reservations/read";
-import { requireStaff } from "@/lib/auth";
+import { hasRole, PRICE_ROLES, requireStaff } from "@/lib/auth";
+import { getPublicConfig, settingBool } from "@/lib/config";
 import { formatCount, formatMillimes } from "@/lib/format";
 import { createClient } from "@/lib/supabase/server";
 
 import { Fact, Facts, Screen } from "../../../ui";
+
+import { ReservationActs } from "../deposit-form";
 
 import { CompleteForm } from "./complete-form";
 
@@ -32,7 +35,7 @@ export const metadata: Metadata = { title: "تأكيد البيع" };
 export default async function CompletePage({
   params,
 }: PageProps<"/admin/v2/reservations/[reservationId]/complete">) {
-  await requireStaff();
+  const staff = await requireStaff();
   const { reservationId } = await params;
   const supabase = await createClient();
 
@@ -46,6 +49,13 @@ export default async function CompletePage({
   ]);
 
   const depositSettled = reservation.depositLeftMillimes <= 0;
+  // Whether an unpaid عربون BLOCKS the contract or merely deserves a mention is a setting, not a guess. The
+  // screen used to say «تنجم تكمّل» either way, and when the rule was on the server refused the press with an
+  // error naming the setting key — a screen promising something the database forbids, which is worse than no
+  // warning at all (owner, 2026-09-23).
+  const config = await getPublicConfig();
+  const depositRequired = settingBool(config, "contracts.require_deposit_paid", true);
+  const blocked = depositRequired && !depositSettled && reservation.depositDueMillimes > 0;
 
   return (
     <Screen
@@ -98,13 +108,34 @@ export default async function CompletePage({
           </Link>
           .
         </p>
+      ) : blocked ? (
+        <div className="card flex flex-wrap items-center gap-3 border-gold/50 px-3 py-2.5 text-sm text-forest">
+          <span className="min-w-0 flex-1">
+            العربون مازال ما تخلّصش كامل ({formatMillimes(reservation.depositLeftMillimes)} باقي)، والعقد ما
+            يتعملش قبلو. سجّلو من هوني.
+          </span>
+          {/* The act, where the block is. Sending someone to another screen to fix what this one is refusing
+              is how a two-minute sale becomes a hunt. */}
+          <ReservationActs
+            reservationId={reservation.id}
+            canAct={hasRole(staff, PRICE_ROLES)}
+            isOpen={reservation.isOpen}
+            overdue={reservation.isOverdue}
+            owes
+            leftMillimes={reservation.depositLeftMillimes}
+            treesHeld={reservation.treesHeld}
+            conditions={null}
+            note={null}
+          />
+        </div>
       ) : !depositSettled && reservation.depositDueMillimes > 0 ? (
         <p className="card border-gold/50 px-3 py-2.5 text-sm text-forest">
-          العربون مازال ما تخلّصش كامل. تنجم تكمّل، أما تثبّت أوّلاً.
+          العربون مازال ما تخلّصش كامل ({formatMillimes(reservation.depositLeftMillimes)} باقي)، أما الإعدادات
+          تسمح تكمّل.
         </p>
       ) : null}
 
-      {person?.cin ? (
+      {person?.cin && !blocked ? (
         <CompleteForm
           reservationId={reservation.id}
           depositMillimes={reservation.depositDueMillimes}
