@@ -1,5 +1,8 @@
+import { Suspense } from "react";
 import type { Metadata, Viewport } from "next";
 import { IBM_Plex_Sans_Arabic, Markazi_Text } from "next/font/google";
+
+import { NavigationVeil } from "@/components/site/navigation-veil";
 
 import { getPublicConfig, settingText } from "@/lib/config";
 
@@ -56,7 +59,15 @@ export const viewport: Viewport = {
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html lang="ar" dir="rtl" className={`${plexArabic.variable} ${markazi.variable}`}>
-      <body className="min-h-dvh bg-paper font-sans text-ink antialiased">{children}</body>
+      <body className="min-h-dvh bg-paper font-sans text-ink antialiased">
+        {children}
+        {/* The veil sits at the root so it covers the Back Office as well as the site, and inside a Suspense
+            boundary because it reads the query string: without one, every prerendered route above it would
+            be pulled into client rendering just to host a component that draws nothing until a click. */}
+        <Suspense fallback={null}>
+          <NavigationVeil />
+        </Suspense>
+      </body>
     </html>
   );
 }

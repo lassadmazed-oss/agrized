@@ -1,5 +1,7 @@
 import "server-only";
 
+import { after } from "next/server";
+
 import { createAdminClient } from "@/lib/supabase/admin";
 
 /**
@@ -233,4 +235,39 @@ export async function dispatchNotifications(limit?: number): Promise<DispatchOut
   }
 
   return { claimed: batch.length, sent, failed, balance };
+}
+
+/**
+ * Sends what the request just enqueued, after the response has gone out.
+ *
+ * A form submit writes its confirmation into the queue and nothing drained it, so the message sat there
+ * until someone ran `npm run sms:dispatch` by hand. This hands the drain to `after()`, which Next runs once
+ * the response is finished: the visitor's submit is never slowed, never fails because the provider is slow
+ * or down, and the message leaves within a second of the form being sent.
+ *
+ * `limit` is small on purpose. The claim takes the OLDEST due rows, so a run started by one submission may
+ * also carry a message an earlier one left behind — which is wanted — but a single request must not try to
+ * empty a long queue. Anything left over is picked up by the next submission, or by the scheduler calling
+ * /api/notifications/dispatch.
+ *
+ * Nothing here decides whether to send: `claim_notifications` returns nothing at all while `sms.enabled`
+ * is off, so calling this on every submission is safe with the switch down.
+ *
+ * Failures are swallowed deliberately. The visitor's form succeeded; an SMS that did not leave is written
+ * to notification_outbox.last_error and retried, and must never turn into a failed submission.
+ */
+export function dispatchAfterResponse(limit = 5): void {
+  after(async () => {
+    try {
+      const outcome = await dispatchNotifications(limit);
+      if (outcome.blocked) {
+        console.warn(`[sms] dispatch blocked: ${outcome.blocked}`);
+      } else if (outcome.failed > 0) {
+        console.warn(`[sms] ${outcome.failed} message(s) failed; reasons are in notification_outbox.last_error`);
+      }
+    } catch (cause) {
+      // Reaching here means the drain itself broke, not one message. The rows stay claimable.
+      console.error("[sms] dispatch after response threw", cause);
+    }
+  });
 }

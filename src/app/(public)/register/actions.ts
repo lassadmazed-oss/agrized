@@ -9,6 +9,7 @@ import { getStaffSession } from "@/lib/auth";
 import { normalizePhone } from "@/lib/phone";
 import { auditHeaders, clientIp, hashIp } from "@/lib/request-context";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { dispatchAfterResponse } from "@/lib/sms";
 import { PAYMENT_MODES } from "@/lib/tree-pricing";
 
 import { calculatorGap } from "../start/calculator-summary";
@@ -180,5 +181,7 @@ export async function submitInterest(input: InterestInput): Promise<SubmitIntere
     console.error("submit_interest_request returned no request number", result);
     return { ok: false, message: intakeErrorMessage(null) };
   }
+  // The RPC queued the confirmation; send it once the visitor has their success screen.
+  dispatchAfterResponse();
   return { ok: true, requestNo };
 }

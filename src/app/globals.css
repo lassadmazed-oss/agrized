@@ -768,6 +768,96 @@ body {
     }
   }
 
+  /*
+   * A popup, as a native <dialog>.
+   *
+   * Not a library and not a div with a z-index: showModal() gives the top layer, a real backdrop, Esc, focus
+   * trapping and inertness on everything behind it — all of which a hand-rolled overlay has to reimplement
+   * and usually half-reimplements.
+   *
+   * IT IS A SHEET ON A PHONE AND A CARD ON A DESKTOP. Below `sm` it sits on the bottom edge, full width, its
+   * top corners rounded: that is where a thumb is, and an action a thumb cannot reach is an action performed
+   * two-handed. Above it, it centres.
+   *
+   * WHY IT EARNS ITS PLACE HERE: the client file used to stack three always-open forms — stage, note,
+   * identity — about 420px of boxes a reader scrolled past every single visit to reach the history. They are
+   * now one row of small buttons (owner, 2026-09-23: «use popups, smaller stuff that uses less place»). The
+   * form is identical; it just is not on screen until it is asked for.
+   */
+  .popup {
+    margin: 0;
+    padding: 0;
+    border: 0;
+    max-height: 92dvh;
+    background: transparent;
+    color: inherit;
+  }
+  .popup::backdrop {
+    background: rgb(27 42 31 / 0.45);
+  }
+  .popup-panel {
+    width: 100vw;
+    max-width: 30rem;
+    max-height: 92dvh;
+    overflow-y: auto;
+    background: var(--color-surface);
+    border: 1px solid var(--color-line);
+    border-radius: 1rem 1rem 0 0;
+    box-shadow: var(--shadow-card, 0 -8px 32px -12px rgb(27 42 31 / 0.25));
+  }
+  /* Phone: pinned to the bottom edge. */
+  .popup {
+    position: fixed;
+    inset: auto 0 0 0;
+  }
+  @media (min-width: 640px) {
+    .popup {
+      inset: 0;
+      display: grid;
+      place-items: center;
+    }
+    .popup-panel {
+      width: 30rem;
+      border-radius: 1rem;
+    }
+  }
+
+  /*
+   * A figure that has not arrived yet.
+   *
+   * The estimate card used to fill in the instant its quote landed: blanks became numbers under the
+   * visitor's eyes, which reads as the price CHANGING rather than as the price arriving (owner,
+   * 2026-09-23: «i don't like how it suddenly get changed … start with a mock loading animation then it
+   * loads the data»). A placeholder holding the card's exact shape turns that into a fill, and because it
+   * is the same shape, nothing below it reflows when the figures land.
+   *
+   * The sheen travels instead of the whole block pulsing: eleven rows blinking together is a strobe, and
+   * one sweep across a card reads as one thing loading. `background-size` is twice the block so a single
+   * pass crosses it, and the gradient is stated in both directions — a sweep that ran to the left of an
+   * RTL page would arrive from off-screen.
+   */
+  .skeleton {
+    border-radius: 0.375rem;
+    background-color: var(--color-line);
+    background-image: linear-gradient(
+      90deg,
+      transparent 0%,
+      color-mix(in srgb, var(--color-surface) 70%, transparent) 50%,
+      transparent 100%
+    );
+    background-size: 200% 100%;
+    background-repeat: no-repeat;
+    animation: skeleton-sweep 1.5s ease-in-out infinite;
+  }
+  @keyframes skeleton-sweep {
+    from {
+      background-position: 150% 0;
+    }
+    to {
+      background-position: -50% 0;
+    }
+  }
+
   /* The same arrival, tied to the scroll: a band lifts into place as it comes up the screen and is finished
      by the time it is a third of the way in, so nothing is still moving where the eye settles. */
   .reveal {
@@ -810,11 +900,110 @@ body {
     }
   }
 
+  /* THE NAVIGATION VEIL (components/site/navigation-veil.tsx).
+   *
+   * Owner, 2026-09-23: a circle in the middle of the screen and the page behind it blurred, so a tap is
+   * plainly received. The blur is the whole signal — it says «this screen is on its way out» in a way a
+   * spinner alone, floating over a page that still looks clickable, does not.
+   *
+   * It fades in over 180ms instead of appearing. Combined with the 120ms the component waits before mounting
+   * it at all, a navigation that resolves quickly shows nothing, and one that does not grows a veil rather
+   * than flashing one.
+   *
+   * The ring is one continuous rotation. It is the one place on the site where a spinner is the content:
+   * there is nothing else to look at while waiting, and the rule the marquee earns its motion by is the same
+   * rule that earns this one.
+   */
+  .nav-veil {
+    position: fixed;
+    inset: 0;
+    z-index: 90;
+    display: grid;
+    place-items: center;
+    background: rgb(250 249 245 / 0.55);
+    /* The veil REPORTS, it does not block. Covering the viewport at z-index 90 without this, it swallowed
+       every click on the site — including the click on a link that would have changed the address and taken
+       it down, so anything that raised it and did not navigate locked the page for good (owner, 2026-09-23:
+       «this animation stuck in all the website»). Feedback that can trap a visitor is worse than no
+       feedback, and a veil nobody can click through has no way of being wrong safely. */
+    pointer-events: none;
+    /* The blur itself is a Tailwind utility on the element, not a declaration here: written by hand the
+       build collapsed the pair down to the -webkit- form alone, which current Chrome no longer answers to,
+       and the veil came out flat. The utility is emitted for whatever the browserslist target actually is. */
+    animation: veil-in 180ms ease-out both;
+  }
+  @keyframes veil-in {
+    from {
+      opacity: 0;
+    }
+    to {
+      opacity: 1;
+    }
+  }
+
+  .nav-veil-ring {
+    display: block;
+    inline-size: 3rem;
+    block-size: 3rem;
+    color: var(--color-forest, #1f4a2c);
+    animation: veil-spin 900ms linear infinite;
+  }
+  @keyframes veil-spin {
+    to {
+      transform: rotate(360deg);
+    }
+  }
+
+  /* Someone who asked their system for less movement still gets the answer — the veil and the ring, held
+     still. A held ring is a poor spinner and a perfectly good «wait». */
+  @media (prefers-reduced-motion: reduce) {
+    .nav-veil {
+      animation: none !important;
+    }
+    .nav-veil-ring {
+      animation: none !important;
+    }
+  }
+
+  /* The counter bar, breathing.
+   *
+   * The rule three primitives up says the marquee is the one continuous motion on the site, and it earns it
+   * because the drifting photography IS the content. This earns it on the same ground: the bar does not
+   * report a finished quantity, it reports one that is still being collected — every new request lengthens
+   * it. A sheen that crosses it every few seconds says «still counting» where a flat green bar says «done».
+   *
+   * It moves light across the fill and never the fill itself, so the length a reader is measuring is exactly
+   * where it was, and nothing beside it reflows.
+   */
+  .counter-fill {
+    position: relative;
+    overflow: hidden;
+  }
+  .counter-fill::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(90deg, transparent 0%, rgb(255 255 255 / 0.55) 50%, transparent 100%);
+    transform: translate3d(-100%, 0, 0);
+    animation: counter-sheen 3.2s ease-in-out infinite;
+  }
+  @keyframes counter-sheen {
+    0% {
+      transform: translate3d(-100%, 0, 0);
+    }
+    60%,
+    100% {
+      transform: translate3d(100%, 0, 0);
+    }
+  }
+
   @media (prefers-reduced-motion: reduce) {
     .rise,
     .reveal,
     .float,
-    .figure-in {
+    .figure-in,
+    .skeleton,
+    .counter-fill::after {
       animation: none !important;
       opacity: 1 !important;
       transform: none !important;

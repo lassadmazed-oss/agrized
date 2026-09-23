@@ -59,11 +59,6 @@ export type StartCopy = SummaryCopy & {
   /** What this page is, said on the page: «حاسبة تقديرية». Emptying `start.eyebrow` removes the badge. */
   eyebrow: string;
   eyebrowFr: string;
-  /** The way out to the real offers, shown only while the projects module answers. */
-  offersTitle: string;
-  offersTitleFr: string;
-  offersLabel: string;
-  offersLabelFr: string;
   title: string;
   titleFr: string;
   subtitle: string;
@@ -119,15 +114,12 @@ export type StartChooserProps = {
   durations: ChoiceOption[];
   copy: StartCopy;
   taglines: Taglines;
-  values: ValueItem[];
   customMin: number;
   customMax: number;
   /** Answers already in the URL: a home card, or «بدّل اختياراتك» on /register. */
   initial: CalculatorChoices;
   /** `visit=1` travels on to /register. */
   wantsVisit: boolean;
-  /** FLAG-02: /projects answers this visitor, so the last screen may send them to the real offers. */
-  offersOpen: boolean;
   /** Server-rendered nodes (next/image, breadcrumb links) kept out of the client bundle. */
   breadcrumb: ReactNode;
   photo: ReactNode;
@@ -136,6 +128,16 @@ export type StartChooserProps = {
 const QUOTE_DEBOUNCE_MS = 250;
 /** Long enough to see the card tick, short enough not to feel like waiting (owner: one question, then the next). */
 const ADVANCE_MS = 220;
+
+/**
+ * How long the estimate card stays a placeholder when the last screen opens.
+ *
+ * The figures are usually already in hand by then — the quote is fetched from the spacing question onward —
+ * so without this the card would arrive complete and the visitor would watch a price appear out of nothing
+ * (owner, 2026-09-23). Long enough to read as «this is being worked out», short enough that nobody waits on
+ * it; a quote still in flight simply holds the placeholder longer.
+ */
+const SUMMARY_FILL_MS = 900;
 
 /** One question per screen, in this order; the ones without data or without installments drop out. */
 type StepKey = "trees" | "spacing" | "type" | "payment" | "down" | "duration" | "summary";
@@ -202,12 +204,10 @@ export function StartChooser({
   durations,
   copy,
   taglines,
-  values,
   customMin,
   customMax,
   initial,
   wantsVisit,
-  offersOpen,
   breadcrumb,
   photo,
 }: StartChooserProps) {
@@ -223,6 +223,11 @@ export function StartChooser({
   const [quoting, setQuoting] = useState(false);
   const quoteSeq = useRef(0);
   const [announcement, setAnnouncement] = useState("");
+  // The last screen fills itself in once, on first arrival. Coming back to it after an edit keeps the
+  // figures on screen and dims them, which is the behaviour a correction wants: nobody editing a number
+  // wants to wait for the card to be rebuilt.
+  const [summaryFilled, setSummaryFilled] = useState(false);
+  const summarySince = useRef<number | null>(null);
   const groupId = useId();
   const customInputId = `${groupId}-custom`;
   const spacingHintId = `${groupId}-spacing-hint`;
@@ -379,6 +384,27 @@ export function StartChooser({
     return () => clearTimeout(timer);
   }, [spacingId, quoteTrees, paymentMode, quoteDown, quoteDuration]);
 
+  /**
+   * Hold the last screen as a placeholder for a beat, then fill it.
+   *
+   * The wait is measured from the moment the screen opened, not from now, so a quote that took 700ms of it
+   * only costs the remaining 200 — the visitor never pays for the same wait twice. A quote still in flight
+   * is waited for outright: filling the card with figures that are about to be replaced is the jump this
+   * exists to remove.
+   *
+   * `setState` happens in the timer, never in the body of the effect: a synchronous one here would render
+   * the card twice on the way to showing nothing new.
+   */
+  useEffect(() => {
+    if (!isSummary || summaryFilled) return;
+    if (summarySince.current === null) summarySince.current = Date.now();
+    if (quoting || (spacingId !== null && quote === null)) return;
+
+    const waited = Date.now() - summarySince.current;
+    const timer = setTimeout(() => setSummaryFilled(true), Math.max(0, SUMMARY_FILL_MS - waited));
+    return () => clearTimeout(timer);
+  }, [isSummary, summaryFilled, quoting, quote, spacingId]);
+
   // Only what was actually chosen travels; /register checks each id against the same lists.
   const choices: CalculatorChoices = {
     treeId: chosenTree?.id ?? null,
@@ -490,8 +516,13 @@ export function StartChooser({
   };
 
   return (
+    /* The screen is as tall as its questions, no taller (owner, 2026-09-23: «too much spacing
+       unnecessary … so it doesn't feel empty»). It used to be pinned to a full viewport height, which on
+       the short screens — four tiles, six tiles — left a third of the phone blank between the last answer
+       and the button, and read as a page still loading something. The bar under it is `sticky`, so it
+       still sits at the bottom of a screen that IS long enough to scroll. */
     <div data-phone-screen=""
-      className="mx-auto flex min-h-[calc(100dvh-var(--tabbar-h))] max-w-6xl flex-col px-4 py-4 sm:block sm:min-h-0 sm:px-6 sm:py-8">
+      className="mx-auto flex max-w-6xl flex-col px-4 py-4 sm:block sm:px-6 sm:py-8">
       <div className="mb-6 hidden md:block">{breadcrumb}</div>
 
       {/* THE PHONE'S OWN BAR (owner, 2026-09-22: «a full redesign, better saving space»). The screen opened
@@ -822,23 +853,14 @@ export function StartChooser({
               </p>
             ) : null}
 
-            {/* The estimate is «موش عرض عقاري نهائي», so the screen says where the real ones are. Nothing renders
-                while the projects module is closed to this visitor, and nothing is written here that is not in
-                `settings` already (site.cta_offers_label, register.offers_title). */}
-            {offersOpen && copy.offersLabel ? (
-              <div className="mt-5 border-t border-line pt-5">
-                {copy.offersTitle ? (
-                  <p className="font-semibold text-ink">
-                    <Bi ar={copy.offersTitle} fr={copy.offersTitleFr} frClassName="text-[0.85em] font-normal text-muted" />
-                  </p>
-                ) : null}
-                <Link href="/projects" className="btn btn-secondary mt-3 w-full">
-                  <span>
-                    <Bi ar={copy.offersLabel} fr={copy.offersLabelFr} frClassName="text-[0.7em] font-normal text-muted" />
-                  </span>
-                </Link>
-              </div>
-            ) : null}
+            {/* Owner, 2026-09-23: this panel keeps the registration and the lock line, nothing else.
+                «عروضنا الحالية» and its «شوف العروض» button used to sit under a rule here, and they turned
+                the one thing this screen is for into a choice between two. The way to the catalogue is
+                already in the header, on the home page and in the footer; it does not need a second door at
+                the exact moment someone has finished a simulation and is about to register.
+
+                The settings behind it are untouched — register.offers_title and site.cta_offers_label are
+                still read by the landing page — so nothing the owner wrote has been deleted. */}
           </section>
         ) : null}
 
@@ -865,11 +887,34 @@ export function StartChooser({
                 </p>
               ) : null}
 
+              {/* The card being worked out. It carries the same rows as the real one so the reveal changes
+                  the content and not the shape, and it is `aria-hidden` with a spoken «…» beside it: a
+                  screen reader should hear that figures are coming, not eleven empty rows. */}
+              {isSummary && !summaryFilled ? (
+                <div className="p-4 sm:p-5" aria-hidden>
+                  <div className="border-b border-dashed border-gold/40 pb-4">
+                    <span className="skeleton block h-9 w-2/5" />
+                    <span className="skeleton mt-2 block h-4 w-1/4" />
+                  </div>
+                  <div className="divide-y divide-line">
+                    {listRows.map((row) => (
+                      <div key={row.key} className="flex items-center justify-between gap-6 py-3">
+                        <span className="skeleton block h-3.5 w-1/3" />
+                        <span className="skeleton block h-3.5 w-1/4" />
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ) : null}
+
               {/* What the visitor picked, plus the areas and prices the database quoted for it (docs/tree-area-and-cost.md). */}
               <div
                 data-answers
+                hidden={isSummary && !summaryFilled}
                 aria-busy={busy || undefined}
-                className={`p-4 transition-opacity sm:p-5 ${busy ? "opacity-60" : ""}`}
+                className={`p-4 transition-opacity sm:p-5 ${busy ? "opacity-60" : ""} ${
+                  isSummary && summaryFilled ? "rise" : ""
+                }`}
               >
                 {leadRow?.value ? (
                   <div className="stat border-b border-dashed border-gold/40 pb-4">
@@ -944,7 +989,7 @@ export function StartChooser({
           pinned to the bottom of a phone. On every other screen it held «رجوع» alone, and a full-width pinned bar
           for one small button covered the figures underneath it; there it simply follows the page. */}
       <div
-        className={`mt-8 flex gap-3 ${
+        className={`mt-5 flex gap-3 sm:mt-8 ${
           activeStep === "trees"
             ? "sticky bottom-[var(--tabbar-h)] -mx-4 mt-auto border-t border-line bg-paper/95 px-4 py-3 backdrop-blur sm:static sm:mt-8 sm:mx-0 sm:border-0 sm:bg-transparent sm:px-0 sm:py-0"
             : ""
@@ -967,18 +1012,13 @@ export function StartChooser({
         ) : null}
       </div>
 
-      {isSummary && values.length > 0 ? (
-        <ul className="mt-12 grid gap-6 border-t border-line pt-8 sm:grid-cols-2 lg:grid-cols-4">
-          {values.map((item, itemIndex) => (
-            <li key={`${itemIndex}-${item.ar}`} className="flex items-start gap-3">
-              <ValueIcon icon={item.icon} />
-              <p className="text-sm leading-6 text-ink">
-                <Bi ar={item.ar} fr={item.fr} frClassName="text-[0.9em] text-muted" />
-              </p>
-            </li>
-          ))}
-        </ul>
-      ) : null}
+      {/* Owner, 2026-09-23: the six slogans from start.values used to close the summary. They are the
+          site's opening argument, and someone who has walked five steps of a simulation has already been
+          convinced — repeating «زيتونتك هي مشروعك» to them only pushes the registration further down the
+          screen and says nothing new.
+
+          The setting itself stays. The landing hero falls back to start.values for its promise rows (see
+          heroPromises), so emptying the key in the Back Office would blank the home page instead. */}
     </div>
   );
 }
@@ -1183,51 +1223,3 @@ function LockIcon() {
   );
 }
 
-function ValueIcon({ icon }: { icon: ValueIconKey }) {
-  const common = {
-    viewBox: "0 0 24 24",
-    className: "size-6 flex-none text-leaf",
-    fill: "none",
-    stroke: "currentColor",
-    strokeWidth: 1.75,
-    strokeLinecap: "round" as const,
-    strokeLinejoin: "round" as const,
-    "aria-hidden": true,
-  };
-  switch (icon) {
-    case "people":
-      return (
-        <svg {...common}>
-          <circle cx="9" cy="8" r="3.5" />
-          <path d="M3 20c0-3.5 2.7-6 6-6s6 2.5 6 6" />
-          <circle cx="17" cy="9" r="2.5" />
-          <path d="M16 14.5c2.8 0 5 2.2 5 5.5" />
-        </svg>
-      );
-    case "hand":
-      return (
-        <svg {...common}>
-          <path d="M8 12V5.5a1.5 1.5 0 0 1 3 0V11" />
-          <path d="M11 10.5V4.5a1.5 1.5 0 0 1 3 0v6" />
-          <path d="M14 11V6.5a1.5 1.5 0 0 1 3 0V13" />
-          <path d="M17 13v-1.5a1.5 1.5 0 0 1 3 0V15c0 3.9-3.1 7-7 7h-1.2c-2.2 0-4.2-1.1-5.4-2.9L4 15a1.6 1.6 0 0 1 2.6-1.9L8 15" />
-        </svg>
-      );
-    case "chart":
-      return (
-        <svg {...common}>
-          <path d="M4 20h16" />
-          <path d="M6 16l4.5-5 3 3L19 7" />
-          <path d="M15 7h4v4" />
-        </svg>
-      );
-    default:
-      // "leaf", and any key the Back Office JSON might carry that this build does not know yet.
-      return (
-        <svg {...common}>
-          <path d="M4 20C6 10 12 5 21 4c-1 9-6 15-16 16z" />
-          <path d="M4 20l8-8" />
-        </svg>
-      );
-  }
-}

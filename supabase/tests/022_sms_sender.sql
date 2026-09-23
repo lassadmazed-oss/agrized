@@ -7,8 +7,11 @@ begin
     where s.key = 'sms.sender_id' and s.value_type = 'text' and s.group_key = 'sms' and not s.is_public
   ), 'sms.sender_id is an internal text setting in the sms group';
 
-  assert (select s.value #>> '{}' from public.settings s where s.key = 'sms.sender_id') = 'AGRIZED',
-    'the sender is AGRIZED';
+  -- Deliberately not pinned to one name. Which sender the operators actually deliver is an operational
+  -- fact that changes without the code changing (0078 moved it from AGRIZED to MAZED), so the test holds
+  -- the shape the operator requires and leaves the choice to Settings › sms.sender_id.
+  assert coalesce((select s.value #>> '{}' from public.settings s where s.key = 'sms.sender_id'), '') <> '',
+    'a sender is set';
 
   -- What an operator accepts as a sender: 2..11 latin capitals or digits, no space.
   assert (select s.value #>> '{}' from public.settings s where s.key = 'sms.sender_id') ~ '^[A-Z0-9]{2,11}$',

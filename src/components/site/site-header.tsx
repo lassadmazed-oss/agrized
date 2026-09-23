@@ -2,7 +2,7 @@ import Link from "next/link";
 
 import { Wordmark } from "@/components/brand/wordmark";
 import { offersTitle } from "@/components/site/offers";
-import { flagState, getPublicConfig, settingJson, settingText, type PublicConfig } from "@/lib/config";
+import { flagState, getPublicConfig, settingText, type PublicConfig } from "@/lib/config";
 
 type SiteHeaderProps = {
   tagline: string;
@@ -64,8 +64,11 @@ export function siteNav(config: PublicConfig): SiteLink[] {
   // What is real comes first.
   if (flagState(config, "projects") === "public") links.push({ href: "/projects", label: offersTitle(config) });
   if (flagState(config, "interest_form") === "public") links.push({ href: "/start", label: estimateLabel(config) });
-  if (settingJson<unknown[]>(config, "site.how_it_works", []).length > 0)
-    links.push({ href: "/#how", label: howTitle(config) });
+  // «كيفاش تخدم AgriZed؟» is not in the bar any more (owner, 2026-09-23: one composition, the phone's).
+  // The four steps it pointed at were part of the wide screen's second home page, and that page is gone —
+  // the link survived it for a few minutes as an anchor to an id nothing renders, which is worse than no
+  // link at all: it looks like navigation and does nothing. `site.how_it_works` is untouched, so putting
+  // the section back anywhere restores the entry by restoring these two lines.
   if (flagState(config, "public_statistics") === "public")
     links.push({ href: "/#million", label: settingText(config, "site.progress_title", "وين وصلنا؟") });
   if (flagState(config, "land_offers") === "public") links.push({ href: "/land", label: landTitle(config) });

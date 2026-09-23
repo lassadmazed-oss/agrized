@@ -1,26 +1,15 @@
-import Link from "next/link";
 
-import { AreaSection } from "@/components/site/landing/area-section";
 import { ClosingCta } from "@/components/site/landing/closing-cta";
-import { CounterBand } from "@/components/site/landing/counter-band";
 import { Faq } from "@/components/site/landing/faq";
-import { Hero, heroCopy, heroPromises, HERO_SLOTS } from "@/components/site/landing/hero";
-import { HeroStats, heroStatColumns } from "@/components/site/landing/hero-stats";
-import { homeOffers, OffersSection } from "@/components/site/landing/offers-section";
-import { OffersTicker } from "@/components/site/landing/offers-ticker";
+import { HERO_SLOTS } from "@/components/site/landing/hero";
 import { PhotoSlideshow } from "@/components/site/landing/photo-slideshow";
-import { ServicesMap } from "@/components/site/landing/services-map";
-import { Steps } from "@/components/site/landing/steps";
-import { TreePicks } from "@/components/site/landing/tree-picks";
-import { TrustStrip, trustPoints } from "@/components/site/landing/trust-strip";
-import { TwinCards, twinCardsCopy } from "@/components/site/landing/twin-cards";
 import { HomePhone, type HomePhoneOffer } from "@/components/site/mobile/home-phone";
 import { QuoteStrip, type Quote } from "@/components/site/mobile/quote-strip";
 import { type AppStat } from "@/components/site/mobile/app-stats";
-import { areaPerTree, getOfferStocks, offersTitle, offerTreePrice } from "@/components/site/offers";
-import { estimateLabel, landTitle } from "@/components/site/site-header";
-import { RemotePhoto, SitePhoto } from "@/components/site/site-photo";
-import { flagState, getPublicConfig, optionsFor, settingJson, settingText } from "@/lib/config";
+import { areaPerTree, offersTitle, offerTreePrice } from "@/components/site/offers";
+import { estimateLabel } from "@/components/site/site-header";
+import { RemotePhoto } from "@/components/site/site-photo";
+import { flagState, getPublicConfig, settingJson, settingText } from "@/lib/config";
 import { formatArea, formatCount, formatMillimes } from "@/lib/format";
 import { getMillionProgress } from "@/lib/million";
 import { projectHref } from "@/lib/public-hrefs";
@@ -94,20 +83,9 @@ export default async function HomePage() {
   const progress = flagState(config, "public_statistics") === "public" ? await getMillionProgress() : null;
 
   const interestOpen = flagState(config, "interest_form") === "public";
-  const landOpen = flagState(config, "land_offers") === "public";
   // Report v3 §17: the offers door opens only once the module is public, so it never leads to a «قريباً» page.
   const offersOpen = flagState(config, "projects") === "public";
   const offers = offersOpen ? await liveOffers() : [];
-  // Sliced by the section that renders them, so the stock is read for exactly the offers that will be shown.
-  const shownOffers = homeOffers(offers);
-  // One reading of the stock per offer shown, the same count the catalogue prints. An offer whose trees
-  // are not numbered yet has an UNKNOWN stock, so its card falls back to the declared count named as such
-  // rather than printing a confident «0 متاحة».
-  const stockOf = await getOfferStocks(
-    shownOffers.map((offer) => offer.id),
-    "anon",
-  );
-
   // An answer whose module is closed is not shown: it would name a section that is not on the page.
   const faq = settingJson<Faq[]>(config, "site.faq", []).filter(
     (item) => !item.flag || flagState(config, item.flag) === "public",
@@ -118,14 +96,6 @@ export default async function HomePage() {
   const estimateCta = estimateLabel(config);
 
   const place = (governorateId: number) => config.governorates.find((g) => g.id === governorateId)?.name_ar ?? "";
-  // Where the live stock actually is: the door says it in place names, which are rows, not a promise.
-  const offerPlaces = [...new Set(offers.map((offer) => place(offer.governorate_id)).filter(Boolean))];
-
-  // The trust line renders nothing until the owner writes `site.trust_points`, on purpose: «عقد قانوني
-  // واضح» and «متابعة وصيانة» are claims about how AgriZed operates, and a promise that cannot be deleted
-  // from the Back Office is the worst thing to leave in the code of a page whose argument is «بلا وعود».
-  const trust = trustPoints(config);
-
   // FLAG-02: a tree price exists for a visitor only while the pricing module is public. The flag alone
   // decides here, never moduleAccess — this page is prerendered for everyone and must not read a session.
   const pricingOpen = flagState(config, "pricing") === "public";
@@ -184,9 +154,6 @@ export default async function HomePage() {
     };
   });
 
-  // The number in the drawn stepper on the calculator card: a real Back Office option, never a typed «25».
-  const sampleTreeCount = optionsFor(config, "tree_count").find((option) => option.min_number)?.min_number ?? null;
-
   return (
     <>
       {/* The page names itself, and the header reads it (globals.css: `.site-header`). It is how the bar
@@ -207,6 +174,8 @@ export default async function HomePage() {
       <HomePhone
         hero={<PhotoSlideshow config={config} slots={HERO_SLOTS} priority sizes="100vw" />}
         quotes={<QuoteStrip quotes={settingJson<Quote[]>(config, "site.quotes", [])} />}
+        faq={faq.length > 0 ? <Faq config={config} items={faq} /> : null}
+        closing={interestOpen ? <ClosingCta config={config} ctaLabel={estimateCta} /> : null}
         copy={{
           badge: settingText(config, "site.app_greeting_note", "نحو مستقبل أكثر خضرة"),
           line: settingText(config, "site.app_hero_line", "زيتونتك اليوم… أصل لعمر كامل."),
@@ -237,115 +206,22 @@ export default async function HomePage() {
         }
       />
 
-      {/* 01b · THE OFFERS, MOVING (owner, 2026-09-21: «add another banner under it showing our offers to see
-          movement like infinite sliding»). It sits directly under the hero on every width, which is the whole
-          point of it: the first thing that moves after the photograph is the real stock, named and priced.
-          It carries no cover photographs — see the component for why — and it repeats no figure the section
-          further down does not already show. */}
-      <div className="reveal hidden md:block"><OffersTicker config={config} offers={offers} /></div>
+      {/* THE WIDE SCREEN'S SECOND PAGE IS GONE (owner, 2026-09-23: make the desktop match the phone).
+          What stood here was a whole other home page for `md` and up — its own hero and stats slab, the two
+          cards, the trust line, the offers grid, the counter band, the tree tiers, the four steps, the
+          spacing explainer, the services map, the landowner panel and the questions — about seven thousand
+          pixels of it, hidden below `md` and hiding the phone screen above it.
 
-      <div className="hidden md:block">
-        <Hero
-          config={config}
-          copy={heroCopy(config)}
-          promises={heroPromises(config)}
-          primaryHref="/start"
-          secondaryHref={offersOpen ? "/projects" : ""}
-          stats={
-          /* Every figure is `million_progress()`. With the statistics module closed there is no `progress`,
-             so there are no columns and the slab does not exist — the hero simply has more photograph. */
-            <HeroStats
-              columns={heroStatColumns(config, progress)}
-              href="/#million"
-              linkLabel={settingText(config, "site.progress_title", "وين وصلنا؟")}
-            />
-          }
-        />
-      </div>
+          Two compositions meant every change had to be made twice and read as two different products. There
+          is one now: <HomePhone> above, rendered at every width. It is not the phone squashed onto a desktop
+          either — the component grows its own grids and type from `md`, so the width is used rather than
+          left blank beside a column.
 
-      {/* EVERYTHING BELOW IS THE WIDE SCREEN'S PAGE (owner, 2026-09-22: «fully remake them to match the
-          designs»). It used to render on a phone as well, under the phone's own screen: <HomePhone> is 832px
-          tall and these bands added about 7,000px of a second, different home page beneath it. That is why the
-          redesign «could not be seen» — it was there, and then the old page carried on for nine more screens.
-          They are one subtree now, hidden below `md`, so the phone home is the phone screen and nothing else. */}
-      <div className="hidden md:block">
-
-      {/* 02 · THE TWO DOORS, straddling the photograph's bottom edge: the calculator, which answers with an
-          example, and the offers, which are real land. They are told apart by surface as well as by colour —
-          the calculator keeps the dashed estimate ground (PRN-01), the offers card carries a photograph.
-          While the trust line has nothing to print, this is what keeps the cards off «عروضنا». */}
-      <div className={trust.length > 0 ? "" : "pb-cozy sm:pb-section"}>
-        <TwinCards
-          config={config}
-          copy={twinCardsCopy(config)}
-          estimateHref="/start"
-          offersHref="/projects"
-          showOffers={offersOpen}
-          place={offerPlaces[0] ?? ""}
-          sampleTreeCount={sampleTreeCount}
-          photoSlot="home.coverage"
-        />
-      </div>
-
-      {/* 03 · The quiet line that closes the first screen. Empty today — see the report. */}
-      <TrustStrip points={trust} />
-
-      {/* 04 · The offers themselves: name, place, olive trees, the area each tree comes with, and the price
-          the database computed. Never a formula, never the land price (PRJ-03). */}
-      <div className="reveal"><OffersSection config={config} offers={offers} shown={shownOffers} stockOf={stockOf} /></div>
-
-      {/* 05 · Where the project stands, on the first dark band. Counts of real rows only, one tile per
-          stage (spec v2 §6). It keeps id="million", which the bar and the footer both link to. */}
-      {progress ? <CounterBand config={config} progress={progress} /> : null}
-
-      {/* 06 · The tree question, on cream between the two dark bands; a tile opens the calculator on /start
-          with that tier already chosen (MIL-01). */}
-      <TreePicks config={config} />
-
-      {/* 07 · How it works, on the second dark band. It keeps id="how". */}
-      <Steps config={config} />
-
-      {/* 08 · The unit the page sells: one olive tree with the land it comes with. The areas are the Back
-          Office spacing classes — a planting class and its own area, never a tree count multiplied by one. */}
-      <div className="reveal"><AreaSection config={config} /></div>
-
-      {/* 09 · What AgriZed does after the sale (report v3 §36), beside where it works. Two cards now, not
-          two loose columns. The price of a service belongs to the contract, never to this page. */}
-      <ServicesMap config={config} offerPlaces={offerPlaces} />
-
-      {/* 10 · Landowners. Not in the reference because the module is closed, which is also why the footer
-          may use this section's photograph in the meantime: when `land_offers` opens, `home.land` comes
-          back here and the footer falls back to flat forest (site-footer.tsx). */}
-      {landOpen ? (
-        <section className="mx-auto max-w-6xl px-4 py-section sm:px-6">
-          <div className="panel grid items-center gap-roomy border-gold/25 bg-gold-soft/60 p-card sm:p-roomy lg:grid-cols-[1fr_0.55fr]">
-            <div>
-              <h2 className="font-display text-2xl font-bold text-forest sm:text-3xl">{landTitle(config)}</h2>
-              <p className="mt-tight max-w-xl leading-7 text-ink/80">{settingText(config, "site.land_section_text")}</p>
-              {/* NEW KEY. This button was the last hard-coded sentence on the page: the owner could rename
-                  the section and its door would keep saying something else. */}
-              <Link href="/land" className="btn btn-primary mt-cozy">
-                {settingText(config, "site.land_cta_label", "ابعث معلومات عقارك")}
-              </Link>
-            </div>
-            <SitePhoto config={config} slot="home.land" sizes="(min-width: 1024px) 28vw, 100vw" />
-          </div>
-        </section>
-      ) : null}
-
-      {/* 11 · The objections answered, then the ask — beside each other, not one screen after the other, and
-          in that order on a phone: a stranger's questions first, the ask second. The last band of the page
-          before the footer, so it breathes like a story section rather than like the offers. */}
-      {faq.length > 0 || interestOpen ? (
-        <section className="mx-auto max-w-6xl px-4 py-section sm:px-6 lg:py-band">
-          <div className="grid gap-roomy lg:grid-cols-[1.1fr_0.9fr] lg:items-start">
-            <Faq config={config} items={faq} />
-            {interestOpen ? <ClosingCta config={config} ctaLabel={estimateCta} /> : null}
-          </div>
-        </section>
-      ) : null}
-
-      </div>
+          WHAT THAT COST, named because it is a real loss and not a tidy-up: «كيفاش تخدم AgriZed», «الزيتونة
+          مع مساحتها», «إنت تستثمر وإحنا نتلهاو», the twenty-four regions and the landowner intake no longer
+          appear on the home page at any width. The settings behind every one of them are untouched, and
+          /start, /projects and /land still answer for the same ground, so nothing was deleted from the
+          product — only from this page. */}
 
       {/* The closing band that used to sit here is gone. It printed the wordmark, `site.closing_title` and
           `site.vision_text` over `home.closing`, about 140px above a footer that printed the wordmark and

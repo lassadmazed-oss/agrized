@@ -8,7 +8,7 @@ import { moduleAccess } from "@/lib/modules";
 
 import { getCalculatorLists, readCalculatorChoices } from "./calculator";
 import { startCopy } from "./copy";
-import { StartChooser, type Taglines, type ValueItem } from "./start-chooser";
+import { StartChooser, type Taglines } from "./start-chooser";
 
 // MIL-02: the page's own copy comes from settings too, like /register's.
 export async function generateMetadata(): Promise<Metadata> {
@@ -41,7 +41,6 @@ export default async function StartPage({ searchParams }: PageProps<"/start">) {
   const params = await searchParams;
   // A simulation is not stock (owner, 2026-09-18), so the last screen also points at the real offers — but only
   // where /projects actually answers: public for everyone, internal for signed-in staff, hidden otherwise (FLAG-02).
-  const offersOpen = (await moduleAccess(config, "projects")) !== "closed";
 
   return (
     <>
@@ -54,12 +53,10 @@ export default async function StartPage({ searchParams }: PageProps<"/start">) {
         durations={lists.durations}
         copy={copy}
         taglines={settingJson<Taglines>(config, "start.tier_taglines", {})}
-        values={settingJson<ValueItem[]>(config, "start.values", [])}
         customMin={lists.customMin}
         customMax={lists.customMax}
         initial={readCalculatorChoices(lists, params)}
         wantsVisit={params.visit === "1"}
-        offersOpen={offersOpen}
         breadcrumb={
           <Breadcrumb
             items={[

@@ -150,6 +150,42 @@ export type Database = {
           },
         ]
       }
+      assistant_messages: {
+        Row: {
+          answer: string | null
+          created_at: string
+          error: string | null
+          id: string
+          ip_hash: string | null
+          model: string | null
+          question: string
+          tokens_in: number | null
+          tokens_out: number | null
+        }
+        Insert: {
+          answer?: string | null
+          created_at?: string
+          error?: string | null
+          id?: string
+          ip_hash?: string | null
+          model?: string | null
+          question: string
+          tokens_in?: number | null
+          tokens_out?: number | null
+        }
+        Update: {
+          answer?: string | null
+          created_at?: string
+          error?: string | null
+          id?: string
+          ip_hash?: string | null
+          model?: string | null
+          question?: string
+          tokens_in?: number | null
+          tokens_out?: number | null
+        }
+        Relationships: []
+      }
       audit_logs: {
         Row: {
           action: string
@@ -2250,8 +2286,13 @@ export type Database = {
       }
       persons: {
         Row: {
+          address_line: string | null
           archived_at: string | null
           assigned_to: string | null
+          birth_date: string | null
+          birth_place: string | null
+          cin: string | null
+          cin_issued_on: string | null
           consent_at: string | null
           created_at: string
           delegation_id: number | null
@@ -2267,8 +2308,13 @@ export type Database = {
           whatsapp_e164: string | null
         }
         Insert: {
+          address_line?: string | null
           archived_at?: string | null
           assigned_to?: string | null
+          birth_date?: string | null
+          birth_place?: string | null
+          cin?: string | null
+          cin_issued_on?: string | null
           consent_at?: string | null
           created_at?: string
           delegation_id?: number | null
@@ -2284,8 +2330,13 @@ export type Database = {
           whatsapp_e164?: string | null
         }
         Update: {
+          address_line?: string | null
           archived_at?: string | null
           assigned_to?: string | null
+          birth_date?: string | null
+          birth_place?: string | null
+          cin?: string | null
+          cin_issued_on?: string | null
           consent_at?: string | null
           created_at?: string
           delegation_id?: number | null
@@ -4011,6 +4062,21 @@ export type Database = {
       }
       admin_set_user_active: {
         Args: { p_active: boolean; p_user: string }
+        Returns: undefined
+      }
+      assistant_begin_turn: {
+        Args: { p_ip_hash: string; p_question: string }
+        Returns: string
+      }
+      assistant_finish_turn: {
+        Args: {
+          p_answer: string
+          p_error?: string
+          p_id: string
+          p_model: string
+          p_tokens_in: number
+          p_tokens_out: number
+        }
         Returns: undefined
       }
       claim_notifications: {

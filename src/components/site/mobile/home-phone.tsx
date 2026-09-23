@@ -58,6 +58,15 @@ export type HomePhoneProps = {
   hero: ReactNode;
   /** The sliding quote cards, above everything. Null when the owner emptied `site.quotes`. */
   quotes?: ReactNode;
+  /**
+   * The questions and the last ask, both already drawn by the landing page.
+   *
+   * They are passed in rather than rebuilt here. Every sentence in them is a setting the owner edits
+   * (`site.faq`, `site.final_cta_title`, `site.contact_whatsapp`…), and a second copy on the phone would
+   * be a second place to forget. The phone only decides WHERE they sit and how they arrive.
+   */
+  faq?: ReactNode;
+  closing?: ReactNode;
   copy: {
     badge: string;
     line: string;
@@ -88,6 +97,8 @@ export type HomePhoneProps = {
 export function HomePhone({
   hero,
   quotes,
+  faq,
+  closing,
   copy,
   stats,
   offers,
@@ -101,8 +112,17 @@ export function HomePhone({
   return (
     // `data-phone-screen` is the marker the stylesheet reads to take the site's own header off a phone that
     // carries its own furniture — the same hook /projects and the offer screen already set.
-    <div data-phone-screen="" className="md:hidden">
-      <div className="mx-auto max-w-md px-4 pb-6 pt-3">
+    <div data-phone-screen="">
+      {/* ONE COMPOSITION, EVERY WIDTH (owner, 2026-09-23: the desktop should match the phone).
+          This used to be `md:hidden` with a second, different home page underneath it. Now it is the home
+          page. The column keeps its phone measure up to `md` and then opens out — the sections below grow
+          their own grids at the same breakpoint, so a wide screen gets the same design using the space
+          rather than a phone-width strip stranded in the middle of it.
+
+          `data-phone-screen` stays: the rule that reads it (globals.css) is inside `@media (width < 48rem)`,
+          so it still takes the site header off a phone that carries its own furniture, and still leaves the
+          header alone on a wide screen where the bar is the only navigation there is. */}
+      <div className="mx-auto max-w-md px-4 pb-6 pt-3 md:max-w-5xl md:px-6 md:pb-14 md:pt-6 lg:max-w-6xl">
         {/* 0 · The quote strip, over the photograph and under nothing. */}
         {quotes}
 
@@ -115,14 +135,14 @@ export function HomePhone({
             aria-hidden="true"
             className="absolute inset-0 bg-gradient-to-t from-forest-700/94 via-forest-700/55 to-forest-700/15"
           />
-          <div className="relative flex min-h-[13rem] flex-col justify-end p-4">
+          <div className="relative flex min-h-[13rem] flex-col justify-end p-4 md:min-h-[26rem] md:p-9 lg:min-h-[30rem]">
             {copy.badge ? (
               <span className="mb-2 inline-flex self-start items-center gap-1.5 rounded-full border border-surface/25 bg-surface/15 px-2.5 py-1 text-[0.6875rem] font-medium text-paper backdrop-blur-sm">
                 <LeafGlyph />
                 {copy.badge}
               </span>
             ) : null}
-            <p className="font-display text-[1.75rem] font-bold leading-[1.15] text-surface">{copy.line}</p>
+            <p className="max-w-2xl font-display text-[1.75rem] font-bold leading-[1.15] text-surface md:text-5xl lg:text-6xl">{copy.line}</p>
             <div className="mt-3 flex flex-wrap gap-2">
               <Link
                 href={offersHref}
@@ -144,16 +164,16 @@ export function HomePhone({
         {/* 2 · The figures. ONE bar with hairlines, not four floating tiles: four cards on four grounds read
             as four separate claims, and these are one fact about the same thing. */}
         {shownStats.length > 0 ? (
-          <section className="card mt-3 flex items-center">
+          <section className="card mt-3 flex items-center md:mt-5">
             {shownStats.map((stat, index) => (
               <div key={stat.label} className="flex flex-1 items-center">
                 {index > 0 ? <span aria-hidden="true" className="h-7 w-px flex-none bg-line" /> : null}
-                <p className="flex-1 py-2.5 text-center">
-                  <span className="block font-display text-lg font-bold leading-none tabular-nums text-forest">
+                <p className="flex-1 py-2.5 text-center md:py-5">
+                  <span className="figure-in block font-display text-lg font-bold leading-none tabular-nums text-forest md:text-3xl">
                     {stat.growing ? "+" : ""}
                     {formatCount(stat.value as number)}
                   </span>
-                  <span className="mt-1 block text-[0.625rem] leading-none text-muted">{stat.label}</span>
+                  <span className="mt-1 block text-[0.625rem] leading-none text-muted md:mt-2 md:text-sm">{stat.label}</span>
                 </p>
               </div>
             ))}
@@ -161,26 +181,26 @@ export function HomePhone({
         ) : null}
 
         {/* 3 · The split. Two doors, named by what the visitor already knows, not by what we want to sell. */}
-        <section className="mt-3 grid grid-cols-2 gap-2">
+        <section className="mt-3 grid grid-cols-2 gap-2 md:mt-5 md:gap-5">
           <Link
             href={guideHref}
-            className="flex flex-col gap-1.5 rounded-2xl bg-forest-700 p-3 text-paper transition-transform active:scale-[0.99]"
+            className="flex flex-col gap-1.5 rounded-2xl bg-forest-700 p-3 text-paper transition-transform active:scale-[0.99] md:gap-3 md:p-6"
           >
             <span className="flex size-7 items-center justify-center rounded-[0.625rem] bg-gold-bright/20">
               <SearchGlyph className="size-4 text-gold-bright" />
             </span>
-            <span className="text-[0.8125rem] font-semibold leading-tight">{copy.guideTitle}</span>
-            <span className="text-[0.625rem] leading-[1.4] text-paper/70">{copy.guideNote}</span>
+            <span className="text-[0.8125rem] font-semibold leading-tight md:text-xl">{copy.guideTitle}</span>
+            <span className="text-[0.625rem] leading-[1.4] text-paper/70 md:text-sm">{copy.guideNote}</span>
           </Link>
           <Link
             href={offersHref}
-            className="card flex flex-col gap-1.5 p-3 transition-transform active:scale-[0.99]"
+            className="card flex flex-col gap-1.5 p-3 transition-transform active:scale-[0.99] md:gap-3 md:p-6"
           >
             <span className="flex size-7 items-center justify-center rounded-[0.625rem] bg-gold-soft">
               <GridGlyph className="size-4 text-gold" />
             </span>
-            <span className="text-[0.8125rem] font-semibold leading-tight text-ink">{copy.pickTitle}</span>
-            <span className="text-[0.625rem] leading-[1.4] text-muted">{copy.pickNote}</span>
+            <span className="text-[0.8125rem] font-semibold leading-tight text-ink md:text-xl">{copy.pickTitle}</span>
+            <span className="text-[0.625rem] leading-[1.4] text-muted md:text-sm">{copy.pickNote}</span>
           </Link>
         </section>
 
@@ -214,7 +234,7 @@ export function HomePhone({
         {/* 5 · Where the counter has got to. One line and one bar: the long version is its own band on the
             wide screen, and repeating it here would cost the screen its shape. */}
         {progressNote ? (
-          <section className="card mt-3 p-3">
+          <section id="million" className="card mt-3 scroll-mt-24 p-3 md:mt-5 md:p-6">
             <div className="flex items-baseline justify-between gap-2">
               <p className="text-[0.8125rem] font-semibold text-ink">{copy.progressTitle}</p>
               <p className="text-[0.625rem] text-muted">{progressNote}</p>
@@ -222,11 +242,30 @@ export function HomePhone({
             {progressPercent !== null ? (
               <span aria-hidden="true" className="mt-2 block h-1.5 overflow-hidden rounded-full bg-line">
                 <span
-                  className="block h-full rounded-full bg-leaf"
+                  className="counter-fill block h-full rounded-full bg-leaf"
                   style={{ inlineSize: `${Math.min(100, Math.max(2, progressPercent))}%` }}
                 />
               </span>
             ) : null}
+          </section>
+        ) : null}
+
+        {/* 6 · The stranger's questions, then the ask. Owner, 2026-09-23: both were on the wide screen
+            only — a visitor on a telephone reached the offers, the figures, and then the footer, with
+            the objections answered nowhere and nothing at the end to act on.
+
+            The order is the one the wide page already argues for: questions first, ask second. Someone
+            still hesitating is not asked to register; someone whose last doubt has just been answered
+            is. Each arrives with `.reveal`, the scroll-driven lift the rest of the site uses, so they
+            come up into place as they are scrolled to rather than all at once on load. */}
+        {/* On a wide screen the questions and the ask sit side by side — the arrangement the page used to
+            have before there was one composition, and the reason it worked: a column of six questions and a
+            photographic card are each about half a screen, and stacked they are two scrolls of half-empty
+            page. Below `lg` they stack, questions first, which is the order a stranger reads them in. */}
+        {faq || closing ? (
+          <section className="mt-4 grid gap-3 md:mt-8 md:gap-6 lg:grid-cols-[1.1fr_0.9fr] lg:items-start">
+            {faq ? <div className="reveal">{faq}</div> : null}
+            {closing ? <div className="reveal">{closing}</div> : null}
           </section>
         ) : null}
       </div>
@@ -247,8 +286,8 @@ export function HomePhone({
  */
 function OfferTile({ offer, from, echo }: { offer: HomePhoneOffer; from: string; echo?: boolean }) {
   return (
-    <Link href={offer.href} aria-hidden={echo || undefined} tabIndex={echo ? -1 : undefined} className="card w-44 flex-none overflow-hidden">
-      <div className="relative h-28 overflow-hidden">{offer.image}</div>
+    <Link href={offer.href} aria-hidden={echo || undefined} tabIndex={echo ? -1 : undefined} className="card w-44 flex-none overflow-hidden md:w-64">
+      <div className="relative h-28 overflow-hidden md:h-40">{offer.image}</div>
       <div className="p-2">
         <p className="truncate text-[0.75rem] font-semibold leading-tight text-ink">{offer.name}</p>
         <div className="mt-1 flex items-baseline justify-between gap-1.5">
