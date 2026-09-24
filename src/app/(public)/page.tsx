@@ -149,7 +149,11 @@ export default async function HomePage() {
           url={offer.cover_url}
           alt={offer.cover_alt_ar}
           seed={offer.id}
-          sizes="(min-width: 768px) 0px, 45vw"
+          // The offers are drawn on a desktop now, so the browser must be told what width to fetch for. This
+          // said «0px from 768 up» — correct while the strip was hidden there, and a guarantee of a blurred
+          // card the moment the grid appeared: four to a row inside a 72rem column is about a quarter of the
+          // viewport, three at md is a third.
+          sizes="(min-width: 1024px) 25vw, (min-width: 768px) 33vw, 45vw"
           className="size-full"
         />
       ),

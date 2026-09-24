@@ -245,14 +245,37 @@ export function HomePhone({
             lands on an identical copy and nothing here has to know how many offers there are. The second copy
             is aria-hidden — it is the same offers, and a reader told there are twenty-six is told wrong. */}
         {offers.length > 0 ? (
-          <section className="mt-4">
+          <section className="mt-4 md:mt-8">
             <div className="flex items-baseline justify-between px-0">
-              <h2 className="font-display text-xl font-bold text-forest">{copy.offersTitle}</h2>
-              <Link href={offersHref} className="text-caption font-semibold text-forest">
+              <h2 className="font-display text-xl font-bold text-forest md:text-3xl">{copy.offersTitle}</h2>
+              <Link
+                href={offersHref}
+                className="text-caption font-semibold text-forest transition-colors hover:text-leaf md:text-sm"
+              >
                 {copy.all} ←
               </Link>
             </div>
-            <div className="marquee -mx-4 mt-2" style={{ ["--marquee-duration" as string]: "48s" }}>
+
+            {/* A GRID ON A DESKTOP, A STRIP ON A PHONE (owner, 2026-09-24: «redesign this section on the
+                desktop only»).
+
+                The marquee was asked for and is right where it was asked for: on a 375px screen two cards fit,
+                a grid would show two of thirteen, and a strip that never stops says «there are more» without a
+                control. Across 1100px the same primitive reads as a fault — it bleeds past both edges, so the
+                first and last card are permanently sliced, and the whole row drifts while somebody is trying
+                to read a price. Motion is how a phone says «scroll me»; a desktop has already shown you the
+                whole row and has no such question to answer.
+
+                So from `md` the offers settle into a grid: eight of them, three up and four at lg, each card
+                whole, still, and the same height as its neighbours. «الكل» carries the rest, which is what it
+                was always for. */}
+            <div className="mt-3 hidden gap-4 md:grid md:grid-cols-3 lg:mt-5 lg:grid-cols-4 lg:gap-5">
+              {offers.slice(0, 8).map((offer) => (
+                <OfferCard key={offer.id} offer={offer} from={copy.from} />
+              ))}
+            </div>
+
+            <div className="marquee -mx-4 mt-2 md:hidden" style={{ ["--marquee-duration" as string]: "48s" }}>
               <div className="marquee-track marquee-track-reverse">
                 {offers.map((offer) => (
                   <OfferTile key={offer.id} offer={offer} from={copy.from} />
@@ -330,6 +353,50 @@ export function HomePhone({
  *
  * Fixed width, because a track of items that size to their own text stutters as it slides.
  */
+/**
+ * One offer, as a desktop reads it: a picture, what it is called, where it is, and what a tree costs.
+ *
+ * It is a different component from <OfferTile> rather than the same one with breakpoints, because the two
+ * answer different questions. The tile is a glimpse going past at 48 seconds a lap — 176px wide, one line of
+ * name, a price squeezed against the place. This one is still, so it can afford the things a still card is
+ * read for: a 4:3 photograph, the name on its own line, and the price on a ruled foot where the eye already
+ * goes looking for it.
+ *
+ * THE FOOT IS DRAWN EVEN WITH NO PRICE. The pricing module can be closed (PRJ-03) and then no offer publishes
+ * one; a card that dropped the row would stand shorter than the card beside it, and a grid of uneven cards
+ * reads as a loading fault rather than as a fact about prices.
+ */
+function OfferCard({ offer, from }: { offer: HomePhoneOffer; from: string }) {
+  return (
+    <Link
+      href={offer.href}
+      className="card group flex flex-col overflow-hidden transition-all duration-200 hover:-translate-y-1 hover:shadow-[var(--shadow-float)] motion-reduce:hover:translate-y-0"
+    >
+      <div className="relative aspect-[4/3] overflow-hidden [&_img]:size-full [&_img]:object-cover [&_img]:transition-transform [&_img]:duration-500 group-hover:[&_img]:scale-105">
+        {offer.image}
+      </div>
+      <div className="flex flex-1 flex-col p-3.5 pb-3">
+        <p className="truncate text-sm font-semibold leading-snug text-ink">{offer.name}</p>
+        <p className="mt-0.5 truncate text-xs leading-snug text-muted">
+          {[offer.place, offer.areaPerTree].filter(Boolean).join(" · ")}
+        </p>
+        <div className="mt-auto flex items-baseline gap-1.5 border-t border-line pt-2.5">
+          {offer.price ? (
+            <>
+              <span className="text-[0.625rem] leading-none text-muted">{from}</span>
+              <span className="font-display text-base font-bold leading-none tabular-nums text-gold">
+                {offer.price}
+              </span>
+            </>
+          ) : (
+            <span className="text-[0.625rem] leading-none text-muted">&nbsp;</span>
+          )}
+        </div>
+      </div>
+    </Link>
+  );
+}
+
 function OfferTile({ offer, from, echo }: { offer: HomePhoneOffer; from: string; echo?: boolean }) {
   return (
     <Link href={offer.href} aria-hidden={echo || undefined} tabIndex={echo ? -1 : undefined} className="card w-44 flex-none overflow-hidden md:w-64">
