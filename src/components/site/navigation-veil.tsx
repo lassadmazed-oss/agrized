@@ -15,7 +15,7 @@ import { usePathname, useSearchParams } from "next/navigation";
  * gives a single veil over the whole site. So this listens to the click itself, in the capture phase, before
  * the router has decided anything — the veil is up on the same frame the finger lands.
  *
- * WHY IT WAITS 120ms FIRST. Most navigations here are prefetched and arrive in well under that, and a veil
+ * WHY IT WAITS 90ms FIRST. Most navigations here are prefetched and arrive in well under that, and a veil
  * that flashes for 80ms reads as a glitch, not as progress. The delay is the debounce the Next documentation
  * itself recommends for pending-link hints: nothing is shown unless the wait is long enough to be felt. The
  * veil then fades in rather than appearing, for the same reason.
@@ -59,7 +59,7 @@ export function NavigationVeil() {
       timer = window.setTimeout(() => {
         const q = window.location.search.replace(/^\?/, "");
         setLeftFrom(`${window.location.pathname}?${q}`);
-      }, 120);
+      }, 90);
     };
 
     const onClick = (event: MouseEvent) => {
@@ -104,37 +104,22 @@ export function NavigationVeil() {
    * Everything above lowers the veil by ARRIVING somewhere, which is right when a navigation finishes and
    * useless when one never does: a route that throws, a prefetch that dies on a dropped connection, a tap
    * on a link to the screen the router is already on. A cover over the whole site cannot be left to depend
-   * on the happy path alone, so it also comes down on its own after six seconds — long enough that no real
+   * on the happy path alone, so it also comes down on its own after five seconds — long enough that no real
    * navigation is cut short, short enough that nobody sits and watches it.
    */
   useEffect(() => {
     if (!pending) return;
-    const timer = window.setTimeout(() => setLeftFrom(null), 6000);
+    const timer = window.setTimeout(() => setLeftFrom(null), 5000);
     return () => window.clearTimeout(timer);
   }, [pending]);
 
   if (!pending) return null;
 
   return (
-    <div className="nav-veil backdrop-blur-md" role="status" aria-live="polite">
-      {/* The ring is drawn, not typed: a glyph would depend on a font that may still be loading — which is
-          the very moment this appears. */}
-      <span aria-hidden="true" className="nav-veil-ring">
-        <svg viewBox="0 0 48 48" className="size-full">
-          <circle cx="24" cy="24" r="20" fill="none" stroke="currentColor" strokeOpacity="0.18" strokeWidth="4" />
-          <circle
-            cx="24"
-            cy="24"
-            r="20"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="4"
-            strokeLinecap="round"
-            strokeDasharray="34 92"
-          />
-        </svg>
-      </span>
-      {/* Said once, for a reader who cannot see the ring turn. */}
+    <div className="nav-progress" role="status" aria-live="polite">
+      {/* One element, one composited animation. The bar is the whole hint: no sheet over the page, no blur
+          sampling the screen behind it on the frame the router is busiest. */}
+      <span aria-hidden="true" />
       <span className="sr-only">جارٍ التحميل…</span>
     </div>
   );

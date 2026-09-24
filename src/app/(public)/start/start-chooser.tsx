@@ -528,8 +528,8 @@ export function StartChooser({
     // instead of pushing the button off the bottom of the window, so the way forward is always where it was
     // on the last question. Below `lg` nothing changes: a phone scrolls, as a phone should.
     <div data-phone-screen=""
-      className="mx-auto flex max-w-6xl flex-col px-4 py-4 sm:block sm:px-6 sm:py-6 lg:flex lg:h-[calc(100svh-4.5rem)] lg:min-h-0 lg:flex-col lg:overflow-hidden lg:py-5">
-      <div className="mb-4 hidden md:block lg:hidden">{breadcrumb}</div>
+      className="mx-auto flex max-w-6xl flex-col px-4 py-4 sm:block sm:px-6 sm:py-6 lg:py-7">
+      <div className="mb-4 hidden md:block lg:mb-3">{breadcrumb}</div>
 
       {/* THE PHONE'S OWN BAR (owner, 2026-09-22: «a full redesign, better saving space»). The screen opened
           with a site lockup, a breadcrumb, a badge, a step line and a progress rail — five stacked rows,
@@ -603,7 +603,7 @@ export function StartChooser({
           top of the row: centring the question against the card left a screen-deep gap between a two-chip
           question and its own title, and pushed the chips below the fold on a laptop. */}
       <div
-        className={`mt-3 grid gap-4 sm:mt-roomy sm:gap-roomy lg:mt-4 lg:min-h-0 lg:flex-1 lg:items-start lg:gap-8 ${
+        className={`mt-3 grid gap-4 sm:mt-roomy sm:gap-roomy lg:mt-5 lg:items-start lg:gap-8 ${
           isSummary
             ? "lg:grid-cols-[20rem_minmax(0,1fr)]"
             : showFigures
@@ -613,15 +613,7 @@ export function StartChooser({
       >
         {/* On the last screen this column holds what happens next instead of a question. The figures are read
             first on a phone and keep their place beside it on a wide screen, so the order flips only there. */}
-        <div
-          // The answers scroll inside the frame rather than lengthening the page, and the last visible row
-          // fades out instead of being sliced in half: a card cut by a hard edge reads as a rendering
-          // fault, while a fade is the oldest way of saying «there is more here». The rail itself is
-          // hidden (rail-none), so the column carries no grey furniture beside the choices.
-          className={`rail-none lg:min-h-0 lg:max-h-full lg:overflow-y-auto lg:[mask-image:linear-gradient(to_bottom,black_calc(100%-2.5rem),transparent)] ${
-            isSummary ? "order-2 lg:order-1" : ""
-          }`}
-        >
+        <div className={isSummary ? "order-2 lg:order-1" : undefined}>
         {/* 1 · The tiers, as the Back Office wrote them (LEAD-01), plus a free number. */}
         {activeStep === "trees" ? (
           <fieldset>
@@ -718,7 +710,7 @@ export function StartChooser({
         {activeStep === "spacing" ? (
           <fieldset aria-describedby={copy.spacingHint ? spacingHintId : undefined}>
             <legend className="sr-only">{copy.spacingTitle}</legend>
-            <ul data-answers className="grid grid-cols-3 gap-1.5 sm:gap-3">
+            <ul data-answers className="grid grid-cols-3 gap-1.5 sm:gap-3 lg:grid-cols-4 lg:gap-2.5">
               {spacingClasses.map((option) => (
                 <li key={option.id}>
                   {/* pe-8 is unconditional so the tick never reflows the card when it appears. */}
@@ -739,11 +731,11 @@ export function StartChooser({
                       <Bi
                         ar={formatSpacing(option.row_spacing_m, option.tree_spacing_m)}
                         fr={formatSpacing(option.row_spacing_m, option.tree_spacing_m, "m")}
-                        frClassName="text-[0.95em] opacity-85"
+                        frClassName="text-[0.95em] opacity-85 lg:hidden"
                       />
                     </span>
                     <span className="mt-auto block pt-0.5 font-display text-base font-bold text-forest tabular-nums sm:pt-1 sm:text-xl">
-                      <Bi ar={formatArea(option.area_m2)} fr={formatArea(option.area_m2, "m²")} frClassName="text-[0.7em] text-muted" />
+                      <Bi ar={formatArea(option.area_m2)} fr={formatArea(option.area_m2, "m²")} frClassName="text-[0.7em] text-muted lg:hidden" />
                     </span>
                   </label>
                 </li>
@@ -897,7 +889,7 @@ export function StartChooser({
 
         {/* 5 · The figures, beside the questions on every screen, following each answer. */}
         {showFigures ? (
-          <aside className={`rail-none lg:min-h-0 lg:max-h-full ${isSummary ? "order-1 lg:overflow-y-auto lg:order-2" : "max-lg:hidden"}`}>
+          <aside className={`lg:sticky lg:top-24 ${isSummary ? "order-1 lg:order-2" : "max-lg:hidden"}`}>
             {/* A simulation never wears the shape of stock: the warm dashed .card-estimate surface, no elevation,
                 and the disclaimer stamped across the head of the card rather than left as a footnote at the
                 bottom. The wording is `start.estimate_note` (MIL-02) — blanking that setting is still the only
@@ -966,7 +958,7 @@ export function StartChooser({
                 ) : null}
 
                 <dl className="divide-y divide-line">
-                  {listRows.map((row) => {
+                  {listRows.filter((row) => row.value !== null).map((row) => {
                     // «تبديل» under a dash offers to change an answer that was never given; the row waits instead.
                     const target = row.value ? rowStep(row.key, steps) : null;
                     return (
@@ -1022,9 +1014,9 @@ export function StartChooser({
           pinned to the bottom of a phone. On every other screen it held «رجوع» alone, and a full-width pinned bar
           for one small button covered the figures underneath it; there it simply follows the page. */}
       <div
-        className={`mt-5 flex gap-3 sm:mt-8 lg:mt-4 lg:flex-none lg:justify-end lg:gap-2 ${
+        className={`mt-5 flex items-center gap-3 sm:mt-8 lg:mt-6 lg:gap-2.5 ${
           activeStep === "trees"
-            ? "sticky bottom-[var(--tabbar-h)] -mx-4 mt-auto border-t border-line bg-paper/95 px-4 py-3 backdrop-blur sm:static sm:mt-8 sm:mx-0 sm:border-0 sm:bg-transparent sm:px-0 sm:py-0"
+            ? "sticky bottom-[var(--tabbar-h)] -mx-4 border-t border-line bg-paper/95 px-4 py-3 backdrop-blur sm:static sm:mx-0 sm:border-0 sm:bg-transparent sm:px-0 sm:py-0"
             : ""
         }`}
       >

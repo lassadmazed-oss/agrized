@@ -949,54 +949,62 @@ body {
    * there is nothing else to look at while waiting, and the rule the marquee earns its motion by is the same
    * rule that earns this one.
    */
-  .nav-veil {
+  /* ---------------------------------------------------------------------
+   * The navigation hint: a bar at the top edge, not a cover over everything.
+   *
+   * WHAT THIS REPLACED, AND WHY (owner, 2026-09-24: «the loading animation of the routing takes too long, it
+   * should be faster and nicer and cleaner»). It was a fixed sheet over the whole viewport with
+   * `backdrop-blur-md` and a spinning ring in the middle. Backdrop blur is the single most expensive thing a
+   * browser can be asked to paint: it samples everything behind the element, every frame, over the full
+   * screen — on the exact frame the router is also parsing a new screen. The veil did not measure the wait,
+   * it LENGTHENED it, and then it covered the page it had slowed down.
+   *
+   * A 2px bar at the top edge costs one composited layer, says the same thing, and leaves the page readable
+   * while the next one arrives. It is what a visitor already recognises from every other site they use.
+   *
+   * IT NEVER CLAIMS TO BE FINISHED. The fill runs quickly to 70% and then crawls, because the only honest
+   * thing to say about a wait of unknown length is «still going». Arrival removes the element outright — a
+   * bar that animated to 100% would be a lie told 200ms after the screen it described was already gone.
+   */
+  .nav-progress {
     position: fixed;
-    inset: 0;
+    inset-block-start: 0;
+    inset-inline: 0;
     z-index: 90;
-    display: grid;
-    place-items: center;
-    background: rgb(250 249 245 / 0.55);
-    /* The veil REPORTS, it does not block. Covering the viewport at z-index 90 without this, it swallowed
-       every click on the site — including the click on a link that would have changed the address and taken
-       it down, so anything that raised it and did not navigate locked the page for good (owner, 2026-09-23:
-       «this animation stuck in all the website»). Feedback that can trap a visitor is worse than no
-       feedback, and a veil nobody can click through has no way of being wrong safely. */
+    block-size: 2px;
+    /* It reports; it never intercepts. A hint that can swallow a click is worse than no hint. */
     pointer-events: none;
-    /* The blur itself is a Tailwind utility on the element, not a declaration here: written by hand the
-       build collapsed the pair down to the -webkit- form alone, which current Chrome no longer answers to,
-       and the veil came out flat. The utility is emitted for whatever the browserslist target actually is. */
-    animation: veil-in 180ms ease-out both;
+    background: transparent;
   }
-  @keyframes veil-in {
-    from {
-      opacity: 0;
-    }
-    to {
-      opacity: 1;
-    }
-  }
-
-  .nav-veil-ring {
+  .nav-progress span {
     display: block;
-    inline-size: 3rem;
-    block-size: 3rem;
-    color: var(--color-forest, #1f4a2c);
-    animation: veil-spin 900ms linear infinite;
+    block-size: 100%;
+    inline-size: 0;
+    border-start-end-radius: 2px;
+    border-end-end-radius: 2px;
+    background: linear-gradient(to left, var(--color-leaf, #4a7c4e), var(--color-forest, #1f4a2c));
+    box-shadow: 0 0 8px rgb(74 124 78 / 0.5);
+    animation: nav-progress-run 6s cubic-bezier(0.1, 0.8, 0.2, 1) forwards;
   }
-  @keyframes veil-spin {
-    to {
-      transform: rotate(360deg);
+  @keyframes nav-progress-run {
+    0% {
+      inline-size: 0;
+    }
+    /* Fast to most of the way — this is where a prefetched screen arrives and the bar simply disappears. */
+    30% {
+      inline-size: 70%;
+    }
+    /* Then a crawl, so a long wait still moves without ever reaching the end. */
+    100% {
+      inline-size: 96%;
     }
   }
 
-  /* Someone who asked their system for less movement still gets the answer — the veil and the ring, held
-     still. A held ring is a poor spinner and a perfectly good «wait». */
+  /* Someone who asked their system for less movement gets the bar, held at a length that still says «wait». */
   @media (prefers-reduced-motion: reduce) {
-    .nav-veil {
+    .nav-progress span {
       animation: none !important;
-    }
-    .nav-veil-ring {
-      animation: none !important;
+      inline-size: 40%;
     }
   }
 
