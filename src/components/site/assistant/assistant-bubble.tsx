@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import { AnswerText } from "./answer-text";
@@ -24,7 +25,15 @@ import { AnswerText } from "./answer-text";
  */
 const BUBBLE = 56; // px, matches size-14
 
-type Message = { role: "user" | "assistant"; content: string; allowed?: string[] };
+import type { AssistantOfferCard } from "@/lib/assistant";
+
+type Message = {
+  role: "user" | "assistant";
+  content: string;
+  allowed?: string[];
+  /** The open offers at the moment this answer was written; the cards under it are drawn from these. */
+  offers?: AssistantOfferCard[];
+};
 
 export type AssistantCopy = {
   title: string;
@@ -78,14 +87,14 @@ export function AssistantBubble({ copy }: { copy: AssistantCopy }) {
           }),
         });
         const payload = (await response.json().catch(() => null)) as
-          | { ok: true; answer: string; allowedHrefs: string[] }
+          | { ok: true; answer: string; allowedHrefs: string[]; offers?: AssistantOfferCard[] }
           | { ok: false; message?: string }
           | null;
 
         setMessages((current) => [
           ...current,
           payload && payload.ok
-            ? { role: "assistant", content: payload.answer, allowed: payload.allowedHrefs }
+            ? { role: "assistant", content: payload.answer, allowed: payload.allowedHrefs, offers: payload.offers }
             : { role: "assistant", content: payload?.message ?? copy.unavailable, allowed: [] },
         ]);
       } catch {
@@ -98,7 +107,17 @@ export function AssistantBubble({ copy }: { copy: AssistantCopy }) {
     [busy, messages, copy.unavailable],
   );
 
-  const showSuggestions = messages.length === 0 && copy.suggestions.length > 0;
+  /*
+   * The follow-ups stay on the table.
+   *
+   * They used to appear only while the thread was empty, so a visitor got one set of openings and then a
+   * blank box for every turn after it — which is the moment they most need somewhere to go (owner,
+   * 2026-09-24: «I want it to give more than one answer»). They are shown whenever the assistant has just
+   * spoken and nothing is in flight: an answer, then the things you might ask next.
+   */
+  const last = messages[messages.length - 1];
+  const showSuggestions =
+    copy.suggestions.length > 0 && !busy && (messages.length === 0 || last?.role === "assistant");
 
   return (
     <>
@@ -141,7 +160,21 @@ export function AssistantBubble({ copy }: { copy: AssistantCopy }) {
                 </Turn>
               ) : (
                 <Turn key={index} side="assistant">
-                  <AnswerText text={message.content} allowed={message.allowed ?? []} />
+                  {(() => {
+                    // Matched once, used twice: the sentence stops linking what the cards below already
+                    // carry, so three offers are offered three times, not six.
+                    const carded = offersNamedIn(message.content, message.offers ?? []);
+                    return (
+                      <>
+                        <AnswerText
+                          text={message.content}
+                          allowed={message.allowed ?? []}
+                          plain={new Set(carded.map((offer) => offer.href))}
+                        />
+                        <OfferCards offers={carded} />
+                      </>
+                    );
+                  })()}
                 </Turn>
               ),
             )}
@@ -242,6 +275,74 @@ function Turn({ side, children }: { side: "user" | "assistant"; children: React.
         {children}
       </div>
     </div>
+  );
+}
+
+/**
+ * The offers an answer actually named, drawn as something you can press.
+ *
+ * WHY IT READS THE ANSWER INSTEAD OF BEING TOLD. The model is not asked to emit JSON: a small model asked
+ * for prose AND a machine-readable block reliably gets one of them wrong, and the failure is silent — a
+ * malformed field becomes a missing card, or worse, a card for an offer it never mentioned. What it already
+ * does well is write `[الإسم](/projects/CODE)` links, because that is the one format the prompt drills. So
+ * the cards are derived from the finished answer: every allowed offer path in the text, in the order it was
+ * mentioned, matched against the offers the SERVER sent with that same answer.
+ *
+ * That makes an invented offer impossible to draw twice over — an unknown code matches nothing in the list,
+ * and the list came from the server, not from the model.
+ *
+ * AT MOST THREE. The prompt asks for two or three comparisons; a chat panel is 30rem tall and a wall of
+ * cards buries the sentence that explains them.
+ */
+function offersNamedIn(text: string, offers: AssistantOfferCard[]): AssistantOfferCard[] {
+  const named: AssistantOfferCard[] = [];
+  const mark = (offer: AssistantOfferCard | undefined) => {
+    if (offer && !named.includes(offer)) named.push(offer);
+  };
+
+  const byHref = new Map(offers.map((offer) => [offer.href, offer]));
+  for (const match of text.matchAll(/\((\/projects\/[A-Za-z0-9._-]{1,60})\)/g)) mark(byHref.get(match[1]));
+
+  const byPosition = offers
+    .map((offer) => ({ offer, at: offer.name.length > 3 ? text.indexOf(offer.name) : -1 }))
+    .filter((row) => row.at >= 0)
+    .sort((a, b) => a.at - b.at);
+  for (const row of byPosition) mark(row.offer);
+
+  return named.slice(0, 3);
+}
+
+function OfferCards({ offers }: { offers: AssistantOfferCard[] }) {
+  if (offers.length === 0) return null;
+
+  const named = offers;
+
+  return (
+    <ul className="mt-2.5 space-y-1.5">
+      {named.map((offer) => (
+        <li key={offer.code}>
+          <Link
+            href={offer.href}
+            className="group flex items-center gap-2.5 rounded-xl border border-line bg-surface px-3 py-2.5
+                       transition-colors hover:border-leaf hover:bg-leaf-soft/50"
+          >
+            <span className="min-w-0 flex-1">
+              <span className="block truncate text-caption font-semibold text-ink">{offer.name}</span>
+              <span className="block truncate text-[0.6875rem] leading-tight text-muted">
+                {[offer.place, offer.priceFrom].filter(Boolean).join(" · ")}
+              </span>
+            </span>
+            <span
+              aria-hidden="true"
+              className="flex-none rounded-pill bg-forest px-2.5 py-1 text-[0.6875rem] font-semibold text-surface"
+            >
+              شوف ←
+            </span>
+            <span className="sr-only">شوف العرض</span>
+          </Link>
+        </li>
+      ))}
+    </ul>
   );
 }
 

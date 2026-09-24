@@ -23,10 +23,32 @@ import { createAdminClient } from "@/lib/supabase/admin";
  */
 
 /** Everything the assistant is allowed to know, rendered as the text the model receives. */
+/**
+ * One offer, as the chat can DRAW it.
+ *
+ * The model is handed the offers as prose, because prose is what it reasons over. The browser is handed the
+ * same offers as data, because an answer that names one should end in something a thumb can press — not a
+ * two-word link buried in a paragraph (owner, 2026-09-24: «I want it to open a button or a box that leads to
+ * the offer»). Both come out of the same rows in the same call, so a card under an answer can never describe
+ * an offer the answer itself was not allowed to see.
+ */
+export type AssistantOfferCard = {
+  code: string;
+  name: string;
+  /** «نابل · قربة» — the governorate, and the place inside it when the offer names one. */
+  place: string;
+  /** «من 167 د.ت للزيتونة», or null while the price is unannounced. */
+  priceFrom: string | null;
+  href: string;
+};
+
+/** Everything the assistant is allowed to know, rendered as the text the model receives. */
 export type AssistantContext = {
   system: string;
   /** The internal paths that exist right now; the client will not render a link to anything else. */
   allowedHrefs: string[];
+  /** The same open offers the prose describes, for the cards drawn under an answer. */
+  offerCards: AssistantOfferCard[];
   model: string;
   maxQuestionChars: number;
 };
@@ -116,12 +138,12 @@ function describeOffers(
   offers: Awaited<ReturnType<typeof getPublicProjects>>,
   config: PublicConfig,
   limit: number,
-): { text: string; hrefs: string[] } {
+): { text: string; hrefs: string[]; cards: AssistantOfferCard[] } {
   const govName = new Map(config.governorates.map((g) => [g.id, g.name_ar]));
   const open = offers.filter((o) => o.offered).slice(0, limit);
 
   if (open.length === 0) {
-    return { text: "ما فماش عروض مفتوحة توّا.", hrefs: [] };
+    return { text: "ما فماش عروض مفتوحة توّا.", hrefs: [], cards: [] };
   }
 
   const lines = open.map((o) => {
@@ -145,7 +167,18 @@ function describeOffers(
     return `- ${bits.join(" · ")}`;
   });
 
-  return { text: lines.join("\n"), hrefs: open.map((o) => `/projects/${o.code}`) };
+  const cards: AssistantOfferCard[] = open.map((o) => ({
+    code: o.code,
+    name: o.name,
+    place: govName.get(o.governorate_id) ?? "",
+    priceFrom:
+      o.min_price_per_tree_millimes !== null
+        ? `من ${formatMillimes(o.min_price_per_tree_millimes)} للزيتونة`
+        : null,
+    href: `/projects/${o.code}`,
+  }));
+
+  return { text: lines.join("\n"), hrefs: open.map((o) => `/projects/${o.code}`), cards };
 }
 
 /**
@@ -203,6 +236,8 @@ export async function buildAssistantContext(): Promise<AssistantContext> {
     "  إحسب برك على العروض اللي سومها أصغر ولاّ يساوي الميزانية; اللي أغلى قول عليه «أغلى من",
     "  ميزانيتك» وما تحسبش.",
     "- كمّل ديما بخطوة: رابط العرض، ولاّ /start كي يكون محيّر.",
+    "- كل عرض تسمّيه في جوابك، إكتب إسمو كرابط [الإسم](/projects/الرمز) — حتى كان سمّيت زوز ولاّ ثلاثة.",
+    "  العرض اللي تكتبو بلا رابط، الزائر ما ينجّمش يحلّو.",
     "",
     "أمثلة على جواب مليح:",
     "س: «نحب أرض مسقية.» ج: «عندنا [إسم العرض](/projects/الرمز) في [الولاية]، مسقي، زياتين عمرهم",
@@ -234,7 +269,13 @@ export async function buildAssistantContext(): Promise<AssistantContext> {
     described.text,
   ].join("\n");
 
-  return { system, allowedHrefs, model: priv.model, maxQuestionChars: priv.maxQuestionChars };
+  return {
+    system,
+    allowedHrefs,
+    offerCards: described.cards,
+    model: priv.model,
+    maxQuestionChars: priv.maxQuestionChars,
+  };
 }
 
 /** The starter buttons and the window's copy, read by the server component that mounts the widget. */

@@ -110,6 +110,14 @@ export async function POST(request: Request) {
     p_error: undefined,
   });
 
-  // `allowedHrefs` travels with the answer so the browser can tell a real offer link from an invented one.
-  return Response.json({ ok: true, answer: reply.answer, allowedHrefs: context.allowedHrefs });
+  // `allowedHrefs` travels with the answer so the browser can tell a real offer link from an invented one,
+  // and `offers` travels with it so an answer that names an offer can END in that offer — a card with its
+  // place, its price and a button — instead of a two-word link inside a sentence. Both describe the same
+  // rows the model was given, so the chat can never draw a card for an offer the answer could not see.
+  return Response.json({
+    ok: true,
+    answer: reply.answer,
+    allowedHrefs: context.allowedHrefs,
+    offers: context.offerCards,
+  });
 }

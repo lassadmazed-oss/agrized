@@ -32,7 +32,22 @@ function plain(text: string): string {
   return text.replace(/[[\]]/g, "");
 }
 
-export function AnswerText({ text, allowed }: { text: string; allowed: string[] }) {
+export function AnswerText({
+  text,
+  allowed,
+  plain: carded,
+}: {
+  text: string;
+  allowed: string[];
+  /**
+   * Paths that already have a card under this answer.
+   *
+   * Their label is printed as emphasis rather than as a link: the card below carries the same offer with its
+   * place, its price and a button, and one offer offered twice in four lines reads as a page repeating
+   * itself. The words stay exactly where the sentence put them — only the underline goes.
+   */
+  plain?: ReadonlySet<string>;
+}) {
   const source = clean(text);
   const permitted = new Set(allowed);
   const nodes: React.ReactNode[] = [];
@@ -45,7 +60,13 @@ export function AnswerText({ text, allowed }: { text: string; allowed: string[] 
     if (at > cursor) nodes.push(plain(source.slice(cursor, at)));
 
     const [whole, label, href] = match;
-    if (permitted.has(href)) {
+    if (carded?.has(href)) {
+      nodes.push(
+        <b key={`c${key++}`} className="font-semibold text-ink">
+          {label}
+        </b>,
+      );
+    } else if (permitted.has(href)) {
       nodes.push(
         <Link
           key={`l${key++}`}
