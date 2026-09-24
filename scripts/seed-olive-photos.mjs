@@ -75,6 +75,77 @@ const PICTURES = [
     altAr: "غراسة زيتون مصفوفة في صفوف منتظمة",
     author: "Wknight94",
   },
+
+  /*
+   * COVER-ONLY PICTURES, AND WHY THERE ARE EIGHT OF THEM (owner, 2026-09-24: «I don't like the duplicate
+   * images, fix them all»).
+   *
+   * The five above are the site's slots, and the offer covers were drawn from the same five: a cover is
+   * `uploaded[index % pool]`, so with thirteen offers and a pool of five, the sixth offer opened on the first
+   * offer's photograph and the grid printed the same grove three times. That is arithmetic, not a bug in the
+   * grid — the only fix is more pictures.
+   *
+   * Each was checked on Commons for size and licence before it was written here: bitmap, at least 1600px
+   * wide, landscape, and CC BY / CC BY-SA / CC0 / public domain, which is the same bar fromCommons() enforces
+   * again at upload. Paintings, monuments and the arid Dahar scrub that the searches also turn up are left
+   * out for the reason the note above gives: a page selling olive groves should open on olive groves.
+   */
+  {
+    file: "File:Olive orchard and houses in Elis, Greece.jpg",
+    key: "elis-orchard-houses",
+    slot: null,
+    altAr: "غراسة زيتون وديار بيضاء في اليونان",
+    author: "Wknight94",
+  },
+  {
+    file: "File:Olive trees in Arhangelos - panoramio.jpg",
+    key: "arhangelos-olives",
+    slot: null,
+    altAr: "زياتين متفرّقة على سفح مشمس",
+    author: "INDALOMANIA",
+  },
+  {
+    file: "File:Paisaje de olivar 24J 07.jpg",
+    key: "olivar-jaen-07",
+    slot: null,
+    altAr: "سهل زيتون على مدّ النظر في جيان",
+    author: "Veinticuatro de Jaén",
+  },
+  {
+    file: "File:Paisaje de olivar 24J 08.jpg",
+    key: "olivar-jaen-08",
+    slot: null,
+    altAr: "صفوف زيتون على تلال مموّجة",
+    author: "Veinticuatro de Jaén",
+  },
+  {
+    file: "File:Paisaje de olivar 24J 09.jpg",
+    key: "olivar-jaen-09",
+    slot: null,
+    altAr: "غراسة زيتون منظّمة تحت سماء صافية",
+    author: "Veinticuatro de Jaén",
+  },
+  {
+    file: "File:Paisaje de olivar 24J 10.jpg",
+    key: "olivar-jaen-10",
+    slot: null,
+    altAr: "بستان زيتون يمتدّ حتى الأفق",
+    author: "Veinticuatro de Jaén",
+  },
+  {
+    file: "File:Korfu (GR), Agii Douli, Olivenhain -- 2018 -- 1218.jpg",
+    key: "korfu-olivenhain-1218",
+    slot: null,
+    altAr: "زياتين معمّرة بجذوع غليظة تحت الظلّ",
+    author: "Dietmar Rabich",
+  },
+  {
+    file: "File:Korfu (GR), Agii Douli, Olivenhain -- 2018 -- 1261.jpg",
+    key: "korfu-olivenhain-1261",
+    slot: null,
+    altAr: "أرض بستان زيتون قديم مفروشة بالعشب",
+    author: "Dietmar Rabich",
+  },
 ];
 
 const client = new pg.Client({ connectionString, ssl });
