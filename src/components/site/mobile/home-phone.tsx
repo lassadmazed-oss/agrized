@@ -167,9 +167,14 @@ export function HomePhone({
             className="pointer-events-none absolute inset-0 rounded-3xl ring-1 ring-inset ring-surface/12 lg:rounded-[2rem]"
           />
 
-          <div className="relative flex min-h-[13rem] flex-col justify-end p-4 md:min-h-[26rem] md:p-9 lg:min-h-[34rem] lg:p-12">
+          {/* CENTRED, AND WITH A FOOT TO SPARE (owner, 2026-09-24, against the mock-up). The words used to
+              hang off the start edge at the bottom of the card, which is a poster composition: it reads from
+              the corner, and the two doors ended up in the corner with it. The mock-up centres the promise
+              and puts the figures across the foot of the photograph — so the card keeps bottom padding deep
+              enough for the bar that now overlaps it, and nothing it says can end up behind that bar. */}
+          <div className="relative flex min-h-[13rem] flex-col items-center justify-end p-4 pb-14 text-center md:min-h-[26rem] md:p-9 md:pb-24 lg:min-h-[34rem] lg:p-12 lg:pb-28">
             {copy.badge ? (
-              <span className="mb-2 inline-flex self-start items-center gap-1.5 rounded-full border border-surface/25 bg-surface/15 px-2.5 py-1 text-[0.6875rem] font-medium text-paper backdrop-blur-sm">
+              <span className="mb-2 inline-flex items-center gap-1.5 rounded-full border border-surface/25 bg-surface/15 px-2.5 py-1 text-[0.6875rem] font-medium text-paper backdrop-blur-sm md:mb-4">
                 <LeafGlyph />
                 {copy.badge}
               </span>
@@ -177,7 +182,7 @@ export function HomePhone({
             <p className="max-w-2xl font-display text-[1.75rem] font-bold leading-[1.15] text-surface [text-shadow:0_2px_28px_rgb(0_0_0/0.28)] md:text-5xl lg:max-w-3xl lg:text-[3.75rem] lg:leading-[1.05]">
               {copy.line}
             </p>
-            <div className="mt-3 flex flex-wrap gap-2 lg:mt-7 lg:gap-3">
+            <div className="mt-3 flex flex-wrap justify-center gap-2 lg:mt-8 lg:gap-3">
               <Link
                 href={offersHref}
                 className="inline-flex min-h-11 items-center gap-2 rounded-full bg-surface px-4 text-label font-semibold text-ink shadow-[var(--shadow-card)] transition-all active:scale-[0.98] lg:min-h-[3.25rem] lg:gap-2.5 lg:px-7 lg:text-base lg:hover:-translate-y-0.5 lg:hover:shadow-[var(--shadow-float)]"
@@ -197,8 +202,13 @@ export function HomePhone({
 
         {/* 2 · The figures. ONE bar with hairlines, not four floating tiles: four cards on four grounds read
             as four separate claims, and these are one fact about the same thing. */}
+        {/* THE FIGURES OVERLAP THE HERO, as the mock-up draws them: a white bar lifted onto the foot of the
+            photograph rather than the next card down the page. It is one composition that way — the promise
+            and the evidence for it — instead of a picture followed by a statistic. The bar is inset from the
+            card's edges so the rounded corners of the photograph still read behind it, and it is raised above
+            the hero so its own shadow falls on the image. */}
         {shownStats.length > 0 ? (
-          <section className="card mt-3 flex items-center md:mt-5">
+          <section className="card relative z-10 -mt-10 mx-3 flex items-center shadow-[var(--shadow-float)] md:-mt-16 md:mx-10 lg:-mt-20 lg:mx-16">
             {shownStats.map((stat, index) => (
               <div key={stat.label} className="flex flex-1 items-center">
                 {index > 0 ? <span aria-hidden="true" className="h-7 w-px flex-none bg-line" /> : null}
@@ -215,7 +225,7 @@ export function HomePhone({
         ) : null}
 
         {/* 3 · The split. Two doors, named by what the visitor already knows, not by what we want to sell. */}
-        <section className="mt-3 grid grid-cols-2 gap-2 md:mt-5 md:gap-5">
+        <section className="mt-4 grid grid-cols-2 gap-2 md:mt-8 md:gap-5">
           <Link
             href={guideHref}
             className="flex flex-col gap-1.5 rounded-2xl bg-forest-700 p-3 text-paper transition-transform active:scale-[0.99] md:gap-3 md:p-6"

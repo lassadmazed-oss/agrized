@@ -666,7 +666,7 @@ export function StartChooser({
                     <OliveMark trees={customValid && customNumber !== null ? customNumber : 1} className="text-leaf" />
                   </span>
                   <span id={`${customInputId}-label`} className="font-display text-base font-bold leading-tight text-forest sm:text-2xl">
-                    <Bi ar={copy.customLabel} fr={copy.customLabelFr} frClassName="hidden sm:block" />
+                    <Bi ar={copy.customLabel} fr={copy.customLabelFr} frClassName="hidden sm:block lg:hidden" />
                   </span>
                   <input
                     id={customInputId}
@@ -687,16 +687,16 @@ export function StartChooser({
                     aria-labelledby={`${customInputId}-label`}
                     aria-describedby={`${customInputId}-hint`}
                     aria-invalid={customInvalid || undefined}
-                    className="field text-center tabular-nums max-sm:mt-0 max-sm:h-10 max-sm:w-28 sm:mt-3"
+                    className="field text-center tabular-nums max-sm:mt-0 max-sm:h-10 max-sm:w-28 sm:mt-3 lg:mt-2 lg:h-9 lg:py-0"
                   />
-                  <span id={`${customInputId}-hint`} className={`block max-sm:w-full max-sm:text-[0.6875rem] max-sm:leading-4 ${customInvalid ? "error-text" : "hint mt-1.5"}`}>
-                    <Bi ar={customHintAr} fr={customHintFr} frClassName="hidden text-[0.9em] opacity-85 sm:block" />
+                  <span id={`${customInputId}-hint`} className={`block max-sm:w-full max-sm:text-[0.6875rem] max-sm:leading-4 lg:text-[0.6875rem] lg:leading-4 ${customInvalid ? "error-text" : "hint mt-1.5 lg:mt-1"}`}>
+                    <Bi ar={customHintAr} fr={customHintFr} frClassName="hidden text-[0.9em] opacity-85 sm:block lg:hidden" />
                   </span>
                   {taglines.custom ? (
-                    <span className="hidden sm:contents">
+                    <span className="hidden sm:contents lg:hidden">
                       <span aria-hidden="true" className="my-2 h-px w-10 bg-line-strong" />
                       <span className="text-sm leading-5 text-muted">
-                        <Bi ar={taglines.custom.ar} fr={taglines.custom.fr} frClassName="text-[0.85em] opacity-80" />
+                        <Bi ar={taglines.custom.ar} fr={taglines.custom.fr} frClassName="text-[0.85em] opacity-80 lg:hidden" />
                       </span>
                     </span>
                   ) : null}
