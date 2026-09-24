@@ -20,6 +20,8 @@ export const colour = {
   lineStrong: "#cfcab8",
 
   forest: "#1f4a2c",
+  forest700: "#163821",
+  forest600: "#2a5c38",
   leaf: "#6e8e3a",
   leafSoft: "#e8eed9",
 
@@ -60,6 +62,30 @@ export const type = {
 export const space = { xs: 4, sm: 8, md: 12, lg: 16, xl: 24, xxl: 32 } as const;
 
 export const radius = { sm: 8, md: 12, lg: 16, xl: 24, pill: 999 } as const;
+
+/**
+ * The website's two elevations, as React Native expresses them.
+ *
+ * --shadow-card and --shadow-float are large, soft, downward CSS shadows. RN cannot take a spread or a
+ * negative one, so these are the closest pair that reads the same on both platforms: iOS gets the offset and
+ * radius, Android gets the elevation that matches it.
+ */
+export const shadow = {
+  card: {
+    shadowColor: "#1b2a1f",
+    shadowOpacity: 0.12,
+    shadowRadius: 14,
+    shadowOffset: { width: 0, height: 6 },
+    elevation: 3,
+  },
+  float: {
+    shadowColor: "#1b2a1f",
+    shadowOpacity: 0.2,
+    shadowRadius: 22,
+    shadowOffset: { width: 0, height: 12 },
+    elevation: 8,
+  },
+} as const;
 
 /** A card's edge. Native shadows differ per platform; this is the pair that matches on both. */
 export const card = {
