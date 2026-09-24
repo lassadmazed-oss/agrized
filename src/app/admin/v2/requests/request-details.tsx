@@ -3,10 +3,11 @@
 import type { ReactNode } from "react";
 
 import { PAYMENT_MODE_LABELS, REQUEST_KIND_LABELS } from "@/lib/backoffice/leads/filters";
+import { PRODUCTION_LABELS } from "@/lib/crm";
 import { formatArea, formatCount, formatDate, formatMillimes } from "@/lib/format";
 import type { Database } from "@/lib/supabase/database.types";
 
-import { Popup } from "../../popup";
+import { Popup } from "../popup";
 
 /**
  * الطلب — what the client answered — plus the three lists that used to flood the file underneath it.
@@ -113,15 +114,48 @@ const CHANNELS: Record<string, string> = {
   phone: "تلفون",
   whatsapp: "واتساب",
   email: "إيميل",
+  // public.contact_channel is ('phone', 'whatsapp', 'both') — 0002. «both» was missing, so the commonest
+  // answer of the three printed the English word «both» on the client's file.
+  both: "تلفون وواتساب",
 };
+
+/**
+ * Where a demand came from, in words.
+ *
+ * `source` is whatever the intake put in a jsonb column — a landing path and, when the visit carried them, the
+ * utm parameters. «/» is the landing page, and printing it as «/» is how a field that took three years of
+ * traffic ends up meaning nothing to the person reading it. The campaign comes first when there is one,
+ * because that is the half somebody is actually asking about.
+ */
+function sourceLabel(source: unknown): string | null {
+  if (!source || typeof source !== "object") return null;
+  const row = source as { landing_path?: unknown; utm_source?: unknown; utm_campaign?: unknown };
+
+  const path = String(row.landing_path ?? "").trim();
+  const where = path === "" ? null : path === "/" ? "الصفحة الرئيسية" : path;
+  const campaign = [row.utm_source, row.utm_campaign]
+    .map((value) => String(value ?? "").trim())
+    .filter(Boolean)
+    .join(" · ");
+
+  return [campaign || null, where].filter(Boolean).join(" · ") || null;
+}
 
 function kindLabel(kind: string | null): string | null {
   if (!kind) return null;
   return REQUEST_KIND_LABELS[kind as keyof typeof REQUEST_KIND_LABELS] ?? kind;
 }
 
-/** One answered field. `wide` marks the joined lists and the offer name — the answers worth two columns. */
-type Answer = { label: string; value: string; wide?: boolean };
+/**
+ * One answered field. `wide` marks the joined lists and the offer name — the answers worth two columns.
+ *
+ * `estimate` marks the six that are MONEY: the price per tree, the mode, the total, the down payment, the
+ * monthly and the duration. Those are not answers in the way «how many trees» is an answer — they are the
+ * output of a simulator the visitor was moving sliders on. Printed bare on a client's file, beside a name and
+ * a phone number, they read as terms this company agreed to. They are kept (the client saw them, and that is
+ * worth knowing before you ring) but separated and captioned, so nobody can mistake a simulation for a deal.
+ */
+type Answer = { label: string; value: string; wide?: boolean; estimate?: boolean };
 
 /** The answered fields of one demand, in the order a commercial reads them: what, then how much, then how to reach him. */
 function answered(request: RequestDetails, governorates: Governorates): Answer[] {
@@ -135,22 +169,28 @@ function answered(request: RequestDetails, governorates: Governorates): Answer[]
         .filter(Boolean)
         .join("، ") || null;
 
-  const rows: Array<{ label: string; value: string | null; wide?: boolean }> = [
+  const rows: Array<{ label: string; value: string | null; wide?: boolean; estimate?: boolean }> = [
     { label: "العرض", value: request.project_name, wide: true },
     { label: "كود العرض", value: request.project_code },
     {
       label: "سعر الزيتونة",
       value: request.price_per_tree_millimes ? formatMillimes(request.price_per_tree_millimes) : null,
+      estimate: true,
     },
-    { label: "حالة الإنتاج", value: (request.production_statuses ?? []).join("، ") || null },
+    {
+      label: "حالة الإنتاج",
+      // The codes are `none | starting | producing` (a check constraint, 0010 — not an owner-editable list),
+      // and they were printed raw: a client's file said «producing» in the middle of an Arabic screen. The
+      // Arabic for all three has been in src/lib/crm.ts since v1.
+      value: (request.production_statuses ?? []).map((code) => PRODUCTION_LABELS[code] ?? code).join("، ") || null,
+    },
     {
       // Where the lead actually came from: the calculator, an offer page, a campaign link. It was in
-      // every row since the first intake and on no screen.
+      // every row since the first intake and on no screen — and then it was on the screen as «/», which is
+      // a true answer nobody can read. A path is turned into the page's name, and the campaign is printed
+      // beside it when there is one, because «facebook · الصفحة الرئيسية» is the whole point of storing it.
       label: "جا من",
-      value:
-        request.source && typeof request.source === "object" && "landing_path" in request.source
-          ? String((request.source as { landing_path?: unknown }).landing_path ?? "") || null
-          : null,
+      value: sourceLabel(request.source),
     },
     {
       label: "عدد الزيتونات",
@@ -166,13 +206,15 @@ function answered(request: RequestDetails, governorates: Governorates): Answer[]
     {
       label: "طريقة الدفع",
       value: request.payment_mode ? (PAYMENT_MODE_LABELS[request.payment_mode] ?? request.payment_mode) : null,
+      estimate: true,
     },
-    { label: "السعر الجملي", value: request.total_price_millimes ? formatMillimes(request.total_price_millimes) : null },
+    { label: "السعر الجملي", value: request.total_price_millimes ? formatMillimes(request.total_price_millimes) : null, estimate: true },
     {
       label: "التسبقة",
       value: request.down_payment_amount_millimes
         ? `${request.down_payment_percent ? `${request.down_payment_percent}% · ` : ""}${formatMillimes(request.down_payment_amount_millimes)}`
         : request.down_payment_label_ar,
+      estimate: true,
     },
     {
       label: "القسط الشهري",
@@ -189,8 +231,9 @@ function answered(request: RequestDetails, governorates: Governorates): Answer[]
       value: request.monthly_millimes
         ? formatMillimes(request.monthly_millimes)
         : request.installment_label_ar ?? (request.payment_mode === "installments" ? "ما تحسبش" : null),
+      estimate: true,
     },
-    { label: "مدة الدفع", value: request.duration_label_ar ?? (months ? `${formatCount(months)} شهر` : null) },
+    { label: "مدة الدفع", value: request.duration_label_ar ?? (months ? `${formatCount(months)} شهر` : null), estimate: true },
     { label: "الميزانية", value: request.budget_label_ar },
     { label: "الأولوية", value: request.priority_label_ar },
     { label: "الهدف", value: request.goal_label_ar },
@@ -253,16 +296,58 @@ export function RequestFacts({
   request: RequestDetails;
   governorates: Governorates;
 }) {
-  return (
-    <AnswerGrid>
-      <AnswerCell label="الطلب" value={<span dir="ltr">{request.request_no}</span>} />
-      <AnswerCell label="نوعو" value={kindLabel(request.request_kind)} />
-      <AnswerCell label="تاريخو" value={formatDate(request.created_at)} />
+  const answers = answered(request, governorates);
+  const asked = answers.filter((answer) => !answer.estimate);
+  const estimate = answers.filter((answer) => answer.estimate);
 
-      {answered(request, governorates).map((answer) => (
-        <AnswerCell key={answer.label} label={answer.label} value={answer.value} wide={answer.wide} />
-      ))}
-    </AnswerGrid>
+  return (
+    <div className="space-y-2">
+      <AnswerGrid>
+        <AnswerCell label="الطلب" value={<span dir="ltr">{request.request_no}</span>} />
+        <AnswerCell label="نوعو" value={kindLabel(request.request_kind)} />
+        <AnswerCell label="تاريخو" value={formatDate(request.created_at)} />
+
+        {asked.map((answer) => (
+          <AnswerCell key={answer.label} label={answer.label} value={answer.value} wide={answer.wide} />
+        ))}
+      </AnswerGrid>
+
+      {/*
+        THE MONEY IS QUOTED, NOT STATED (owner, 2026-09-23: «no sale, only gather the information … I don't
+        want the admin to consider that as a sale»).
+
+        These five figures came out of a simulator the visitor was moving sliders on. Printed in the same grid,
+        in the same weight, as «عدد الزيتونات» and «ولاية الإقامة», they read as terms this company agreed to —
+        and a commercial glancing at a file before dialling would have every reason to believe the client has
+        been promised 130 د.ت a month for seven years. Nobody promised anything.
+
+        They are kept, because what the client SAW is worth knowing before you ring them, and because the
+        contract honours the price they were shown. But they are kept as a quotation: their own block, their own
+        sentence saying what they are, and values in muted weight so the eye reads them as background rather
+        than as the deal.
+      */}
+      {estimate.length > 0 ? (
+        <section className="card border-dashed px-3 py-2.5 sm:px-4">
+          <p className="text-[0.6875rem] leading-tight text-muted">
+            {/* The sentence says only what is TRUE TODAY. An earlier draft added «وما يمشيش للعقد وحدو» — it
+                does not reach the contract by itself — which the database contradicts: staff_create_contract
+                still falls back to these figures when the arrangement form is left blank (0072). Printing a
+                promise the server does not keep is how the confirmation screen came to say «تنجم تكمّل» over a
+                sale the server refused. When the fallbacks go, this sentence earns that clause. */}
+            <b className="font-semibold text-forest">تقدير المحاكي</b> — هذا اللي عمّرو الحريف وشافو في
+            الفورمولير. موش عرض وموش سعر متّفق عليه.
+          </p>
+          <dl className="mt-2 grid grid-cols-2 gap-x-6 gap-y-2 sm:grid-cols-3 lg:grid-cols-5">
+            {estimate.map((answer) => (
+              <div key={answer.label} className="min-w-0">
+                <dt className="text-[0.6875rem] leading-tight text-muted">{answer.label}</dt>
+                <dd className="break-words text-sm font-semibold leading-snug text-muted">{answer.value}</dd>
+              </div>
+            ))}
+          </dl>
+        </section>
+      ) : null}
+    </div>
   );
 }
 
@@ -389,14 +474,30 @@ export function FileLists({
                         {/* One column here, not the page's grid: the panel is 480px wide, and three columns in
                             it would be three cramped answers. Values wrap; nothing is cut. */}
                         <dl className="divide-y divide-line/60 border-t border-line/60 px-4 pb-2.5">
-                          {answered(request, governorates).map((answer) => (
-                            <div key={answer.label} className="flex items-baseline justify-between gap-3 py-1">
-                              <dt className="shrink-0 text-[0.6875rem] text-muted">{answer.label}</dt>
-                              <dd className="min-w-0 break-words text-end text-xs font-semibold text-ink">
-                                {answer.value}
-                              </dd>
-                            </div>
-                          ))}
+                          {/* Same rule as the newest demand above: what he asked for, then — under its own
+                              line — what the simulator showed him. An older demand is even likelier to be
+                              misread as a standing offer, because its numbers are months stale. */}
+                          {[...answered(request, governorates)]
+                            .sort((a, b) => Number(a.estimate ?? false) - Number(b.estimate ?? false))
+                            .map((answer, index, list) => (
+                              <div key={answer.label}>
+                                {answer.estimate && !list[index - 1]?.estimate ? (
+                                  <p className="pt-1.5 text-[0.625rem] font-semibold text-muted">
+                                    تقدير المحاكي — موش عرض
+                                  </p>
+                                ) : null}
+                                <div className="flex items-baseline justify-between gap-3 py-1">
+                                  <dt className="shrink-0 text-[0.6875rem] text-muted">{answer.label}</dt>
+                                  <dd
+                                    className={`min-w-0 break-words text-end text-xs font-semibold ${
+                                      answer.estimate ? "text-muted" : "text-ink"
+                                    }`}
+                                  >
+                                    {answer.value}
+                                  </dd>
+                                </div>
+                              </div>
+                            ))}
                         </dl>
                       </details>
                     </li>

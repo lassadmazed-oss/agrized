@@ -80,6 +80,7 @@ export async function saveIdentity(
     return { ok: false, message: "لا تملك صلاحية تعديل هذا الملف." };
   }
 
-  revalidatePath(`/admin/v2/files/${personId}`);
+  revalidatePath("/admin/v2/requests");
+  revalidatePath("/admin/v2/confirm");
   return { ok: true, message: "تسجّلت." };
 }

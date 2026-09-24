@@ -30,14 +30,22 @@ import { Popup } from "./popup";
  * a file this change is not allowed to touch.
  */
 
-/** The spine, in the order the sale happens in. Nothing on it leaves v2. */
+/**
+ * Four screens, in the order the work happens in (owner, 2026-09-24).
+ *
+ * الطلبات is where interest arrives, البيع is where a sale is registered, التأكيد is where it is finished, and
+ * الأقساط is where the money is collected for the next two years. There used to be eight links — اليوم،
+ * الملفات، بيع، الحجوزات، العقود، الأقساط، العروض، الزيتونات — which is not a workflow, it is a list of the
+ * database's tables. A reservation and a contract are things the software makes ON THE WAY through those four
+ * screens; neither is a place a human goes.
+ *
+ * العروض and الزيتونات stay, set apart, because they are not the sale: they are the stock it sells from —
+ * where an offer is priced and its trees are numbered. Nothing can be sold until they have been used once.
+ */
 const LINKS = [
-  { href: "/admin/v2", label: "اليوم" },
-  { href: "/admin/v2/files", label: "الملفات" },
-  // The sale starts here, not inside a file: most customers never filled a form.
+  { href: "/admin/v2/requests", label: "الطلبات" },
   { href: "/admin/v2/sell", label: "بيع" },
-  { href: "/admin/v2/reservations", label: "الحجوزات" },
-  { href: "/admin/v2/contracts", label: "العقود" },
+  { href: "/admin/v2/confirm", label: "التأكيد" },
   { href: "/admin/v2/installments", label: "الأقساط" },
   // The stock, and one field that finds a tree by the number a client reads down the phone.
   { href: "/admin/v2/offers", label: "العروض" },
@@ -59,7 +67,7 @@ export function WorkflowNav() {
   return (
     <nav ref={strip} className="rail-none -mx-1 flex min-w-0 flex-1 gap-0.5 overflow-x-auto px-1">
       {LINKS.map((link) => {
-        const active = link.href === "/admin/v2" ? pathname === link.href : pathname.startsWith(link.href);
+        const active = pathname.startsWith(link.href);
         return (
           <Link
             key={link.href}

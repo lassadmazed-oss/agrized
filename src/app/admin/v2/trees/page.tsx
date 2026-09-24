@@ -125,7 +125,7 @@ export default async function TreesPage({ searchParams }: PageProps<"/admin/v2/t
             key={tree.id}
             // A held tree opens the file that holds it; a free one opens its offer. Either way the row
             // answers the question that made someone search for a code.
-            href={tree.holder ? `/admin/v2/files/${tree.holder.id}` : "/admin/v2/offers"}
+            href={tree.holder ? `/admin/v2/sell?person=${tree.holder.id}` : "/admin/v2/offers"}
             title={<span dir="ltr">{tree.code}</span>}
             subtitle={tree.project?.name ?? undefined}
             middle={tree.holder?.full_name ?? undefined}

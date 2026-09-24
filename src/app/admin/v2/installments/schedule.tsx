@@ -7,7 +7,7 @@ import { daysLateLabel, formatAmount } from "@/lib/backoffice/contracts/model";
 import { formatCount, formatDate } from "@/lib/format";
 import { intakeErrorMessage } from "@/lib/errors";
 
-import { Popup } from "../../popup";
+import { Popup } from "../popup";
 
 import { recordInstallment } from "@/lib/backoffice/installments/actions";
 

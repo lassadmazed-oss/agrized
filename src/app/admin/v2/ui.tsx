@@ -105,7 +105,20 @@ export function Row({
         <span className="min-w-0 flex-1">
           <span className="block truncate text-sm font-semibold text-ink">{title}</span>
           {subtitle ? (
-            <span dir="ltr" className="block truncate text-[0.6875rem] leading-tight text-muted">
+            // TWO properties, and both are needed — this line has been wrong in three different ways.
+            //
+            // dir="ltr" alone (what was here) puts the number in the right ORDER but the wrong PLACE:
+            // `text-align: start` resolves against the element's own direction, so an ltr box inside an rtl
+            // column aligns its text left, half a row away from the name it belongs to. On four screens.
+            //
+            // Dropping the dir (or using <bdi>, whose dir defaults to `auto` and resolves to ltr for a run of
+            // digits) fixes the place and breaks the order: «+» is a bidi separator with no digit to its left,
+            // so it is treated as neutral, takes the paragraph's direction and is printed at the far end —
+            // ‎21698123456+ instead of +21698123456.
+            //
+            // So: ltr for the content, end-aligned for the box. In an ltr element `text-end` is the right
+            // edge, which is where an rtl column starts, which is where the name above it starts.
+            <span dir="ltr" className="block truncate text-end text-[0.6875rem] leading-tight text-muted">
               {subtitle}
             </span>
           ) : null}
