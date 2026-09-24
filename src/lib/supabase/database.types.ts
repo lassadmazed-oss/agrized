@@ -2284,6 +2284,39 @@ export type Database = {
           },
         ]
       }
+      person_views: {
+        Row: {
+          person_id: string
+          seen_at: string
+          user_id: string
+        }
+        Insert: {
+          person_id: string
+          seen_at?: string
+          user_id: string
+        }
+        Update: {
+          person_id?: string
+          seen_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "person_views_person_id_fkey"
+            columns: ["person_id"]
+            isOneToOne: false
+            referencedRelation: "persons"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "person_views_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       persons: {
         Row: {
           address_line: string | null
@@ -4118,6 +4151,32 @@ export type Database = {
         Args: { p_from?: string; p_people?: boolean; p_to?: string }
         Returns: Json
       }
+      crm_list_people: {
+        Args: { p?: Json; p_limit?: number; p_offset?: number }
+        Returns: {
+          assigned_to: string
+          assigned_to_name: string
+          cin: string
+          created_at: string
+          full_name: string
+          governorate_name_ar: string
+          last_activity_at: string
+          offer_trees: number
+          person_id: string
+          persons_total: number
+          phone_e164: string
+          project_id: string
+          project_name: string
+          request_kind: string
+          requests_count: number
+          seen_at: string
+          stage: Database["public"]["Enums"]["lead_stage"]
+          status_id: string
+          status_label_ar: string
+          tree_count_label_ar: string
+        }[]
+      }
+      crm_people_counts: { Args: never; Returns: Json }
       crm_search_requests: {
         Args: { p: Json; p_limit?: number; p_offset?: number }
         Returns: {
@@ -4407,11 +4466,14 @@ export type Database = {
       }
       staff_create_reservation: {
         Args: {
+          p_from_seq?: number
           p_note: string
           p_person: string
           p_project: string
           p_reason: string
           p_request: string
+          p_seqs?: number[]
+          p_to_seq?: number
           p_trees: number
         }
         Returns: Json
@@ -4454,12 +4516,23 @@ export type Database = {
         Args: { p_filter?: string; p_limit?: number }
         Returns: Json
       }
+      staff_mark_person_seen: { Args: { p_person: string }; Returns: undefined }
       staff_match_offers: {
         Args: { p_limit?: number; p_request: string }
         Returns: Json
       }
       staff_offer_services: { Args: { p_project: string }; Returns: Json }
       staff_offer_stock: { Args: { p_project: string }; Returns: Json }
+      staff_offer_tree_runs: {
+        Args: { p_limit?: number; p_project: string }
+        Returns: {
+          from_code: string
+          from_seq: number
+          to_code: string
+          to_seq: number
+          trees: number
+        }[]
+      }
       staff_parcel_offer: {
         Args: {
           p_down_option?: string
