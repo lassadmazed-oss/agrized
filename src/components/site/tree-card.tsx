@@ -39,7 +39,7 @@ export function OliveMark({ trees, className = "text-paper/70" }: { trees: numbe
 export function treeCardClass(selected: boolean, tone: TreeCardTone): string {
   // On /start the radio inside the card is visually hidden, so the card itself shows keyboard focus.
   const base =
-    "flex h-full min-h-14 cursor-pointer flex-col items-center justify-center gap-0 rounded-xl border px-1.5 py-2 text-center sm:min-h-0 sm:gap-1 sm:rounded-2xl sm:border-2 sm:px-3 sm:py-5 transition duration-200 motion-reduce:transition-none has-[.sr-only:focus-visible]:outline-2 has-[.sr-only:focus-visible]:outline-offset-2 has-[.sr-only:focus-visible]:outline-gold-bright";
+    "flex h-full min-h-14 cursor-pointer flex-col items-center justify-center gap-0 rounded-xl border px-1.5 py-2 text-center sm:min-h-0 sm:gap-1 sm:rounded-2xl sm:border-2 sm:px-3 sm:py-5 lg:gap-0.5 lg:px-2.5 lg:py-3 transition duration-200 motion-reduce:transition-none has-[.sr-only:focus-visible]:outline-2 has-[.sr-only:focus-visible]:outline-offset-2 has-[.sr-only:focus-visible]:outline-gold-bright";
   const state =
     tone === "dark"
       ? selected
@@ -89,9 +89,13 @@ export function TreeCardBody({ labelAr, labelFr, trees, taglineAr, taglineFr, to
 
       {taglineAr ? (
         <>
-          <span aria-hidden="true" className="hidden h-px w-10 bg-line-strong sm:my-2 sm:block" />
-          <span className="hidden text-muted sm:block sm:text-sm sm:leading-5">
-            <Bi ar={taglineAr} fr={taglineFr} frClassName="text-[0.85em] opacity-80" />
+          <span aria-hidden="true" className="hidden h-px w-10 bg-line-strong sm:my-2 sm:block lg:my-1.5" />
+          {/* The tagline keeps its Arabic at every width and drops its French twin at lg: on a desktop these
+              cards stand five to a row inside a frame that does not scroll, and the twin is the sixth line in
+              a card that already says the number twice. The word itself is never lost — it is the count and
+              the label that a visitor is choosing between. */}
+          <span className="hidden text-muted sm:block sm:text-sm sm:leading-5 lg:text-[0.8125rem] lg:leading-4">
+            <Bi ar={taglineAr} fr={taglineFr} frClassName="text-[0.85em] opacity-80 lg:hidden" />
           </span>
         </>
       ) : null}

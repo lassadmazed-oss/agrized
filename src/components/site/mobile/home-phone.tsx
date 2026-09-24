@@ -145,32 +145,49 @@ export function HomePhone({
 
         {/* 1 · The hero. The whole card is the link target for the primary door; the second door is a
             separate control, because «ما نعرفش نبدا» goes somewhere else entirely. */}
-        <section className="relative overflow-hidden rounded-3xl shadow-[var(--shadow-card)]">
-          <div className="absolute inset-0">{hero}</div>
-          {/* Bottom-weighted: the sky is why the photograph is here, the words live on its foot. */}
+        <section className="group relative overflow-hidden rounded-3xl shadow-[var(--shadow-card)] lg:rounded-[2rem] lg:shadow-[var(--shadow-float)]">
+          <div className="absolute inset-0 [&_img]:transition-transform [&_img]:duration-[1.2s] group-hover:[&_img]:scale-[1.03]">{hero}</div>
+
+          {/* DEPTH IS THREE LAYERS, NOT ONE WASH (owner, 2026-09-24: «make it nice and deep and clean»).
+              A single bottom-to-top gradient flattens a photograph into a poster: every part of the image is
+              dimmed by the same rule, so nothing recedes. Here the foot is darkened for the words, the start
+              edge carries a second, softer wash so the headline has ground on the side it begins from, and a
+              faint inset ring closes the card against the page. The sky — the reason this picture is here —
+              keeps almost all of its light. */}
           <div
             aria-hidden="true"
-            className="absolute inset-0 bg-gradient-to-t from-forest-700/94 via-forest-700/55 to-forest-700/15"
+            className="absolute inset-0 bg-gradient-to-t from-forest-700/94 via-forest-700/50 to-forest-700/10"
           />
-          <div className="relative flex min-h-[13rem] flex-col justify-end p-4 md:min-h-[26rem] md:p-9 lg:min-h-[30rem]">
+          <div
+            aria-hidden="true"
+            className="absolute inset-0 hidden bg-gradient-to-l from-forest-700/45 via-transparent to-transparent lg:block"
+          />
+          <div
+            aria-hidden="true"
+            className="pointer-events-none absolute inset-0 rounded-3xl ring-1 ring-inset ring-surface/12 lg:rounded-[2rem]"
+          />
+
+          <div className="relative flex min-h-[13rem] flex-col justify-end p-4 md:min-h-[26rem] md:p-9 lg:min-h-[34rem] lg:p-12">
             {copy.badge ? (
               <span className="mb-2 inline-flex self-start items-center gap-1.5 rounded-full border border-surface/25 bg-surface/15 px-2.5 py-1 text-[0.6875rem] font-medium text-paper backdrop-blur-sm">
                 <LeafGlyph />
                 {copy.badge}
               </span>
             ) : null}
-            <p className="max-w-2xl font-display text-[1.75rem] font-bold leading-[1.15] text-surface md:text-5xl lg:text-6xl">{copy.line}</p>
-            <div className="mt-3 flex flex-wrap gap-2">
+            <p className="max-w-2xl font-display text-[1.75rem] font-bold leading-[1.15] text-surface [text-shadow:0_2px_28px_rgb(0_0_0/0.28)] md:text-5xl lg:max-w-3xl lg:text-[3.75rem] lg:leading-[1.05]">
+              {copy.line}
+            </p>
+            <div className="mt-3 flex flex-wrap gap-2 lg:mt-7 lg:gap-3">
               <Link
                 href={offersHref}
-                className="inline-flex min-h-11 items-center gap-2 rounded-full bg-surface px-4 text-label font-semibold text-ink transition-transform active:scale-[0.98]"
+                className="inline-flex min-h-11 items-center gap-2 rounded-full bg-surface px-4 text-label font-semibold text-ink shadow-[var(--shadow-card)] transition-all active:scale-[0.98] lg:min-h-[3.25rem] lg:gap-2.5 lg:px-7 lg:text-base lg:hover:-translate-y-0.5 lg:hover:shadow-[var(--shadow-float)]"
               >
                 {copy.exploreCta}
                 <ArrowGo className="size-4" />
               </Link>
               <Link
                 href={guideHref}
-                className="inline-flex min-h-11 items-center rounded-full border-[1.5px] border-surface/40 px-4 text-label font-semibold text-surface"
+                className="inline-flex min-h-11 items-center rounded-full border-[1.5px] border-surface/40 px-4 text-label font-semibold text-surface backdrop-blur-sm transition-colors hover:border-surface/70 hover:bg-surface/10 lg:min-h-[3.25rem] lg:px-7 lg:text-base"
               >
                 {copy.guideCta}
               </Link>

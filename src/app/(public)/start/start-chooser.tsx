@@ -529,7 +529,7 @@ export function StartChooser({
     // on the last question. Below `lg` nothing changes: a phone scrolls, as a phone should.
     <div data-phone-screen=""
       className="mx-auto flex max-w-6xl flex-col px-4 py-4 sm:block sm:px-6 sm:py-6 lg:flex lg:h-[calc(100svh-4.5rem)] lg:min-h-0 lg:flex-col lg:overflow-hidden lg:py-5">
-      <div className="mb-4 hidden md:block lg:mb-2">{breadcrumb}</div>
+      <div className="mb-4 hidden md:block lg:hidden">{breadcrumb}</div>
 
       {/* THE PHONE'S OWN BAR (owner, 2026-09-22: «a full redesign, better saving space»). The screen opened
           with a site lockup, a breadcrumb, a badge, a step line and a progress rail — five stacked rows,
@@ -562,7 +562,9 @@ export function StartChooser({
           <Bi ar={copy.eyebrow} fr={copy.eyebrowFr} frClassName="text-[0.9em] font-normal opacity-80" />
         </p>
       ) : null}
-      <Progress step={index + 1} total={steps.length} />
+      <div className="lg:-mt-2">
+        <Progress step={index + 1} total={steps.length} />
+      </div>
 
       {/*
        * Two fixes on one line. The French twin of a heading is an LTR block: left to itself it lands against the
@@ -577,7 +579,7 @@ export function StartChooser({
       </h1>
 
       {activeStep === "trees" && copy.subtitle ? (
-        <p className="mt-1.5 max-w-2xl text-[0.8125rem] leading-5 text-muted sm:mt-3 sm:text-lg sm:leading-8">
+        <p className="mt-1.5 max-w-2xl text-[0.8125rem] leading-5 text-muted sm:mt-3 sm:text-lg sm:leading-8 lg:mt-1.5 lg:text-sm lg:leading-6">
           <Bi ar={copy.subtitle} fr={copy.subtitleFr} frClassName="hidden text-end text-[0.85em] leading-6 opacity-85 sm:block" />
         </p>
       ) : null}
@@ -602,17 +604,34 @@ export function StartChooser({
           question and its own title, and pushed the chips below the fold on a laptop. */}
       <div
         className={`mt-3 grid gap-4 sm:mt-roomy sm:gap-roomy lg:mt-4 lg:min-h-0 lg:flex-1 lg:items-start lg:gap-8 ${
-          isSummary ? "lg:grid-cols-[20rem_minmax(0,1fr)]" : "lg:grid-cols-[minmax(0,1fr)_22rem]"
+          isSummary
+            ? "lg:grid-cols-[20rem_minmax(0,1fr)]"
+            : showFigures
+              ? "lg:grid-cols-[minmax(0,1fr)_22rem]"
+              : "lg:grid-cols-1"
         }`}
       >
         {/* On the last screen this column holds what happens next instead of a question. The figures are read
             first on a phone and keep their place beside it on a wide screen, so the order flips only there. */}
-        <div className={`lg:min-h-0 lg:max-h-full lg:overflow-y-auto lg:pe-1 ${isSummary ? "order-2 lg:order-1" : ""}`}>
+        <div
+          // The answers scroll inside the frame rather than lengthening the page, and the last visible row
+          // fades out instead of being sliced in half: a card cut by a hard edge reads as a rendering
+          // fault, while a fade is the oldest way of saying «there is more here». The rail itself is
+          // hidden (rail-none), so the column carries no grey furniture beside the choices.
+          className={`rail-none lg:min-h-0 lg:max-h-full lg:overflow-y-auto lg:[mask-image:linear-gradient(to_bottom,black_calc(100%-2.5rem),transparent)] ${
+            isSummary ? "order-2 lg:order-1" : ""
+          }`}
+        >
         {/* 1 · The tiers, as the Back Office wrote them (LEAD-01), plus a free number. */}
         {activeStep === "trees" ? (
           <fieldset>
             <legend className="sr-only">{copy.title}</legend>
-            <ul data-answers className="grid grid-cols-4 gap-1.5 sm:grid-cols-3 sm:gap-4">
+            <ul
+              data-answers
+              className={`grid grid-cols-4 gap-1.5 sm:grid-cols-3 sm:gap-4 lg:gap-2.5 ${
+                showFigures ? "lg:grid-cols-4" : "lg:grid-cols-5"
+              }`}
+            >
               {treeCounts.map((option) => {
                 const tagline = option.code ? taglines[option.code] : undefined;
                 const picked = treeId === option.id;
@@ -878,7 +897,7 @@ export function StartChooser({
 
         {/* 5 · The figures, beside the questions on every screen, following each answer. */}
         {showFigures ? (
-          <aside className={`lg:min-h-0 lg:max-h-full lg:overflow-y-auto ${isSummary ? "order-1 lg:order-2" : "max-lg:hidden"}`}>
+          <aside className={`rail-none lg:min-h-0 lg:max-h-full ${isSummary ? "order-1 lg:overflow-y-auto lg:order-2" : "max-lg:hidden"}`}>
             {/* A simulation never wears the shape of stock: the warm dashed .card-estimate surface, no elevation,
                 and the disclaimer stamped across the head of the card rather than left as a footnote at the
                 bottom. The wording is `start.estimate_note` (MIL-02) — blanking that setting is still the only
@@ -973,7 +992,11 @@ export function StartChooser({
             </section>
           </aside>
         ) : (
-          <div className="hidden lg:block">{photo}</div>
+          // No figures yet means no second column to stand in, so the decorative photograph is not drawn at
+          // all: as a full-width row under the answers it was a 110px empty band, and it was what pushed the
+          // second row of tiers out of the frame. It returns the moment the estimate does, beside the
+          // question where it was designed to sit.
+          null
         )}
       </div>
 
@@ -999,14 +1022,14 @@ export function StartChooser({
           pinned to the bottom of a phone. On every other screen it held «رجوع» alone, and a full-width pinned bar
           for one small button covered the figures underneath it; there it simply follows the page. */}
       <div
-        className={`mt-5 flex gap-3 sm:mt-8 ${
+        className={`mt-5 flex gap-3 sm:mt-8 lg:mt-4 lg:flex-none lg:justify-end lg:gap-2 ${
           activeStep === "trees"
             ? "sticky bottom-[var(--tabbar-h)] -mx-4 mt-auto border-t border-line bg-paper/95 px-4 py-3 backdrop-blur sm:static sm:mt-8 sm:mx-0 sm:border-0 sm:bg-transparent sm:px-0 sm:py-0"
             : ""
         }`}
       >
         {index > 0 ? (
-          <button type="button" onClick={goBack} className="btn btn-secondary">
+          <button type="button" onClick={goBack} className="btn btn-secondary lg:btn-sm lg:px-5">
             رجوع
           </button>
         ) : null}
@@ -1015,7 +1038,7 @@ export function StartChooser({
             type="button"
             onClick={() => advance()}
             disabled={!hasTrees}
-            className="btn btn-primary flex-1 sm:min-w-48 sm:flex-none"
+            className="btn btn-primary flex-1 sm:min-w-48 sm:flex-none lg:btn-sm lg:min-w-40 lg:px-6"
           >
             التالي
           </button>
