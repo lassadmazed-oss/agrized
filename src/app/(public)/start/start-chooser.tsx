@@ -521,9 +521,15 @@ export function StartChooser({
        the short screens — four tiles, six tiles — left a third of the phone blank between the last answer
        and the button, and read as a page still loading something. The bar under it is `sticky`, so it
        still sits at the bottom of a screen that IS long enough to scroll. */
+    // ONE SCREEN ON A DESKTOP, AND IT DOES NOT GROW (owner, 2026-09-24: «the /start form is too annoying, too
+    // big — I want the one-page design, no scroll»). From `lg` the page is exactly the viewport minus the
+    // header, laid out as a column: the heading and the step line are fixed furniture at the top, and the row
+    // under them is the only part that can shrink. A step with eight tiles scrolls INSIDE its own column
+    // instead of pushing the button off the bottom of the window, so the way forward is always where it was
+    // on the last question. Below `lg` nothing changes: a phone scrolls, as a phone should.
     <div data-phone-screen=""
-      className="mx-auto flex max-w-6xl flex-col px-4 py-4 sm:block sm:px-6 sm:py-8">
-      <div className="mb-6 hidden md:block">{breadcrumb}</div>
+      className="mx-auto flex max-w-6xl flex-col px-4 py-4 sm:block sm:px-6 sm:py-6 lg:flex lg:h-[calc(100svh-4.5rem)] lg:min-h-0 lg:flex-col lg:overflow-hidden lg:py-5">
+      <div className="mb-4 hidden md:block lg:mb-2">{breadcrumb}</div>
 
       {/* THE PHONE'S OWN BAR (owner, 2026-09-22: «a full redesign, better saving space»). The screen opened
           with a site lockup, a breadcrumb, a badge, a step line and a progress rail — five stacked rows,
@@ -566,7 +572,7 @@ export function StartChooser({
        * therefore drew a gold box around the title. An inline style wins. Nothing is lost: the heading is not a
        * control and is only ever focused in code.
        */}
-      <h1 ref={headingRef} tabIndex={-1} style={{ outline: "none" }} className="mt-3 max-w-2xl text-xl font-bold leading-tight text-forest sm:section-title sm:mt-6">
+      <h1 ref={headingRef} tabIndex={-1} style={{ outline: "none" }} className="mt-3 max-w-2xl text-xl font-bold leading-tight text-forest sm:section-title sm:mt-6 lg:mt-3 lg:text-[1.75rem]">
         <Bi ar={questionTitle[activeStep].ar} fr={questionTitle[activeStep].fr} frClassName="mt-0.5 text-end text-[0.62em] font-normal text-muted" />
       </h1>
 
@@ -594,10 +600,14 @@ export function StartChooser({
       {/* The question and the figures, side by side from `lg` up and stacked below it. Both columns start at the
           top of the row: centring the question against the card left a screen-deep gap between a two-chip
           question and its own title, and pushed the chips below the fold on a laptop. */}
-      <div className="mt-3 grid gap-4 sm:mt-roomy sm:gap-roomy lg:grid-cols-[minmax(0,1fr)_22rem] lg:items-start">
+      <div
+        className={`mt-3 grid gap-4 sm:mt-roomy sm:gap-roomy lg:mt-4 lg:min-h-0 lg:flex-1 lg:items-start lg:gap-8 ${
+          isSummary ? "lg:grid-cols-[20rem_minmax(0,1fr)]" : "lg:grid-cols-[minmax(0,1fr)_22rem]"
+        }`}
+      >
         {/* On the last screen this column holds what happens next instead of a question. The figures are read
             first on a phone and keep their place beside it on a wide screen, so the order flips only there. */}
-        <div className={isSummary ? "order-2 lg:order-1" : undefined}>
+        <div className={`lg:min-h-0 lg:max-h-full lg:overflow-y-auto lg:pe-1 ${isSummary ? "order-2 lg:order-1" : ""}`}>
         {/* 1 · The tiers, as the Back Office wrote them (LEAD-01), plus a free number. */}
         {activeStep === "trees" ? (
           <fieldset>
@@ -868,7 +878,7 @@ export function StartChooser({
 
         {/* 5 · The figures, beside the questions on every screen, following each answer. */}
         {showFigures ? (
-          <aside className={isSummary ? "order-1 lg:order-2" : "max-lg:hidden"}>
+          <aside className={`lg:min-h-0 lg:max-h-full lg:overflow-y-auto ${isSummary ? "order-1 lg:order-2" : "max-lg:hidden"}`}>
             {/* A simulation never wears the shape of stock: the warm dashed .card-estimate surface, no elevation,
                 and the disclaimer stamped across the head of the card rather than left as a footnote at the
                 bottom. The wording is `start.estimate_note` (MIL-02) — blanking that setting is still the only

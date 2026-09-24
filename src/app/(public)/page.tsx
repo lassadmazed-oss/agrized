@@ -1,8 +1,10 @@
 
 import { ClosingCta } from "@/components/site/landing/closing-cta";
+import { CounterBand } from "@/components/site/landing/counter-band";
 import { Faq } from "@/components/site/landing/faq";
 import { HERO_SLOTS } from "@/components/site/landing/hero";
 import { PhotoSlideshow } from "@/components/site/landing/photo-slideshow";
+import { ServicesMap } from "@/components/site/landing/services-map";
 import { HomePhone, type HomePhoneOffer } from "@/components/site/mobile/home-phone";
 import { QuoteStrip, type Quote } from "@/components/site/mobile/quote-strip";
 import { type AppStat } from "@/components/site/mobile/app-stats";
@@ -174,6 +176,19 @@ export default async function HomePage() {
       <HomePhone
         hero={<PhotoSlideshow config={config} slots={HERO_SLOTS} priority sizes="100vw" />}
         quotes={<QuoteStrip quotes={settingJson<Quote[]>(config, "site.quotes", [])} />}
+        // «وين وصلنا؟» in full. CounterBand's own docstring asked for exactly this line; the section was
+        // written for this page and then lost when the wide-screen composition was removed (owner,
+        // 2026-09-24). The gate is unchanged: `progress` is null while public_statistics is closed, and then
+        // HomePhone falls back to the one-line bar it already drew.
+        progressBand={progress ? <CounterBand config={config} progress={progress} /> : null}
+        // «إنت تستثمر، وإحنا نتلهاو» — the services are option_items, the places are the governorates, and the
+        // ones holding a live offer today are marked from the offers this page already read.
+        services={
+          <ServicesMap
+            config={config}
+            offerPlaces={[...new Set(offers.map((offer) => place(offer.governorate_id)).filter(Boolean))]}
+          />
+        }
         faq={faq.length > 0 ? <Faq config={config} items={faq} /> : null}
         closing={interestOpen ? <ClosingCta config={config} ctaLabel={estimateCta} /> : null}
         copy={{

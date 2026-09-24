@@ -59,6 +59,17 @@ export type HomePhoneProps = {
   /** The sliding quote cards, above everything. Null when the owner emptied `site.quotes`. */
   quotes?: ReactNode;
   /**
+   * «وين وصلنا؟» in full — the six counted figures on their photographic band (CounterBand).
+   *
+   * When it is given it REPLACES the one-line bar below, rather than joining it: both carry id="million",
+   * which the header and the footer link to as /#million, and two elements answering one anchor is a bug
+   * the browser resolves by guessing. Null when the statistics module is closed, and then the short bar
+   * stands on its own as before.
+   */
+  progressBand?: ReactNode;
+  /** «إنت تستثمر، وإحنا نتلهاو» and the governorates beside it (ServicesMap). */
+  services?: ReactNode;
+  /**
    * The questions and the last ask, both already drawn by the landing page.
    *
    * They are passed in rather than rebuilt here. Every sentence in them is a setting the owner edits
@@ -97,6 +108,8 @@ export type HomePhoneProps = {
 export function HomePhone({
   hero,
   quotes,
+  progressBand,
+  services,
   faq,
   closing,
   copy,
@@ -123,8 +136,12 @@ export function HomePhone({
           so it still takes the site header off a phone that carries its own furniture, and still leaves the
           header alone on a wide screen where the bar is the only navigation there is. */}
       <div className="mx-auto max-w-md px-4 pb-6 pt-3 md:max-w-5xl md:px-6 md:pb-14 md:pt-6 lg:max-w-6xl">
-        {/* 0 · The quote strip, over the photograph and under nothing. */}
-        {quotes}
+        {/* 0 · The quote strip — on a phone only (owner, 2026-09-24: «remove the quotes from the desktop
+            view»). It is a sliding card of proverbs: on a 375px screen, above a photograph, it reads as the
+            app greeting somebody. Across 1200px it is a wide band of aphorism sitting above the one thing the
+            visitor came for, and the first impression of the business becomes a fortune cookie. The setting
+            still feeds it, so emptying `site.quotes` still removes it everywhere. */}
+        <div className="md:hidden">{quotes}</div>
 
         {/* 1 · The hero. The whole card is the link target for the primary door; the second door is a
             separate control, because «ما نعرفش نبدا» goes somewhere else entirely. */}
@@ -231,9 +248,14 @@ export function HomePhone({
           </section>
         ) : null}
 
-        {/* 5 · Where the counter has got to. One line and one bar: the long version is its own band on the
-            wide screen, and repeating it here would cost the screen its shape. */}
-        {progressNote ? (
+        {/* 5 · Where the counter has got to (owner, 2026-09-24: «add these 2 in the landing page»).
+            The full band was written for the landing page it was then taken off — six counted figures, the
+            «عشرات الأشخاص بدات» line and the goal — and what stood here instead was a single bar carrying one
+            of those six. The band is back, and it answers #million; the short bar below is what shows when
+            the statistics module is closed and there is no band to render. */}
+        {progressBand ? (
+          <div className="mt-3 overflow-hidden rounded-3xl md:mt-5">{progressBand}</div>
+        ) : progressNote ? (
           <section id="million" className="card mt-3 scroll-mt-24 p-3 md:mt-5 md:p-6">
             <div className="flex items-baseline justify-between gap-2">
               <p className="text-[0.8125rem] font-semibold text-ink">{copy.progressTitle}</p>
@@ -249,6 +271,13 @@ export function HomePhone({
             ) : null}
           </section>
         ) : null}
+
+        {/* 5b · «إنت تستثمر، وإحنا نتلهاو» — what the company keeps doing after the money changes hands, and
+            where the land can be. Both lists are database rows (option_items `agrized_service`, and the active
+            governorates), and `site.services_note` — «الخدمات اختيارية، وشروطها وأسعارها تتوضّح قبل الإمضاء» —
+            is why the chip row cannot be read as «free». It sits after the counter because it answers the
+            question the figures raise: «fine, but what do I actually get». */}
+        {services ? <div className="mt-3 md:mt-5">{services}</div> : null}
 
         {/* 6 · The stranger's questions, then the ask. Owner, 2026-09-23: both were on the wide screen
             only — a visitor on a telephone reached the offers, the figures, and then the footer, with
