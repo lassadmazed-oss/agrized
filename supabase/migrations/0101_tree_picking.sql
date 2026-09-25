@@ -1,28 +1,31 @@
--- █████████████████████████████████████████████████████████████████████████████████████████████████████
--- ███ SUPERSEDED 2026-09-25 — DO NOT APPLY. IT WOULD BREAK EVERY RESERVATION.
--- ███
--- ███ Section 2 below does `create or replace function public.staff_create_reservation(uuid, uuid, uuid,
--- ███ integer, text, text)` — the six-argument signature that was the only one when this was drafted.
--- ███ It is not the only one any more. The other session answered the same owner brief two days later:
--- ███
--- ███   0088_reserve_tree_range.sql  DROPS the 6-arg version and adds p_from_seq / p_to_seq
--- ███   0089_reserve_tree_list.sql   DROPS that one and adds p_seqs integer[] as well
--- ███
--- ███ The live database now holds exactly ONE staff_create_reservation, the nine-argument form, and it
--- ███ already does what this file was written for: a count, OR a range من 120 إلى 144, OR an explicit list
--- ███ of tree numbers. «ما نحجزوش عشر زيتونات، نحجزو عشر زيتونات بأرقامها» is shipped.
--- ███
--- ███ Applying this file would RE-CREATE the six-argument overload beside the nine-argument one. Both then
--- ███ match a six-argument call, and PostgreSQL refuses it: «function public.staff_create_reservation(...)
--- ███ is not unique». Reservations stop working everywhere — the Back Office, the tests and the demo seed.
--- ███ That is not a prediction: it is what the dry-run of the whole chain returned on 2026-09-25, and it is
--- ███ why this file was left behind when the other seven drafts were numbered 0090 → 0096.
--- ███
--- ███ WHAT IS STILL UNANSWERED HERE, and is the only reason this file is kept rather than deleted:
--- ███ section 1, «زياراتي» — the field commercial's own read of their visits (§7). That part collides with
--- ███ nothing. Whoever picks it up should take section 1 alone into a new migration and let the rest go.
--- █████████████████████████████████████████████████████████████████████████████████████████████████████
+-- 0101 · اختيار الزيتونات بأرقامها — the half of bb_71 that is still alive.
 --
+-- WHAT THIS IS. supabase/pending/bb_71_tree_picking.sql was drafted before the other session answered the
+-- same owner brief, and it could never be applied whole: its §5 re-created
+-- public.staff_create_reservation(uuid, uuid, uuid, integer, text, text), the six-argument signature that
+-- 0088 DROPPED and 0089 replaced with a nine-argument form carrying p_from_seq, p_to_seq and p_seqs.
+-- Applying it would have put both side by side, and every six-argument call would then fail with «function
+-- public.staff_create_reservation is not unique» — reservations dead in the Back Office, the tests and the
+-- demo seed. That is measured, not feared: it is what the full dry-run returned on 2026-09-25.
+--
+-- SO §5 IS DROPPED AND NOTHING ELSE IS. Every other object in that file has a name of its own, collides
+-- with nothing, and is ALREADY BEING CALLED by TypeScript that shipped on 2026-09-25:
+--
+--   public.staff_offer_tree_plan               src/app/admin/(panel)/projects/[id]/tree-plan-read.tsx
+--   public.staff_allocate_chosen_trees         src/app/admin/(panel)/desk/field/actions.ts
+--   public.staff_create_reservation_from_trees src/app/admin/(panel)/desk/field/actions.ts
+--
+-- Those three screens have been calling functions that do not exist since the day they were committed. This
+-- is what makes them work, and it is the actual reason this file could not simply be deleted.
+--
+-- public.staff_visit_board replaces 0064's version — §7 «زياراتي», the field commercial's own read, which
+-- 0064 built against the wrong grain. Kept, and 037_visits is green with it.
+--
+-- WHAT THE OWNER GETS THAT 0089 DOES NOT ALREADY GIVE: 0089 reserves a LIST of numbers in one call, which is
+-- the writing half. This is the reading half — staff_offer_tree_plan draws the offer's number line so the
+-- commercial can SEE which trees are free before choosing, and staff_allocate_chosen_trees holds a named set
+-- without opening a reservation at all.
+
 -- bb_71 · PICKING TREES BY NUMBER, AND THE FIELD COMMERCIAL'S OWN READ OF A VISIT
 -- =============================================================================================================
 -- DRAFT. NOT APPLIED. Dry-run only:
@@ -504,56 +507,6 @@ begin
 end $$;
 
 revoke execute on function app.bind_reservation_trees(uuid, jsonb) from public, anon, authenticated;
-
-
--- =============================================================================================================
--- 5 · public.staff_create_reservation — SAME SIGNATURE, SAME BEHAVIOUR, SHARED BODY
--- =============================================================================================================
---
--- The live count path. It is rewritten only to sit on app.open_reservation; every refusal, the audit row, the
--- return value and the grants are what 0063 wrote. Two live screens call it
--- (src/app/admin/(panel)/reservations/reserve-form.tsx and the client file's reservation card) and neither
--- changes.
-
-create or replace function public.staff_create_reservation(
-  p_project uuid, p_person uuid, p_request uuid, p_trees integer, p_note text, p_reason text
-) returns jsonb
-language plpgsql security definer set search_path = '' as $$
-declare
-  v_res   public.reservations;
-  v_alloc jsonb;
-begin
-  perform app.assert_reservations_open();
-
-  if not (app.is_staff() and app.can_see_person(p_person)) then
-    raise exception 'forbidden' using errcode = '42501';
-  end if;
-  perform app.set_reason(p_reason);
-
-  v_res := app.open_reservation(p_project, p_person, p_request, p_trees, p_note);
-
-  -- The inventory half. Everything it refuses, it refuses for the whole call: raising here rolls the
-  -- reservation row back with it, so a reservation whose trees were never taken cannot exist.
-  v_alloc := app.allocate_offer_trees(p_project, p_person, p_request, p_trees, 'reserved');
-  perform app.bind_reservation_trees(v_res.id, v_alloc);
-
-  perform app.write_audit('reservations.create', 'reservations', v_res.id::text, null,
-                          jsonb_build_object('reference_no', v_res.reference_no, 'person_id', p_person,
-                                             'project_id', p_project, 'request_id', p_request,
-                                             'status', v_res.status::text,
-                                             'deposit_due_millimes', v_res.deposit_due_millimes,
-                                             'valid_days', v_res.valid_days, 'expires_at', v_res.expires_at,
-                                             'allocation', v_alloc),
-                          null);
-
-  return app.reservation_payload(v_res.id);
-end $$;
-
-revoke execute on function public.staff_create_reservation(uuid, uuid, uuid, integer, text, text) from public, anon;
-grant execute on function public.staff_create_reservation(uuid, uuid, uuid, integer, text, text) to authenticated;
-
-comment on function public.staff_create_reservation(uuid, uuid, uuid, integer, text, text) is
-  'Opens a reservation (§23): takes p_trees trees of the offer through app.allocate_offer_trees — the lowest-numbered available ones, all of them or none — and records what the hold costs, how long it is valid and under which conditions, each copied from app.offer_reservation_terms so a later edit of the offer cannot rewrite it. Status starts at «Reserved – Awaiting Deposit», or at «Deposit Paid» when the offer asks for no deposit. Staff, limited to the files they may see. Refused while the `reservations` module is disabled (module_closed). To reserve NAMED trees instead, public.staff_create_reservation_from_trees.';
 
 
 -- =============================================================================================================

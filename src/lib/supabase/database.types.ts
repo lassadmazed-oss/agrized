@@ -4868,6 +4868,17 @@ export type Database = {
         Args: { p_filter?: string; p_limit?: number; p_project?: string }
         Returns: Json
       }
+      staff_allocate_chosen_trees: {
+        Args: {
+          p_person: string
+          p_project: string
+          p_reason: string
+          p_request: string
+          p_seqs: number[]
+          p_state: string
+        }
+        Returns: Json
+      }
       staff_allocate_trees: {
         Args: {
           p_person: string
@@ -4948,6 +4959,17 @@ export type Database = {
         }
         Returns: Json
       }
+      staff_create_reservation_from_trees: {
+        Args: {
+          p_note: string
+          p_person: string
+          p_project: string
+          p_reason: string
+          p_request: string
+          p_seqs: number[]
+        }
+        Returns: Json
+      }
       staff_create_subscription: {
         Args: { p: Json; p_reason: string }
         Returns: Json
@@ -5011,6 +5033,7 @@ export type Database = {
       }
       staff_offer_services: { Args: { p_project: string }; Returns: Json }
       staff_offer_stock: { Args: { p_project: string }; Returns: Json }
+      staff_offer_tree_plan: { Args: { p?: Json }; Returns: Json }
       staff_offer_tree_runs: {
         Args: { p_limit?: number; p_project: string }
         Returns: {
