@@ -361,9 +361,15 @@ begin
   assert v->'operations'->>'status'   = 'closed', 'same for the agricultural record';
   assert v->'subscription'->>'status' = 'closed', 'same for the annual subscription';
   assert v->'harvest'->>'status'      = 'closed', 'same for the season';
-  assert v->'contracts'->>'status'    = 'phase_later',
-    'the contract rows of v3 §38 are named as a later phase, not silently dropped';
-  assert v->'installments'->>'status' = 'phase_later', 'and so are the instalments';
+  -- «closed» AND NOT «phase_later» SINCE 0095. When 0068 wrote this, `phase_later` was the honest answer:
+  -- there were no contracts in the database at all, so «switched off» would have been a lie about a thing
+  -- that did not exist. 0072 built them and 0095 plugged the two readers in, so a disabled module now means
+  -- what it means everywhere else on this payload — the owner has not switched it on — and the four lines
+  -- above assert exactly that for the other six. A status that said «later» for a module that is finished
+  -- would send the screen looking for a feature nobody is still waiting for.
+  assert v->'contracts'->>'status'    = 'closed',
+    'the contract rows are switched off, not unbuilt — they exist since 0072';
+  assert v->'installments'->>'status' = 'closed', 'and so are the instalments';
   assert v->'totals'->'paid_millimes' = 'null'::jsonb,
     'no money total is stated while the modules that record money are off';
   reset role;

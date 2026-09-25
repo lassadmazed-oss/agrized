@@ -1,10 +1,25 @@
 -- bb · The parcel layer leaves the database (owner, 2026-09-18: «remove the pieces thing, its simply selling
 -- the trees, but legally yes there is a piece — for our system it is not necessary»).
 --
--- ███ DO NOT APPLY THIS FILE YET. Verified by dry-run: it turns ten test files red, and not one of them is
--- ███ a file this change could touch. 006, 011 and 012 were rewritten to survive it and stay green either
--- ███ way; the ten listed under «WHAT MUST MOVE FIRST» were not. bb_01 and bb_02 are independent of this
--- ███ file and can be applied today; this one waits for those ten.
+-- ███ DO NOT APPLY THIS FILE YET — RE-MEASURED 2026-09-25, and the answer has not changed.
+-- ███
+-- ███ The file itself now applies cleanly: it used to fail its OWN proof in §9, which matched
+-- ███ pg_proc.prosrc against '%public.parcels%' and so fired on app.zitounti_trees for a COMMENT saying it
+-- ███ deliberately does not read parcels. That check strips `--` comments now and the migration is green
+-- ███ on its own. That was the only thing wrong with the file.
+-- ███
+-- ███ WHAT IS STILL WRONG IS EVERYTHING AROUND IT. Measured against today's suite, one test at a time,
+-- ███ each inside its own rolled-back transaction: the suite is 62/62 green, and with this file applied
+-- ███ TWELVE go red:
+-- ███
+-- ███   003_pricing_matching   005_start_custom_trees   007_parcel_statuses_v2   008_cards_and_costs_v3
+-- ███   016_intake_v3          018_intake_pricing       020_project_quote        021_projects_tree
+-- ███   030_annual_fee         032_crm_offer_columns    034_trees_intake_and_roles  037_visits
+-- ███
+-- ███ Most fail with «relation public.parcels does not exist» or «type public.parcel_status does not
+-- ███ exist» — they are not incidental, they test the layer this file removes. Retiring the parcel layer
+-- ███ means rewriting those twelve first, and that is a piece of work, not a step in a migration run.
+-- ███ bb_01 and bb_02 are independent of this file and can be applied today; this one waits.
 --
 -- WHERE THE LAYER STANDS (verified against the live database, 2026-09-19). public.parcels holds 0 rows. Its
 -- only writer, saveParcel(), was deleted on 2026-09-18 and nothing replaced it, so no row can ever be
@@ -299,10 +314,21 @@ begin
           where n.nspname = 'public' and t.typname = 'parcel_status') = 0,
     'public.parcel_status is gone';
 
+  -- COMMENTS ARE STRIPPED BEFORE THIS LOOKS, and that is a correction, not a loosening.
+  --
+  -- pg_proc.prosrc is the whole body INCLUDING its comments, so `prosrc like '%public.parcels%'` matched
+  -- any function that merely mentions the table in prose. app.zitounti_trees (0068) does exactly that, in a
+  -- line whose whole point is that it does NOT read parcels: «the offer's plan, not a parcel's —
+  -- public.parcels holds no rows and is being retired». This proof therefore failed on a function that is
+  -- already correct, and the file refused itself — which is how it came to be marked unappliable.
+  --
+  -- What matters is whether any function still READS the table. So the `--` comments come out first and the
+  -- match runs against code.
   select string_agg(n.nspname || '.' || p.proname, ', ' order by n.nspname, p.proname) into v_left
   from pg_proc p join pg_namespace n on n.oid = p.pronamespace
   where n.nspname in ('app', 'public') and p.prokind = 'f'
-    and (p.proname like '%parcel%' or p.prosrc like '%public.parcels%');
+    and (p.proname like '%parcel%'
+         or regexp_replace(p.prosrc, '--[^\n]*', '', 'g') like '%public.parcels%');
   assert v_left is null, 'these functions still name a parcel: ' || coalesce(v_left, '');
 
   assert not exists (

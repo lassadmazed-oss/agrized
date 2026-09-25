@@ -20,6 +20,13 @@ declare
     'meeting_point', 'مدخل الضيعة الرئيسي',
     'slot',          '13:00-17:00',
     'date',          '30/09',
+    -- Added 2026-09-25 with 0091's legal.appointment_set, which is the first template to use these two.
+    -- Without them this loop could not render it at all: the placeholders stayed literal, the body measured
+    -- long for the wrong reason and the «unfilled placeholder» assertion fired on a fixture gap rather than
+    -- on a template fault. `place` is the same worst-case string as meeting_point, which is the longest
+    -- location this database holds.
+    'time',          '13:00',
+    'place',         'مدخل الضيعة الرئيسي',
     'due_on',        '30/09/2026',
     'signed_on',     '30/09/2026',
     'amount',        '12 500 د',

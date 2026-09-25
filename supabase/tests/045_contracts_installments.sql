@@ -1128,9 +1128,15 @@ begin
     join pg_namespace n on n.oid = c.relnamespace
     where n.nspname = 'public' and c.relname in ('contracts', 'contract_installments')
       and not t.tgisinternal
-      and t.tgname not in ('contracts_stamp', 'contracts_audit',
+      -- `contracts_legal_gate` joined the list on 2026-09-25 with 0091_partners_closing. It is NOT a
+      -- loosening of what this assertion protects: the rule above is «nothing in this module runs on a
+      -- clock», and that trigger runs on a WRITE somebody made, refusing to close a sale while a mandatory
+      -- item on the legal checklist is unconfirmed. 0091 argues the point in its own header — a disabled
+      -- button is not a rule, a trigger is — and putting the gate anywhere else would let a direct RPC call
+      -- walk past it. Anything that appears here and is not named stays a failure.
+      and t.tgname not in ('contracts_stamp', 'contracts_audit', 'contracts_legal_gate',
                            'contract_installments_stamp', 'contract_installments_audit')),
-    'the only triggers on these two tables are the stamp and the audit ones';
+    'the only triggers on these two tables are the stamp, the audit and the legal gate';
 end $$;
 
 select set_config('request.jwt.claims',
