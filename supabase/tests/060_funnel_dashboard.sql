@@ -5,10 +5,10 @@
 -- file against the live schema and public.admin_funnel_stats() does not exist there yet. Check the chain in
 -- one rolled-back transaction, which is how this file was written:
 --
---   node --env-file=.env scripts/db-dry-run.mjs supabase/pending/bb_70_journey.sql supabase/pending/bb_74_funnel_dashboard.sql supabase/tests/049_funnel_dashboard.sql
+--   node --env-file=.env scripts/db-dry-run.mjs supabase/pending/bb_70_journey.sql supabase/pending/bb_74_funnel_dashboard.sql supabase/tests/060_funnel_dashboard.sql
 --
 -- WHAT THIS FILE IS NOT FOR. It does not test WHERE a customer stands — that is bb_70's derivation and
--- supabase/tests/046_journey.sql's job. It tests the COUNTING on top of it: that each file lands in exactly
+-- supabase/tests/058_journey.sql's job. It tests the COUNTING on top of it: that each file lands in exactly
 -- one stage, that `reached` is the suffix sum and narrows, that the bar and its tail add up, that a stage
 -- with no fact answers null and never 0, that exactly one blockage is named and ties break to the earlier
 -- stage, that parked files sit outside the funnel and their contradictions are counted, and that §24's
@@ -23,7 +23,7 @@
 do $$
 begin
   if to_regprocedure('public.admin_funnel_stats()') is null then
-    raise exception 'supabase/pending/bb_74_funnel_dashboard.sql is not applied yet, and this test file belongs to it. Dry-run the chain: node --env-file=.env scripts/db-dry-run.mjs supabase/pending/bb_70_journey.sql supabase/pending/bb_74_funnel_dashboard.sql supabase/tests/049_funnel_dashboard.sql';
+    raise exception 'supabase/pending/bb_74_funnel_dashboard.sql is not applied yet, and this test file belongs to it. Dry-run the chain: node --env-file=.env scripts/db-dry-run.mjs supabase/pending/bb_70_journey.sql supabase/pending/bb_74_funnel_dashboard.sql supabase/tests/060_funnel_dashboard.sql';
   end if;
 end $$;
 

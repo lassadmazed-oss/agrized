@@ -21,7 +21,7 @@ begin
   if not exists (select 1 from pg_proc p join pg_namespace n on n.oid = p.pronamespace
                  where n.nspname = 'public' and p.proname = 'staff_request_journey') then
     raise exception
-      'supabase/pending/bb_75_request_stage.sql is not applied yet, and this test file belongs to it. Dry-run the chain: node --env-file=.env scripts/db-dry-run.mjs supabase/pending/bb_70_journey.sql supabase/pending/bb_75_request_stage.sql supabase/tests/058_request_stage.sql';
+      'supabase/pending/bb_75_request_stage.sql is not applied yet, and this test file belongs to it. Dry-run the chain: node --env-file=.env scripts/db-dry-run.mjs supabase/pending/bb_70_journey.sql supabase/pending/bb_75_request_stage.sql supabase/tests/061_request_stage.sql';
   end if;
   if not exists (select 1 from pg_proc p join pg_namespace n on n.oid = p.pronamespace
                  where n.nspname = 'app' and p.proname = 'journey_spine') then

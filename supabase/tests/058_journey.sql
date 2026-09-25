@@ -17,7 +17,7 @@ begin
   if not exists (select 1 from pg_proc p join pg_namespace n on n.oid = p.pronamespace
                  where n.nspname = 'public' and p.proname = 'staff_customer_journey') then
     raise exception
-      'supabase/pending/bb_70_journey.sql is not applied yet, and this test file belongs to it. Dry-run both together: node --env-file=.env scripts/db-dry-run.mjs supabase/pending/bb_70_journey.sql supabase/tests/046_journey.sql';
+      'supabase/pending/bb_70_journey.sql is not applied yet, and this test file belongs to it. Dry-run both together: node --env-file=.env scripts/db-dry-run.mjs supabase/pending/bb_70_journey.sql supabase/tests/058_journey.sql';
   end if;
   if to_regclass('public.contracts') is null then
     raise exception

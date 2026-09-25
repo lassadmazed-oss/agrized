@@ -14,9 +14,9 @@
 -- ███ file is applied it becomes 0073 or later.
 -- ███ Dry-run (it always rolls back):
 -- ███   node --env-file=.env scripts/db-dry-run.mjs \
--- ███     supabase/pending/bb_72_partners_closing.sql supabase/tests/047_partners_closing.sql
+-- ███     supabase/pending/bb_72_partners_closing.sql supabase/tests/059_partners_closing.sql
 -- ███ When the owner applies it, rename it supabase/migrations/00NN_partners_closing.sql, write the number
--- ███ into the first line of this file and of supabase/tests/047_partners_closing.sql, then run
+-- ███ into the first line of this file and of supabase/tests/059_partners_closing.sql, then run
 -- ███ `npm run db:types`.
 -- ███ IT DOES NOT EDIT 0072. Not one function of that migration is replaced, dropped or rewritten here.
 -- ███ Everything below composes with it from the outside — which is the whole reason the gate is a trigger

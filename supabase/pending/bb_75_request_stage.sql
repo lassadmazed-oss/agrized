@@ -4,7 +4,7 @@
 -- (it always rolls back):
 --   node --env-file=.env scripts/db-dry-run.mjs \
 --     supabase/pending/bb_70_journey.sql supabase/pending/bb_75_request_stage.sql \
---     supabase/tests/050_request_stage.sql
+--     supabase/tests/061_request_stage.sql
 --
 -- WHY THIS FILE EXISTS, IN ONE PARAGRAPH. The owner, 2026-09-25: «كيف نحب نشوف المطلب متاعي أنا وين — فما
 -- حاجة ناقصة في الواحد». The request file prints every answer the client typed and says NOTHING about where

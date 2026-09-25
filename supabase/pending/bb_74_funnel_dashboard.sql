@@ -3,7 +3,7 @@
 -- DRAFT. NOT APPLIED. It needs bb_70_journey.sql applied first — see DEPENDS ON below. Dry-run the chain:
 --   node --env-file=.env scripts/db-dry-run.mjs \
 --     supabase/pending/bb_70_journey.sql supabase/pending/bb_74_funnel_dashboard.sql \
---     supabase/tests/049_funnel_dashboard.sql
+--     supabase/tests/060_funnel_dashboard.sql
 -- Nothing in this file writes a row, moves a tree or changes a person's status. It is one read, and it
 -- seeds no setting of its own: every word it returns is already the owner's, in a setting somebody else
 -- created.

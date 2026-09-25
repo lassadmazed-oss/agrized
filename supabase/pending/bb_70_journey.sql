@@ -3,7 +3,7 @@
 --
 -- Migration supabase/pending/bb_70_journey.sql (rename this file's first line when it is numbered).
 -- DRAFT. Not applied. Dry-run it, which always rolls back:
---   node --env-file=.env scripts/db-dry-run.mjs supabase/pending/bb_70_journey.sql supabase/tests/046_journey.sql
+--   node --env-file=.env scripts/db-dry-run.mjs supabase/pending/bb_70_journey.sql supabase/tests/058_journey.sql
 --
 -- WHY THIS FILE EXISTS, IN ONE PARAGRAPH. public.persons.status_id is written by exactly one thing in the
 -- whole product: a human choosing from a dropdown. Nothing else moves it — not booking a visit (0064 says so
