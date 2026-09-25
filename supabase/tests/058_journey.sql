@@ -1,5 +1,5 @@
 -- مسار الحريف — the derived funnel stage, the timeline and the callback queue.
--- Migration supabase/pending/bb_70_journey.sql (rename this file's first line when it is numbered).
+-- Migration supabase/migrations/0090_journey.sql (rename this file's first line when it is numbered).
 --
 -- Runs against the live database inside a rolled-back transaction: one fresh offer with an unused code, five
 -- fresh staff accounts, unused phone numbers, and every setting and flag it measures pinned inside the
@@ -17,7 +17,7 @@ begin
   if not exists (select 1 from pg_proc p join pg_namespace n on n.oid = p.pronamespace
                  where n.nspname = 'public' and p.proname = 'staff_customer_journey') then
     raise exception
-      'supabase/pending/bb_70_journey.sql is not applied yet, and this test file belongs to it. Dry-run both together: node --env-file=.env scripts/db-dry-run.mjs supabase/pending/bb_70_journey.sql supabase/tests/058_journey.sql';
+      'supabase/migrations/0090_journey.sql is not applied yet, and this test file belongs to it. Dry-run both together: node --env-file=.env scripts/db-dry-run.mjs supabase/migrations/0090_journey.sql supabase/tests/058_journey.sql';
   end if;
   if to_regclass('public.contracts') is null then
     raise exception

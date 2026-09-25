@@ -1,15 +1,16 @@
 -- bb_74 · لوحة القيادة: الأرقام حسب المراحل — the funnel dashboard (§28) and the tree counts (§24).
 --
--- DRAFT. NOT APPLIED. It needs bb_70_journey.sql applied first — see DEPENDS ON below. Dry-run the chain:
+-- Applied 2026-09-25 (was a draft under supabase/pending). It needs 0090_journey.sql, applied before it.
+-- Its test re-runs against the live schema:
 --   node --env-file=.env scripts/db-dry-run.mjs \
---     supabase/pending/bb_70_journey.sql supabase/pending/bb_74_funnel_dashboard.sql \
+--     supabase/migrations/0090_journey.sql supabase/migrations/0093_funnel_dashboard.sql \
 --     supabase/tests/060_funnel_dashboard.sql
 -- Nothing in this file writes a row, moves a tree or changes a person's status. It is one read, and it
 -- seeds no setting of its own: every word it returns is already the owner's, in a setting somebody else
 -- created.
 --
 -- ---------------------------------------------------------------------------------------------------------
--- DEPENDS ON supabase/pending/bb_70_journey.sql — AND THAT DEPENDENCY IS THE POINT
+-- DEPENDS ON supabase/migrations/0090_journey.sql — AND THAT DEPENDENCY IS THE POINT
 -- ---------------------------------------------------------------------------------------------------------
 -- app.journey_spine() and app.person_stage() live in that draft. This file calls them and derives NOTHING
 -- of its own, deliberately.
@@ -22,7 +23,7 @@
 -- file would say something else, both computed, both defensible, and nobody able to say which is the
 -- product. So: one derivation, one spine, one set of labels. This file COUNTS. That is all it does.
 --
--- If bb_70_journey.sql is not applied, this file fails to create with «function app.person_stage(uuid) does
+-- If 0090_journey.sql is not applied, this file fails to create with «function app.person_stage(uuid) does
 -- not exist», which is the right way to fail: loudly, at install time, not as a screen full of zeros.
 --
 -- ---------------------------------------------------------------------------------------------------------

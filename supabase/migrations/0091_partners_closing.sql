@@ -3,18 +3,18 @@
 -- books the closing, ticks the papers off, and refuses to let the sale close while a mandatory paper is
 -- missing.
 --
--- ███ DRAFT — NOT APPLIED, NOT NUMBERED. It needs the contracts engine, which the owner APPLIED DURING THIS
+-- ███ APPLIED 2026-09-25 as 0091_partners_closing.sql. It needs the contracts engine, which the owner APPLIED
 -- ███ RUN, on 2026-09-21, as supabase/migrations/0072_contracts_installments.sql — that file was
 -- ███ supabase/pending/bb_60_contracts_installments.sql, and it is still called «bb_60» throughout the
 -- ███ comments below because that is the name its own header and its test file use. public.contracts and
 -- ███ public.contract_installments are live (0 rows), and both feature flags are still 'disabled'. §0 below
 -- ███ refuses to run if that ever stops being true, in one sentence, instead of failing halfway through with
--- ███ a raw «relation does not exist». THE «72» IN THIS FILE'S NAME IS ITS DRAFT NUMBER IN supabase/pending,
+-- ███ a raw «relation does not exist». «bb_72» BELOW IS THIS FILE'S OLD DRAFT NAME under supabase/pending,
 -- ███ not a migration number, and the collision with 0072 is a coincidence of the same afternoon: when this
 -- ███ file is applied it becomes 0073 or later.
 -- ███ Dry-run (it always rolls back):
 -- ███   node --env-file=.env scripts/db-dry-run.mjs \
--- ███     supabase/pending/bb_72_partners_closing.sql supabase/tests/059_partners_closing.sql
+-- ███     supabase/migrations/0091_partners_closing.sql supabase/tests/059_partners_closing.sql
 -- ███ When the owner applies it, rename it supabase/migrations/00NN_partners_closing.sql, write the number
 -- ███ into the first line of this file and of supabase/tests/059_partners_closing.sql, then run
 -- ███ `npm run db:types`.
@@ -117,7 +117,7 @@
 --     app.legal_stage(p_reservation) below returns this desk's own derived stage from those facts and is
 --     written to be CALLED by the funnel rather than copied into it.
 --     ███ THE CONCRETE HANDSHAKE, because the funnel is being written in the same afternoon as this file:
---     supabase/pending/bb_70_journey.sql (another session, also a draft, also unapplied) declares its stage
+--     supabase/migrations/0090_journey.sql (another session, also a draft, also unapplied) declares its stage
 --     10 `contract_scheduled` as «NO FACT — ما فمّاش حقيقة تثبتها اليوم: موعد إمضاء العقد ما عندوش جدول»
 --     (its line 134) and derives stage 9 `legal_processing` from `contracts.status = 'draft'` (its line 133).
 --     Once BOTH files are applied, two one-line changes in THAT file make both stages honest, and neither of
@@ -192,10 +192,10 @@
 do $$
 begin
   if to_regclass('public.contracts') is null then
-    raise exception 'bb_72_partners_closing.sql needs public.contracts, which supabase/pending/bb_60_contracts_installments.sql creates. Apply bb_60 first, or dry-run both together: node --env-file=.env scripts/db-dry-run.mjs supabase/pending/bb_60_contracts_installments.sql supabase/pending/bb_72_partners_closing.sql';
+    raise exception '0091_partners_closing.sql needs public.contracts, which supabase/pending/bb_60_contracts_installments.sql creates. Apply bb_60 first, or dry-run both together: node --env-file=.env scripts/db-dry-run.mjs supabase/pending/bb_60_contracts_installments.sql supabase/migrations/0091_partners_closing.sql';
   end if;
   if to_regclass('public.reservations') is null or to_regclass('public.trees') is null then
-    raise exception 'bb_72_partners_closing.sql needs public.reservations (0063) and public.trees (0054).';
+    raise exception '0091_partners_closing.sql needs public.reservations (0063) and public.trees (0054).';
   end if;
 end $$;
 

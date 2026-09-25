@@ -1,9 +1,10 @@
 -- bb_75 · وين وصل هذا المطلب — THE STAGE OF ONE REQUEST.
 --
--- DRAFT. NOT APPLIED. It needs bb_70_journey.sql applied first — see DEPENDS ON below. Dry-run the chain
+-- Applied 2026-09-25 (was a draft under supabase/pending). It needs 0090_journey.sql, applied before it.
+-- Its test re-runs against the live schema
 -- (it always rolls back):
 --   node --env-file=.env scripts/db-dry-run.mjs \
---     supabase/pending/bb_70_journey.sql supabase/pending/bb_75_request_stage.sql \
+--     supabase/migrations/0090_journey.sql supabase/migrations/0094_request_stage.sql \
 --     supabase/tests/061_request_stage.sql
 --
 -- WHY THIS FILE EXISTS, IN ONE PARAGRAPH. The owner, 2026-09-25: «كيف نحب نشوف المطلب متاعي أنا وين — فما
@@ -31,7 +32,7 @@
 --   · public.staff_request_stage       the same stage for a LIST of requests (the requests screen)
 --
 -- ---------------------------------------------------------------------------------------------------------
--- DEPENDS ON supabase/pending/bb_70_journey.sql
+-- DEPENDS ON supabase/migrations/0090_journey.sql
 -- ---------------------------------------------------------------------------------------------------------
 -- app.journey_spine(), app.journey_proof() and app.journey_stage_label() live in that draft. Section 0
 -- refuses to run without them, in one sentence, rather than failing halfway with a raw «function does not
@@ -67,7 +68,7 @@ begin
   if not exists (select 1 from pg_proc p join pg_namespace n on n.oid = p.pronamespace
                  where n.nspname = 'app' and p.proname = 'journey_spine') then
     raise exception
-      'supabase/pending/bb_70_journey.sql is not applied, and this file derives every stage from its spine. Apply or dry-run them together: node --env-file=.env scripts/db-dry-run.mjs supabase/pending/bb_70_journey.sql supabase/pending/bb_75_request_stage.sql';
+      'supabase/migrations/0090_journey.sql is not applied, and this file derives every stage from its spine. Apply or dry-run them together: node --env-file=.env scripts/db-dry-run.mjs supabase/migrations/0090_journey.sql supabase/migrations/0094_request_stage.sql';
   end if;
   if to_regclass('public.contracts') is null then
     raise exception

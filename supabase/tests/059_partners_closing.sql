@@ -1,11 +1,11 @@
 -- الشركاء وموعد العقد والقائمة القانونية — INTERFACE 3 (owner brief 2026-09-21, §16 → §21).
--- Migration supabase/pending/bb_72_partners_closing.sql (rename this file's first line when it is numbered).
+-- Migration supabase/migrations/0091_partners_closing.sql (rename this file's first line when it is numbered).
 --
 -- THIS FILE IS RED UNTIL THAT DRAFT IS APPLIED, and that is not a bug in it: `npm run db:test` runs every file
 -- against the live schema, public.legal_files does not exist there yet, and the first statement that names it
 -- fails. Check the two together instead, in one rolled-back transaction, which is how this file was written:
 --
---   node --env-file=.env scripts/db-dry-run.mjs supabase/pending/bb_72_partners_closing.sql supabase/tests/059_partners_closing.sql
+--   node --env-file=.env scripts/db-dry-run.mjs supabase/migrations/0091_partners_closing.sql supabase/tests/059_partners_closing.sql
 --
 -- WHAT IT PINS, IN ORDER. Permissions first, because §27 is the part of this desk that is a SECURITY
 -- requirement and not a layout wish: a visitor reaches nothing, a signed-in user with no role reaches
@@ -24,7 +24,7 @@ do $$
 begin
   if to_regclass('public.legal_files') is null then
     raise exception
-      'supabase/pending/bb_72_partners_closing.sql is not applied yet, and this test file belongs to it. Dry-run both together: node --env-file=.env scripts/db-dry-run.mjs supabase/pending/bb_72_partners_closing.sql supabase/tests/059_partners_closing.sql';
+      'supabase/migrations/0091_partners_closing.sql is not applied yet, and this test file belongs to it. Dry-run both together: node --env-file=.env scripts/db-dry-run.mjs supabase/migrations/0091_partners_closing.sql supabase/tests/059_partners_closing.sql';
   end if;
   if to_regclass('public.contracts') is null then
     raise exception
@@ -776,7 +776,7 @@ begin
   assert v_f->'appointment'->>'status' = 'scheduled', 'the closing is booked';
   assert v_f->'appointment'->>'partner_label' is not null,
     'and the partner''s name is frozen onto it, so archiving them later cannot blank it';
-  -- §29's missing fact for «Contract Scheduled». This is the row bb_70_journey.sql says it has no fact for.
+  -- §29's missing fact for «Contract Scheduled». This is the row 0090_journey.sql says it has no fact for.
   assert v_f->>'stage' = 'appointment',
     'a scheduled closing IS «موعد العقد محدد», derived and not typed, got ' || (v_f->>'stage');
   assert (v_f->'appointment'->>'is_past')::boolean = false,

@@ -1,11 +1,11 @@
--- لوحة القيادة: الأرقام حسب المراحل (§28, §24). Migration supabase/pending/bb_74_funnel_dashboard.sql,
--- which depends on supabase/pending/bb_70_journey.sql.
+-- لوحة القيادة: الأرقام حسب المراحل (§28, §24). Migration supabase/migrations/0093_funnel_dashboard.sql,
+-- which depends on supabase/migrations/0090_journey.sql.
 --
 -- THIS FILE IS RED UNTIL BOTH DRAFTS ARE APPLIED, and that is not a bug in it: `npm run db:test` runs every
 -- file against the live schema and public.admin_funnel_stats() does not exist there yet. Check the chain in
 -- one rolled-back transaction, which is how this file was written:
 --
---   node --env-file=.env scripts/db-dry-run.mjs supabase/pending/bb_70_journey.sql supabase/pending/bb_74_funnel_dashboard.sql supabase/tests/060_funnel_dashboard.sql
+--   node --env-file=.env scripts/db-dry-run.mjs supabase/migrations/0090_journey.sql supabase/migrations/0093_funnel_dashboard.sql supabase/tests/060_funnel_dashboard.sql
 --
 -- WHAT THIS FILE IS NOT FOR. It does not test WHERE a customer stands — that is bb_70's derivation and
 -- supabase/tests/058_journey.sql's job. It tests the COUNTING on top of it: that each file lands in exactly
@@ -23,7 +23,7 @@
 do $$
 begin
   if to_regprocedure('public.admin_funnel_stats()') is null then
-    raise exception 'supabase/pending/bb_74_funnel_dashboard.sql is not applied yet, and this test file belongs to it. Dry-run the chain: node --env-file=.env scripts/db-dry-run.mjs supabase/pending/bb_70_journey.sql supabase/pending/bb_74_funnel_dashboard.sql supabase/tests/060_funnel_dashboard.sql';
+    raise exception 'supabase/migrations/0093_funnel_dashboard.sql is not applied yet, and this test file belongs to it. Dry-run the chain: node --env-file=.env scripts/db-dry-run.mjs supabase/migrations/0090_journey.sql supabase/migrations/0093_funnel_dashboard.sql supabase/tests/060_funnel_dashboard.sql';
   end if;
 end $$;
 

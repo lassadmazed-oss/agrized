@@ -1,3 +1,28 @@
+-- █████████████████████████████████████████████████████████████████████████████████████████████████████
+-- ███ SUPERSEDED 2026-09-25 — DO NOT APPLY. IT WOULD BREAK EVERY RESERVATION.
+-- ███
+-- ███ Section 2 below does `create or replace function public.staff_create_reservation(uuid, uuid, uuid,
+-- ███ integer, text, text)` — the six-argument signature that was the only one when this was drafted.
+-- ███ It is not the only one any more. The other session answered the same owner brief two days later:
+-- ███
+-- ███   0088_reserve_tree_range.sql  DROPS the 6-arg version and adds p_from_seq / p_to_seq
+-- ███   0089_reserve_tree_list.sql   DROPS that one and adds p_seqs integer[] as well
+-- ███
+-- ███ The live database now holds exactly ONE staff_create_reservation, the nine-argument form, and it
+-- ███ already does what this file was written for: a count, OR a range من 120 إلى 144, OR an explicit list
+-- ███ of tree numbers. «ما نحجزوش عشر زيتونات، نحجزو عشر زيتونات بأرقامها» is shipped.
+-- ███
+-- ███ Applying this file would RE-CREATE the six-argument overload beside the nine-argument one. Both then
+-- ███ match a six-argument call, and PostgreSQL refuses it: «function public.staff_create_reservation(...)
+-- ███ is not unique». Reservations stop working everywhere — the Back Office, the tests and the demo seed.
+-- ███ That is not a prediction: it is what the dry-run of the whole chain returned on 2026-09-25, and it is
+-- ███ why this file was left behind when the other seven drafts were numbered 0090 → 0096.
+-- ███
+-- ███ WHAT IS STILL UNANSWERED HERE, and is the only reason this file is kept rather than deleted:
+-- ███ section 1, «زياراتي» — the field commercial's own read of their visits (§7). That part collides with
+-- ███ nothing. Whoever picks it up should take section 1 alone into a new migration and let the rest go.
+-- █████████████████████████████████████████████████████████████████████████████████████████████████████
+--
 -- bb_71 · PICKING TREES BY NUMBER, AND THE FIELD COMMERCIAL'S OWN READ OF A VISIT
 -- =============================================================================================================
 -- DRAFT. NOT APPLIED. Dry-run only:

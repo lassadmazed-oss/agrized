@@ -1,5 +1,5 @@
 -- وين وصل هذا المطلب — the stage of ONE demand.
--- Migration supabase/pending/bb_75_request_stage.sql (rename this file's first line when it is numbered).
+-- Migration supabase/migrations/0094_request_stage.sql (rename this file's first line when it is numbered).
 --
 -- Runs against the live database inside a rolled-back transaction: one fresh offer with an unused code,
 -- fresh staff accounts and unused phone numbers, every setting it measures pinned inside the transaction.
@@ -21,12 +21,12 @@ begin
   if not exists (select 1 from pg_proc p join pg_namespace n on n.oid = p.pronamespace
                  where n.nspname = 'public' and p.proname = 'staff_request_journey') then
     raise exception
-      'supabase/pending/bb_75_request_stage.sql is not applied yet, and this test file belongs to it. Dry-run the chain: node --env-file=.env scripts/db-dry-run.mjs supabase/pending/bb_70_journey.sql supabase/pending/bb_75_request_stage.sql supabase/tests/061_request_stage.sql';
+      'supabase/migrations/0094_request_stage.sql is not applied yet, and this test file belongs to it. Dry-run the chain: node --env-file=.env scripts/db-dry-run.mjs supabase/migrations/0090_journey.sql supabase/migrations/0094_request_stage.sql supabase/tests/061_request_stage.sql';
   end if;
   if not exists (select 1 from pg_proc p join pg_namespace n on n.oid = p.pronamespace
                  where n.nspname = 'app' and p.proname = 'journey_spine') then
     raise exception
-      'supabase/pending/bb_70_journey.sql is not applied. bb_75 derives every stage from its spine; dry-run both together.';
+      'supabase/migrations/0090_journey.sql is not applied. bb_75 derives every stage from its spine; dry-run both together.';
   end if;
 end $$;
 
