@@ -198,6 +198,9 @@ export default async function HomePage() {
         copy={{
           badge: settingText(config, "site.app_greeting_note", "نحو مستقبل أكثر خضرة"),
           line: settingText(config, "site.app_hero_line", "زيتونتك اليوم… أصل لعمر كامل."),
+          // Printed only from lg (see HomePhone's `copy.lead`). It is the sentence this page already owned
+          // and stopped showing when the wide composition was removed — not a new one written for a layout.
+          lead: settingText(config, "site.home_subheadline"),
           exploreCta: settingText(config, "site.app_hero_cta", "شوف العروض"),
           guideCta: settingText(config, "site.app_guide_cta", "عاونّي نختار"),
           offersTitle: offersTitle(config),

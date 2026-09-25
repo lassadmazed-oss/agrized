@@ -81,6 +81,19 @@ export type HomePhoneProps = {
   copy: {
     badge: string;
     line: string;
+    /**
+     * The supporting sentence, DRAWN ONLY FROM `lg`. It is `site.home_subheadline` — copy the owner already
+     * wrote and that this page stopped printing when the wide composition was removed on 2026-09-23.
+     *
+     * Why it is desktop-only rather than everywhere: on a 375px screen the hero card is 13rem tall and the
+     * promise plus two doors already fill it; a third block of prose there pushes the doors below the fold,
+     * which is the exact failure the phone composition was built to fix. At 1024px and up the same card is
+     * 38rem and the headline alone leaves two thirds of it empty. Empty is the reason the desktop hero reads
+     * as a phone stretched wide.
+     *
+     * Optional, like every other sentence on this page: empty renders nothing and the composition closes up.
+     */
+    lead?: string;
     exploreCta: string;
     /** The door for someone who has not chosen an offer — «ما نعرفش نبدا». */
     guideCta: string;
@@ -154,13 +167,21 @@ export function HomePhone({
               edge carries a second, softer wash so the headline has ground on the side it begins from, and a
               faint inset ring closes the card against the page. The sky — the reason this picture is here —
               keeps almost all of its light. */}
+          {/* FROM lg THE TWO WASHES SWAP ROLES (owner, 2026-09-25: «more modern», desktop only).
+              Below lg nothing here changes: the foot carries the words, so the foot is the dark end.
+              At 1024px and up the words move off the foot and onto the inline-start edge, and the washes
+              follow them — otherwise the page darkens the half of the picture with nothing on it and lights
+              the half carrying the headline, which is how a hero ends up looking like a poster.
+              So the bottom wash drops to what the figures bar needs to sit on, and the SIDE wash becomes the
+              strong one. `to-l` is the inline-start here because the site is RTL at the root. The sea and the
+              sky — the reason this photograph was chosen — keep their light instead of being flattened. */}
           <div
             aria-hidden="true"
-            className="absolute inset-0 bg-gradient-to-t from-forest-700/94 via-forest-700/50 to-forest-700/10"
+            className="absolute inset-0 bg-gradient-to-t from-forest-700/94 via-forest-700/50 to-forest-700/10 lg:from-forest-700/80 lg:via-forest-700/18 lg:via-38% lg:to-transparent"
           />
           <div
             aria-hidden="true"
-            className="absolute inset-0 hidden bg-gradient-to-l from-forest-700/45 via-transparent to-transparent lg:block"
+            className="absolute inset-0 hidden bg-gradient-to-l from-forest-700/92 via-forest-700/55 via-44% to-transparent to-82% lg:block"
           />
           <div
             aria-hidden="true"
@@ -172,17 +193,42 @@ export function HomePhone({
               the corner, and the two doors ended up in the corner with it. The mock-up centres the promise
               and puts the figures across the foot of the photograph — so the card keeps bottom padding deep
               enough for the bar that now overlaps it, and nothing it says can end up behind that bar. */}
-          <div className="relative flex min-h-[13rem] flex-col items-center justify-end p-4 pb-14 text-center md:min-h-[26rem] md:p-9 md:pb-24 lg:min-h-[34rem] lg:p-12 lg:pb-28">
+          {/* THE DESKTOP COMPOSITION IS ANCHORED, NOT CENTRED (owner, 2026-09-25). Below lg this is exactly
+              what it was: centred on the foot of the card, which is right for a 375px screen where the card
+              is 13rem tall and there is no «beside».
+              From lg it stops being that composition. A centred block inside a 34rem card on a 1900px screen
+              leaves a third of the width empty on each side of the words and reads as the phone layout
+              stretched — which is what it literally is. Anchoring the stack to the inline-start and centring
+              it VERTICALLY gives the picture a subject and the words a ground, and lets the headline run to a
+              real measure instead of a centred ribbon.
+              `pb` stays deep at every width: the figures bar is lifted onto the foot of this card and nothing
+              said here may end up behind it. */}
+          <div className="relative flex min-h-[13rem] flex-col items-center justify-end p-4 pb-14 text-center md:min-h-[26rem] md:p-9 md:pb-24 lg:min-h-[38rem] lg:items-start lg:justify-center lg:p-14 lg:pb-32 lg:text-start xl:min-h-[41rem] xl:p-16">
             {copy.badge ? (
-              <span className="mb-2 inline-flex items-center gap-1.5 rounded-full border border-surface/25 bg-surface/15 px-2.5 py-1 text-[0.6875rem] font-medium text-paper backdrop-blur-sm md:mb-4">
+              <span className="mb-2 inline-flex items-center gap-1.5 rounded-full border border-surface/25 bg-surface/15 px-2.5 py-1 text-[0.6875rem] font-medium text-paper backdrop-blur-sm md:mb-4 lg:mb-6 lg:px-3.5 lg:py-1.5 lg:text-label">
                 <LeafGlyph />
                 {copy.badge}
               </span>
             ) : null}
-            <p className="max-w-2xl font-display text-[1.75rem] font-bold leading-[1.15] text-surface [text-shadow:0_2px_28px_rgb(0_0_0/0.28)] md:text-5xl lg:max-w-3xl lg:text-[3.75rem] lg:leading-[1.05]">
+            {/* NO `tracking-*` AT ANY WIDTH. Letter-spacing breaks the joins in Arabic, which this project has
+                already written down once in landing/hero.tsx. The size and the leading do the work instead. */}
+            <p className="max-w-2xl font-display text-[1.75rem] font-bold leading-[1.15] text-surface [text-shadow:0_2px_28px_rgb(0_0_0/0.28)] md:text-5xl lg:max-w-[15ch] lg:text-[4rem] lg:leading-[1.04] xl:text-[4.75rem]">
               {copy.line}
             </p>
-            <div className="mt-3 flex flex-wrap justify-center gap-2 lg:mt-8 lg:gap-3">
+            {/* The supporting sentence, from lg only — see `copy.lead`. It sits on the strong half of the side
+                wash, so it is paper at 88 % over forest rather than white on a photograph. */}
+            {/* MEASURED AGAINST THE PICTURE, NOT AGAINST ONE PICTURE. The card drifts through five grove
+                slots the owner uploads, so this line has to stay readable over whichever is in the slot next
+                month — including the brightest sea-and-sky frame, which is the one that broke it first.
+                Two things keep it honest: a measure short enough that the line never leaves the strong half
+                of the side wash, and the headline's own text-shadow, so the words carry their own ground
+                instead of relying on the photograph being dark where they happen to fall. */}
+            {copy.lead ? (
+              <p className="hidden lg:mt-7 lg:block lg:max-w-[33rem] lg:text-lg lg:leading-8 lg:text-paper/90 lg:[text-shadow:0_1px_16px_rgb(0_0_0/0.45)]">
+                {copy.lead}
+              </p>
+            ) : null}
+            <div className="mt-3 flex flex-wrap justify-center gap-2 lg:mt-9 lg:justify-start lg:gap-3">
               <Link
                 href={offersHref}
                 className="inline-flex min-h-11 items-center gap-2 rounded-full bg-surface px-4 text-label font-semibold text-ink shadow-[var(--shadow-card)] transition-all active:scale-[0.98] lg:min-h-[3.25rem] lg:gap-2.5 lg:px-7 lg:text-base lg:hover:-translate-y-0.5 lg:hover:shadow-[var(--shadow-float)]"
