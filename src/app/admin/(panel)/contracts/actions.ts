@@ -133,6 +133,19 @@ const CONTRACT_MESSAGES: Record<string, string> = {
   payment_not_found: "هذه الدفعة ما عادتش موجودة. حدّث الصفحة وأعد المحاولة.",
   payment_already_void: "هذه الدفعة موقّفة من قبل. ما فماش شنوّة يتعاود.",
   invalid_contract_filter: "هذا الفرز ما عادش موجود. ارجع لقائمة العقود واختار من الفرزات المعروضة.",
+
+  // -- raised by the LEGAL module's trigger, surfaced HERE -------------------------------------------------
+  //
+  // bb_72 puts §20's rule where a rule belongs — a trigger inside the contracts RPCs, so a sale cannot close
+  // with mandatory checklist items unconfirmed. A disabled button is not a rule; this is. But the refusal then
+  // travels out through THIS module's failure(), which had never heard of either code, so the one moment the
+  // checklist exists for — somebody trying to close a file that is not ready — would have printed «تعذّر
+  // الحفظ» and named nothing. The sentences are the legal desk's own (desk/legal/actions.ts), kept identical
+  // so a reader who sees the refusal on either screen reads the same words and looks in the same place.
+  legal_checklist_incomplete:
+    "ما تنجمش تكمّل: فما بنود إجبارية في القائمة القانونية مازالت ما تثبّتناش فيهم. علّمهم في الملف القانوني، ولا خلّي الإدارة تتجاوز البند إذا ما ينطبقش، ثم أعد المحاولة.",
+  legal_file_required:
+    "الإعدادات تقول إنّ كل بيعة لازم تعدّي على المكتب القانوني. افتح الملف القانوني للحجز هذا قبل، ولا بدّل الإعداد «وقتاش يولّي الملف القانوني إجباري».",
 };
 
 const FAILED = "تعذّرت العملية ولم يتغيّر أي شيء. حدّث الصفحة وحاول مرة أخرى.";

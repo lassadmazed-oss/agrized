@@ -4,10 +4,12 @@ import { notFound } from "next/navigation";
 
 import { ActionForm } from "@/components/admin/action-form";
 import { ADMIN_LABELS } from "@/components/admin/nav-model";
+import { RequestStageChip } from "@/components/admin/request-stage";
 import { formatPercent } from "@/components/admin/tree-pricing-inputs";
 import { DataList, DataRow, EmptyState, SectionHeader, StatusPill } from "@/components/ui";
 import { ADMIN_ROLES, CRM_READ_ROLES, hasRole, requireStaff, type StaffRole } from "@/lib/auth";
 import { getPublicConfig, settingText } from "@/lib/config";
+import { readRequestStages } from "@/lib/journey";
 import {
   ATTEMPT_CHANNEL_LABELS,
   CHANNEL_LABELS,
@@ -157,6 +159,25 @@ export default async function LeadDetailPage({ params, searchParams }: PageProps
   const delegationName = new Map(config.delegations.map((d) => [d.id, d.name_ar]));
   const typeName = new Map(config.projectTypes.map((t) => [t.id, t.label_ar]));
   const latestRequest = requests.data?.[0];
+
+  // WHERE EACH DEMAND STANDS — bb_75, one call for the whole list.
+  //
+  // The file's own status band above says where the CLIENT is, which is the highest of their demands. On a
+  // client with two, that single answer is wrong for the quieter one: a demand still at «مطلب جديد» sits
+  // under a header reading «العربون مدفوع» because the OTHER demand got there. These chips are per demand,
+  // so each card says where that card is.
+  //
+  // It degrades to nothing, on purpose: bb_70 and bb_75 are drafts, so until they are applied the read comes
+  // back `not_applied`, the map is empty and every card renders exactly as it did before.
+  const requestStages = new Map(
+    (
+      await readRequestStages(
+        supabase,
+        (requests.data ?? []).map((request) => request.id),
+      ).then((result) => (result.ok ? result.value : []))
+    ).map((row) => [row.request_id, row.stage]),
+  );
+
   // 0049: the two intakes, counted apart. This page reads interest_requests directly, so it sees request_kind.
   const offerDemands = (requests.data ?? []).filter((request) => request.request_kind === "offer" && request.project_id);
   const offerRequests = (requests.data ?? []).filter((request) => request.request_kind === "offer").length;
@@ -380,6 +401,8 @@ export default async function LeadDetailPage({ params, searchParams }: PageProps
                     <span dir="ltr" className="font-semibold text-forest tabular-nums">
                       {request.request_no}
                     </span>
+                    {/* وين وصل هذا المطلب — this demand's own stage, not the client's. */}
+                    <RequestStageChip stage={requestStages.get(request.id) ?? null} />
                   </p>
                   <p className="flex items-center gap-2 text-sm text-muted tabular-nums">
                     {request.is_duplicate ? <span className="rounded bg-gold-soft px-1.5 py-0.5 text-xs text-forest-700">مكرّر</span> : null}

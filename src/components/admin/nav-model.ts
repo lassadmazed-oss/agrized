@@ -82,6 +82,17 @@ export const NAV_STATE_LABELS = {
  */
 export const ADMIN_LABELS = {
   "/admin": "لوحة القيادة",
+  // THE DESKS, 2026-09-21. The owner's brief: «نحبّو الـBack Office متاع AgriZed يخدم كـمسار واحد متواصل
+  // للحريف، موش Interfaces منفصلة ما بينهاش علاقة». Each team lands on its own queue instead of every team
+  // sharing one sidebar and reading past the four fifths of it that is not their work. They are listed here
+  // because a route with no label here gets no breadcrumb — the legal pages had to draw a plain back link
+  // instead of a trail, which is the symptom of exactly this gap.
+  "/admin/desk": "مكتبي",
+  "/admin/desk/calls": "طلبات الحرفاء",
+  "/admin/desk/field": "زياراتي",
+  "/admin/desk/legal": "القانوني وإتمام البيع",
+  "/admin/desk/legal/partners": "دليل الشركاء",
+  "/admin/desk/legal/checklist": "بنود القائمة القانونية",
   "/admin/leads": "مطالب الاستثمار",
   "/admin/analytics": "التحليلات وخريطة الطلب",
   "/admin/projects": "العروض",

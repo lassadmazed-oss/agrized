@@ -21,6 +21,8 @@ import { flagState, getPublicConfig, type PublicConfig } from "@/lib/config";
 import { signOut } from "../login/actions";
 
 import { AdminNav } from "./admin-nav";
+import { CALL_DESK_ROLES } from "./desk/desks";
+import { LEGAL_DESK_ROLES } from "./desk/legal/roles";
 
 export const metadata: Metadata = {
   title: { default: "Back Office", template: "%s · Back Office AgriZed" },
@@ -99,6 +101,22 @@ function navFor(session: StaffSession, config: PublicConfig): NavGroup[] {
   // the rate card under the offers they feed and price, the accounts and the log under the rules.
   const sections = [
     row("/admin", "dashboard"),
+    // THE DESKS come FIRST, above the administration, because that is the owner's whole complaint answered:
+    // «مسار واحد متواصل للحريف، موش Interfaces منفصلة». A call agent should open the Back Office onto their
+    // own queue, not onto a sidebar in which four fifths of the rows are somebody else's job. Each child
+    // carries the gate ITS OWN routes apply, so the sidebar and the page can never disagree about who may
+    // enter; «مكتبي» itself is ungated because it is only a chooser and it redirects when a reader has one.
+    //
+    // No `flag:` on any of them. These are not a module the owner publishes — they are how the team works,
+    // and there is no visitor-facing door to open or close.
+    row("/admin/desk", "requests", {
+      roles: CRM_READ_ROLES,
+      children: [
+        row("/admin/desk/calls", "requests", { roles: CALL_DESK_ROLES }),
+        row("/admin/desk/field", "visits", { roles: CRM_READ_ROLES }),
+        row("/admin/desk/legal", "contracts", { roles: LEGAL_DESK_ROLES }),
+      ],
+    }),
     row("/admin/leads", "requests", {
       roles: CRM_READ_ROLES,
       children: [

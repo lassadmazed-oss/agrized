@@ -27,8 +27,29 @@
 // offer whose trees were never numbered, which is the third queue below, and it is the offer page that acts
 // on it. There is no /admin/projects/trees screen — an earlier version of this comment named one.
 //
-// Contracts and payments have no table yet, so nothing here counts them and no number stands in for them
-// (docs/plan-rebuild.md, P6).
+// THE FUNNEL, ADDED 2026-09-21 (§28, §24, §29). Everything above is a WORKLIST — what is waiting on you —
+// and the owner's §28 asks for the other half: where the whole book stands, «new requests · contacted ·
+// interested · visits scheduled · visits done · reservations · deposits paid · in contract · completed
+// sales», plus the trees available / reserved / sold. Not one of those was a query anywhere in this product.
+//
+// It could not have been built before, and the reason is the whole of the owner's complaint. public.persons
+// .status_id is written by exactly one thing in this system, a human dropdown: booking a visit does not move
+// a file, recording the عربون does not move a file, signing a contract does not move a file. A dashboard
+// counting status_id would have shipped nine numbers that are already wrong at twenty people. So the stage
+// is DERIVED in Postgres from the facts that already exist, and the dropdown stays the human override and is
+// reported beside it wherever the two disagree. All of that lives in one function; see
+// supabase/pending/bb_70_funnel_dashboard.sql and src/components/admin/funnel-read.tsx.
+//
+// WHERE IT SITS, AND WHY. Straight after the attention tiles and before the queues, which looks like a
+// break from «the things waiting on you first» and is not: the two blocks answer the same question at two
+// scales — a tile is one file to deal with today, the funnel's headline is the stage where the pipeline is
+// dammed, which is the admin's own piece of work. It is also admin-only, and an admin is precisely the
+// reader who is not working a queue: a commercial's page opens on their own work exactly as it did.
+//
+// Contracts and payments were a draft when this screen was written, so nothing here counted them; they are
+// applied now (0072) and the funnel is the one part of this page that reads them — as three stage counts,
+// never as a dinar. Money belongs to Finance's screens, and a second definition of «المدفوع» on a dashboard
+// is how two screens start disagreeing.
 //
 // RESERVATIONS AND VISITS DO, since 2026-09-19 (report v3 §23/§24 and §25), and they are the two additions
 // this screen earned from stage 2: a hold that is waiting for its عربون, a hold whose deadline is closing in,
@@ -45,6 +66,8 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import type { ReactNode } from "react";
 
+import { FunnelBoard, TreeStock } from "@/components/admin/funnel";
+import { readFunnel } from "@/components/admin/funnel-read";
 import { EmptyState, SectionHeader, StatTile, StatusPill } from "@/components/ui";
 import { ADMIN_ROLES, CRM_READ_ROLES, hasRole, LAND_OFFER_ROLES, requireStaff, type StaffRole } from "@/lib/auth";
 import { getPublicConfig } from "@/lib/config";
@@ -101,11 +124,16 @@ export default async function DashboardPage({ searchParams }: PageProps<"/admin"
   const canSeeReservations = canSeeCrm && reservationsAccess !== "closed";
   const canSeeVisits = canSeeCrm && visitsAccess !== "closed";
 
-  const [statuses, overall, unassigned, landUnderStudy, dueAttempts, offerDemands, offers, movedTrees, holds, visitBoard] = await Promise.all([
+  const [statuses, overall, unassigned, landUnderStudy, dueAttempts, offerDemands, offers, movedTrees, holds, visitBoard, funnel] = await Promise.all([
     canSeeCrm ? supabase.from("lead_statuses").select("id, stage, label_ar, is_stage_default") : null,
     canSeeCrm ? supabase.rpc("crm_demand_stats", {}) : null,
     isAdmin ? supabase.from("persons").select("id", { count: "exact", head: true }).is("assigned_to", null) : null,
     canSeeLand ? supabase.from("land_offers").select("id", { count: "exact", head: true }).eq("status", "under_study") : null,
+    // §5. Every callback this agent set that is due by tonight, oldest first. THE 30-DAY FLOOR THAT USED TO
+    // BE HERE IS GONE: a callback set six weeks ago and never made is not less due than one set yesterday,
+    // it is the most overdue thing this agent owns — and it was dropping off this queue in silence, which is
+    // the worst way for a promise to a client to disappear. The ordering already puts the oldest on top and
+    // the row already says «متأخرة»; the limit keeps the read bounded.
     canFollowUp
       ? supabase
           .from("contact_attempts")
@@ -113,7 +141,6 @@ export default async function DashboardPage({ searchParams }: PageProps<"/admin"
           .eq("created_by", session.id)
           .not("next_follow_up_at", "is", null)
           .lte("next_follow_up_at", endOfToday)
-          .gte("next_follow_up_at", `${daysAgo(today, 30)}T00:00:00+01:00`)
           .order("next_follow_up_at", { ascending: true })
           .limit(100)
       : null,
@@ -147,6 +174,12 @@ export default async function DashboardPage({ searchParams }: PageProps<"/admin"
     // §25. No range is passed on purpose: staff_visit_board defaults to today → today + visits.max_ahead_days,
     // which is the owner's setting and the only honest definition of «قادمة» this screen could use.
     canSeeVisits ? readVisitBoard({}) : null,
+    // §28. One call for the whole funnel and the three tree counts, so no two figures on it come from two
+    // moments — a funnel whose stage 7 was counted after stage 6 can show more people further down than
+    // exist further up, which is the one thing a funnel must never do. Admin only, checked here AND inside
+    // the function (§27): it counts every file in the company, so it cannot ride on app.can_see_person the
+    // way the lists do. Null while the draft is unapplied, and null draws nothing.
+    isAdmin ? readFunnel(supabase) : null,
   ]);
 
   // ── The tiles: a count and the list that holds exactly those rows ───────────────────────────────────
@@ -339,6 +372,17 @@ export default async function DashboardPage({ searchParams }: PageProps<"/admin"
             ))}
           </div>
         </section>
+      ) : null}
+
+      {/* §28 and §24. Drawn only when the database answered: a failed read, an unapplied draft or a reader
+          who is not an admin all produce null, and null draws nothing at all. That is the same rule the
+          tiles above follow and it exists because «0 زيتونة محجوزة» reads as a statement about the business
+          rather than as a read that never happened. */}
+      {funnel ? (
+        <>
+          <FunnelBoard funnel={funnel} />
+          <TreeStock trees={funnel.trees} />
+        </>
       ) : null}
 
       {/* PRN-01: a row here can now carry a monthly instalment, so the note that the figures are estimates
