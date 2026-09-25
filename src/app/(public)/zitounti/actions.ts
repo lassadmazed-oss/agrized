@@ -91,7 +91,13 @@ export async function requestCode(_previous: LoginState, formData: FormData): Pr
     step: "code",
     phone,
     error: null,
-    note: "إذا النمرة مسجّلة عندنا، الرمز وصل بالSMS.",
+    // THE SECOND SENTENCE IS NOT PADDING. A number over its hourly ceiling is answered exactly like one
+    // that just received a code — silently, because «you have asked too many times» would only ever be said
+    // to a number that IS a client, and that makes this form an oracle for who is one. The cost of that
+    // silence is a person staring at «الرمز وصل» after their fourth try. This is the most that can be said
+    // without answering the question: it is true for everybody, and it tells someone who has been retrying
+    // what to actually do.
+    note: "إذا النمرة مسجّلة عندنا، الرمز وصل بالSMS. إذا ما وصلكش، استنّى دقيقة وجرّب مرّة أخرى — وإذا طلبتو برشة مرّات، خلّيه يرتاح شويّة.",
     ttlSeconds: result.ttlSeconds,
   };
 }
