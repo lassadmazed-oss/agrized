@@ -1,9 +1,9 @@
-# Local secrets: the deployment reads its values from the Vercel project settings.
-.env
-.env.*
-
-# Local-only tooling and build output
-.git
-.claude
-node_modules
-.next
+# The Expo app is not part of the website's build. Without this, Vercel uploads it, the root tsconfig's
+# `**/*.ts` glob type-checks it, and `next build` fails on `expo-router` — a package installed in mobile/,
+# a folder Vercel never runs `npm install` in. It is built by EAS, not here.
+#
+# THE LEADING SLASH IS LOAD-BEARING. These patterns follow .gitignore rules, so a bare `mobile` matches a
+# directory of that name at ANY depth — including src/components/site/mobile/, which holds the phone tab bar,
+# the quote strip and the app stats. Excluding those made the whole public layout fail to resolve, and the
+# deploy died on «Can't resolve '@/components/site/mobile/tab-bar'». `/mobile` is the Expo app and nothing else.
+/mobile

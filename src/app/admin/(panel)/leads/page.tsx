@@ -23,7 +23,7 @@ import {
   REQUEST_KIND_FILTER_LABELS,
   REQUEST_KIND_LABELS,
   type RequestKind,
-} from "./filters";
+} from "@/lib/backoffice/leads/filters";
 import { offerOf, offerSnapshots, requestKindOf } from "./offer-snapshot";
 
 export const metadata: Metadata = { title: "مطالب الاستثمار" };

@@ -8,8 +8,8 @@ import { formatCount } from "@/lib/format";
 import { createClient } from "@/lib/supabase/server";
 
 import { ContractBlock, type PaymentMethod } from "./contract-block";
-import { CONTRACT_FILTERS, FILTER_LABELS, FILTER_NOTES, type ContractFilter } from "./contract-model";
-import { parseFilter, readContracts } from "./read";
+import { CONTRACT_FILTERS, FILTER_LABELS, FILTER_NOTES, type ContractFilter } from "@/lib/backoffice/contracts/model";
+import { parseFilter, readContracts } from "@/lib/backoffice/contracts/read";
 
 export const metadata: Metadata = { title: "العقود ووعد البيع" };
 

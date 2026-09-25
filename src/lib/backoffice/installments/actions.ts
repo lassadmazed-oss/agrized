@@ -33,10 +33,10 @@ import { getPublicConfig } from "@/lib/config";
 import { moduleAccess } from "@/lib/modules";
 import { createClient } from "@/lib/supabase/server";
 
-import { dinarsToMillimes } from "../pricing/form-values";
-import { newestReceiptNo, type InstallmentResult } from "./installment-model";
-import { installmentErrorMessage } from "./messages";
-import { draftRpc } from "./rpc";
+import { dinarsToMillimes } from "@/lib/backoffice/pricing/form-values";
+import { newestReceiptNo, type InstallmentResult } from "@/lib/backoffice/installments/model";
+import { installmentErrorMessage } from "@/lib/backoffice/installments/messages";
+import { draftRpc } from "@/lib/backoffice/installments/rpc";
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 

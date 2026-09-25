@@ -17,10 +17,9 @@ export function startCopy(config: PublicConfig): StartCopy {
     eyebrowFr: text("start.eyebrow_fr"),
     // Where a simulation leads once it is done: the real offers, under the projects module gate.
     // Both keys are the ones the home page and /register already use for this same link (no new copy).
-    offersTitle: text("register.offers_title"),
-    offersTitleFr: text("register.offers_title_fr"),
-    offersLabel: text("site.cta_offers_label"),
-    offersLabelFr: text("site.cta_offers_label_fr"),
+    /** The phone bar's own title and the label of its way back. Existing keys: no new copy to write. */
+    screenTitle: text("start.estimate_cta", "احسب مشروعك"),
+    homeLabel: text("start.home_label", "الرئيسية"),
     title: text("site.trees_question", "قدّاش زيتونة تحب تبدا بيهم؟"),
     titleFr: text("site.trees_question_fr"),
     subtitle: text("site.trees_subtitle", "اختيارك يمشي معك للخطوة الموالية. تنجم تبدّلو وقت اللي تحب."),

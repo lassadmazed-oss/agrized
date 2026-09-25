@@ -1,7 +1,9 @@
+import { AssistantBubble } from "@/components/site/assistant/assistant-bubble";
 import { TabBar, type Tab } from "@/components/site/mobile/tab-bar";
 import { SiteFooter } from "@/components/site/site-footer";
 import { SiteHeader } from "@/components/site/site-header";
 import { SourceCapture } from "@/components/site/source-capture";
+import { assistantCopy, assistantEnabled } from "@/lib/assistant";
 import { flagState, getPublicConfig, mediaCredits, settingText } from "@/lib/config";
 import { moduleAccess } from "@/lib/modules";
 
@@ -55,6 +57,8 @@ export default async function PublicLayout({ children }: LayoutProps<"/">) {
         credits={mediaCredits(config)}
       />
       <TabBar tabs={tabs} />
+      {/* The assistant rides above every public page; its flag is the only thing that removes it. */}
+      {assistantEnabled(config) ? <AssistantBubble copy={assistantCopy(config)} /> : null}
     </div>
   );
 }

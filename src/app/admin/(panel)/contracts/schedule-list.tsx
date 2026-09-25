@@ -24,7 +24,7 @@ import { ReasonField } from "@/components/admin/reason-field";
 import { StatusPill } from "@/components/ui";
 import { formatCount, formatDate } from "@/lib/format";
 
-import { voidContractPayment } from "./actions";
+import { voidContractPayment } from "@/lib/backoffice/contracts/actions";
 import {
   daysLateLabel,
   isOpen,
@@ -34,7 +34,7 @@ import {
   type Installment,
   type Receipt,
   formatAmount,
-} from "./contract-model";
+} from "@/lib/backoffice/contracts/model";
 import { RecordPaymentForm, type PaymentMethod } from "./payment-forms";
 import { useAct } from "./use-act";
 

@@ -29,7 +29,7 @@ import { IRRIGATION_LABELS } from "@/lib/land";
 import { projectStatusLabel, projectStatusTone } from "@/lib/projects";
 import { createClient } from "@/lib/supabase/server";
 
-import { offerStock } from "../offer-stock";
+import { offerStock } from "@/lib/backoffice/offers/stock";
 import { CardTab } from "./card-tab";
 import { PricingTab } from "./pricing-tab";
 import { CostsTab, type ProjectCost } from "./costs-tab";

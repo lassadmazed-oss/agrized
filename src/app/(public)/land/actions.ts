@@ -11,6 +11,7 @@ import { intakeErrorMessage, isKnownIntakeError } from "@/lib/errors";
 import { normalizePhone } from "@/lib/phone";
 import { auditHeaders, clientIp, hashIp } from "@/lib/request-context";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { dispatchAfterResponse } from "@/lib/sms";
 import { LAND_OFFER_BUCKET } from "@/lib/supabase/storage-upload";
 
 const FILE_EXTENSIONS = {
@@ -141,6 +142,8 @@ export async function submitLandOffer(input: LandOfferInput): Promise<SubmitLand
     uploads.push({ path: signed.path, token: signed.token, index });
   }
 
+  // The RPC queued the confirmation; send it once the visitor has their success screen.
+  dispatchAfterResponse();
   return { ok: true, offerId: offer.id, referenceNo: offer.reference_no, uploads };
 }
 

@@ -28,7 +28,7 @@ import { createClient } from "@/lib/supabase/server";
 
 import { agriErrorMessage, isKnownAgriError } from "../agri/pending-errors";
 import { callPending, type RpcFailure } from "../agri/read";
-import { dinarsToMillimes, textValue, wholeNumber } from "../pricing/form-values";
+import { dinarsToMillimes, textValue, wholeNumber } from "@/lib/backoffice/pricing/form-values";
 
 const PAGE = "/admin/subscriptions";
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;

@@ -8,7 +8,6 @@ import {
   areaPerTree,
   getOfferStock,
   LegalNotes,
-  minTreesHint,
   offersTitle,
   StockCell,
   stockCounted,
@@ -26,7 +25,6 @@ import { moduleAccess } from "@/lib/modules";
 import { projectStatusLabel, projectStatusTone } from "@/lib/projects";
 import { findProject, getProjectPage, getProjectQuote, getPublicProjects, publicMode } from "@/lib/public-projects";
 
-import { OfferInterestForm, type OfferChoice } from "./offer-interest-form";
 import { OfferPhone, type OfferPhoneFact } from "./offer-phone";
 
 /**
@@ -145,9 +143,6 @@ export default async function ProjectPage({ params }: PageProps<"/projects/[code
   const selling = project.status === "published" || project.status === "internal";
   const interestOpen = flagState(config, "interest_form") === "public";
   const formOpen = selling && interestOpen && sellableTrees > 0;
-  // The visit is asked for inside the offer's own form, so the door only exists when the form does. It used to
-  // be open on its own and led to a card that pointed back at a form that was not there.
-  const visitOpen = formOpen;
   const videoTitle = settingText(config, "projects.video_title", "فيديو المشروع");
   const galleryTitle = settingText(config, "projects.gallery_title", "صور المشروع");
   // Every label on this page is a key the Back Office holds, with the fallback the code already uses. The
@@ -158,22 +153,6 @@ export default async function ProjectPage({ params }: PageProps<"/projects/[code
   const fromPrefix = settingText(config, "start.from_prefix", "ابتداءً من");
   const perTreeLabel = settingText(config, "start.row_area_per_tree", "المساحة لكل زيتونة");
   const paymentText = settingText(config, "projects.payment_text");
-  // The smallest basket this offer sells (projects.min_trees_per_order, else offers.min_trees_default) is
-  // passed to the picker as `minTrees` — its lower bound, its opening count and the quick picks it offers
-  // all follow it. The sentence below says it in words as well, because a bound the visitor cannot read is
-  // a refusal waiting to happen. `submit_offer_request` is still the authority and refuses anything smaller
-  // with `below_min_trees`.
-  //
-  // ONE sentence, one truth (owner, 2026-09-19, reading «من زيتونة وحدة إلى 8,000 زيتونة. أقلّ عدد في هذا
-  // العرض: 20 زيتونة.» on TX-00215). The two settings were joined unconditionally, and `offers.trees_hint`
-  // is written for an offer that sells from a single tree, so on every offer with a floor the hint said one
-  // and then said twenty. The page picks the sentence that is true instead: the range sentence while it
-  // carries `{min}` itself — writing «من {min} زيتونة إلى {max} زيتونة.» in the Back Office makes it say
-  // both bounds at once and is the wording to prefer — otherwise the range sentence for an offer that
-  // really does start at one tree, and the offer's own floor sentence for every other.
-  const treesRange = settingText(config, "offers.trees_hint", "من زيتونة وحدة إلى {max} زيتونة.");
-  const treesHint =
-    treesRange.includes("{min}") || minTrees <= 1 ? treesRange : minTreesHint(config, minTrees) || treesRange;
 
   // PRJ-03: a price is a permission (public_projects() publishes none while pricing is closed to this
   // visitor), stock and area are facts. So the price cell disappears on its own and the offer's area
@@ -193,8 +172,8 @@ export default async function ProjectPage({ params }: PageProps<"/projects/[code
    */
   const perTreeText = perTree
     ? project.area_per_tree_max_m2 && project.area_per_tree_max_m2 !== perTree
-      ? `${formatCount(perTree)} – ${formatArea(project.area_per_tree_max_m2)}`
-      : formatArea(perTree)
+      ? `${formatCount(Math.round(perTree))} – ${formatArea(Math.round(project.area_per_tree_max_m2))}`
+      : formatArea(Math.round(perTree))
     : null;
 
   const heroFigures: { value: string; label: string; prefix?: string }[] = [];
@@ -263,6 +242,32 @@ export default async function ProjectPage({ params }: PageProps<"/projects/[code
    * what the offer actually publishes.
    */
   const unitTree = settingText(config, "offers.unit_tree", "زيتونة");
+
+  /**
+   * The four facts the phone screen wears as one bar: how many trees are free, how much land each carries,
+   * how they are planted and how big the ground is. Label and value are separate here because the bar prints
+   * both — the pill row below could only ever print the value, which is why «49 م²» and «2.45 هـ» used to sit
+   * side by side with nothing saying which was which. A fact the offer does not publish is left out; the bar
+   * draws whatever it is handed, and falls back to the pills when it is handed nothing.
+   */
+  const phoneHeadline: OfferPhoneFact[] = [
+    {
+      label: counted ? settingText(config, "offers.stock_available_label", "متاحة") : unitTree,
+      value: formatCount(counted ? stock.available : declaredTrees),
+    },
+    ...(perTreeText
+      ? [{ label: settingText(config, "offers.unit_per_tree", "للزيتونة"), value: perTreeText }]
+      : []),
+    ...(project.plantation_system
+      ? [
+          {
+            label: settingText(config, "offers.label_plantation", "الغراسة"),
+            value: PLANTATION_LABELS[project.plantation_system] ?? project.plantation_system,
+          },
+        ]
+      : []),
+    ...(project.total_area_m2 ? [{ label: areaLabel, value: formatArea(project.total_area_m2) }] : []),
+  ];
   const phoneFigures = [
     `${formatCount(counted ? stock.available : declaredTrees)} ${unitTree}`,
     perTreeText ? `${perTreeText} ${settingText(config, "offers.unit_per_tree", "للزيتونة")}` : null,
@@ -336,6 +341,16 @@ export default async function ProjectPage({ params }: PageProps<"/projects/[code
             className="aspect-[2/1] rounded-none"
           />
         }
+        slides={(pictures.length > 0 ? pictures : []).map((picture, index) => (
+          <RemotePhoto
+            key={picture.url ?? index}
+            url={picture.url}
+            alt={picture.alt_ar}
+            seed={project.id}
+            sizes="(min-width: 768px) 0px, 100vw"
+            className="aspect-[2/1] rounded-none"
+          />
+        ))}
         place={placeLine}
         placeNote={placeNote}
         mapHref={mapHref}
@@ -344,6 +359,7 @@ export default async function ProjectPage({ params }: PageProps<"/projects/[code
             ? { label: projectStatusLabel(project.status), toneClass: projectStatusTone(project.status) }
             : null
         }
+        headline={phoneHeadline}
         figures={phoneFigures}
         tags={phoneTags}
         // The offer's own quote for the basket the counter opens on; the counter re-asks the database for
@@ -378,7 +394,7 @@ export default async function ProjectPage({ params }: PageProps<"/projects/[code
         documents={documents}
         services={services}
         accessNote={page?.access_note ?? ""}
-        formHref={formOpen ? "#offer-form" : null}
+        formHref={formOpen ? `/projects/${encodeURIComponent(code)}/interest` : null}
         copy={{
           back: offersTitle(config),
           share: settingText(config, "offers.share_label", "شارك هذا العرض"),
@@ -387,7 +403,8 @@ export default async function ProjectPage({ params }: PageProps<"/projects/[code
           total: settingText(config, "start.row_total_price", "السعر الجملي للطلب"),
           plus: settingText(config, "offers.trees_plus", "زيد زيتونة"),
           minus: settingText(config, "offers.trees_minus", "نقّص زيتونة"),
-          book: settingText(config, "offers.book_cta", "إحجز الآن"),
+          // The floating control and the page it opens say the same thing (owner, 2026-09-22).
+          book: settingText(config, "offers.submit_label", "سجّل اهتمامك بهذا العرض"),
           priceNote,
           pricePending: settingText(config, "projects.price_pending", "السعر يُعلن لاحقاً."),
           tabInfo: settingText(config, "offers.tab_info", "معلومات"),
@@ -631,88 +648,32 @@ export default async function ProjectPage({ params }: PageProps<"/projects/[code
 
           It is also where the phone's «إحجز الآن» lands, so the section carries the anchor and enough
           scroll margin to clear the header it scrolls under. */}
+      {/* THE FORM IS A DOOR NOW, NOT A SECTION (owner, 2026-09-22). It used to end this page: eleven
+          fields, a payment question with branches and a figures panel that re-quotes on every answer, under
+          everything the offer publishes. A reader who came to read scrolled past a form they had not asked
+          for; a reader who came to book scrolled past the whole offer to reach it. It lives at
+          /projects/<code>/interest now, and this is the way in. */}
       {formOpen ? (
-        <section id="offer-form" className="mx-auto max-w-6xl scroll-mt-20 px-4 pb-12 sm:px-6">
-          <OfferInterestForm
-            projectId={project.id}
-            projectName={project.name}
-            maxTrees={sellableTrees}
-            minTrees={minTrees}
-            quote={offerQuote}
-            // What THIS offer allows, and nothing else: an empty list is «this offer does not sell that way»
-            // and the form then shows no instalment door at all. Plain serialisable rows — a Server Component
-            // may hand data to a client module, never the other way round.
-            downPercents={offerQuote?.choices.down_percents.map(planChoice) ?? []}
-            durations={offerQuote?.choices.durations.map(planChoice) ?? []}
-            payment={{
-              title: settingText(config, "start.payment_title", "كيفاش تحب تخلّص؟"),
-              hint: settingText(config, "start.payment_hint"),
-              cash: settingText(config, "start.payment_cash", "بالحاضر"),
-              installments: settingText(config, "start.payment_installments", "بالتقسيط"),
-              downTitle: settingText(config, "start.down_percent_title", "نسبة التسبقة"),
-              downHint: settingText(config, "start.down_percent_hint", "التسبقة تتحسب من السعر الجملي بالحاضر."),
-              durationTitle: settingText(config, "start.row_duration", "مدة الدفع"),
-              cashOnly: settingText(config, "offers.cash_only", "هذا العرض يتباع بالحاضر فقط."),
-              requiredHint: settingText(config, "start.continue_hint_payment", "اختر طريقة الدفع باش تكمّل."),
-              installmentsRequiredHint: settingText(
-                config,
-                "start.continue_hint_installments",
-                "اختر نسبة التسبقة ومدة الدفع باش تكمّل.",
-              ),
-              planUnavailable: settingText(
-                config,
-                "offers.plan_unavailable",
-                "هذه الخطة ماهيش متوفّرة في هذا العرض. اختر نسبة تسبقة ولا مدة أخرى.",
-              ),
-              // «طريقة الدفع» was a prose card two screens BELOW this question, answering something the
-              // form had already asked and priced. Same setting, read where it is useful.
-              note: selling ? paymentText : "",
-            }}
-            summary={{
-              pricePerTree: settingText(config, "start.row_price_per_tree", "سعر الزيتونة"),
-              areaPerTree: perTreeLabel,
-              totalArea: areaLabel,
-              totalPrice: settingText(config, "start.row_total_price", "السعر الجملي للطلب"),
-              annualFee: settingText(config, "start.row_annual_fee", "معاليم الصيانة والتقليم في العام"),
-              annualFeePerTree: settingText(config, "start.annual_fee_per_tree", "{amount} للزيتونة في العام"),
-              down: settingText(config, "start.row_down", "التسبقة"),
-              duration: settingText(config, "start.row_duration", "مدة الدفع"),
-              totalFinanced: settingText(config, "start.row_total_financed", "السعر الجملي بالتقسيط"),
-              remaining: settingText(config, "start.row_remaining", "المبلغ المتبقي"),
-              monthly: settingText(config, "start.row_monthly", "القسط الشهري"),
-              lastInstallment: settingText(config, "start.last_installment", "آخر قسط: {amount}"),
-              installmentsCount: settingText(config, "start.installments_count", "{count} قسطاً"),
-              priceUnavailable: settingText(config, "start.price_unavailable", "السعر يتحدّد قريباً."),
-              durationNotPriced: settingText(
-                config,
-                "start.duration_not_priced",
-                "التقسيط على هذه المدة مازال ما تحدّدش. اختر مدة أخرى.",
-              ),
-              downCoversTotal: settingText(
-                config,
-                "start.down_covers_total",
-                "التسبقة أكبر من السعر الجملي. اختر تسبقة أصغر أو ادفع بالحاضر.",
-              ),
-            }}
-            governorates={config.governorates}
-            contactTimes={optionsFor(config, "contact_time")}
-            title={settingText(config, "offers.form_title", "سجّل اهتمامك بهذا العرض")}
-            intro={settingText(config, "offers.form_intro")}
-            treesLabel={settingText(config, "offers.trees_label", "قدّاش زيتونة تحب من هذا العرض؟")}
-            treesHint={treesHint}
-            treesQuickPicks={settingText(config, "offers.quick_picks", "1,5,10,25,50")}
-            submitLabel={settingText(config, "offers.submit_label", "سجّل اهتمامك بهذا العرض")}
-            visitLabel={visitOpen ? settingText(config, "projects.visit_cta", "نحب نزور الأرض") : ""}
-            visitText={settingText(config, "projects.visit_text")}
-            successTitle={settingText(config, "offers.success_title", "وصلنا طلبك على هذا العرض")}
-            successText={settingText(config, "offers.success_text")}
-            consentText={settingText(config, "legal.consent_text")}
-            estimateNote={settingText(config, "start.estimate_note")}
-            // PRN-01: the note that used to hold a band of its own between the form and the page's tail
-            // now rides at the foot of the figures it qualifies.
-            legalNote={settingText(config, "legal.parcel_card_note")}
-            pricePending={settingText(config, "projects.price_pending", "السعر يُعلن لاحقاً.")}
-          />
+        <section className="mx-auto hidden max-w-6xl px-4 pb-12 sm:px-6 md:block">
+          <div className="card flex flex-col gap-3 p-5 sm:flex-row sm:items-center sm:justify-between sm:p-6">
+            <div>
+              <h2 className={CARD_TITLE}>{settingText(config, "offers.form_title", "سجّل اهتمامك بهذا العرض")}</h2>
+              <p className="mt-2 leading-7 text-muted">
+                {settingText(
+                  config,
+                  "offers.form_intro",
+                  "اختار قدّاش زيتونة تحب من هذا العرض، وعمّر معطياتك. التسجيل مجاني ولا يلزمك بالشراء.",
+                )}
+              </p>
+            </div>
+            <Link
+              href={`/projects/${encodeURIComponent(code)}/interest`}
+              className="btn btn-primary shrink-0 gap-2 sm:min-w-56"
+            >
+              {settingText(config, "offers.submit_label", "سجّل اهتمامك بهذا العرض")}
+              <span aria-hidden="true">←</span>
+            </Link>
+          </div>
         </section>
       ) : null}
 
@@ -774,14 +735,6 @@ function Figure({ value, label, prefix }: { value: string; label: string; prefix
   );
 }
 
-/**
- * One of this offer's own payment answers, narrowed to what the form needs: the id it sends back and the word
- * it prints. The percentage and the month count stay on the server — the form never does arithmetic with them,
- * and every figure it shows is quoted again by `public_project_quote`.
- */
-function planChoice(choice: { id: string; label_ar: string }): OfferChoice {
-  return { id: choice.id, label_ar: choice.label_ar };
-}
 
 /**
  * One named group of facts: the land, the olive trees, the paperwork, the services.

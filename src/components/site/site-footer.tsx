@@ -74,21 +74,69 @@ export async function SiteFooter({ legalNotice, taglineFr, phone, whatsapp, emai
   const showPhoto = flagState(config, "land_offers") !== "public";
 
   return (
-    <footer className="relative isolate overflow-hidden bg-forest-700 text-paper">
+    <footer className="relative isolate hidden overflow-hidden bg-forest-700 text-paper md:block">
       {showPhoto ? (
         // The picture holds the END half and dissolves into flat green before it reaches the words. The
         // gradient axis is written physically because this document is `dir="rtl"` at the root
         // (src/app/layout.tsx) and is never anything else: «to the right» is «toward the inline start».
-        <div aria-hidden="true" className="absolute inset-y-0 end-0 w-full lg:w-[58%]">
+        <div aria-hidden="true" className="absolute inset-y-0 end-0 hidden w-full md:block lg:w-[58%]">
           <SitePhoto config={config} slot="home.land" fill sizes="(min-width: 1024px) 58vw, 100vw" />
           <div className="absolute inset-0 bg-linear-to-r from-transparent via-forest-700/70 to-forest-700" />
         </div>
       ) : null}
       {/* One even darkening over everything, so the type keeps the same contrast whichever photograph the
           owner uploads next — the legibility never depends on the picture being dark. */}
-      <div aria-hidden="true" className="absolute inset-0 bg-forest-700/80" />
+      <div aria-hidden="true" className="absolute inset-0 hidden bg-forest-700/80 md:block" />
 
-      <div className="relative mx-auto max-w-6xl px-4 py-section sm:px-6 lg:py-band">
+      {/* THE PHONE'S FOOTER (owner, 2026-09-22: «takes too much space and yeah bad»). The four-column footer
+          below stacks into a single column on a phone: wordmark, French tagline, the legal notice, a heading
+          and six links, a heading and three contact rows, then a 3xl closing line — about 750px of dark band
+          under a screen that is itself 830px. A footer is the end of a page, not a second page. So on a phone
+          it is one block: who this is, the one sentence the law needs, and the two ways to reach a human.
+          The full one is unchanged from `md` up. */}
+      <div className="relative px-4 py-6 md:hidden">
+        <div className="flex items-center justify-between gap-3">
+          <Link href="/" className="inline-flex items-center gap-2" aria-label="AgriZed، الصفحة الرئيسية">
+            <Wordmark onDark className="text-2xl" />
+          </Link>
+          {phone || whatsapp ? (
+            <div className="flex gap-2">
+              {phone ? (
+                <a
+                  href={`tel:${phone.replace(/\s/g, "")}`}
+                  aria-label={phone}
+                  className="flex size-10 items-center justify-center rounded-xl bg-paper/12 text-gold-bright"
+                >
+                  <PhoneGlyph />
+                </a>
+              ) : null}
+              {whatsappDigits ? (
+                <a
+                  href={`https://wa.me/${whatsappDigits}`}
+                  aria-label="WhatsApp"
+                  className="flex size-10 items-center justify-center rounded-xl bg-paper/12 text-gold-bright"
+                >
+                  <WhatsAppGlyph />
+                </a>
+              ) : null}
+            </div>
+          ) : null}
+        </div>
+
+        {legalNotice ? <p className="mt-3 text-[0.6875rem] leading-5 text-paper/65">{legalNotice}</p> : null}
+
+        {links.length > 0 ? (
+          <nav aria-label={navTitle || "أقسام الموقع"} className="mt-3 flex flex-wrap gap-x-4 gap-y-1">
+            {links.map((link) => (
+              <Link key={link.href} href={link.href} className="py-1 text-[0.75rem] text-paper/85">
+                {link.label}
+              </Link>
+            ))}
+          </nav>
+        ) : null}
+      </div>
+
+      <div className="relative mx-auto hidden max-w-6xl px-4 py-section sm:px-6 md:block lg:py-band">
         <div className="grid gap-roomy sm:grid-cols-2 lg:grid-cols-[1.15fr_0.7fr_1fr_0.85fr] lg:gap-cozy">
           <div className="space-y-snug">
             <Link href="/" className="inline-flex items-center gap-tight rounded-md" aria-label="AgriZed، الصفحة الرئيسية">
@@ -163,8 +211,8 @@ export async function SiteFooter({ legalNotice, taglineFr, phone, whatsapp, emai
           for clients. It keeps its place — people who need it know where to look — in a quiet strip of its own.
           The photo credits join it here: the closing strip is where a page files what it owes rather than what
           it offers, and all three lines are the same 12px, so the strip reads as one line of small print. */}
-      <div className="relative border-t border-paper/15 bg-forest-700/60">
-        <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-x-cozy gap-y-tight px-4 py-4 text-xs text-paper/65 sm:px-6">
+      <div className="relative border-t border-paper/12 bg-transparent md:bg-forest-700/60">
+        <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-x-cozy gap-y-tight px-4 py-2.5 text-[0.6875rem] text-paper/65 sm:px-6 sm:py-4 sm:text-xs">
           <p>{copyright}</p>
           {credits.length > 0 ? <PhotoCredits credits={credits} label={creditsLabel} /> : null}
           <div className="flex flex-wrap items-center gap-x-cozy gap-y-tight">

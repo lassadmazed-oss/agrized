@@ -8,8 +8,8 @@ import { formatCount } from "@/lib/format";
 import { createClient } from "@/lib/supabase/server";
 
 import { ReservationBlock, type PaymentMethod } from "./reservation-block";
-import { FILTER_LABELS, RESERVATION_FILTERS, type ReservationFilter } from "./reservation-model";
-import { parseFilter, readReservations } from "./read";
+import { FILTER_LABELS, RESERVATION_FILTERS, type ReservationFilter } from "@/lib/backoffice/reservations/model";
+import { parseFilter, readReservations } from "@/lib/backoffice/reservations/read";
 
 export const metadata: Metadata = { title: "الحجوزات" };
 

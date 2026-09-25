@@ -110,6 +110,13 @@ body {
     cursor: not-allowed;
   }
 
+  @media (width >= 40rem) {
+    .choice {
+      min-height: 3.25rem;
+      padding: 0.75rem 1rem;
+    }
+  }
+
   .field {
     width: 100%;
     min-height: 3rem;
@@ -153,8 +160,12 @@ body {
     display: flex;
     align-items: center;
     gap: 0.75rem;
-    min-height: 3.25rem;
-    padding: 0.75rem 1rem;
+    /* 3.25rem with 12px/16px of padding is right for a row carrying two words and an icon, and twice what a
+       two-digit count needs. On a phone, where a grid of these IS the screen, it shrinks to a 44px target —
+       still the accessible minimum, and four rows of them stop being four screens (owner, 2026-09-22:
+       «takes too much space»). The comfortable size returns from sm. */
+    min-height: 2.75rem;
+    padding: 0.5rem 0.75rem;
     border: 1.5px solid var(--color-line-strong);
     border-radius: 0.875rem;
     background: var(--color-surface);
@@ -548,10 +559,20 @@ body {
     top: 0;
     z-index: 40;
   }
-  body:has([data-page="home"]) .site-header {
-    position: fixed;
-    inset-inline: 0;
-  }
+  /*
+   * THE HOME PAGE USED TO TAKE THE BAR OUT OF FLOW, and it cost the page its first band.
+   *
+   * `position: fixed` was right when the home page opened with a full-bleed photograph for the bar to float
+   * over: nothing was above the picture, so nothing could be covered. Then the quote strip arrived above the
+   * hero, and a fixed bar reserves no height — measured at 1400px: the bar occupies 0→92 and the strip sits
+   * at y=24, so two thirds of it was rendered underneath and read as clipped, broken cards (owner
+   * screenshot, 2026-09-23).
+   *
+   * Sticky puts it back in flow. It still pins to the top on scroll, which is the behaviour anyone wanted
+   * from it; what it stops doing is standing on top of whatever the page chooses to open with. A bar that
+   * floats over content is only safe while the page promises never to put anything there, and this page
+   * stopped promising that.
+   */
 
   /* A screen that carries its own top bar does not also get the site's one.
      The offer on a phone opens with a back control and a share control over its picture (the owner's
@@ -644,6 +665,21 @@ body {
     display: flex;
     inline-size: max-content;
     will-change: transform;
+    /*
+     * NO `gap` ON THIS TRACK, AND NO PADDING (owner, 2026-09-22: «it doesn't have that seamless animation
+     * feel, it lagged and has a reset point»). That reset was arithmetic, not performance.
+     *
+     * The loop works by rendering the list twice and travelling exactly 50 % — which is only the width of
+     * one copy if the track is exactly two copies and nothing else. `gap: 8px` between 2N cards lays down
+     * 2N−1 gaps, not 2N: half the track is one gap SHORT of one copy, so every lap jumped 4px and the eye
+     * read it as a stutter at a fixed point. A left pad on the track added its own offset on top.
+     *
+     * The spacing lives on the cards instead (`margin-inline-end`), so each card is one indivisible unit,
+     * the track is exactly 2N of them, and half of it is exactly N. The seam then lands on a copy of the
+     * first card and there is nothing to see.
+     */
+    gap: 0;
+    padding-inline: 0;
     /* WHICH WAY IT DRIFTS DEPENDS ON THE WRITING DIRECTION, and getting this wrong does not look like a
        reversed animation — it looks like the content vanishing. In an RTL row the first item sits at the
        RIGHT edge and the track overflows to the left, so translating the track further left pulls it out of
@@ -680,6 +716,18 @@ body {
    * different property from `animation-duration`, so it wins on the cascade rather than fighting it, and it
    * leaves the track sitting at its start: the first copy, static and complete.
    */
+  /* The second strip on a screen runs the other way (owner, 2026-09-22: «the opposite side to the top one»).
+     Two bands drifting the same way read as one surface sliding; against each other they read as two. It is
+     the same keyframes played backwards, so the geometry — and the seamlessness — is identical. */
+  .marquee-track-reverse {
+    animation-direction: reverse;
+  }
+
+  /* The gap, moved off the track and onto the cards, where it cannot break the halving. */
+  .marquee-track > * {
+    margin-inline-end: var(--marquee-gap, 0.5rem);
+  }
+
   @media (prefers-reduced-motion: reduce) {
     .marquee-track {
       animation: none !important;
@@ -730,6 +778,121 @@ body {
     }
   }
 
+  /*
+   * A popup, as a native <dialog>.
+   *
+   * Not a library and not a div with a z-index: showModal() gives the top layer, a real backdrop, Esc, focus
+   * trapping and inertness on everything behind it — all of which a hand-rolled overlay has to reimplement
+   * and usually half-reimplements.
+   *
+   * IT IS A SHEET ON A PHONE AND A CARD ON A DESKTOP. Below `sm` it sits on the bottom edge, full width, its
+   * top corners rounded: that is where a thumb is, and an action a thumb cannot reach is an action performed
+   * two-handed. Above it, it centres.
+   *
+   * WHY IT EARNS ITS PLACE HERE: the client file used to stack three always-open forms — stage, note,
+   * identity — about 420px of boxes a reader scrolled past every single visit to reach the history. They are
+   * now one row of small buttons (owner, 2026-09-23: «use popups, smaller stuff that uses less place»). The
+   * form is identical; it just is not on screen until it is asked for.
+   */
+  .popup {
+    margin: 0;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    color: inherit;
+  }
+  .popup::backdrop {
+    background: rgb(27 42 31 / 0.45);
+  }
+  .popup-panel {
+    /* 100% of the dialog, never 100vw: a viewport unit ignores the scrollbar, and the panel hung 15px off
+       the edge of its own dialog. */
+    width: 100%;
+    max-width: 30rem;
+    max-height: 92dvh;
+    overflow-y: auto;
+    background: var(--color-surface);
+    border: 1px solid var(--color-line);
+    border-radius: 1rem 1rem 0 0;
+    box-shadow: var(--shadow-card, 0 -8px 32px -12px rgb(27 42 31 / 0.25));
+  }
+  /*
+   * EVERY LAYOUT RULE IS SCOPED TO [open], and that is not a detail.
+   *
+   * The browser's own stylesheet carries `dialog:not([open]) { display: none }`. Setting `display` on the
+   * element unconditionally beats that rule, and a closed dialog then sits in the page as an ordinary
+   * block — which is exactly what happened: a white box with the last popup's title stuck in the header,
+   * no backdrop, and an empty body because its content only mounts while open. A dialog must be allowed
+   * to be display:none when it is shut.
+   *
+   * Phone: pinned to the bottom edge, where the thumb is. Desktop: centred.
+   */
+  .popup[open] {
+    position: fixed;
+    inset: 0;
+    /*
+     * width/height 100% ARE THE WHOLE FIX, and the reason is not obvious.
+     *
+     * The UA stylesheet gives <dialog> `width: fit-content`. An absolutely positioned box with a non-auto
+     * width does NOT stretch to its inset edges — it shrink-wraps and then parks itself at the inline-start
+     * corner. On an RTL page that corner is the TOP RIGHT, which is precisely where the panel was landing:
+     * a 227px box in a 280px viewport, pinned to the corner, while the backdrop dutifully dimmed the page
+     * behind it (owner screenshot, 2026-09-23). Measured in the browser before and after, not guessed.
+     */
+    width: 100%;
+    height: 100%;
+    max-width: 100%;
+    max-height: 100%;
+    display: grid;
+    /* Phone: the sheet sits on the bottom edge, where the thumb is. */
+    place-items: end center;
+  }
+  @media (min-width: 640px) {
+    .popup[open] {
+      place-items: center;
+    }
+    .popup-panel {
+      width: 30rem;
+      border-radius: 1rem;
+    }
+  }
+
+  /*
+   * A figure that has not arrived yet.
+   *
+   * The estimate card used to fill in the instant its quote landed: blanks became numbers under the
+   * visitor's eyes, which reads as the price CHANGING rather than as the price arriving (owner,
+   * 2026-09-23: «i don't like how it suddenly get changed … start with a mock loading animation then it
+   * loads the data»). A placeholder holding the card's exact shape turns that into a fill, and because it
+   * is the same shape, nothing below it reflows when the figures land.
+   *
+   * The sheen travels instead of the whole block pulsing: eleven rows blinking together is a strobe, and
+   * one sweep across a card reads as one thing loading. `background-size` is twice the block so a single
+   * pass crosses it, and the gradient is stated in both directions — a sweep that ran to the left of an
+   * RTL page would arrive from off-screen.
+   */
+  .skeleton {
+    border-radius: 0.375rem;
+    background-color: var(--color-line);
+    background-image: linear-gradient(
+      90deg,
+      transparent 0%,
+      color-mix(in srgb, var(--color-surface) 70%, transparent) 50%,
+      transparent 100%
+    );
+    background-size: 200% 100%;
+    background-repeat: no-repeat;
+    animation: skeleton-sweep 1.5s ease-in-out infinite;
+  }
+  @keyframes skeleton-sweep {
+    from {
+      background-position: 150% 0;
+    }
+    to {
+      background-position: -50% 0;
+    }
+  }
+
   /* The same arrival, tied to the scroll: a band lifts into place as it comes up the screen and is finished
      by the time it is a third of the way in, so nothing is still moving where the eye settles. */
   .reveal {
@@ -772,14 +935,229 @@ body {
     }
   }
 
+  /* THE NAVIGATION VEIL (components/site/navigation-veil.tsx).
+   *
+   * Owner, 2026-09-23: a circle in the middle of the screen and the page behind it blurred, so a tap is
+   * plainly received. The blur is the whole signal — it says «this screen is on its way out» in a way a
+   * spinner alone, floating over a page that still looks clickable, does not.
+   *
+   * It fades in over 180ms instead of appearing. Combined with the 120ms the component waits before mounting
+   * it at all, a navigation that resolves quickly shows nothing, and one that does not grows a veil rather
+   * than flashing one.
+   *
+   * The ring is one continuous rotation. It is the one place on the site where a spinner is the content:
+   * there is nothing else to look at while waiting, and the rule the marquee earns its motion by is the same
+   * rule that earns this one.
+   */
+  /* ---------------------------------------------------------------------
+   * The navigation hint: a bar at the top edge, not a cover over everything.
+   *
+   * WHAT THIS REPLACED, AND WHY (owner, 2026-09-24: «the loading animation of the routing takes too long, it
+   * should be faster and nicer and cleaner»). It was a fixed sheet over the whole viewport with
+   * `backdrop-blur-md` and a spinning ring in the middle. Backdrop blur is the single most expensive thing a
+   * browser can be asked to paint: it samples everything behind the element, every frame, over the full
+   * screen — on the exact frame the router is also parsing a new screen. The veil did not measure the wait,
+   * it LENGTHENED it, and then it covered the page it had slowed down.
+   *
+   * A 2px bar at the top edge costs one composited layer, says the same thing, and leaves the page readable
+   * while the next one arrives. It is what a visitor already recognises from every other site they use.
+   *
+   * IT NEVER CLAIMS TO BE FINISHED. The fill runs quickly to 70% and then crawls, because the only honest
+   * thing to say about a wait of unknown length is «still going». Arrival removes the element outright — a
+   * bar that animated to 100% would be a lie told 200ms after the screen it described was already gone.
+   */
+  .nav-progress {
+    position: fixed;
+    inset-block-start: 0;
+    inset-inline: 0;
+    z-index: 90;
+    block-size: 2px;
+    /* It reports; it never intercepts. A hint that can swallow a click is worse than no hint. */
+    pointer-events: none;
+    background: transparent;
+  }
+  .nav-progress span {
+    display: block;
+    block-size: 100%;
+    inline-size: 0;
+    border-start-end-radius: 2px;
+    border-end-end-radius: 2px;
+    background: linear-gradient(to left, var(--color-leaf, #4a7c4e), var(--color-forest, #1f4a2c));
+    box-shadow: 0 0 8px rgb(74 124 78 / 0.5);
+    animation: nav-progress-run 6s cubic-bezier(0.1, 0.8, 0.2, 1) forwards;
+  }
+  @keyframes nav-progress-run {
+    0% {
+      inline-size: 0;
+    }
+    /* Fast to most of the way — this is where a prefetched screen arrives and the bar simply disappears. */
+    30% {
+      inline-size: 70%;
+    }
+    /* Then a crawl, so a long wait still moves without ever reaching the end. */
+    100% {
+      inline-size: 96%;
+    }
+  }
+
+  /* Someone who asked their system for less movement gets the bar, held at a length that still says «wait». */
+  @media (prefers-reduced-motion: reduce) {
+    .nav-progress span {
+      animation: none !important;
+      inline-size: 40%;
+    }
+  }
+
+  /* The counter bar, breathing.
+   *
+   * The rule three primitives up says the marquee is the one continuous motion on the site, and it earns it
+   * because the drifting photography IS the content. This earns it on the same ground: the bar does not
+   * report a finished quantity, it reports one that is still being collected — every new request lengthens
+   * it. A sheen that crosses it every few seconds says «still counting» where a flat green bar says «done».
+   *
+   * It moves light across the fill and never the fill itself, so the length a reader is measuring is exactly
+   * where it was, and nothing beside it reflows.
+   */
+  .counter-fill {
+    position: relative;
+    overflow: hidden;
+  }
+  .counter-fill::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(90deg, transparent 0%, rgb(255 255 255 / 0.55) 50%, transparent 100%);
+    transform: translate3d(-100%, 0, 0);
+    animation: counter-sheen 3.2s ease-in-out infinite;
+  }
+  @keyframes counter-sheen {
+    0% {
+      transform: translate3d(-100%, 0, 0);
+    }
+    60%,
+    100% {
+      transform: translate3d(100%, 0, 0);
+    }
+  }
+
   @media (prefers-reduced-motion: reduce) {
     .rise,
     .reveal,
     .float,
-    .figure-in {
+    .figure-in,
+    .skeleton,
+    .counter-fill::after {
       animation: none !important;
       opacity: 1 !important;
       transform: none !important;
     }
+  }
+}
+
+/* The hero slideshow (components/site/landing/photo-slideshow.tsx). The keyframes are generated per frame
+   count next to the stack — their percentages depend on how many photographs the owner uploaded — so what
+   belongs here is only the rule that stops it. Someone who has asked their system for less movement gets the
+   first photograph, held. */
+@media (prefers-reduced-motion: reduce) {
+  .az-slide-track {
+    animation: none !important;
+  }
+}
+/* The track is sized in container query units, so the frame has to be a container to measure. */
+.az-slideshow {
+  container-type: inline-size;
+}
+
+/*
+ * A row that scrolls sideways under the thumb, with no rail drawn under it.
+ *
+ * The filter row on /projects is `overflow-x-auto`, and on every engine that reserves space for a
+ * scrollbar that draws a grey track the full width of the row — a hard horizontal bar under the chips
+ * that belongs to no element on the page and reads as a broken divider (owner, 2026-09-22: «it's not
+ * seamless»). A touch row is scrolled by dragging it, so the rail is furniture for a gesture nobody makes
+ * here. The row still scrolls; the keyboard still reaches every chip, because each one is a real button.
+ */
+@layer utilities {
+  .rail-none {
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+  .rail-none::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+/*
+ * How tall the phone's bottom bar is, as a number the rest of the app can read.
+ *
+ * The bar is `position: fixed`, so it is outside the flow and nothing below it knows it is there. A form's
+ * own «التالي» is `sticky bottom-0`, which sticks to the bottom of the VIEWPORT — which is exactly where the
+ * bar is. Measured on /start: the button occupied 784–832px and the bar began at 769, so the primary action
+ * of the calculator was behind the navigation on every step.
+ *
+ * One token, used by the bar for the room it reserves and by anything sticky for how far to sit above it, so
+ * the two can never drift apart. Zero from `md`, where the bar is not drawn at all.
+ */
+:root {
+  --tabbar-h: 4.75rem;
+}
+@media (width >= 48rem) {
+  :root {
+    --tabbar-h: 0rem;
+  }
+}
+
+/*
+ * No double-tap zoom on anything you tap (owner, 2026-09-22: «remove the auto zoom when typing or the
+ * double click»).
+ *
+ * TWO DIFFERENT ZOOMS, TWO DIFFERENT CAUSES.
+ *
+ *  · Double-tap. A mobile browser waits after a tap to see whether a second one is coming, and zooms if it
+ *    is. `touch-action: manipulation` tells it this element is never a zoom target, which removes both the
+ *    zoom and the wait — taps feel immediate as a side effect.
+ *  · Typing. iOS Safari zooms when a focused field's text is under 16px. Every public field is `.field`,
+ *    which is 1rem for exactly this reason (see the note there), so the cause is already handled — this
+ *    rule makes it explicit for the few inputs that carry their own type size.
+ *
+ * WHAT IS DELIBERATELY NOT DONE: `maximum-scale=1, user-scalable=no` on the viewport. It would kill both
+ * zooms in one line and also take pinch-zoom away from everyone, including a reader who needs it to read
+ * this site at all. That is a WCAG 1.4.4 failure, and the two rules below fix the actual complaint without
+ * it. Pinch-to-zoom keeps working.
+ */
+a,
+button,
+label,
+summary,
+select,
+[role="button"],
+[role="tab"] {
+  touch-action: manipulation;
+}
+
+input,
+textarea,
+select {
+  touch-action: manipulation;
+  /* Never below the 16px that makes iOS zoom the page on focus. */
+  font-size: max(1rem, inherit);
+}
+
+/*
+ * ANSWERS ARE ARABIC-ONLY ON A PHONE; QUESTIONS STAY BILINGUAL.
+ *
+ * /start is bilingual by decision (owner, 2026-09-12). On a 390px screen that doubles the height of every
+ * answer, and for most of them it doubles nothing else: «24 × 24 م» / «24 × 24 m» and «576 م²» / «576 m²»
+ * are the SAME DIGITS with a translated unit letter, printed twice, on a tile a thumb is meant to scan.
+ * Six lines per option to say one measurement (owner, 2026-09-22: «less text in each space, more about the
+ * question and the answer»).
+ *
+ * So the rule is placed on what is being ANSWERED, never on what is being ASKED: a question is a sentence
+ * and really does differ between the two languages, so it keeps both. Everything inside `[data-answers]`
+ * drops its French line below `sm` and gets it back above.
+ */
+@media (width < 40rem) {
+  [data-answers] [data-bi-fr] {
+    display: none;
   }
 }

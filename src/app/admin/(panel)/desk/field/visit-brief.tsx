@@ -23,7 +23,7 @@ import { DataList, DataRow, StatusPill } from "@/components/ui";
 import { ATTEMPT_CHANNEL_LABELS, OUTCOME_LABELS, PLANTATION_LABELS, PRODUCTION_LABELS, type ContactOutcome } from "@/lib/crm";
 import { formatArea, formatCount, formatDateTime, formatMillimes } from "@/lib/format";
 
-import { PAYMENT_MODE_LABELS } from "../../leads/filters";
+import { PAYMENT_MODE_LABELS } from "@/lib/backoffice/leads/filters";
 import type { Visit } from "../../visits/visit-model";
 import type { CallNote, RequestBrief } from "./read";
 

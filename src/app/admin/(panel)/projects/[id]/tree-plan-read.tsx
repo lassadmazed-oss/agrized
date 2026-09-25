@@ -22,7 +22,7 @@ import "server-only";
 import { getPublicConfig, settingInt, settingText } from "@/lib/config";
 import { createClient } from "@/lib/supabase/server";
 
-import { offerStock } from "../offer-stock";
+import { offerStock } from "@/lib/backoffice/offers/stock";
 import {
   blockStart,
   clampBlockSize,

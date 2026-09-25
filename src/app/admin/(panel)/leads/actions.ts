@@ -8,7 +8,7 @@ import { ADMIN_ROLES, requireStaff } from "@/lib/auth";
 import { formatCount } from "@/lib/format";
 import { createClient } from "@/lib/supabase/server";
 
-import { filtersToRpc, parseLeadFilters } from "./filters";
+import { filtersToRpc, parseLeadFilters } from "@/lib/backoffice/leads/filters";
 
 const BATCH = 500;
 const MAX_ROWS = 100_000;

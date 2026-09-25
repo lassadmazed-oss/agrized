@@ -150,6 +150,42 @@ export type Database = {
           },
         ]
       }
+      assistant_messages: {
+        Row: {
+          answer: string | null
+          created_at: string
+          error: string | null
+          id: string
+          ip_hash: string | null
+          model: string | null
+          question: string
+          tokens_in: number | null
+          tokens_out: number | null
+        }
+        Insert: {
+          answer?: string | null
+          created_at?: string
+          error?: string | null
+          id?: string
+          ip_hash?: string | null
+          model?: string | null
+          question: string
+          tokens_in?: number | null
+          tokens_out?: number | null
+        }
+        Update: {
+          answer?: string | null
+          created_at?: string
+          error?: string | null
+          id?: string
+          ip_hash?: string | null
+          model?: string | null
+          question?: string
+          tokens_in?: number | null
+          tokens_out?: number | null
+        }
+        Relationships: []
+      }
       audit_logs: {
         Row: {
           action: string
@@ -2248,10 +2284,48 @@ export type Database = {
           },
         ]
       }
+      person_views: {
+        Row: {
+          person_id: string
+          seen_at: string
+          user_id: string
+        }
+        Insert: {
+          person_id: string
+          seen_at?: string
+          user_id: string
+        }
+        Update: {
+          person_id?: string
+          seen_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "person_views_person_id_fkey"
+            columns: ["person_id"]
+            isOneToOne: false
+            referencedRelation: "persons"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "person_views_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       persons: {
         Row: {
+          address_line: string | null
           archived_at: string | null
           assigned_to: string | null
+          birth_date: string | null
+          birth_place: string | null
+          cin: string | null
+          cin_issued_on: string | null
           consent_at: string | null
           created_at: string
           delegation_id: number | null
@@ -2267,8 +2341,13 @@ export type Database = {
           whatsapp_e164: string | null
         }
         Insert: {
+          address_line?: string | null
           archived_at?: string | null
           assigned_to?: string | null
+          birth_date?: string | null
+          birth_place?: string | null
+          cin?: string | null
+          cin_issued_on?: string | null
           consent_at?: string | null
           created_at?: string
           delegation_id?: number | null
@@ -2284,8 +2363,13 @@ export type Database = {
           whatsapp_e164?: string | null
         }
         Update: {
+          address_line?: string | null
           archived_at?: string | null
           assigned_to?: string | null
+          birth_date?: string | null
+          birth_place?: string | null
+          cin?: string | null
+          cin_issued_on?: string | null
           consent_at?: string | null
           created_at?: string
           delegation_id?: number | null
@@ -4013,6 +4097,47 @@ export type Database = {
         Args: { p_active: boolean; p_user: string }
         Returns: undefined
       }
+      assistant_begin_turn: {
+        Args: { p_ip_hash: string; p_question: string }
+        Returns: string
+      }
+      assistant_finish_turn: {
+        Args: {
+          p_answer: string
+          p_error?: string
+          p_id: string
+          p_model: string
+          p_tokens_in: number
+          p_tokens_out: number
+        }
+        Returns: undefined
+      }
+      claim_notifications: {
+        Args: { p_limit?: number }
+        Returns: {
+          attempts: number
+          body: string
+          channel: string
+          created_at: string
+          id: string
+          last_error: string | null
+          provider: string | null
+          provider_message_id: string | null
+          related_entity: string | null
+          related_id: string | null
+          scheduled_at: string
+          sent_at: string | null
+          status: Database["public"]["Enums"]["notification_status"]
+          template_key: string | null
+          to_phone_e164: string
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "notification_outbox"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
       compute_installment_plan: {
         Args: {
           p_cash_millimes: number
@@ -4026,6 +4151,32 @@ export type Database = {
         Args: { p_from?: string; p_people?: boolean; p_to?: string }
         Returns: Json
       }
+      crm_list_people: {
+        Args: { p?: Json; p_limit?: number; p_offset?: number }
+        Returns: {
+          assigned_to: string
+          assigned_to_name: string
+          cin: string
+          created_at: string
+          full_name: string
+          governorate_name_ar: string
+          last_activity_at: string
+          offer_trees: number
+          person_id: string
+          persons_total: number
+          phone_e164: string
+          project_id: string
+          project_name: string
+          request_kind: string
+          requests_count: number
+          seen_at: string
+          stage: Database["public"]["Enums"]["lead_stage"]
+          status_id: string
+          status_label_ar: string
+          tree_count_label_ar: string
+        }[]
+      }
+      crm_people_counts: { Args: never; Returns: Json }
       crm_search_requests: {
         Args: { p: Json; p_limit?: number; p_offset?: number }
         Returns: {
@@ -4103,6 +4254,18 @@ export type Database = {
           p_entity: string
           p_entity_id?: string
           p_reason?: string
+        }
+        Returns: undefined
+      }
+      mark_notification_failed: {
+        Args: { p_error: string; p_id: string; p_provider?: string }
+        Returns: undefined
+      }
+      mark_notification_sent: {
+        Args: {
+          p_id: string
+          p_provider: string
+          p_provider_message_id?: string
         }
         Returns: undefined
       }
@@ -4230,6 +4393,7 @@ export type Database = {
         }
         Returns: Json
       }
+      release_stuck_notifications: { Args: never; Returns: number }
       review_land_offer: {
         Args: {
           p_next_status?: Database["public"]["Enums"]["land_offer_status"]
@@ -4291,13 +4455,25 @@ export type Database = {
         }
         Returns: Json
       }
+      staff_create_person: {
+        Args: {
+          p_email?: string
+          p_full_name: string
+          p_governorate_id?: number
+          p_phone: string
+        }
+        Returns: Json
+      }
       staff_create_reservation: {
         Args: {
+          p_from_seq?: number
           p_note: string
           p_person: string
           p_project: string
           p_reason: string
           p_request: string
+          p_seqs?: number[]
+          p_to_seq?: number
           p_trees: number
         }
         Returns: Json
@@ -4340,12 +4516,23 @@ export type Database = {
         Args: { p_filter?: string; p_limit?: number }
         Returns: Json
       }
+      staff_mark_person_seen: { Args: { p_person: string }; Returns: undefined }
       staff_match_offers: {
         Args: { p_limit?: number; p_request: string }
         Returns: Json
       }
       staff_offer_services: { Args: { p_project: string }; Returns: Json }
       staff_offer_stock: { Args: { p_project: string }; Returns: Json }
+      staff_offer_tree_runs: {
+        Args: { p_limit?: number; p_project: string }
+        Returns: {
+          from_code: string
+          from_seq: number
+          to_code: string
+          to_seq: number
+          trees: number
+        }[]
+      }
       staff_parcel_offer: {
         Args: {
           p_down_option?: string

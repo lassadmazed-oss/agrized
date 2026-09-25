@@ -26,8 +26,8 @@ import { intakeErrorMessage, isKnownIntakeError } from "@/lib/errors";
 import { PUBLIC_PROJECTS_TAG } from "@/lib/public-projects";
 import { createClient } from "@/lib/supabase/server";
 
-import { parseReservation, type ReservationResult } from "./reservation-model";
-import { callPending } from "./read";
+import { parseReservation, type ReservationResult } from "@/lib/backoffice/reservations/model";
+import { callPending } from "@/lib/backoffice/reservations/read";
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -50,6 +50,20 @@ const RESERVATION_MESSAGES: Record<string, string> = {
     "موديول «العربون والحجز» مازال معطّل، فالحجز وتسجيل العربون موقّفين. شغّلو من الإعدادات ← الموديولات: «داخلي فقط» باش يخدم الفريق برك، ولا «منشور للعموم» كي تكون جاهز.",
   reservation_not_found:
     "هذا الحجز ما عادش موجود. حدّث الصفحة وافتح الحجز من جديد من قائمة الحجوزات.",
+  // 0088 · the two refusals of a named stretch. The first is the one a seller meets in real life: they picked
+  // «من ١٢٠ إلى ١٤٤» off a list that was true a minute ago, and somebody sold tree 131 in between. Saying
+  // WHICH stretch is free is the part that lets them finish the call instead of guessing again.
+  range_not_available:
+    "فما زيتونات في المقطع اللي اخترت تباعو ولّا محجوزين. المقاطع الخاوية توّا مبيّنة تحت الاختيار — اختار مقطع آخر ولا نقّص العدد.",
+  invalid_tree_range:
+    "المقطع موش صحيح: لازم «من» تكون أصغر ولّا تساوي «إلى»، والزوز أكبر من صفر.",
+  // 0089 · a named SET with something taken inside it. It names no tree on purpose: the seller is looking at
+  // the free numbers on the same screen, and a message that guesses which one moved would be wrong as often
+  // as right.
+  trees_not_free:
+    "فما زيتونة ولا أكثر في الأرقام اللي كتبت تباعت ولّا محجوزة. شوف الأرقام الخاوية وبدّل.",
+  invalid_tree_list:
+    "أرقام الزيتونات موش صحيحة. اكتب مثلاً 5-11 ولا 5، 10، 15.",
   reservation_closed:
     "هذا الحجز تسكّر (تلغى ولا انتهت مدّته ولا ولّى عقد)، فما عادش تنجم تبدّل فيه. إذا الحريف رجع، اعمل حجز جديد من ملفّه.",
   deposit_not_due:
@@ -115,11 +129,23 @@ function reservationsChanged(personId?: string | null) {
  * terms at that moment, so editing the offer next week cannot rewrite what this client was told today.
  * Nothing here chooses a tree or works out an amount.
  */
+/**
+ * A sale takes EITHER a count or a named stretch (0088).
+ *
+ * `fromSeq`/`toSeq` are the tree numbers inside the offer, not codes: the code is a label the offer's pattern
+ * prints («OFF-TNAYEUR-0042») and the seq is what the inventory is ordered by, so resolving one to the other in
+ * the browser would mean shipping every code to it. When a stretch is given, the DATABASE derives the count
+ * from it and ignores `trees` — two numbers that must agree are two numbers that will eventually disagree.
+ */
 export async function createReservation(input: {
   projectId: string;
   personId: string;
   requestId?: string | null;
   trees: number;
+  /** 0089 · the exact tree numbers, when the seller named them («5، 10، 15» or «5-11»). Wins over everything. */
+  seqs?: number[] | null;
+  fromSeq?: number | null;
+  toSeq?: number | null;
   note?: string | null;
   reason?: string | null;
 }): Promise<ReservationResult> {
@@ -130,17 +156,32 @@ export async function createReservation(input: {
   const requestId = input.requestId ?? null;
   if (requestId !== null && !UUID.test(requestId)) return refuse("invalid_request");
 
+  // A named SET beats a range beats a count — the same precedence the function applies in SQL (0089).
+  const seqs = (input.seqs ?? []).filter((seq) => Number.isInteger(seq) && seq >= 1);
+  const hasList = seqs.length > 0;
+  const hasRange = !hasList && input.fromSeq != null && input.toSeq != null;
+  const fromSeq = hasRange ? Number(input.fromSeq) : null;
+  const toSeq = hasRange ? Number(input.toSeq) : null;
+  if (hasRange) {
+    if (!Number.isInteger(fromSeq) || !Number.isInteger(toSeq)) return refuse("invalid_tree_range");
+    if (fromSeq! < 1 || toSeq! < fromSeq!) return refuse("invalid_tree_range");
+  }
+
+  // Only meaningful on the count path — named trees carry their own count.
   const trees = Number(input.trees);
-  if (!Number.isInteger(trees) || trees < 1) return refuse("invalid_offer_trees");
+  if (!hasRange && !hasList && (!Number.isInteger(trees) || trees < 1)) return refuse("invalid_offer_trees");
 
   const supabase = await createClient();
   const { data, error } = await callPending(supabase, "staff_create_reservation", {
     p_project: input.projectId,
     p_person: input.personId,
     p_request: requestId,
-    p_trees: trees,
+    p_trees: hasRange || hasList ? null : trees,
     p_note: String(input.note ?? "").trim().slice(0, 1000) || null,
     p_reason: String(input.reason ?? "").trim().slice(0, 1000),
+    p_from_seq: hasRange ? fromSeq : null,
+    p_to_seq: hasRange ? toSeq : null,
+    p_seqs: hasList ? seqs : null,
   });
   if (error) return failure(error);
 

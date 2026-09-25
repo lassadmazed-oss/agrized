@@ -40,7 +40,7 @@ import { intakeErrorMessage } from "@/lib/errors";
 import { formatCount, formatDate } from "@/lib/format";
 
 import { setTreeState } from "../actions";
-import type { OfferStock } from "../offer-stock";
+import type { OfferStock } from "@/lib/backoffice/offers/stock";
 import { GenerateTreesButton } from "./generate-trees-button";
 import { isTreeFilter, TREE_FILTERS, type TreeFilter } from "./tree-filter";
 

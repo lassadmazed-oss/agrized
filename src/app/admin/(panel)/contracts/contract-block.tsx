@@ -38,7 +38,7 @@ import {
   stageWorthShowing,
   type Contract,
   formatAmount,
-} from "./contract-model";
+} from "@/lib/backoffice/contracts/model";
 import { RecordPaymentForm, type PaymentMethod } from "./payment-forms";
 
 export type { PaymentMethod };

@@ -508,7 +508,7 @@ export function RegisterWizard(props: RegisterWizardProps) {
           </label>
         </div>
 
-        <div className="sticky bottom-0 -mx-4 mt-8 flex gap-3 border-t border-line bg-paper/95 px-4 py-3 backdrop-blur sm:static sm:mx-0 sm:border-0 sm:bg-transparent sm:px-0 sm:py-0">
+        <div className="sticky bottom-[var(--tabbar-h)] -mx-4 mt-8 flex gap-3 border-t border-line bg-paper/95 px-4 py-3 backdrop-blur sm:static sm:mx-0 sm:border-0 sm:bg-transparent sm:px-0 sm:py-0">
           {step > 1 ? (
             <button type="button" onClick={goBack} className="btn btn-secondary">
               رجوع

@@ -34,8 +34,8 @@ import { useState, type FormEvent, type ReactNode } from "react";
 import { ReasonField } from "@/components/admin/reason-field";
 import { formatDate } from "@/lib/format";
 
-import { recordPayment } from "./actions";
-import { dinarsFieldValue, formatAmount, isOpen, type Contract, type Installment } from "./contract-model";
+import { recordPayment } from "@/lib/backoffice/contracts/actions";
+import { dinarsFieldValue, formatAmount, isOpen, type Contract, type Installment } from "@/lib/backoffice/contracts/model";
 import { useAct } from "./use-act";
 
 export type PaymentMethod = { id: string; label: string };

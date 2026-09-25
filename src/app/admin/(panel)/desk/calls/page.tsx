@@ -41,7 +41,7 @@ import { moduleAccess } from "@/lib/modules";
 import { formatPhone } from "@/lib/phone";
 import { createClient } from "@/lib/supabase/server";
 
-import { PAYMENT_MODE_LABELS, REQUEST_KIND_LABELS } from "../../leads/filters";
+import { PAYMENT_MODE_LABELS, REQUEST_KIND_LABELS } from "@/lib/backoffice/leads/filters";
 import { BookVisitForm } from "../../visits/book-visit-form";
 import { readPersonVisits } from "../../visits/visit-data";
 import { slotHours, visitTone } from "../../visits/visit-model";

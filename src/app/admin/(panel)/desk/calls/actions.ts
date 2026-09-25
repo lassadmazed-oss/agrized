@@ -28,7 +28,7 @@ import { ADMIN_ROLES, requireStaff } from "@/lib/auth";
 import { formatCount, formatDateTime } from "@/lib/format";
 import { createClient } from "@/lib/supabase/server";
 
-import { addContactAttempt, updateStatus } from "../../leads/[personId]/actions";
+import { addContactAttempt, updateStatus } from "@/lib/backoffice/leads/actions";
 import { CALL_DESK_ROLES } from "../desks";
 import { needsCallback } from "./queue-model";
 

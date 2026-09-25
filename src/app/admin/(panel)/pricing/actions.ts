@@ -9,7 +9,7 @@ import { PUBLIC_CONFIG_TAG } from "@/lib/config";
 import { intakeErrorMessage, isKnownIntakeError } from "@/lib/errors";
 import { createClient } from "@/lib/supabase/server";
 
-import { dinarsToMillimes, metres, percentToBp, textValue, wholeNumber } from "./form-values";
+import { dinarsToMillimes, metres, percentToBp, textValue, wholeNumber } from "@/lib/backoffice/pricing/form-values";
 import { NOTE_MAX_LENGTH } from "./types";
 
 // Tree pricing addendum (docs/tree-area-and-cost.md): every value is a Back Office parameter, and every write

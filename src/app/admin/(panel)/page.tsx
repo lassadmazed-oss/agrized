@@ -76,10 +76,10 @@ import { moduleAccess } from "@/lib/modules";
 import { projectStatusLabel, projectStatusTone } from "@/lib/projects";
 import { createClient } from "@/lib/supabase/server";
 
-import { daysAgo, tunisToday, type DemandStats } from "./analytics/demand-stats";
-import { offerStocks } from "./projects/offer-stock";
-import { readReservations } from "./reservations/read";
-import { daysLeftLabel, FILTER_LABELS } from "./reservations/reservation-model";
+import { daysAgo, tunisToday, type DemandStats } from "@/lib/backoffice/leads/dates";
+import { offerStocks } from "@/lib/backoffice/offers/stock";
+import { readReservations } from "@/lib/backoffice/reservations/read";
+import { daysLeftLabel, FILTER_LABELS } from "@/lib/backoffice/reservations/model";
 import { readVisitBoard } from "./visits/visit-data";
 import { visitTone, type Visit } from "./visits/visit-model";
 

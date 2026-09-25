@@ -37,7 +37,7 @@ import { ReasonField } from "@/components/admin/reason-field";
 import { StatusPill } from "@/components/ui";
 import { formatDate } from "@/lib/format";
 
-import { recordInstallment } from "./actions";
+import { recordInstallment } from "@/lib/backoffice/installments/actions";
 import {
   daysLateLabel,
   lineTone,
@@ -47,7 +47,7 @@ import {
   type Installment,
   type QueueRow,
   formatAmount,
-} from "./installment-model";
+} from "@/lib/backoffice/installments/model";
 
 export type PaymentMethod = { id: string; label: string };
 

@@ -24,7 +24,7 @@ import {
   parseLine,
   type Installment,
   type Stage,
-} from "../contracts/contract-model";
+} from "@/lib/backoffice/contracts/model";
 
 // The one vocabulary, passed through so a queue file never imports from two places to describe one row.
 export {
@@ -33,8 +33,8 @@ export {
   lineTone,
   stageIsLate,
   stageWorthShowing,
-} from "../contracts/contract-model";
-export type { Installment, LineStatus, Receipt, Stage } from "../contracts/contract-model";
+} from "@/lib/backoffice/contracts/model";
+export type { Installment, LineStatus, Receipt, Stage } from "@/lib/backoffice/contracts/model";
 
 // ---------------------------------------------------------------------------
 // The filters
@@ -272,4 +272,4 @@ export function seqLabel(seq: number): string {
 }
 
 /** Money, exact to the millime when it is not a round dinar. Defined once, in ../contracts/contract-model. */
-export { formatAmount } from "../contracts/contract-model";
+export { formatAmount } from "@/lib/backoffice/contracts/model";

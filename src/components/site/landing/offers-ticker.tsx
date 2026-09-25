@@ -95,7 +95,7 @@ export function OffersTicker({ config, offers }: OffersTickerProps) {
       {/* Short chips want a quicker pass than a strip of photographs; twelve seconds an offer reads as a
           ticker rather than a slideshow. It is per-offer, so publishing a fourth lengthens the loop. */}
       <div className="marquee" style={{ ["--marquee-duration" as string]: `${items.length * 5}s` }}>
-        <ul className="marquee-track gap-snug px-snug">
+        <ul className="marquee-track">
           {strip(0)}
           {/* The seam: identical content, announced once. */}
           <div aria-hidden="true" className="contents">

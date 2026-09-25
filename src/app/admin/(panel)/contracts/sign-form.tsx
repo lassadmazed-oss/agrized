@@ -31,8 +31,8 @@ import { useState, type FormEvent } from "react";
 import { ReasonField } from "@/components/admin/reason-field";
 import { formatCount } from "@/lib/format";
 
-import { createContract } from "./actions";
-import type { ConvertibleReservation } from "./contract-model";
+import { createContract } from "@/lib/backoffice/contracts/actions";
+import type { ConvertibleReservation } from "@/lib/backoffice/contracts/model";
 import type { PaymentMethod } from "./payment-forms";
 import { useAct } from "./use-act";
 

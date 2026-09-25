@@ -10,6 +10,7 @@ import { normalizePhone } from "@/lib/phone";
 import { toProjectQuote, type ProjectQuote } from "@/lib/public-projects";
 import { auditHeaders, clientIp, hashIp } from "@/lib/request-context";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { dispatchAfterResponse } from "@/lib/sms";
 import { createClient } from "@/lib/supabase/server";
 import { PAYMENT_MODES } from "@/lib/tree-pricing";
 
@@ -186,5 +187,7 @@ export async function submitOfferInterest(input: OfferInterestInput): Promise<Su
     console.error("submit_offer_request returned no request number", result);
     return { ok: false, message: intakeErrorMessage(null) };
   }
+  // The RPC queued the confirmation; send it once the visitor has their success screen.
+  dispatchAfterResponse();
   return { ok: true, requestNo };
 }

@@ -17,7 +17,7 @@ import { estimateLabel } from "@/components/site/site-header";
 import { EmptyState, SectionHeader } from "@/components/ui";
 import { getPublicConfig, settingText, type PublicConfig } from "@/lib/config";
 import { PLANTATION_LABELS, PRODUCTION_LABELS } from "@/lib/crm";
-import { formatCount, formatMillimes } from "@/lib/format";
+import { formatArea, formatCount, formatMillimes } from "@/lib/format";
 import { moduleAccess } from "@/lib/modules";
 import { projectStatusLabel, projectStatusTone } from "@/lib/projects";
 import { projectHref } from "@/lib/public-hrefs";
@@ -146,7 +146,15 @@ export default async function ProjectsPage({ searchParams }: PageProps<"/project
       // The count is what is free to buy once the trees are numbered, so it is named as such; an offer whose
       // trees are not numbered yet states its own declared count under the bare unit.
       trees: `${formatCount(trees)} ${counted ? cardLabels.available : treeUnit}`,
-      price: price === null ? null : `${cardLabels.from} ${formatMillimes(price)}`,
+      areaPerTree: areaPerTree(project) ? formatArea(Math.round(areaPerTree(project)!)) : null,
+      // Reserved plus contracted over the whole stock. Only an offer whose trees are numbered has a share to
+      // state: on one that does not, «0٪» would read as «nobody wants it» rather than «not counted yet».
+      takenPercent:
+        counted && stock.available + stock.reserved + stock.sold > 0
+          ? Math.round(((stock.reserved + stock.sold) / (stock.available + stock.reserved + stock.sold)) * 100)
+          : null,
+      // The money alone: «ابتداءً من» is set under it by the row, so the figure keeps the weight.
+      price: price === null ? null : formatMillimes(price),
       status:
         project.status === "published"
           ? null
@@ -192,6 +200,8 @@ export default async function ProjectsPage({ searchParams }: PageProps<"/project
           ),
           pricePending: cardLabels.pricePending,
           open: offersTitle(config),
+          from: cardLabels.from,
+          taken: settingText(config, "offers.taken_share_label", "عليها طلبات"),
         }}
       />
 

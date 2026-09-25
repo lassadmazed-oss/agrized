@@ -1,0 +1,51 @@
+{
+  "expo": {
+    "name": "AgriZed",
+    "slug": "agrized",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "scheme": "agrized",
+    "userInterfaceStyle": "light",
+    "newArchEnabled": true,
+    "primaryColor": "#1f4a2c",
+    "description": "زيتونتك اليوم… أصل لعمر كامل. تصفّح عروض الزيتون، احسب مشروعك، وسجّل اهتمامك.",
+    "splash": {
+      "image": "./assets/splash-icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#1f4a2c"
+    },
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "site.agrized.app",
+      "buildNumber": "1",
+      "infoPlist": {
+        "CFBundleDisplayName": "AgriZed",
+        "CFBundleAllowMixedLocalizations": true,
+        "ITSAppUsesNonExemptEncryption": false
+      }
+    },
+    "android": {
+      "package": "site.agrized.app",
+      "versionCode": 1,
+      "adaptiveIcon": {
+        "backgroundImage": "./assets/android-icon-background.png",
+        "foregroundImage": "./assets/android-icon-foreground.png",
+        "monochromeImage": "./assets/android-icon-monochrome.png"
+      },
+      "edgeToEdgeEnabled": true
+    },
+    "web": {
+      "favicon": "./assets/favicon.png",
+      "bundler": "metro"
+    },
+    "plugins": [
+      "expo-router"
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "00000000-0000-0000-0000-000000000000"
+      }
+    }
+  }
+}
