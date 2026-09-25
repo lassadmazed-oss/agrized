@@ -228,6 +228,47 @@ export type Database = {
         }
         Relationships: []
       }
+      client_login_codes: {
+        Row: {
+          attempts: number
+          code_hash: string
+          consumed_at: string | null
+          created_at: string
+          expires_at: string
+          id: string
+          person_id: string
+          phone_e164: string
+        }
+        Insert: {
+          attempts?: number
+          code_hash: string
+          consumed_at?: string | null
+          created_at?: string
+          expires_at: string
+          id?: string
+          person_id: string
+          phone_e164: string
+        }
+        Update: {
+          attempts?: number
+          code_hash?: string
+          consumed_at?: string | null
+          created_at?: string
+          expires_at?: string
+          id?: string
+          person_id?: string
+          phone_e164?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "client_login_codes_person_id_fkey"
+            columns: ["person_id"]
+            isOneToOne: false
+            referencedRelation: "persons"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       contact_attempts: {
         Row: {
           channel: string
@@ -1623,6 +1664,333 @@ export type Database = {
           },
         ]
       }
+      legal_appointments: {
+        Row: {
+          cancel_reason: string | null
+          closed_at: string | null
+          closed_by: string | null
+          created_at: string
+          created_by: string | null
+          documents_note: string | null
+          id: string
+          legal_file_id: string
+          meet_at: string | null
+          meet_on: string
+          note: string | null
+          partner_id: string | null
+          partner_label_ar: string | null
+          person_id: string
+          place: string | null
+          status: Database["public"]["Enums"]["legal_appointment_status"]
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          cancel_reason?: string | null
+          closed_at?: string | null
+          closed_by?: string | null
+          created_at?: string
+          created_by?: string | null
+          documents_note?: string | null
+          id?: string
+          legal_file_id: string
+          meet_at?: string | null
+          meet_on: string
+          note?: string | null
+          partner_id?: string | null
+          partner_label_ar?: string | null
+          person_id: string
+          place?: string | null
+          status?: Database["public"]["Enums"]["legal_appointment_status"]
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          cancel_reason?: string | null
+          closed_at?: string | null
+          closed_by?: string | null
+          created_at?: string
+          created_by?: string | null
+          documents_note?: string | null
+          id?: string
+          legal_file_id?: string
+          meet_at?: string | null
+          meet_on?: string
+          note?: string | null
+          partner_id?: string | null
+          partner_label_ar?: string | null
+          person_id?: string
+          place?: string | null
+          status?: Database["public"]["Enums"]["legal_appointment_status"]
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "legal_appointments_closed_by_fkey"
+            columns: ["closed_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "legal_appointments_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "legal_appointments_legal_file_id_fkey"
+            columns: ["legal_file_id"]
+            isOneToOne: false
+            referencedRelation: "legal_files"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "legal_appointments_partner_id_fkey"
+            columns: ["partner_id"]
+            isOneToOne: false
+            referencedRelation: "partners"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "legal_appointments_person_id_fkey"
+            columns: ["person_id"]
+            isOneToOne: false
+            referencedRelation: "persons"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "legal_appointments_updated_by_fkey"
+            columns: ["updated_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      legal_checklist_items: {
+        Row: {
+          code: string
+          created_at: string
+          help_ar: string | null
+          id: string
+          is_active: boolean
+          is_mandatory: boolean
+          label_ar: string
+          required_at: Database["public"]["Enums"]["legal_gate"]
+          sort_order: number
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          code: string
+          created_at?: string
+          help_ar?: string | null
+          id?: string
+          is_active?: boolean
+          is_mandatory?: boolean
+          label_ar: string
+          required_at?: Database["public"]["Enums"]["legal_gate"]
+          sort_order?: number
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          code?: string
+          created_at?: string
+          help_ar?: string | null
+          id?: string
+          is_active?: boolean
+          is_mandatory?: boolean
+          label_ar?: string
+          required_at?: Database["public"]["Enums"]["legal_gate"]
+          sort_order?: number
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "legal_checklist_items_updated_by_fkey"
+            columns: ["updated_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      legal_file_checks: {
+        Row: {
+          code: string
+          created_at: string
+          done_at: string | null
+          done_by: string | null
+          id: string
+          is_mandatory: boolean
+          item_id: string | null
+          label_ar: string
+          legal_file_id: string
+          note: string | null
+          required_at: Database["public"]["Enums"]["legal_gate"]
+          sort_order: number
+          updated_at: string
+          updated_by: string | null
+          waive_reason: string | null
+          waived_at: string | null
+          waived_by: string | null
+        }
+        Insert: {
+          code: string
+          created_at?: string
+          done_at?: string | null
+          done_by?: string | null
+          id?: string
+          is_mandatory: boolean
+          item_id?: string | null
+          label_ar: string
+          legal_file_id: string
+          note?: string | null
+          required_at: Database["public"]["Enums"]["legal_gate"]
+          sort_order?: number
+          updated_at?: string
+          updated_by?: string | null
+          waive_reason?: string | null
+          waived_at?: string | null
+          waived_by?: string | null
+        }
+        Update: {
+          code?: string
+          created_at?: string
+          done_at?: string | null
+          done_by?: string | null
+          id?: string
+          is_mandatory?: boolean
+          item_id?: string | null
+          label_ar?: string
+          legal_file_id?: string
+          note?: string | null
+          required_at?: Database["public"]["Enums"]["legal_gate"]
+          sort_order?: number
+          updated_at?: string
+          updated_by?: string | null
+          waive_reason?: string | null
+          waived_at?: string | null
+          waived_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "legal_file_checks_done_by_fkey"
+            columns: ["done_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "legal_file_checks_item_id_fkey"
+            columns: ["item_id"]
+            isOneToOne: false
+            referencedRelation: "legal_checklist_items"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "legal_file_checks_legal_file_id_fkey"
+            columns: ["legal_file_id"]
+            isOneToOne: false
+            referencedRelation: "legal_files"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "legal_file_checks_updated_by_fkey"
+            columns: ["updated_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "legal_file_checks_waived_by_fkey"
+            columns: ["waived_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      legal_files: {
+        Row: {
+          created_at: string
+          id: string
+          note: string | null
+          opened_at: string
+          opened_by: string | null
+          person_id: string
+          project_id: string
+          reservation_id: string
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          note?: string | null
+          opened_at?: string
+          opened_by?: string | null
+          person_id: string
+          project_id: string
+          reservation_id: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          note?: string | null
+          opened_at?: string
+          opened_by?: string | null
+          person_id?: string
+          project_id?: string
+          reservation_id?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "legal_files_opened_by_fkey"
+            columns: ["opened_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "legal_files_person_id_fkey"
+            columns: ["person_id"]
+            isOneToOne: false
+            referencedRelation: "persons"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "legal_files_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "legal_files_reservation_id_fkey"
+            columns: ["reservation_id"]
+            isOneToOne: true
+            referencedRelation: "reservations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "legal_files_updated_by_fkey"
+            columns: ["updated_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       message_templates: {
         Row: {
           body_ar: string
@@ -1987,6 +2355,92 @@ export type Database = {
           },
           {
             foreignKeyName: "parcels_updated_by_fkey"
+            columns: ["updated_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      partners: {
+        Row: {
+          availability_note: string | null
+          created_at: string
+          created_by: string | null
+          email: string | null
+          full_name: string
+          governorate_id: number | null
+          id: string
+          is_active: boolean
+          is_available: boolean
+          note: string | null
+          office_name: string | null
+          phone_e164: string | null
+          speciality_label_ar: string | null
+          speciality_option_id: string | null
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          availability_note?: string | null
+          created_at?: string
+          created_by?: string | null
+          email?: string | null
+          full_name: string
+          governorate_id?: number | null
+          id?: string
+          is_active?: boolean
+          is_available?: boolean
+          note?: string | null
+          office_name?: string | null
+          phone_e164?: string | null
+          speciality_label_ar?: string | null
+          speciality_option_id?: string | null
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          availability_note?: string | null
+          created_at?: string
+          created_by?: string | null
+          email?: string | null
+          full_name?: string
+          governorate_id?: number | null
+          id?: string
+          is_active?: boolean
+          is_available?: boolean
+          note?: string | null
+          office_name?: string | null
+          phone_e164?: string | null
+          speciality_label_ar?: string | null
+          speciality_option_id?: string | null
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "partners_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "partners_governorate_id_fkey"
+            columns: ["governorate_id"]
+            isOneToOne: false
+            referencedRelation: "governorates"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "partners_speciality_option_id_fkey"
+            columns: ["speciality_option_id"]
+            isOneToOne: false
+            referencedRelation: "option_items"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "partners_updated_by_fkey"
             columns: ["updated_by"]
             isOneToOne: false
             referencedRelation: "profiles"
@@ -4085,6 +4539,7 @@ export type Database = {
         Args: { p_person_ids: string[]; p_reason: string; p_to_user: string }
         Returns: number
       }
+      admin_funnel_stats: { Args: never; Returns: Json }
       admin_set_role: {
         Args: {
           p_grant: boolean
@@ -4247,6 +4702,10 @@ export type Database = {
         }[]
       }
       demand_indicator: { Args: { p_governorate: number }; Returns: Json }
+      link_client_profile: {
+        Args: { p_person: string; p_user: string }
+        Returns: Json
+      }
       log_action: {
         Args: {
           p_action: string
@@ -4394,6 +4853,7 @@ export type Database = {
         Returns: Json
       }
       release_stuck_notifications: { Args: never; Returns: number }
+      request_client_login_code: { Args: { p_phone: string }; Returns: Json }
       review_land_offer: {
         Args: {
           p_next_status?: Database["public"]["Enums"]["land_offer_status"]
@@ -4423,9 +4883,19 @@ export type Database = {
         Args: { p_id: string; p_reason: string }
         Returns: Json
       }
+      staff_archive_partner: {
+        Args: { p_active: boolean; p_partner: string; p_reason: string }
+        Returns: Json
+      }
+      staff_book_closing: { Args: { p: Json; p_reason: string }; Returns: Json }
       staff_book_visit: { Args: { p: Json; p_reason?: string }; Returns: Json }
+      staff_callbacks: { Args: { p?: Json }; Returns: Json }
       staff_cancel_contract: {
         Args: { p_contract: string; p_reason: string; p_release: boolean }
+        Returns: Json
+      }
+      staff_close_appointment: {
+        Args: { p_appointment: string; p_reason: string; p_status: string }
         Returns: Json
       }
       staff_close_reservation: {
@@ -4482,6 +4952,10 @@ export type Database = {
         Args: { p: Json; p_reason: string }
         Returns: Json
       }
+      staff_customer_journey: {
+        Args: { p_person: string; p_timeline_limit?: number }
+        Returns: Json
+      }
       staff_delete_cost_item: {
         Args: { p_id: string; p_reason: string }
         Returns: undefined
@@ -4516,6 +4990,20 @@ export type Database = {
         Args: { p_filter?: string; p_limit?: number }
         Returns: Json
       }
+      staff_journey_spine: { Args: never; Returns: Json }
+      staff_legal_checklist_template: {
+        Args: { p_include_inactive?: boolean }
+        Returns: Json
+      }
+      staff_legal_file: { Args: { p_reservation: string }; Returns: Json }
+      staff_legal_queue: {
+        Args: { p_filter?: string; p_limit?: number; p_project?: string }
+        Returns: Json
+      }
+      staff_legal_sync_items: {
+        Args: { p_file: string; p_reason: string }
+        Returns: Json
+      }
       staff_mark_person_seen: { Args: { p_person: string }; Returns: undefined }
       staff_match_offers: {
         Args: { p_limit?: number; p_request: string }
@@ -4533,6 +5021,10 @@ export type Database = {
           trees: number
         }[]
       }
+      staff_open_legal_file: {
+        Args: { p_note: string; p_reason: string; p_reservation: string }
+        Returns: Json
+      }
       staff_parcel_offer: {
         Args: {
           p_down_option?: string
@@ -4541,8 +5033,18 @@ export type Database = {
         }
         Returns: Json
       }
+      staff_partners: {
+        Args: {
+          p_governorate?: number
+          p_include_archived?: boolean
+          p_search?: string
+          p_speciality?: string
+        }
+        Returns: Json
+      }
       staff_person_contracts: { Args: { p_person: string }; Returns: Json }
       staff_person_reservations: { Args: { p_person: string }; Returns: Json }
+      staff_person_stage: { Args: { p_person_ids: string[] }; Returns: Json }
       staff_person_visits: { Args: { p_person: string }; Returns: Json }
       staff_project_parcel_prices: {
         Args: { p_project: string }
@@ -4588,6 +5090,8 @@ export type Database = {
         }
         Returns: Json
       }
+      staff_request_journey: { Args: { p_request: string }; Returns: Json }
+      staff_request_stage: { Args: { p_request_ids: string[] }; Returns: Json }
       staff_request_subscription_service: {
         Args: { p_reason: string; p_service: string; p_subscription: string }
         Returns: Json
@@ -4599,6 +5103,10 @@ export type Database = {
         Returns: Json
       }
       staff_save_agri_operation: {
+        Args: { p: Json; p_reason: string }
+        Returns: Json
+      }
+      staff_save_checklist_item: {
         Args: { p: Json; p_reason: string }
         Returns: Json
       }
@@ -4629,6 +5137,7 @@ export type Database = {
         Args: { p: Json; p_reason: string }
         Returns: Json
       }
+      staff_save_partner: { Args: { p: Json; p_reason: string }; Returns: Json }
       staff_save_pricing_rule: {
         Args: { p: Json; p_project: string; p_reason: string }
         Returns: undefined
@@ -4675,6 +5184,19 @@ export type Database = {
       }
       staff_set_harvest_status: {
         Args: { p_reason: string; p_season: string; p_status: string }
+        Returns: Json
+      }
+      staff_set_legal_check: {
+        Args: {
+          p_check: string
+          p_done: boolean
+          p_note: string
+          p_reason: string
+        }
+        Returns: Json
+      }
+      staff_set_legal_note: {
+        Args: { p_file: string; p_note: string; p_reason: string }
         Returns: Json
       }
       staff_set_subscription_status: {
@@ -4745,12 +5267,20 @@ export type Database = {
         Args: { p_payment: string; p_reason: string }
         Returns: Json
       }
+      staff_waive_legal_check: {
+        Args: { p_check: string; p_reason: string }
+        Returns: Json
+      }
       staff_zitounti_file: { Args: { p_person_id: string }; Returns: Json }
       staff_zitounti_holders: { Args: never; Returns: Json }
       submit_interest_request: { Args: { p: Json }; Returns: Json }
       submit_land_offer: { Args: { p: Json }; Returns: Json }
       submit_offer_request: { Args: { p: Json }; Returns: Json }
       submit_visit_request: { Args: { p: Json }; Returns: Json }
+      verify_client_login_code: {
+        Args: { p_code: string; p_phone: string }
+        Returns: Json
+      }
     }
     Enums: {
       app_role:
@@ -4799,6 +5329,8 @@ export type Database = {
         | "owner"
         | "paused"
         | "closed"
+      legal_appointment_status: "scheduled" | "completed" | "cancelled"
+      legal_gate: "contract" | "signature" | "ownership"
       notification_status: "pending" | "sending" | "sent" | "failed" | "skipped"
       parcel_status:
         | "available"
@@ -5008,6 +5540,8 @@ export const Constants = {
         "paused",
         "closed",
       ],
+      legal_appointment_status: ["scheduled", "completed", "cancelled"],
+      legal_gate: ["contract", "signature", "ownership"],
       notification_status: ["pending", "sending", "sent", "failed", "skipped"],
       parcel_status: [
         "available",

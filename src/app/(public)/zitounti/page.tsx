@@ -26,7 +26,11 @@
 import type { Metadata } from "next";
 
 import { AccountScreen, type AccountHoldings, type AccountIcon, type AccountRow } from "@/components/site/mobile/account-screen";
-import { ComingSoon, PreviewBanner } from "@/components/site/module-gate";
+import { PreviewBanner } from "@/components/site/module-gate";
+import { currentClient } from "@/lib/client-auth";
+
+import { signOut } from "./actions";
+import { ClientLoginForm } from "./login-form";
 import { offersTitle } from "@/components/site/offers";
 import { flagState, getPublicConfig, settingText } from "@/lib/config";
 import { moduleAccess } from "@/lib/modules";
@@ -80,8 +84,39 @@ export default async function ZitountiPage() {
   const access = await moduleAccess(config, "zitounti");
 
   const title = settingText(config, "zitounti.title", "فضاء «زيتونتي»");
-  if (access === "closed") {
-    return <ComingSoon title={title} />;
+
+  /*
+   * THE DOOR IS NOT THE ROOM, and that is the change here (owner, 2026-09-25: the account icon landed on
+   * «قريباً»).
+   *
+   * This page used to answer `ComingSoon` the moment the `zitounti` flag was off — which meant the account
+   * entry in the header and the phone's tab bar led to a dead end, because that flag is off. But a sign-in
+   * is not a feature: it is how somebody proves who they are, and it has no business being switched off
+   * with the module whose contents it guards. The flag still decides what a signed-in buyer SEES; it no
+   * longer decides whether they may sign in at all.
+   *
+   * So: no session → the door. Session, module closed → their own name and the honest note that the space
+   * is not open yet. Session, module open → their file.
+   */
+  const client = await currentClient();
+
+  if (!client) {
+    const help = settingText(config, "site.contact_phone");
+    return (
+      <div className="mx-auto w-full max-w-md px-4 py-section">
+        <h1 className="font-display text-2xl font-bold text-forest-700">{title}</h1>
+        <p className="mt-2 text-[0.95rem] leading-7 text-muted">
+          {settingText(
+            config,
+            "zitounti.login_note",
+            "ادخل بنمرة التلفون اللي سجّلت بيها، ونبعثولك رمز بالSMS.",
+          )}
+        </p>
+        <div className="card mt-6 p-card">
+          <ClientLoginForm helpPhone={help || null} />
+        </div>
+      </div>
+    );
   }
 
   const later = settingText(config, "zitounti.section_later", "يُبنى في دفعة قادمة");
@@ -109,7 +144,15 @@ export default async function ZitountiPage() {
 
       <AccountScreen
         title={settingText(config, "zitounti.screen_title", "حسابي")}
-        holder={sample ? { ...MOCKUP_SAMPLE.holder } : null}
+        // The signed-in buyer's own name, from public.persons — never the mock-up's «لسعد». The sample
+        // holder survives only for the staff preview, which is what it was built for.
+        holder={
+          client.fullName
+            ? { name: client.fullName, since: null }
+            : sample
+              ? { ...MOCKUP_SAMPLE.holder }
+              : null
+        }
         holdings={sample}
         holdingsTitle={treesTitle}
         treesLabel={settingText(config, "zitounti.tree_unit", "زيتونة")}
@@ -124,10 +167,20 @@ export default async function ZitountiPage() {
       />
 
       {settingText(config, "zitounti.share_note") ? (
-        <p className="mx-auto max-w-md px-4 pb-section text-caption leading-7 text-muted">
+        <p className="mx-auto max-w-md px-4 pt-2 text-caption leading-7 text-muted">
           {settingText(config, "zitounti.share_note")}
         </p>
       ) : null}
+
+      {/* اخرج. A door that only opens is not a door — and on a shared phone it is a privacy fault, which is
+          why this is not «a nice to have later»: the next person to pick up the handset would be looking at
+          somebody else's trees, contracts and instalments. A plain form so it works without JavaScript and
+          needs no client component of its own. */}
+      <form action={signOut} className="mx-auto max-w-md px-4 pb-section pt-6">
+        <button type="submit" className="btn btn-secondary w-full border-line">
+          {settingText(config, "zitounti.sign_out_label", "اخرج من الحساب")}
+        </button>
+      </form>
     </>
   );
 }

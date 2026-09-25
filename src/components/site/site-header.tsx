@@ -110,6 +110,14 @@ export function siteNav(config: PublicConfig): SiteLink[] {
 export async function SiteHeader({ tagline, showInterestCta, showProjects }: SiteHeaderProps) {
   const config = await getPublicConfig();
   const cta = primaryCta(config);
+  // The same word the phone's tab bar prints under the account icon, from the same setting, so renaming it
+  // in الإعدادات renames it in both places. It is the icon's accessible name, never drawn as text here.
+  const accountLabel = settingText(config, "zitounti.screen_title", "حسابي");
+  // The account icon closes the bar, so it is the element that must push to the end — but only when the
+  // calculator button before it is not already doing that. Two `ms-auto` in one flex row means the first
+  // one wins and the second is dead weight; none at all, on a bar whose nav is hidden below lg, leaves the
+  // icon sitting against the wordmark.
+  const accountPush = showInterestCta && cta.label ? "" : "ms-auto";
   // The button beside the nav is already one of the doors; listing it twice in one bar is the «double
   // buttons» the owner asked to end. The offers row honours the module state the layout read.
   const links = siteNav(config).filter((link) => {
@@ -180,6 +188,24 @@ export async function SiteHeader({ tagline, showInterestCta, showProjects }: Sit
               <CalculatorMark className="size-5" />
             </Link>
           ) : null}
+
+          {/* حسابي — THE ACCOUNT DOOR, FROM md UP AND NOWHERE ELSE.
+              Below md it is not printed, and that is the same rule the calculator button above obeys: the
+              phone's bottom tab bar already carries «حسابي» (mobile/tab-bar.tsx is `md:hidden`, and the two
+              breakpoints are deliberately the same one). Printing it in both places is the duplication the
+              owner has named twice, and on a 375px bar there is no room for it anyway.
+              It is an ICON AND NOT A LABELLED BUTTON because the bar already has one filled button and a
+              second one competes with it — the calculator is what this page is selling, the account is what
+              a returning visitor already knows to look for in this corner. `aria-label` carries the name the
+              owner writes, so a screen reader is told what the icon never says out loud. */}
+          <Link
+            href="/zitounti"
+            aria-label={accountLabel}
+            title={accountLabel}
+            className={`hidden size-12 shrink-0 items-center justify-center rounded-[1.25rem] border border-line bg-surface text-forest transition-colors hover:border-forest/30 hover:bg-leaf-soft md:inline-flex lg:size-14 ${accountPush}`.trim()}
+          >
+            <AccountMark className="size-5 lg:size-6" />
+          </Link>
         </div>
 
         {/* BETWEEN md AND lg the bar has no room for the nav and the phone's bottom tab bar is not there
@@ -246,6 +272,32 @@ function OliveLeafMark({ className = "size-11" }: { className?: string }) {
         strokeLinecap="round"
         opacity="0.85"
       />
+    </svg>
+  );
+}
+
+/**
+ * The account glyph. Deliberately the SAME drawing as the phone tab bar's `account` icon
+ * (mobile/tab-bar.tsx) — a head and two shoulders on the 24px grid — because they are one destination
+ * reached from two places, and two different people-marks in one product is how an interface starts
+ * looking assembled rather than designed. Stroked at 1.6 to sit beside CalculatorMark, not the tab bar's
+ * 2, which is tuned for 24px on a phone.
+ */
+function AccountMark({ className = "size-5" }: { className?: string }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      aria-hidden="true"
+      focusable="false"
+      className={className}
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.6"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <circle cx="12" cy="8" r="3.6" />
+      <path d="M5.2 20.2a6.8 6.8 0 0 1 13.6 0" />
     </svg>
   );
 }
