@@ -226,10 +226,19 @@ begin
       'the deposit and the deadline are settings, not constants: ' || v_key || ' is missing';
   end loop;
 
-  -- None of them is public: what an offer asks for is said on its own page, not shipped in the site config.
+  -- The RULES are internal: what an offer asks for is said on its own page, not shipped in the site config.
+  --
+  -- THE VOCABULARY IS NOT A RULE, and since 0107 it is public. فضاء «زيتونتي» is a public page rendered from
+  -- getPublicConfig(), so a private `reservations.status_labels` meant the client's screen could not read the
+  -- owner's own words and printed a copy compiled into the TypeScript instead — he could rename «العربون
+  -- تخلّص» in الإعدادات forever and the buyer would keep seeing the old one. Publishing the map publishes the
+  -- ARABIC FOR A STATE, not a row, an amount or whose it is.
+  --
+  -- So the assertion narrows to what it was always protecting: the deposit, the deadline and the prefixes.
   assert not exists (select 1 from public.settings s
-                     where s.key like 'reservations.%' and s.is_public),
-    'reservation settings are internal';
+                     where s.key like 'reservations.%' and s.is_public
+                       and s.key not like '%\_labels'),
+    'reservation RULES are internal — only the status vocabulary may be public';
 
   -- How the money arrived is a list the owner edits, never a union in TypeScript (§30 طرق الدفع).
   assert exists (select 1 from public.option_lists l where l.key = 'payment_method'),

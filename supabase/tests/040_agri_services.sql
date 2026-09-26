@@ -176,12 +176,18 @@ end $$;
 -- T2 · THE CLOSED MODULE. Both flags are 'disabled' live; every writer refuses, in both modules.
 -- ---------------------------------------------------------------------------
 
+-- SET, NOT ASSERTED — see the note in 042_zitounti.sql. Both modules are closed inside this transaction and
+-- rolled back, because what T2 measures is that every writer refuses while they are closed. Asserting the
+-- live position made this file depend on where the owner last left two switches; it went red on 2026-09-26
+-- when `agri_backoffice` was opened and `subscriptions` moved to 'internal' by instruction (0104).
+update public.feature_flags set state = 'disabled' where key in ('agri_backoffice', 'subscriptions');
+
 do $$
 begin
   assert (select state from public.feature_flags where key = 'agri_backoffice') = 'disabled',
-    'agri_backoffice must still be disabled — the owner presses the switch himself';
+    'the transaction just closed agri_backoffice; if this fails, something re-opened it mid-test';
   assert (select state from public.feature_flags where key = 'subscriptions') = 'disabled',
-    'subscriptions must still be disabled — the owner presses the switch himself';
+    'the transaction just closed subscriptions; if this fails, something re-opened it mid-test';
 
   perform pg_temp.tt_as_user('00000000-0000-0000-0000-000000004002');  -- Finance: every role check would pass
   perform pg_temp.tt_expect(

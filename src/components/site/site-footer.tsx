@@ -48,7 +48,24 @@ type LegalLink = { label: string; href: string };
  */
 export async function SiteFooter({ legalNotice, taglineFr, phone, whatsapp, email, credits = [] }: SiteFooterProps) {
   const config = await getPublicConfig();
-  const links = siteNav(config);
+  /*
+   * THE FOLLOW-UP DOOR, and why it is added HERE rather than in siteNav().
+   *
+   * «وين وصل مطلبي؟» (/track) is where somebody who already sent a demand reads back the number the intake
+   * gave them. It belongs at the bottom of the page and not in the header bar: the bar is where a visitor is
+   * offered something — the catalogue, the simulator, an account — and this is where a visitor who has
+   * already accepted comes back to ask what happened. That is the footer's job, which is also why the staff
+   * door and the legal small print live down here and nowhere else.
+   *
+   * It is NOT gated on `interest_form`. That flag decides whether a NEW demand may be sent; the demands
+   * already in the table keep their reference numbers, and the day the intake closes for the season every one
+   * of those numbers must still open something. /track itself makes the same argument at the top of its page.
+   *
+   * The word is the owner's, from `site.nav_track_label` — emptying that setting removes the link, the same
+   * contract every other sentence in this footer has.
+   */
+  const trackLabel = settingText(config, "site.nav_track_label", "وين وصل مطلبي؟");
+  const links = [...siteNav(config), ...(trackLabel ? [{ href: "/track", label: trackLabel }] : [])];
   // The word that introduces the photographers. It was written into the markup; it is a setting like every
   // other sentence on the site now, so emptying it prints the names alone and the owner never edits code.
   const creditsLabel = settingText(config, "site.photo_credits_label", "مصادر الصور");

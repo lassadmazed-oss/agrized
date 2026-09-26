@@ -244,10 +244,15 @@ begin
       'every threshold §31 names is a setting, not a constant: ' || v_key || ' is missing';
   end loop;
 
-  -- None of them is public: what a client owes is said on their own file, not shipped in the site config.
+  -- The THRESHOLDS are internal: what a client owes is said on their own file, not shipped in the site
+  -- config. The two label maps became public in 0107 — فضاء «زيتونتي» renders from getPublicConfig() and
+  -- needs the owner's word for «ممضى» and «تخلّص جزء منّو»; without them the client's own screen printed a
+  -- second copy of those words that his edits never reached. Publishing «what a signed contract is called»
+  -- is not publishing what anybody owes.
   assert not exists (select 1 from public.settings s
-                     where (s.key like 'contracts.%' or s.key like 'installments.%') and s.is_public),
-    'contract and instalment settings are internal';
+                     where (s.key like 'contracts.%' or s.key like 'installments.%') and s.is_public
+                       and s.key not like '%\_labels'),
+    'contract and instalment THRESHOLDS are internal — only the status vocabulary may be public';
 
   -- The «شهرين» of §31 is a discussion the report itself replaced. Nothing may carry it as a value.
   assert (select (value #>> '{}')::integer from public.settings where key = 'installments.late_stage1_missed') = 1

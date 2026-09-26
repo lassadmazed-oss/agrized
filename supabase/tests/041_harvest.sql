@@ -154,10 +154,15 @@ end $$;
 -- T1 · THE MODULE IS OFF, so every RPC refuses — and it refuses in the database
 -- ---------------------------------------------------------------------------
 
+-- SET, NOT ASSERTED — see the note in 042_zitounti.sql. This file tests that a CLOSED module refuses, so the
+-- transaction closes it and rolls back. Asserting the live position made the file depend on where the owner
+-- last left a switch, and it went red on 2026-09-26 when the module was opened by instruction (0104).
+update public.feature_flags set state = 'disabled' where key = 'harvest';
+
 do $$
 begin
   assert (select state from public.feature_flags where key = 'harvest') = 'disabled',
-    'the harvest flag must still be disabled: the owner turns a module on himself';
+    'the transaction just closed the module; if this fails, something re-opened it mid-test';
   assert not app.module_open('harvest'), 'a disabled module is open to nobody';
 
   -- The agricultural manager holds the role the write asks for, and is still refused: a screen is not the gate.

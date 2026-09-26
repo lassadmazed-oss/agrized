@@ -4743,6 +4743,7 @@ export type Database = {
         }[]
       }
       million_progress: { Args: never; Returns: Json }
+      my_zitounti_file: { Args: never; Returns: Json }
       public_coverage: {
         Args: never
         Returns: {
@@ -5300,6 +5301,10 @@ export type Database = {
       submit_land_offer: { Args: { p: Json }; Returns: Json }
       submit_offer_request: { Args: { p: Json }; Returns: Json }
       submit_visit_request: { Args: { p: Json }; Returns: Json }
+      track_request: {
+        Args: { p_phone: string; p_request_no: string }
+        Returns: Json
+      }
       verify_client_login_code: {
         Args: { p_code: string; p_phone: string }
         Returns: Json

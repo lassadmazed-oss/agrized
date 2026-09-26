@@ -642,9 +642,13 @@ begin
     assert exists (select 1 from public.settings s where s.key = v_key and s.label_ar <> ''),
       'the Back Office can edit ' || v_key;
   end loop;
-  -- None of them is a public setting: how far ahead a visit may be booked is an internal rule, not site copy.
-  assert (select bool_and(not s.is_public) from public.settings s where s.group_key = 'visits'),
-    'the visit rules stay off the public configuration payload';
+  -- The RULES stay off the public payload: how far ahead a visit may be booked is an internal rule, not site
+  -- copy. The five `visits.status_*` WORDS are not a rule and became public in 0107, because فضاء «زيتونتي»
+  -- is a public page and a private label meant the buyer's screen printed a TypeScript copy of «ما حضرش»
+  -- instead of whatever the owner had renamed it to. A state's Arabic name is not a threshold.
+  assert (select bool_and(not s.is_public) from public.settings s
+          where s.group_key = 'visits' and s.key not like 'visits.status\_%'),
+    'the visit RULES stay off the public configuration payload — only the status words may be public';
 
   -- «التوقيت المتوفر» is a list AgriZed decides, with its hours, exactly like the contact_time list.
   assert exists (select 1 from public.option_lists l where l.key = 'visit_slot' and l.value_kind = 'time_range'),

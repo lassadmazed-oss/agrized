@@ -172,10 +172,22 @@ end $$;
 -- T1 · The closed module, which is the live state — asserted before anything is opened
 -- ---------------------------------------------------------------------------
 
+-- THIS SECTION SETS THE STATE IT MEASURES, AND USED TO ASSERT IT INSTEAD.
+--
+-- It read «the zitounti flag must still be «معطّل» on the live database — the owner switches a module on
+-- himself». That sentence was true as a project rule and wrong as a test: it made a file about whether a
+-- CLOSED module refuses depend on where a switch happened to be left, so the day the owner opened the space
+-- — 2026-09-26, by instruction, in 0104 — this file went red without anything it tests having changed.
+--
+-- The behaviour under test is «closed ⇒ refuses», so the transaction closes it and rolls back. The rule
+-- about who presses the switch is a rule about migrations; it is not a fact this file can pin, and pinning
+-- it here only made the suite brittle.
+update public.feature_flags set state = 'disabled' where key = 'zitounti';
+
 do $$
 begin
   assert (select state from public.feature_flags where key = 'zitounti') = 'disabled',
-    'the zitounti flag must still be «معطّل» on the live database — the owner switches a module on himself';
+    'the transaction just closed the module; if this fails, something re-opened it mid-test';
 
   -- Staff, module closed: the business refusal, not a privilege error and not an empty payload.
   perform pg_temp.tt_as_user('00000000-0000-0000-0000-000000004201');
