@@ -43,6 +43,7 @@
 import Link from "next/link";
 
 import { DataList, DataRow, EmptyState, SectionHeader, StatusPill } from "@/components/ui";
+import { passwordPolicy } from "@/lib/client-auth";
 import { type PublicConfig, settingJson, settingText } from "@/lib/config";
 import { PLANTATION_LABELS, PRODUCTION_LABELS } from "@/lib/crm";
 import { formatArea, formatCount, formatDate, formatMillimes } from "@/lib/format";
@@ -63,6 +64,7 @@ import type {
 } from "@/lib/zitounti";
 
 import { ClientLoginForm } from "./login-form";
+import { LOGIN_INITIAL, type LoginState } from "./login-state";
 
 // ---------------------------------------------------------------------------
 // Status words for the four enums whose Arabic is in a private setting
@@ -1044,24 +1046,73 @@ export function ZitountiSectionBody({
 // ---------------------------------------------------------------------------
 
 /**
- * The sign-in panel, in one place because TWO routes need it.
+ * The sign-in panel, in one place because TWO routes need it — and, since 2026-09-28, one more screen.
  *
  * /zitounti and /zitounti/<section> both belong to a signed-in buyer, and a visitor who lands on either with
  * no session must meet the same door — not a redirect that loses where they were going, and not a second
  * arrangement of the same form that drifts from the first. The words are the owner's, from the `zitounti`
  * settings group.
+ *
+ * `mode="set_password"` is the same panel for a buyer who IS signed in — the code by SMS proved the number —
+ * but has not chosen a password yet. The account stays behind this screen until they do: the owner's spec
+ * says the SMS is sent once and every later sign-in is phone + password, and a buyer allowed past this step
+ * without one would be back to asking for an SMS next time. The minimum length is the owner's rule in SQL
+ * (client_password_policy, service-role only), read here on the server and handed to the form.
+ *
+ * THE INTRO SENTENCE. `zitounti.login_note` was seeded (0105) for the SMS-only door and says «ونبعثولك رمز
+ * بالSMS», which is no longer what the default screen does. The password door reads its own key,
+ * `zitounti.password_login_note`, with the right sentence as its fallback until the owner writes one.
  */
-export function ClientLoginPanel({ config, title }: { config: PublicConfig; title: string }) {
+export async function ClientLoginPanel({
+  config,
+  title,
+  mode = "login",
+}: {
+  config: PublicConfig;
+  title: string;
+  mode?: "login" | "set_password";
+}) {
   const help = settingText(config, "site.contact_phone");
+
+  let initialState: LoginState | undefined;
+  if (mode === "set_password") {
+    const policy = await passwordPolicy();
+    initialState = {
+      ...LOGIN_INITIAL,
+      step: "set_password",
+      minLength: policy.ok ? policy.minLength : 0,
+      // A policy that cannot be read is said out loud rather than swallowed: the action would refuse the
+      // password anyway, and «why» belongs on the screen before the buyer types anything.
+      error: policy.ok
+        ? null
+        : policy.reason === "not_applied"
+          ? "خدمة كلمة السرّ مازالت ما تفعّلتش. لازم تتطبّق supabase/migrations/0108_client_password.sql."
+          : "تعذّر قراءة شروط كلمة السرّ توّا. حاول مرّة أخرى، وإذا تعاود المشكل كلّم الفريق.",
+    };
+  }
+
+  const note =
+    mode === "set_password"
+      ? settingText(
+          config,
+          "zitounti.set_password_note",
+          "قبل ما تشوف حسابك، أنشئ كلمة سرّ خاصة بيك. المرّة الجاية تدخل بالنمرة وكلمة السرّ، بلا SMS.",
+        )
+      : settingText(
+          config,
+          "zitounti.password_login_note",
+          "ادخل بنمرة التلفون وكلمة السرّ متاعك. أوّل مرّة؟ نبعثولك رمز بالSMS باش تثبّت النمرة وتختار كلمة سرّ.",
+        );
 
   return (
     <div className="mx-auto w-full max-w-md px-4 py-section">
       <h1 className="font-display text-2xl font-bold text-forest-700">{title}</h1>
-      <p className="mt-2 text-[0.95rem] leading-7 text-muted">
-        {settingText(config, "zitounti.login_note", "ادخل بنمرة التلفون اللي سجّلت بيها، ونبعثولك رمز بالSMS.")}
-      </p>
+      <p className="mt-2 text-[0.95rem] leading-7 text-muted">{note}</p>
       <div className="card mt-6 p-card">
-        <ClientLoginForm helpPhone={help || null} />
+        {/* Keyed on the mode: useActionState reads its initial state once, at mount, so the form that was
+            drawn at «أنشئ كلمة سرّ» must be remounted — not re-rendered — when the buyer signs out from that
+            step and the page comes back as the plain door. */}
+        <ClientLoginForm key={mode} helpPhone={help || null} initialState={initialState} />
       </div>
     </div>
   );

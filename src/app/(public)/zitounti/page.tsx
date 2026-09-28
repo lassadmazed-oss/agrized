@@ -30,6 +30,7 @@
 // open → their file.
 
 import type { Metadata } from "next";
+import Link from "next/link";
 
 import { AccountScreen, type AccountHoldings, type AccountIcon, type AccountRow } from "@/components/site/mobile/account-screen";
 import { PreviewBanner } from "@/components/site/module-gate";
@@ -134,6 +135,14 @@ export default async function ZitountiPage() {
   const client = await currentClient();
   if (!client) {
     return <ClientLoginPanel config={config} title={title} />;
+  }
+
+  // 2026-09-28: the SMS code is sent once, to prove the number; after that a buyer signs in with a password of
+  // their own. A session with no password behind it yet (persons.password_set_at is null) is therefore not
+  // the account but the screen that asks for one — the same panel, at its last step. Without this gate a buyer
+  // could close the tab between the code and the password and be back to asking for an SMS next time.
+  if (!client.passwordSet) {
+    return <ClientLoginPanel config={config} title={title} mode="set_password" />;
   }
 
   /*
@@ -255,11 +264,18 @@ export default async function ZitountiPage() {
           why this is not «a nice to have later»: the next person to pick up the handset would be looking at
           somebody else's trees, contracts and instalments. A plain form so it works without JavaScript and
           needs no client component of its own. */}
-      <form action={signOut} className="mx-auto max-w-md px-4 pb-section pt-6">
-        <button type="submit" className="btn btn-secondary w-full border-line">
-          {settingText(config, "zitounti.sign_out_label", "اخرج من الحساب")}
-        </button>
-      </form>
+      <div className="mx-auto max-w-md space-y-3 px-4 pb-section pt-6">
+        {/* The keys to the account — password, number, other devices — live on their own page; this is the one
+            door to it (2026-09-28 spec: SMS only for reset, phone change and sensitive actions). */}
+        <Link href="/zitounti/security" className="btn btn-secondary w-full border-line">
+          {settingText(config, "zitounti.security_label", "الأمان وكلمة السرّ")}
+        </Link>
+        <form action={signOut}>
+          <button type="submit" className="btn btn-secondary w-full border-line">
+            {settingText(config, "zitounti.sign_out_label", "اخرج من الحساب")}
+          </button>
+        </form>
+      </div>
     </>
   );
 }

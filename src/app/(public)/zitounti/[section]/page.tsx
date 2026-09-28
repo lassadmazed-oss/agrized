@@ -103,6 +103,12 @@ export default async function ZitountiSectionPage({ params }: PageProps<"/zitoun
     return <ClientLoginPanel config={config} title={space} />;
   }
 
+  // THE SAME GATE AS /zitounti: a session whose password was never chosen is the «أنشئ كلمة سرّ» screen and
+  // nothing else — a link straight to /zitounti/trees must not open a section the account itself withholds.
+  if (!client.passwordSet) {
+    return <ClientLoginPanel config={config} title={space} mode="set_password" />;
+  }
+
   const supabase = await createClient();
   const result = await readClientFile(supabase);
 

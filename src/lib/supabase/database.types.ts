@@ -238,6 +238,8 @@ export type Database = {
           id: string
           person_id: string
           phone_e164: string
+          purpose: string
+          target_phone: string | null
         }
         Insert: {
           attempts?: number
@@ -248,6 +250,8 @@ export type Database = {
           id?: string
           person_id: string
           phone_e164: string
+          purpose?: string
+          target_phone?: string | null
         }
         Update: {
           attempts?: number
@@ -258,6 +262,8 @@ export type Database = {
           id?: string
           person_id?: string
           phone_e164?: string
+          purpose?: string
+          target_phone?: string | null
         }
         Relationships: [
           {
@@ -2788,6 +2794,7 @@ export type Database = {
           governorate_id: number | null
           id: string
           last_request_at: string | null
+          password_set_at: string | null
           phone_e164: string
           profile_id: string | null
           status_id: string
@@ -2810,6 +2817,7 @@ export type Database = {
           governorate_id?: number | null
           id?: string
           last_request_at?: string | null
+          password_set_at?: string | null
           phone_e164: string
           profile_id?: string | null
           status_id: string
@@ -2832,6 +2840,7 @@ export type Database = {
           governorate_id?: number | null
           id?: string
           last_request_at?: string | null
+          password_set_at?: string | null
           phone_e164?: string
           profile_id?: string | null
           status_id?: string
@@ -4593,6 +4602,8 @@ export type Database = {
           isSetofReturn: true
         }
       }
+      client_password_attempt: { Args: { p_phone: string }; Returns: Json }
+      client_password_policy: { Args: never; Returns: Json }
       compute_installment_plan: {
         Args: {
           p_cash_millimes: number
@@ -4600,6 +4611,10 @@ export type Database = {
           p_installment_millimes: number
           p_pricing: Json
         }
+        Returns: Json
+      }
+      confirm_phone_change: {
+        Args: { p_code: string; p_person: string }
         Returns: Json
       }
       crm_demand_stats: {
@@ -4728,6 +4743,7 @@ export type Database = {
         }
         Returns: undefined
       }
+      mark_password_set: { Args: { p_person: string }; Returns: Json }
       match_requests_for_parcel: {
         Args: { p_limit?: number; p_parcel: string }
         Returns: {
@@ -4854,7 +4870,14 @@ export type Database = {
         Returns: Json
       }
       release_stuck_notifications: { Args: never; Returns: number }
-      request_client_login_code: { Args: { p_phone: string }; Returns: Json }
+      request_client_login_code: {
+        Args: { p_phone: string; p_purpose?: string }
+        Returns: Json
+      }
+      request_phone_change_code: {
+        Args: { p_new_phone: string; p_person: string }
+        Returns: Json
+      }
       review_land_offer: {
         Args: {
           p_next_status?: Database["public"]["Enums"]["land_offer_status"]
@@ -5306,7 +5329,7 @@ export type Database = {
         Returns: Json
       }
       verify_client_login_code: {
-        Args: { p_code: string; p_phone: string }
+        Args: { p_code: string; p_phone: string; p_purpose?: string }
         Returns: Json
       }
     }

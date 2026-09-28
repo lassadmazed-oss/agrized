@@ -243,8 +243,11 @@ begin
   update public.client_login_codes set expires_at = now() - interval '1 second'
    where person_id = current_setting('test.cl_person')::uuid and consumed_at is null;
 
+  -- 0108: «expired» is answered as invalid_code, without a counter — the same object «no live code» and a
+  -- wrong guess get — so that verify cannot say whether a number holds a live code.
   v_out := public.verify_client_login_code(current_setting('test.cl_phone_1'), v_code);
-  assert v_out->>'reason' = 'expired', 'an expired code is refused, got ' || v_out::text;
+  assert v_out->>'reason' = 'invalid_code' and not (v_out ? 'attempts_left'),
+    'an expired code is refused as invalid_code, got ' || v_out::text;
 end $$;
 
 -- ---------------------------------------------------------------------------

@@ -20,6 +20,11 @@ import { readFile } from "node:fs/promises";
 import pg from "pg";
 
 const PHONE = "+21690000001";
+// The demo client's password for فضاء «زيتونتي» (chosen 2026-09-28 while walking the first-time flow in the
+// browser). Recorded HERE and not in a chat transcript, per the rule for test credentials. It is a test
+// value on a seeded person; the seed does not set it — it is stored by Supabase Auth on the linked user.
+// To reset the client back to first-time: `update public.persons set password_set_at = null where phone_e164 = '+21690000001'`.
+// Password: Zitoun-Demo-2026
 const REMOVE = process.argv.includes("--remove");
 
 const connectionString = process.env.DIRECT_URL;
