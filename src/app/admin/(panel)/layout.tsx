@@ -1,9 +1,12 @@
 import type { Metadata } from "next";
+import { cookies } from "next/headers";
 import Link from "next/link";
 
 import { AdminBreadcrumbs } from "@/components/admin/admin-breadcrumbs";
 import { MenuIcon } from "@/components/admin/nav-icons";
-import { ADMIN_LABELS, NAV_STATE_LABELS, type AdminHref, type AdminIconKey, type NavGroup, type NavItem } from "@/components/admin/nav-model";
+import { ADMIN_LABELS, NAV_STATE_LABELS, type AdminIconKey, type NavItem } from "@/components/admin/nav-model";
+import { WorkspaceNav, type WorkspacePanel } from "@/components/admin/workspace-switcher";
+import { heldWorkspaces, WORKSPACE_COOKIE, type WorkspaceRow } from "@/components/admin/workspaces";
 import { Wordmark } from "@/components/brand/wordmark";
 import {
   ADMIN_ROLES,
@@ -21,149 +24,132 @@ import { flagState, getPublicConfig, type PublicConfig } from "@/lib/config";
 import { signOut } from "../login/actions";
 
 import { AdminNav } from "./admin-nav";
+import { AGRI_ROLES } from "./agri/agri-model";
 import { CALL_DESK_ROLES } from "./desk/desks";
 import { LEGAL_DESK_ROLES } from "./desk/legal/roles";
+import { chooseWorkspace } from "./workspace-actions";
 
 export const metadata: Metadata = {
   title: { default: "Back Office", template: "%s · Back Office AgriZed" },
   robots: { index: false, follow: false },
 };
 
-type RowOptions = {
+type RowRule = {
+  icon: AdminIconKey;
   /** The role gate, unchanged from the one this section always had. */
   roles?: readonly StaffRole[];
   /** The key in feature_flags. A section with no module of its own passes none. */
   flag?: string;
-  children?: (NavItem | null)[];
 };
 
 /**
- * The sidebar, built for one session.
+ * What decides a row, one rule per destination. WHICH workspace a row belongs to, and in what order, is
+ * structure and lives in src/components/admin/workspaces.ts; WHETHER this session sees it is decided here,
+ * where the session and the flags are. The table is keyed on every workspace row, so a row added over there
+ * without a rule here fails the build instead of silently drawing ungated.
  *
- * Two things decide a row. The role gate is the one the section always had — CRM_READ_ROLES on the
- * demand side, LAND_OFFER_ROLES on the landowner intake, PRICE_ROLES on pricing, ADMIN_ROLES on
- * administration — and nothing here widens or narrows one.
+ * Two things decide a row. The role gate is the one the section always had — CRM_READ_ROLES on the demand
+ * side, LAND_OFFER_ROLES on the landowner intake, PRICE_ROLES on pricing, ADMIN_ROLES on administration,
+ * CALL_DESK_ROLES · LEGAL_DESK_ROLES · AGRI_ROLES on the desks and the grove — and nothing here widens or
+ * narrows one. Each row carries the gate ITS OWN routes apply, so the sidebar and the page can never disagree
+ * about who may enter. A workspace only says whose JOB a row is; a row a reader may not open is not drawn even
+ * inside a workspace they hold (a commercial holds المبيعات and does not see /admin/pricing there — it is
+ * not there to see).
  *
- * The module flag is new. The nav used to be role-gated and nothing else, so every row looked equally
- * live whatever state its module was in: «عروض الأراضي» read the same switched off as switched on. Now
- * each row carries its module's state — «معطّل», «داخلي» — and is drawn quiet when it is off.
+ * The module flag: each row carries its module's state — «معطّل», «داخلي» — and is drawn quiet when it is
+ * off, so a row never looks more live than its module is. A row that is off STILL OPENS. The flag says what
+ * visitors see; it is not an access rule for the staff, and the Back Office is precisely where a module is
+ * prepared before it is published — gating the link on it would lock Finance out of the instalments and
+ * contracts modules while they are still «معطّل» and being set up. What a switched-off row must never do is lead to an invented screen, and none of them do: every
+ * flagged page here says which state its module is in and which switch changes it, and the two whose tables
+ * were once a draft (العقود · الأقساط) answer a missing function as its own case, naming the file. That is the
+ * one condition under which a row is honest — it leads somewhere that tells the truth — and it is the
+ * condition the five rows removed on 2026-09-18 had failed («a row that leads nowhere costs a reader more
+ * than it tells them»). The four rows the workspaces add — زيتونتي · العمليات الفلاحية · الصابة والجني ·
+ * الاشتراكات — meet it: each has its tables (0067, 0068 and their neighbours) and a screen that reads them,
+ * and each carries the flag its own page reads. The desks carry no flag: they are how the team works, not a
+ * module the owner publishes, and there is no visitor-facing door to open or close.
  *
- * A row that is off still opens. The flag says what visitors see; it is not an access rule for the staff,
- * and the Back Office is precisely where a module is prepared before it is published — gating the link on
- * it would lock Finance out of the offers they are building. What a switched-off section must never do is
- * lead to an invented screen, and none of them do: the five with no tables behind them open onto a page
- * that says the domain is not open yet.
+ * Nothing nests any more. The old sidebar nested rows by what they belonged to (the analysis under the demand,
+ * the rate card under the offers it prices) because it had to hold four jobs at once; a workspace holds one,
+ * and inside one job a flat list in reading order is the whole hierarchy. Two of the old decisions survive
+ * that flattening in a new shape. التسعير is in المالية and not in الإدارة with the other rules, because it
+ * is Finance's screen (PRICE_ROLES) and الإدارة is Admin's — nesting it there would take the rate card away
+ * from the only people who set it. الموديولات · القوائم · صور الموقع, folded into the strip on /admin/settings
+ * on 2026-09-19 because three of eleven rows for one room was too many, are rows again inside الإدارة, where
+ * they are three of seven and are the admin's actual work; the strip stays, and both roads lead to the same
+ * screens. القطع is out for good — the tree is the unit (owner, 2026-09-18), an offer's trees are a tab on the
+ * offer — and المطابقة has no row, because it is a section on a client's file and not a destination.
  */
-function navFor(session: StaffSession, config: PublicConfig): NavGroup[] {
-  const row = (href: AdminHref, icon: AdminIconKey, { roles, flag, children }: RowOptions = {}): NavItem | null => {
+const ROW_RULES: Record<WorkspaceRow, RowRule> = {
+  "/admin": { icon: "dashboard" },
+  "/admin/desk/calls": { icon: "requests", roles: CALL_DESK_ROLES },
+  "/admin/desk/field": { icon: "visits", roles: CRM_READ_ROLES },
+  "/admin/leads": { icon: "requests", roles: CRM_READ_ROLES },
+  "/admin/persons": { icon: "users", roles: CRM_READ_ROLES, flag: "zitounti" },
+  "/admin/visits": { icon: "visits", roles: CRM_READ_ROLES, flag: "visits" },
+  "/admin/reservations": { icon: "reservations", roles: CRM_READ_ROLES, flag: "reservations" },
+  "/admin/analytics": { icon: "analytics", roles: CRM_READ_ROLES },
+  // The other session's sale flow: its own layout gates it on requireStaff() alone, so the row does too.
+  "/admin/v2": { icon: "offers" },
+  "/admin/projects": { icon: "offers", flag: "projects" },
+  "/admin/agri": { icon: "services", roles: AGRI_ROLES, flag: "agri_backoffice" },
+  // The bars are the season's kilos. nav-icons.tsx has no glyph for a harvest, and that file is not this
+  // change's to grow.
+  "/admin/harvest": { icon: "analytics", flag: "harvest" },
+  "/admin/land-offers": { icon: "land", roles: LAND_OFFER_ROLES, flag: "land_offers" },
+  "/admin/installments": { icon: "payments", roles: PRICE_ROLES, flag: "installments" },
+  "/admin/contracts": { icon: "contracts", roles: CRM_READ_ROLES, flag: "contracts" },
+  "/admin/pricing": { icon: "pricing", roles: PRICE_ROLES, flag: "pricing" },
+  "/admin/subscriptions": { icon: "services", roles: CRM_READ_ROLES, flag: "subscriptions" },
+  "/admin/desk/legal": { icon: "contracts", roles: LEGAL_DESK_ROLES },
+  "/admin/desk/legal/partners": { icon: "users", roles: LEGAL_DESK_ROLES },
+  "/admin/desk/legal/checklist": { icon: "lists", roles: LEGAL_DESK_ROLES },
+  "/admin/settings": { icon: "settings", roles: ADMIN_ROLES },
+  "/admin/settings/modules": { icon: "modules", roles: ADMIN_ROLES },
+  "/admin/settings/lists": { icon: "lists", roles: ADMIN_ROLES },
+  "/admin/settings/media": { icon: "media", roles: ADMIN_ROLES },
+  // Records, not settings: who may sign in, and what everyone did. They keep their own rows.
+  "/admin/users": { icon: "users", roles: ADMIN_ROLES },
+  "/admin/audit": { icon: "audit", roles: ADMIN_ROLES },
+};
+
+/**
+ * The sidebars, one per workspace this session holds, each built for this session: a row the reader may not
+ * open is not drawn, and a row whose module is off is drawn quiet. Which of them is on screen is decided by
+ * the switcher (src/components/admin/workspace-switcher.tsx), because that decision needs the pathname and
+ * a layout is never told one.
+ */
+function panelsFor(session: StaffSession, config: PublicConfig): WorkspacePanel[] {
+  const row = (href: WorkspaceRow): NavItem | null => {
+    const { icon, roles, flag } = ROW_RULES[href];
     if (roles && !hasRole(session, roles)) return null;
 
     const state = flag ? flagState(config, flag) : "public";
     const badge = state === "disabled" ? NAV_STATE_LABELS.off : state === "internal" ? NAV_STATE_LABELS.internal : undefined;
-    const kept = (children ?? []).filter((child): child is NavItem => child !== null);
 
-    return {
-      href,
-      label: ADMIN_LABELS[href],
-      icon,
-      badge,
-      off: state === "disabled",
-      children: kept.length > 0 ? kept : undefined,
-    };
+    return { href, label: ADMIN_LABELS[href], icon, badge, off: state === "disabled" };
   };
 
-  // FOUR sections, because the Back Office has four jobs: see the day, answer the demand, keep the stock,
-  // and set the rules. Owner, 2026-09-18: «I don't like the separated things, it's too confusing».
-  //
-  // It briefly had eleven rows, five of which — الحجوزات، الزيارات، العقود، الدفوعات، الخدمات الفلاحية —
-  // opened onto a page that said the domain was not built yet. A row that leads nowhere costs a reader more
-  // than it tells them, so those five went out of the nav UNTIL THEY HAD TABLES BEHIND THEM, which was the
-  // whole condition; docs/plan-rebuild.md (P6) is where they come back, and restoring a row is one line here.
-  //
-  // Two of them met the condition on 2026-09-19 and are back, one line each: الزيارات الميدانية reads
-  // public.visits (report v3 §25) and الحجوزات والعربون reads public.reservations (§23, §24). Both nest under
-  // مطالب الاستثمار, because both are what happens NEXT to a demand — the same people, the same files, the
-  // same CRM_READ_ROLES — and hanging them off العروض would file them under the land instead of the client.
-  // المطابقة gets no row at all: §43's «best matching offers» is a section on a client's file, not a
-  // destination, and a row leading to a screen that does not exist is the dead end the five were removed for.
-  //
-  // ELEVEN destinations. الموديولات · القوائم · صور الموقع left the sidebar on 2026-09-19:
-  // they are not four sections, they are one room — the place where the owner changes what the site says and
-  // what it offers — and /admin/settings now opens onto all four with a strip across its head. The routes are
-  // unchanged, the breadcrumb still names each one (ADMIN_LABELS), and the الإعدادات row stays lit while you
-  // are inside any of them.
-  //
-  // التسعير stays under العروض rather than moving to الإعدادات with the other rules: it is Finance's screen
-  // (PRICE_ROLES), and الإعدادات is gated on ADMIN_ROLES — nesting it there would take the rate card away
-  // from the only people who set it.
-  //
-  // What is left nests by what it belongs to: the analysis under the demand it analyses, the land intake and
-  // the rate card under the offers they feed and price, the accounts and the log under the rules.
-  const sections = [
-    row("/admin", "dashboard"),
-    // THE DESKS come FIRST, above the administration, because that is the owner's whole complaint answered:
-    // «مسار واحد متواصل للحريف، موش Interfaces منفصلة». A call agent should open the Back Office onto their
-    // own queue, not onto a sidebar in which four fifths of the rows are somebody else's job. Each child
-    // carries the gate ITS OWN routes apply, so the sidebar and the page can never disagree about who may
-    // enter; «مكتبي» itself is ungated because it is only a chooser and it redirects when a reader has one.
-    //
-    // No `flag:` on any of them. These are not a module the owner publishes — they are how the team works,
-    // and there is no visitor-facing door to open or close.
-    row("/admin/desk", "requests", {
-      roles: CRM_READ_ROLES,
-      children: [
-        row("/admin/desk/calls", "requests", { roles: CALL_DESK_ROLES }),
-        row("/admin/desk/field", "visits", { roles: CRM_READ_ROLES }),
-        row("/admin/desk/legal", "contracts", { roles: LEGAL_DESK_ROLES }),
-      ],
-    }),
-    row("/admin/leads", "requests", {
-      roles: CRM_READ_ROLES,
-      children: [
-        row("/admin/analytics", "analytics", { roles: CRM_READ_ROLES }),
-        // Both carry their module's state the way every other flagged row does, and both still open while it
-        // is «معطّل»: the flag says what a VISITOR may do — ask for a visit from the site, hold trees online —
-        // and the Back Office is where a module is prepared before it is published. Neither page invents
-        // anything while it is off; each says which state it is in and which switch changes it.
-        row("/admin/visits", "visits", { roles: CRM_READ_ROLES, flag: "visits" }),
-        row("/admin/reservations", "reservations", { roles: CRM_READ_ROLES, flag: "reservations" }),
-        // STAGE 3, and the same rule as the two above: the row opens while the module is «معطّل», because the
-        // Back Office is where a module is prepared. What is different about these two is that their TABLES
-        // are not applied yet either — supabase/pending/bb_60_contracts_installments.sql is a draft — so both
-        // screens answer a missing function as its own case and say the module is not installed, naming the
-        // file. That is the one condition under which restoring a row is honest: it leads somewhere that
-        // tells the truth. The five rows this nav removed in 2026-09-18 were removed for failing it.
-        row("/admin/contracts", "contracts", { roles: CRM_READ_ROLES, flag: "contracts" }),
-        row("/admin/installments", "payments", { roles: PRICE_ROLES, flag: "installments" }),
-      ],
-    }),
-    row("/admin/projects", "offers", {
-      flag: "projects",
-      children: [
-        // القطع is out of the nav for good: the owner's decision on 2026-09-18 is that the tree is the unit
-        // and the lot layer goes — «remove the pieces thing, its simply selling the trees». Its route is
-        // deleted; an offer's trees are a tab on the offer itself, which is one destination, not two.
-        row("/admin/land-offers", "land", { roles: LAND_OFFER_ROLES, flag: "land_offers" }),
-        row("/admin/pricing", "pricing", { roles: PRICE_ROLES, flag: "pricing" }),
-      ],
-    }),
-    row("/admin/settings", "settings", {
-      roles: ADMIN_ROLES,
-      children: [
-        // Records, not settings: who may sign in, and what everyone did. They keep their own rows.
-        row("/admin/users", "users", { roles: ADMIN_ROLES }),
-        row("/admin/audit", "audit", { roles: ADMIN_ROLES }),
-      ],
-    }),
-  ].filter((item): item is NavItem => item !== null);
-
-  return [{ items: sections }];
+  return heldWorkspaces(session.roles).map((workspace) => {
+    const hrefs: readonly WorkspaceRow[] = workspace.rows;
+    const items = hrefs.map(row).filter((item): item is NavItem => item !== null);
+    return {
+      key: workspace.key,
+      label: workspace.label,
+      hrefs: items.map((item) => item.href),
+      nav: <AdminNav groups={[{ items }]} />,
+    };
+  });
 }
 
 export default async function PanelLayout({ children }: LayoutProps<"/admin">) {
   const session = await requireStaff();
   const config = await getPublicConfig();
-  const groups = navFor(session, config);
+  const panels = panelsFor(session, config);
+  // Read here, written only by chooseWorkspace: a rendering component cannot set a cookie, and this one must
+  // not want to — the layout draws the choice, it does not make it.
+  const workspaceCookie = (await cookies()).get(WORKSPACE_COOKIE)?.value ?? null;
   const roles = session.roles.map((role) => ROLE_LABELS[role]).join("، ");
 
   return (
@@ -187,7 +173,8 @@ export default async function PanelLayout({ children }: LayoutProps<"/admin">) {
             Back Office
           </span>
         </div>
-        <AdminNav groups={groups} className="flex-1" />
+        {/* The switcher sits under the wordmark, then the active workspace's rows. One job on screen at a time. */}
+        <WorkspaceNav panels={panels} cookie={workspaceCookie} action={chooseWorkspace} className="flex-1" />
       </aside>
 
       <div className="flex min-w-0 flex-col">
@@ -206,7 +193,8 @@ export default async function PanelLayout({ children }: LayoutProps<"/admin">) {
                 <MenuIcon />
               </summary>
               <div className="absolute inset-x-0 top-full z-40 max-h-[70dvh] overflow-y-auto bg-forest-700 px-3 py-4 shadow-[var(--shadow-float)]">
-                <AdminNav groups={groups} />
+                {/* The same switcher, at the top of the phone menu. */}
+                <WorkspaceNav panels={panels} cookie={workspaceCookie} action={chooseWorkspace} />
               </div>
             </details>
 

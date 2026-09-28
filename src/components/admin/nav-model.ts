@@ -94,8 +94,20 @@ export const ADMIN_LABELS = {
   "/admin/desk/legal/partners": "دليل الشركاء",
   "/admin/desk/legal/checklist": "بنود القائمة القانونية",
   "/admin/leads": "مطالب الاستثمار",
+  // THE WORKSPACES, 2026-09-28 (src/components/admin/workspaces.ts). Four screens had routes, tables and
+  // <h1>s but no name here, so their trail read «لوحة القيادة» and nothing else; the rule is the one stated
+  // above — the name is the word the screen itself prints. «فضاء «زيتونتي»» is settings zitounti.title, which
+  // /admin/persons reads for its <h1> (its tab title says «ملفات الحرفاء»; the heading wins, as it did for
+  // مطالب الاستثمار). «الصابة والجني» is settings harvest.page_title, the <h1> of /admin/harvest. The other two
+  // print their names in code.
+  "/admin/persons": "فضاء «زيتونتي»",
   "/admin/analytics": "التحليلات وخريطة الطلب",
+  // /admin/v2 prints no heading of its own — it is a door that redirects into the other session's sale-flow
+  // screens — so it is named for the whole of what is behind it, which is the one name the rule cannot supply.
+  "/admin/v2": "مسار البيع",
   "/admin/projects": "العروض",
+  "/admin/agri": "العمليات الفلاحية",
+  "/admin/harvest": "الصابة والجني",
   "/admin/land-offers": "أراضٍ معروضة علينا",
   "/admin/pricing": "التسعير",
   // «/admin/projects/parcels» → «القطع» was here until 2026-09-18. The route is deleted with the parcel
@@ -123,6 +135,7 @@ export const ADMIN_LABELS = {
   // the trail on /admin/contracts would read «لوحة القيادة» and nothing else.
   "/admin/contracts": "العقود ووعد البيع",
   "/admin/installments": "الأقساط والخلاص",
+  "/admin/subscriptions": "الاشتراكات",
   "/admin/settings": "الإعدادات",
   "/admin/settings/modules": "الموديولات",
   "/admin/settings/lists": "القوائم",

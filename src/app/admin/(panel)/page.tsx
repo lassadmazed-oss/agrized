@@ -64,10 +64,12 @@
 
 import type { Metadata } from "next";
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import type { ReactNode } from "react";
 
 import { FunnelBoard, TreeStock } from "@/components/admin/funnel";
 import { readFunnel } from "@/components/admin/funnel-read";
+import { heldWorkspaces } from "@/components/admin/workspaces";
 import { EmptyState, SectionHeader, StatTile, StatusPill } from "@/components/ui";
 import { ADMIN_ROLES, CRM_READ_ROLES, hasRole, LAND_OFFER_ROLES, requireStaff, type StaffRole } from "@/lib/auth";
 import { getPublicConfig } from "@/lib/config";
@@ -101,6 +103,19 @@ const WEEK = 7;
 export default async function DashboardPage({ searchParams }: PageProps<"/admin">) {
   const session = await requireStaff();
   const params = await searchParams;
+
+  // THE WORKSPACES, 2026-09-28. This screen is الإدارة's landing. A reader who holds exactly one workspace and
+  // it is not الإدارة — a commercial, an agri_manager, Finance, Legal on their own — is sent to that job's
+  // queue instead, so their first screen is their work and never a dashboard laid out for the admin. Readers
+  // who hold several keep the dashboard: the switcher is theirs to use. Done here and not in src/proxy.ts,
+  // because the proxy knows a user id and not their roles, and it must stay an optimistic redirect only.
+  //
+  // The one exception is ?denied=1, which requireStaff() sends here when a page refused the reader's role:
+  // bouncing them onward would swallow the sentence that says what happened, and a reader who just typed a URL
+  // they may not open needs that sentence more than they need their queue.
+  const held = heldWorkspaces(session.roles);
+  if (held.length === 1 && held[0].key !== "admin" && !params.denied) redirect(held[0].landing);
+
   const canSeeCrm = hasRole(session, CRM_READ_ROLES);
   const canSeeLand = hasRole(session, LAND_OFFER_ROLES);
   const isAdmin = hasRole(session, ADMIN_ROLES);
