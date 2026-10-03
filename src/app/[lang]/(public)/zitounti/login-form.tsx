@@ -2,6 +2,7 @@
 
 import { useActionState, type ReactNode } from "react";
 
+import { ErrorAlert } from "@/components/site/error-alert";
 import { useLocale, useT } from "@/lib/i18n/client";
 import { formatPhoneFor } from "@/lib/phone";
 
@@ -96,11 +97,7 @@ export function ClientLoginForm({
       <form action={action} className="space-y-5">
         {carriesPhone ? <input type="hidden" name="phone" value={state.phone} /> : null}
 
-        {state.error ? (
-          <p role="alert" className="rounded-xl bg-danger-soft px-4 py-3 text-sm font-medium text-danger">
-            {state.error}
-          </p>
-        ) : null}
+        <ErrorAlert error={state.error} pending={pending} />
         {state.note ? (
           <p className="rounded-xl bg-leaf-soft px-4 py-3 text-sm font-medium text-forest">{state.note}</p>
         ) : null}

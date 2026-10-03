@@ -2,6 +2,7 @@
 
 import { useActionState, type ReactNode } from "react";
 
+import { ErrorAlert } from "@/components/site/error-alert";
 import { useLocale, useT } from "@/lib/i18n/client";
 import { formatPhoneFor } from "@/lib/phone";
 
@@ -50,14 +51,9 @@ function withPhone(text: string, phone: string, locale: string): ReactNode[] {
   );
 }
 
-function Alert({ error, done }: { error: string | null; done: string | null }) {
-  if (error) {
-    return (
-      <p role="alert" className="rounded-xl bg-danger-soft px-4 py-3 text-sm font-medium text-danger">
-        {error}
-      </p>
-    );
-  }
+function Alert({ error, done, pending = false }: { error: string | null; done: string | null; pending?: boolean }) {
+  // The refusal takes the screen to itself (ErrorAlert); «تمّ» is good news and stays where it is.
+  if (error) return <ErrorAlert error={error} pending={pending} />;
   if (done) {
     return <p className="rounded-xl bg-leaf-soft px-4 py-3 text-sm font-medium text-forest">{done}</p>;
   }
@@ -77,7 +73,7 @@ export function ChangePasswordForm({ minLength, disabledReason }: { minLength: n
 
   return (
     <form action={action} className="space-y-5">
-      <Alert error={disabledReason ?? state.error} done={disabledReason ? null : state.done} />
+      <Alert error={disabledReason ?? state.error} done={disabledReason ? null : state.done} pending={pending} />
 
       <div>
         <label htmlFor="current_password" className="label">
@@ -161,7 +157,7 @@ export function ChangePhoneForm({ currentPhone }: { currentPhone: string | null 
           one name would make FormData.get return this empty one. */}
       {onCode ? <input type="hidden" name="new_phone" value={state.newPhone} /> : null}
 
-      <Alert error={state.error} done={state.done} />
+      <Alert error={state.error} done={state.done} pending={pending} />
       {state.note ? (
         <p className="rounded-xl bg-leaf-soft px-4 py-3 text-sm font-medium text-forest">{state.note}</p>
       ) : null}
@@ -264,7 +260,7 @@ export function SignOutOthersForm({ label }: { label: string }) {
 
   return (
     <form action={action} className="space-y-4">
-      <Alert error={state.error} done={state.done} />
+      <Alert error={state.error} done={state.done} pending={pending} />
       <button type="submit" disabled={pending} className="btn btn-secondary w-full border-line">
         {pending ? t("ui.security.pending") : label}
       </button>

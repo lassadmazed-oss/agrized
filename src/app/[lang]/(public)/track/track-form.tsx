@@ -2,6 +2,7 @@
 
 import { useActionState } from "react";
 
+import { ErrorAlert } from "@/components/site/error-alert";
 import { useT } from "@/lib/i18n/client";
 
 import { lookupRequest } from "./actions";
@@ -75,11 +76,7 @@ export function TrackForm(props: TrackFormProps) {
 
   return (
     <form action={action} className="card space-y-5 p-card">
-      {state.error ? (
-        <p role="alert" className="rounded-xl bg-danger-soft px-4 py-3 text-sm font-medium leading-6 text-danger">
-          {state.error}
-        </p>
-      ) : null}
+      <ErrorAlert error={state.error} pending={pending} />
 
       <div>
         <label htmlFor="requestNo" className="label">
