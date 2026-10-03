@@ -71,6 +71,13 @@ scripts/                 Migration, test, type generation and admin bootstrap sc
 - **Access is enforced by Row Level Security and security-definer RPCs**, not by hiding UI. The service-role
   key is used only on the server for public intake, uploads and account administration.
 - **Schema changes go through numbered migrations** in `supabase/migrations`; never edit production by hand.
+  A migration that has been applied is **immutable — including its filename**. `app.schema_migrations` records
+  the file by name, so renaming an applied migration makes the migrator see an unapplied file and run it a
+  second time, while the recorded row points at a file that no longer exists.
+  **Gaps in the numbering are normal and must be left alone.** 0125 is missing because two sessions were
+  claiming numbers at the same time and one was skipped rather than risk a collision; 0119 exists, 0124 and
+  0126 exist. The sequence is cosmetic — `db:migrate` orders by filename and does not care that a number is
+  absent. Closing a gap by renaming is the one "tidy-up" in this folder that is actually destructive.
 - **Important operations are written to `audit_logs`**, which is append-only.
 - **Requests keep a snapshot** of the option values chosen at submission time.
 - **The public counter shows real rows only (MIL-01).** «مشروع المليون زيتونة» sums the lower bound of
