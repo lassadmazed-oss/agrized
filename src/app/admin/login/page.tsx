@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 
-import { Wordmark } from "@/components/brand/wordmark";
+import { LogoLockup } from "@/components/brand/logo";
 import { getStaffSession } from "@/lib/auth";
 
 import { LoginForm } from "./login-form";
@@ -24,7 +24,7 @@ export default async function AdminLoginPage({ searchParams }: PageProps<"/admin
     <div translate="no" className="grid min-h-dvh place-items-center bg-paper px-4 py-10">
       <div className="w-full max-w-sm">
         <div className="text-center">
-          <Wordmark className="text-4xl" />
+          <LogoLockup className="mx-auto h-auto w-52" />
           <h1 className="mt-4 text-lg font-semibold text-ink">دخول فريق AgriZed</h1>
           <p className="mt-1 text-sm text-muted">الـBack Office مخصص لموظفي AgriZed فقط.</p>
         </div>
