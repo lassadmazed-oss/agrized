@@ -6,6 +6,7 @@ import { HERO_SLOTS, rowText } from "@/components/site/landing/hero";
 import { LanguageSwitcher } from "@/components/site/language-switcher";
 import { PhotoSlideshow } from "@/components/site/landing/photo-slideshow";
 import { ServicesMap } from "@/components/site/landing/services-map";
+import { InstallApp } from "@/components/site/install-app";
 import { HomePhone, type HomePhoneOffer } from "@/components/site/mobile/home-phone";
 import { QuoteStrip, type Quote } from "@/components/site/mobile/quote-strip";
 import { type AppStat } from "@/components/site/mobile/app-stats";
@@ -211,6 +212,15 @@ export default async function HomePage() {
           <ServicesMap
             config={config}
             offerPlaces={[...new Set(offers.map((offer) => place(offer.governorate_id)).filter(Boolean))]}
+          />
+        }
+        // «حطّ AgriZed في تلفونك». It renders null unless the browser has offered to install the site, which
+        // on today's browsers means an Android visitor who has not installed it yet (owner, 2026-10-03).
+        install={
+          <InstallApp
+            title={t(config, "ui.install.title")}
+            note={t(config, "ui.install.note")}
+            cta={t(config, "ui.install.cta")}
           />
         }
         faq={faq.length > 0 ? <Faq config={config} items={faq} /> : null}

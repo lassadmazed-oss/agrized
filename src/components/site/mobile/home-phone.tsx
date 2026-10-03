@@ -81,6 +81,12 @@ export type HomePhoneProps = {
    */
   faq?: ReactNode;
   closing?: ReactNode;
+  /**
+   * «ثبّت التطبيق». Drawn between the two doors and the offers, where the visitor has seen what this is and
+   * has not yet been handed anything to read. It is a slot and not a component built here because it renders
+   * nothing at all on most visits — the browser decides — and this file must stay a drawing.
+   */
+  install?: ReactNode;
   copy: {
     badge: string;
     line: string;
@@ -133,6 +139,7 @@ export function HomePhone({
   services,
   faq,
   closing,
+  install,
   copy,
   stats,
   offers,
@@ -339,6 +346,8 @@ export function HomePhone({
             <span className="text-[0.625rem] leading-[1.4] text-muted md:text-sm">{copy.pickNote}</span>
           </Link>
         </section>
+
+        {install}
 
         {/* 4 · The offers, sliding (owner, 2026-09-22: «make this section slide infinitely»). A two-per-line
             grid showed four of thirteen and gave no sign the rest existed; a strip that never stops says

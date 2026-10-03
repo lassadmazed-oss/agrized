@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>ما فماش كونكسيون · AgriZed</title>
+    <!--
+      The one page whose words cannot come from `settings`: it is shown when the network is gone, so nothing can
+      be read from the database to write it. It is cached by public/sw.js at install, and served only when a page
+      load fails outright. Arabic only, for the same reason — choosing a language means reading the visitor's,
+      and that lives behind the same network that just disappeared.
+    -->
+    <style>
+      :root {
+        color-scheme: light;
+        --paper: #fffffa;
+        --ink: #1c2416;
+        --muted: #5e6b55;
+        --forest: #1f4a2c;
+        --line: #e3e7dc;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        min-height: 100dvh;
+        display: grid;
+        place-items: center;
+        padding: 24px;
+        background: var(--paper);
+        color: var(--ink);
+        font-family: "IBM Plex Sans Arabic", "Segoe UI", system-ui, sans-serif;
+        text-align: center;
+      }
+      main {
+        max-width: 26rem;
+      }
+      img {
+        width: 88px;
+        height: auto;
+        margin-bottom: 20px;
+      }
+      h1 {
+        margin: 0 0 12px;
+        font-size: 1.5rem;
+        line-height: 1.35;
+        color: var(--forest);
+      }
+      p {
+        margin: 0 0 24px;
+        font-size: 1rem;
+        line-height: 1.8;
+        color: var(--muted);
+      }
+      button {
+        font: inherit;
+        font-weight: 600;
+        color: var(--paper);
+        background: var(--forest);
+        border: 0;
+        border-radius: 999px;
+        padding: 13px 32px;
+        min-height: 48px;
+        cursor: pointer;
+      }
+      button:active {
+        transform: scale(0.99);
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <img src="/icons/icon-192.png" alt="AgriZed" />
+      <h1>ما نجّمناش نوصلو للإنترنت</h1>
+      <p>الصفحة هاذي تحتاج كونكسيون. تثبّت من الـWi‑Fi ولّا من بيانات التلفون، وبعدها عاود.</p>
+      <button type="button" onclick="location.reload()">عاود المحاولة</button>
+    </main>
+  </body>
+</html>

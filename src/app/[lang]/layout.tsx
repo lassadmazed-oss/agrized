@@ -3,6 +3,7 @@ import type { Metadata, Viewport } from "next";
 import { notFound } from "next/navigation";
 
 import { NavigationVeil } from "@/components/site/navigation-veil";
+import { ServiceWorker } from "@/components/site/service-worker";
 import { formatUnits, getPublicConfig, pickTexts, settingText, t } from "@/lib/config";
 import { TextProvider } from "@/lib/i18n/client";
 import { isLocale, LOCALE_DIR, LOCALES, OG_LOCALE } from "@/lib/i18n/locales";
@@ -97,6 +98,9 @@ export default async function RootLayout({ children, params }: LayoutProps<"/[la
           <Suspense fallback={null}>
             <NavigationVeil label={t(config, "ui.common.loading")} />
           </Suspense>
+          {/* public/sw.js. It draws nothing and caches almost nothing; it exists so the browser will offer to
+              install the site (src/components/site/install-app.tsx), which it refuses to do without one. */}
+          <ServiceWorker />
         </TextProvider>
       </body>
     </html>
