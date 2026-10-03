@@ -172,10 +172,18 @@ export function HomePhone({
             `md:hidden` because from md the real header is drawn again and would make two lockups. The mark
             and the wordmark are the header's own, one size down. No aria-label: Wordmark renders «AgriZed»
             as text, so the link already has its name — an aria-label here would only override it with a
-            worse one, and in the wrong language. */}
+            worse one, and in the wrong language.
+
+            `ms-auto` puts it on the END side (owner, 2026-10-03: «make the logo in the mobile on the other
+            side left side»). It is `ms-auto` and not `ml-auto` on purpose: on the Arabic site the end IS the
+            left, which is what he asked for and what he is looking at, and on the French, German, Italian
+            and English sites the same rule puts it on the right. A physical `ml-auto` would pin it to the
+            left in every language and break the mirror that the rest of this page — and the header's own
+            lockup, with its flex-row-reverse / ltr:flex-row — keeps. The logo sits in the same place in
+            every language; which hand that is depends on which way the language runs. */}
         <Link
           href="/"
-          className="mb-3 flex w-fit flex-row-reverse items-center gap-snug rounded-xl md:hidden ltr:flex-row"
+          className="mb-3 ms-auto flex w-fit flex-row-reverse items-center gap-snug rounded-xl md:hidden ltr:flex-row"
         >
           <LogoMark className="h-9 w-auto" />
           <Wordmark className="text-[1.15rem] leading-none" />
