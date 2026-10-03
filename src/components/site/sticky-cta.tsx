@@ -1,7 +1,9 @@
 "use client";
 
-import Link from "next/link";
 import { usePathname } from "next/navigation";
+
+import Link from "@/components/site/link";
+import { splitLocale } from "@/lib/i18n/locales";
 
 // Pages that carry their own bottom action: /start (its continue button keeps the visitor's choices, which a
 // plain /register link would drop), the two forms (/register, /land) and everything under /projects.
@@ -13,6 +15,9 @@ import { usePathname } from "next/navigation";
 // standing in front of real, numbered, priced stock, and every card there is already a door into it; a fixed
 // bar that is the biggest thing on a 375px screen must not pull him out of the offers and into a simulation,
 // which is the one confusion the owner has named twice.
+//
+// The patterns are written for the Arabic addresses; a French «/fr/start» is matched once its language
+// segment is taken off (splitLocale), so the rule is the same in every language.
 const OWN_ACTION = [
   /^\/start\/?$/,
   /^\/register\/?$/,
@@ -26,7 +31,7 @@ const OWN_ACTION = [
  * and when the label setting is empty.
  */
 export function StickyCta({ label, href, note }: { label: string; href: string; note: string }) {
-  const pathname = usePathname();
+  const pathname = splitLocale(usePathname()).path;
   if (!label || OWN_ACTION.some((pattern) => pattern.test(pathname))) return null;
 
   return (

@@ -1,4 +1,4 @@
-import { settingText, type PublicConfig } from "@/lib/config";
+import { t, type PublicConfig } from "@/lib/config";
 
 /**
  * One question and its answer, already filtered by the page: an answer that points at a closed module is not
@@ -32,7 +32,7 @@ type FaqProps = {
  */
 export function Faq({ config, items }: FaqProps) {
   if (items.length === 0) return null;
-  const title = settingText(config, "site.faq_title", "أسئلة شائعة");
+  const title = t(config, "site.faq_title");
 
   return (
     <div className="panel p-card sm:p-roomy">

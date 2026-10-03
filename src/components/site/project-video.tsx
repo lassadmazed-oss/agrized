@@ -31,14 +31,18 @@ export function videoEmbedUrl(url: string): string | null {
   return null;
 }
 
-/** Report v3 §20 «Video إذا موجود». An address the page cannot embed becomes a plain link. */
-export function ProjectVideo({ url, title }: { url: string; title: string }) {
+/**
+ * Report v3 §20 «Video إذا موجود». An address the page cannot embed becomes a plain link, worded by
+ * `linkLabel` (ui.offer.video_link, read by the caller: this component renders on the server and inside the
+ * phone screen's client tree alike, so it takes its words rather than reading them).
+ */
+export function ProjectVideo({ url, title, linkLabel }: { url: string; title: string; linkLabel: string }) {
   const embed = videoEmbedUrl(url);
 
   if (!embed) {
     return (
       <a href={url} target="_blank" rel="noopener noreferrer" className="btn btn-secondary">
-        شوف الفيديو ↗
+        {linkLabel} <span aria-hidden="true">↗</span>
       </a>
     );
   }

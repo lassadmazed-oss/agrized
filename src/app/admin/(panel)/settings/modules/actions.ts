@@ -38,7 +38,7 @@ export async function setModuleState(key: string, _previous: ActionResult, formD
   // The projects RPCs gate on the flag in SQL, but their cached rows would outlive a flip for a minute.
   if (key === "projects") {
     updateTag(PUBLIC_PROJECTS_TAG);
-    revalidatePath("/projects", "layout");
+    revalidatePath("/[lang]/projects", "layout");
   }
   revalidatePath("/admin/settings/modules");
   return { ok: true, message: `تم الحفظ: ${FLAG_STATE_LABELS[state.data]}.` };

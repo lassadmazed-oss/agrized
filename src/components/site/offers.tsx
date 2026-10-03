@@ -3,8 +3,8 @@ import "server-only";
 import { unstable_cache } from "next/cache";
 
 import type { OfferCardLabels } from "@/components/site/offer-card";
-import { settingText, type PublicConfig } from "@/lib/config";
-import { formatCount } from "@/lib/format";
+import { formatFor, getPublicConfig, t, type PublicConfig } from "@/lib/config";
+import { publicStatusKey } from "@/lib/projects";
 import { PUBLIC_PROJECTS_TAG, type PublicMode, type PublicProject } from "@/lib/public-projects";
 import { createPublicClient } from "@/lib/supabase/public";
 import { createClient } from "@/lib/supabase/server";
@@ -131,21 +131,12 @@ export type StockLabels = { title: string; total: string; available: string; res
 
 export function stockLabels(config: PublicConfig): StockLabels {
   return {
-    title: settingText(config, "offers.stock_title", "الزيتونات في هذا العرض"),
-    total: settingText(config, "offers.stock_total_label", "إجمالي الزيتونات"),
-    available: settingText(config, "offers.stock_available_label", "المتاحة"),
-    reserved: settingText(config, "offers.stock_reserved_label", "المحجوزة"),
-    sold: settingText(config, "offers.stock_sold_label", "المباعة"),
+    title: t(config, "offers.stock_title"),
+    total: t(config, "offers.stock_total_label"),
+    available: t(config, "offers.stock_available_label"),
+    reserved: t(config, "offers.stock_reserved_label"),
+    sold: t(config, "offers.stock_sold_label"),
   };
-}
-
-/**
- * A label written for a cell that stands alone («المتاحة») read as an adjective after its unit
- * («زيتونة متاحة»). The Back Office keeps one key for both, so the article is dropped here rather than
- * asking the owner to write the same word twice.
- */
-function asAdjective(label: string): string {
-  return label.replace(/^ال/, "");
 }
 
 /**
@@ -153,35 +144,69 @@ function asAdjective(label: string): string {
  * falls back to the older projects.title, so the section is renamed from the Back Office without a deploy.
  */
 export function offersTitle(config: PublicConfig): string {
-  return settingText(config, "offers.title") || settingText(config, "projects.title", "المشاريع المتوفّرة");
+  return t(config, "offers.title") || t(config, "projects.title");
 }
 
 /**
- * Every word an <OfferCard> prints. The stock words are the offer keys of migration 0054 — the tree's own
- * three states — not the seven-value parcel vocabulary the card used to borrow from `src/lib/projects.ts`.
+ * A word the owner may not have written for a code the database can hold: the setting when it exists, the
+ * code itself otherwise. `t()` would print the KEY for a missing one, and a new planting system added in the
+ * Back Office must not put «ui.cards.plantation_x» on a card.
+ */
+function wordFor(config: PublicConfig, key: string, code: string): string {
+  return typeof config.settings[key] === "string" ? t(config, key) : code;
+}
+
+/** The planting system of an offer, as a visitor reads it («تقليدية»). Not the Back Office's PLANTATION_LABELS. */
+export function plantationWord(config: PublicConfig, code: string): string {
+  return wordFor(config, `ui.cards.plantation_${code}`, code);
+}
+
+/** The production stage of an offer, as a visitor reads it («منتج»). Not the Back Office's PRODUCTION_LABELS. */
+export function productionWord(config: PublicConfig, code: string): string {
+  return wordFor(config, `ui.cards.production_${code}`, code);
+}
+
+/**
+ * The status word of an offer on a public page. It is the offer page's own key (`publicStatusKey`,
+ * `ui.offer.status_*`), not PROJECT_STATUS_LABELS from src/lib/projects.ts, which is the Back Office's Arabic.
+ */
+export function offerStatusWord(config: PublicConfig, status: string): string {
+  return wordFor(config, publicStatusKey(status), status);
+}
+
+/**
+ * Every word an <OfferCard> prints, and the figures' format. The stock words are the offer keys of migration
+ * 0054 — the tree's own three states — not the seven-value parcel vocabulary the card used to borrow from
+ * `src/lib/projects.ts`.
+ *
+ * «زيتونة متاحة» used to be assembled here from `start.trees_unit` and `offers.stock_available_label` with
+ * the Arabic article cut off the second word. That is Arabic grammar done in code, and in French the pair
+ * also has to agree with the number — so it is one owner's text now, `ui.cards.available_label`, which a
+ * translation can make plural on `{count}`.
  */
 export function offerCardLabels(config: PublicConfig): OfferCardLabels {
-  const treeUnit = settingText(config, "start.trees_unit", "زيتونة");
-  const labels = stockLabels(config);
   return {
-    available: `${treeUnit} ${asAdjective(labels.available)}`,
-    reserved: labels.reserved,
-    sold: labels.sold,
-    trees: settingText(config, "start.row_trees", "عدد الزيتونات"),
-    areaPerTree: settingText(config, "start.row_area_per_tree", "المساحة لكل زيتونة"),
-    pricePerTree: settingText(config, "start.row_price_per_tree", "سعر الزيتونة"),
-    from: settingText(config, "start.from_prefix", "ابتداءً من"),
-    pricePending: settingText(config, "projects.price_pending", "السعر يُعلن لاحقاً."),
+    available: (count) => t(config, "ui.cards.available_label", { count }),
+    reservedCount: (count) => t(config, "ui.cards.reserved_count", { count }),
+    soldCount: (count) => t(config, "ui.cards.sold_count", { count }),
+    trees: t(config, "start.row_trees"),
+    areaPerTree: t(config, "start.row_area_per_tree"),
+    pricePerTree: t(config, "start.row_price_per_tree"),
+    from: t(config, "start.from_prefix"),
+    pricePending: t(config, "projects.price_pending"),
+    cta: t(config, "ui.cards.cta_open"),
+    ctaUnavailable: t(config, "ui.cards.cta_unavailable"),
+    plantation: (code) => plantationWord(config, code),
+    production: (code) => productionWord(config, code),
+    status: (status) => offerStatusWord(config, status),
+    format: formatFor(config),
   };
 }
 
 /** «أقلّ عدد في هذا العرض: 5 زيتونة.», or "" when the offer sells from one tree and there is nothing to say. */
 export function minTreesHint(config: PublicConfig, minTrees: number): string {
   if (minTrees <= 1) return "";
-  return settingText(config, "offers.min_trees_hint", "أقلّ عدد في هذا العرض: {min} زيتونة.").replace(
-    "{min}",
-    formatCount(minTrees),
-  );
+  return t(config, "offers.min_trees_hint", { min: minTrees });
 }
 
 // -----------------------------------------------------------------------------------------------
@@ -215,12 +240,16 @@ export function offerTreePrice(project: PublicProject, pricingOpen: boolean): nu
 // Two small blocks the offer surfaces share
 // -----------------------------------------------------------------------------------------------
 
-/** One figure of an offer's stock. The word under it is a Back Office key, never a new string. */
-export function StockCell({ label, value, strong = false }: { label: string; value: number; strong?: boolean }) {
+/**
+ * One figure of an offer's stock. The word under it is a Back Office key, never a new string. It reads the
+ * request's language itself (a cached read), so the figure is grouped the way the page's language groups it.
+ */
+export async function StockCell({ label, value, strong = false }: { label: string; value: number; strong?: boolean }) {
+  const fmt = formatFor(await getPublicConfig());
   return (
     <div className="stat gap-0.5 text-center">
       <span className={`font-display text-xl font-bold tabular-nums ${strong ? "text-forest" : "text-ink"}`}>
-        {formatCount(value)}
+        {fmt.formatCount(value)}
       </span>
       <span className="stat-label">{label}</span>
     </div>
@@ -241,7 +270,7 @@ export function StockCell({ label, value, strong = false }: { label: string; val
 export function LegalNotes({ config }: { config: PublicConfig }) {
   return (
     <p className="mt-8 max-w-3xl rounded-xl bg-gold-soft/50 px-4 py-3 text-sm leading-6 text-ink/80">
-      {settingText(config, "legal.parcel_card_note")}
+      {t(config, "legal.parcel_card_note")}
     </p>
   );
 }

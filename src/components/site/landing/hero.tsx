@@ -1,9 +1,10 @@
-import Link from "next/link";
 import type { ReactNode } from "react";
 
+import Link from "@/components/site/link";
 import { estimateLabel } from "@/components/site/site-header";
 import { PhotoMarquee } from "@/components/site/landing/photo-marquee";
-import { settingJson, settingText, type PublicConfig } from "@/lib/config";
+import { settingJson, settingText, t, type PublicConfig } from "@/lib/config";
+import type { Locale } from "@/lib/i18n/locales";
 
 /*
  * The hero of the home page, rebuilt from the owner's reference drawing (2026-09-21).
@@ -169,10 +170,10 @@ export function LandingIcon({ name, className = "size-5" }: IconProps) {
         </svg>
       );
     case "arrow":
-      // Forward. The site is RTL at the root (`<html dir="rtl">`), so forward is the physical left and an
-      // SVG path cannot follow `direction` on its own — it is drawn pointing there.
+      // Forward. On the Arabic site (`<html dir="rtl">`) forward is the physical left and an SVG path cannot
+      // follow `direction` on its own — it is drawn pointing there, and turned on a left-to-right page.
       return (
-        <svg {...outline} strokeWidth={2.2}>
+        <svg {...outline} className={`${className} ltr:-scale-x-100`} strokeWidth={2.2}>
           <path d="M19.5 12H4.5" />
           <path d="M10.5 5.5 4 12l6.5 6.5" />
         </svg>
@@ -195,6 +196,21 @@ export function LandingIcon({ name, className = "size-5" }: IconProps) {
  * leads because it is the one chosen for this position and it is the frame a visitor lands on.
  */
 export const HERO_SLOTS = ["home.hero", "home.journey", "home.coverage", "home.land", "home.closing"] as const;
+
+/**
+ * The text of one row of a list the owner writes with a field per language — `start.values`, `site.quotes`,
+ * the tier taglines: `{ "ar": "…", "fr": "…" }`. A list arrives already in the page's language once it is
+ * translated (src/lib/config.ts); a row that still carries one field per language is read in the page's
+ * language first and in Arabic, the source, after it. A plain string is its own text.
+ */
+export function rowText(row: unknown, locale: Locale): string {
+  if (typeof row === "string") return row.trim();
+  if (!row || typeof row !== "object") return "";
+  const fields = row as Record<string, unknown>;
+  const own = fields[locale];
+  if (typeof own === "string" && own.trim()) return own.trim();
+  return typeof fields.ar === "string" ? fields.ar.trim() : "";
+}
 
 /** The olive sprig the reference draws beside its calculator mock. A line drawing, not a photograph. */
 export function OliveSprig({ className = "" }: { className?: string }) {
@@ -237,27 +253,27 @@ export type HeroCopy = {
   secondaryLabel: string;
 };
 
-/** Every sentence of the hero, from settings, with the owner's seeded wording as the fallback. */
+/** Every sentence of the hero, from settings, in the request's language. */
 export function heroCopy(config: PublicConfig): HeroCopy {
   return {
-    eyebrow: settingText(config, "site.hero_eyebrow"),
-    headline: settingText(config, "site.home_headline"),
+    eyebrow: t(config, "site.hero_eyebrow"),
+    headline: t(config, "site.home_headline"),
     // OPTIONAL key. Without it the rule below colours the last word, which is «مشروعك» today and stays
     // right if the owner rewrites the headline — so nothing has to be seeded for the drawing to be met.
     headlineAccent: settingText(config, "site.home_headline_accent"),
-    subLead: settingText(config, "site.home_subheadline"),
-    subNote: settingText(config, "site.free_interest_notice"),
+    subLead: t(config, "site.home_subheadline"),
+    subNote: t(config, "site.free_interest_notice"),
     // The calculator says the same word here, in the header, on the card below and in the sticky bar
     // (site-header.tsx:15-21). The drawing's longer «احسب مشروعك الآن» would be a fourth variant.
     primaryLabel: estimateLabel(config),
-    secondaryLabel: settingText(config, "site.cta_offers_label", "شوف العروض"),
+    secondaryLabel: t(config, "site.cta_offers_label"),
   };
 }
 
 export type HeroPromise = { title: string; text: string; icon: LandingIconName };
 
 type PromiseRow = { title?: unknown; text?: unknown; icon?: unknown };
-type ValueRow = { ar?: unknown; icon?: unknown };
+type ValueRow = { ar?: unknown; icon?: unknown; [language: string]: unknown };
 
 /**
  * The three rows of the floating card.
@@ -286,16 +302,17 @@ export function heroPromises(config: PublicConfig, limit = 3): HeroPromise[] {
   }
 
   const said = [
-    settingText(config, "site.hero_eyebrow"),
-    settingText(config, "site.home_headline"),
-    settingText(config, "site.home_subheadline"),
+    t(config, "site.hero_eyebrow"),
+    t(config, "site.home_headline"),
+    t(config, "site.home_subheadline"),
   ].filter(Boolean);
   const values = settingJson<ValueRow[]>(config, "start.values", []);
   if (!Array.isArray(values)) return [];
 
   return values
     .flatMap((row) => {
-      const title = typeof row?.ar === "string" ? row.ar.trim() : "";
+      // The slogan in the page's language: one line, never the Arabic and French pair /start prints.
+      const title = rowText(row, config.locale);
       if (!title) return [];
       // A slogan the hero already prints, in either direction: the sub-line opens with one of them word
       // for word, so «is one inside the other» is the test, not equality.
@@ -365,14 +382,14 @@ export function Hero({ config, copy, promises, primaryHref, secondaryHref = "", 
         aria-hidden="true"
         className="absolute inset-0 bg-[linear-gradient(to_bottom,transparent_0,transparent_5.5rem,var(--color-paper)_12.5rem)] lg:hidden"
       />
-      {/* From lg the wash runs along the inline axis instead. `to left` is the inline-end here because the
-          whole site is RTL at the root (`<html dir="rtl">`), and a gradient has no logical form to write.
+      {/* From lg the wash runs along the inline axis instead. `to left` is the inline-end on the Arabic site
+          (`<html dir="rtl">`) and `to right` on a left-to-right one, because a gradient has no logical form.
           The stops are pulled in again at xl: the text column is a much bigger share of a 1024px screen
           than of a 1600px one, and the rule is that the column must sit on ≥90 % paper at EVERY width —
           measured against the column, never against whichever photograph is in the slot this month. */}
       <div
         aria-hidden="true"
-        className="absolute inset-0 hidden bg-linear-to-l from-paper from-52% via-paper/70 via-72% to-transparent to-92% lg:block xl:from-46% xl:via-60% xl:to-82%"
+        className="absolute inset-0 hidden bg-linear-to-l from-paper from-52% via-paper/70 via-72% to-transparent to-92% lg:block xl:from-46% xl:via-60% xl:to-82% ltr:bg-linear-to-r"
       />
 
       {/* The top padding suits a header bar whether it floats over this band (the drawing) or still sits

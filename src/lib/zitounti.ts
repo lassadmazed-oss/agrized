@@ -42,6 +42,7 @@
 // `installments` and `documents` as `Section<never>`, the state 0068 left them in, and 0095 has been answering
 // all three with real rows since 2026-09-25. The types below are the ones that match the live function.
 
+import { createAdminClient } from "@/lib/supabase/admin";
 import type { createClient } from "@/lib/supabase/server";
 
 /**
@@ -533,34 +534,93 @@ function failureOf(error: RpcError): ZitountiFailure {
  *
  * Takes no person id, on purpose and unmistakably: my_zitounti_file() resolves the person from auth.uid(), so
  * there is nothing here to point at another client. Hand it the SSR client built from the request's cookies
- * (`await createClient()`), never the admin client — see ClientSession above for why the admin client would
- * resolve nobody at all.
+ * (`await createClient({ display: config.locale })`), never the admin client — see ClientSession above for why
+ * the admin client would resolve nobody at all.
+ *
+ * `display` is what makes the labels the SQL resolves from settings — a contract's `status_label`, an
+ * instalment line's `status_label`, `stage_label`, `down_payment_kind_label` — come back in the visitor's
+ * language (0109 rule 5). It is a DISPLAY read, so it is the one kind of call that should send it.
  */
-export async function readClientFile(supabase: ClientSession): Promise<ZitountiResult> {
+export async function readClientFile(supabase: ClientSession, chain: readonly string[] = []): Promise<ZitountiResult> {
   const { data, error } = await newRpc(supabase)("my_zitounti_file");
   if (error) return { ok: false, reason: failureOf(error) };
   if (!data) return { ok: false, reason: "error" };
-  return { ok: true, file: data as ZitountiFile };
+  return { ok: true, file: await localizeOfferNames(data as ZitountiFile, chain) };
 }
 
 /**
- * What the screen says when there is no file to draw, in the buyer's language and with the next step in it.
+ * The offers' names in the buyer's language (0109). The file names each offer the way the team typed it — the
+ * Arabic `project_name` on every block that mentions one — and the translation of that name lives under the
+ * offer's id (translations, entity project, field name). `chain` is the page's fallback chain (config.chain);
+ * empty on the Arabic site, where nothing is read. A name with no translation stays the team's.
  *
- * WHY THESE ARE IN CODE while every other word on the screen is a setting. They are not business copy: they
- * are the failure modes of one read, they are written once, and a buyer must never meet a blank screen because
- * the owner had not yet typed a sentence for a case he has never seen. The same call is made by
- * src/lib/errors.ts and by the Back Office's own copy of this list. Anything the owner is expected to edit —
- * every section title, the closed note, the unit — is read from public.settings and is not here.
+ * Read with the service role: the buyer cannot list projects (RLS is staff-only there), and what is read is
+ * only the names of the offers already printed in their own file.
+ */
+async function localizeOfferNames(file: ZitountiFile, chain: readonly string[]): Promise<ZitountiFile> {
+  if (chain.length === 0) return file;
+  const codes = new Set<string>();
+  const walk = (value: unknown, visit: (row: Record<string, unknown>) => void) => {
+    if (Array.isArray(value)) value.forEach((item) => walk(item, visit));
+    else if (value && typeof value === "object") {
+      const row = value as Record<string, unknown>;
+      if (typeof row.project_code === "string" && typeof row.project_name === "string") visit(row);
+      Object.values(row).forEach((item) => walk(item, visit));
+    }
+  };
+  walk(file, (row) => codes.add(row.project_code as string));
+  if (codes.size === 0) return file;
+
+  try {
+    const admin = createAdminClient();
+    const { data: projects } = await admin.from("projects").select("id, code").in("code", [...codes]);
+    const idOf = new Map((projects ?? []).map((row) => [row.id, row.code]));
+    if (idOf.size === 0) return file;
+    const { data: words } = await admin
+      .from("translations")
+      .select("entity_key, locale, value")
+      .eq("entity", "project")
+      .eq("field", "name")
+      .in("entity_key", [...idOf.keys()])
+      .in("locale", [...chain]);
+    const nameOf = new Map<string, string>();
+    for (const locale of [...chain].reverse()) {
+      for (const row of words ?? []) {
+        const code = idOf.get(row.entity_key);
+        if (row.locale === locale && code && typeof row.value === "string" && row.value.trim()) nameOf.set(code, row.value);
+      }
+    }
+    const copy = structuredClone(file);
+    walk(copy, (row) => {
+      const name = nameOf.get(row.project_code as string);
+      if (name) row.project_name = name;
+    });
+    return copy;
+  } catch (error) {
+    // A name that cannot be translated is printed as the team typed it — never a broken file.
+    console.error("[zitounti] offer names could not be translated", error);
+    return file;
+  }
+}
+
+/**
+ * What the screen says when there is no file to draw, in the buyer's language and with the next step in it —
+ * the KEY of that sentence in public.settings, one per failure; the page prints it with t(config, key).
+ *
+ * THE SENTENCES ARE THE OWNER'S, like every other word on the screen (moved out of this file 2026-10-03, when
+ * the site learned five languages): each is a setting under `ui.zitounti.failure_*`, translated in the Back
+ * Office with the rest. What stays in code is the mapping — a failure reason is code, the sentence for it is
+ * data. A buyer still never meets a blank screen: a key that is somehow missing prints itself, which is
+ * visible and findable.
  *
  * `closed` is deliberately NOT a staff sentence: the buyer cannot switch a module on, so it tells them what
  * will happen instead of asking them to do something they cannot do.
  */
-export const ZITOUNTI_FAILURE_MESSAGES: Record<ZitountiFailure, string> = {
-  not_signed_in: "الجلسة متاعك سالت. ادخل من جديد بنمرة التلفون متاعك، ونبعثولك رمز بالSMS.",
-  no_file:
-    "النمرة هذي مازال ما عندهاش ملف عند AgriZed. إذا سجّلت مطلب قبل، عيّط علينا باش نربطولك الملف بالنمرة هذي.",
-  closed: "فضاء «زيتونتي» مازال ما تفتحش. كي يفتح نعلموك، وفي الوقت هذا فريق AgriZed يعطيك أخبار زيتوناتك في التلفون.",
-  forbidden: "الملف هذا ما ينجّمش يتقرا من هنا. عيّط على فريق AgriZed باش يقراه معاك.",
-  not_applied: "الخدمة هذي مازالت في التركيب. جرّب بعد شوية، وإذا تعاودت المشكلة عيّط على فريق AgriZed.",
-  error: "ما نجّمناش نقراو ملفّك توّا. حدّث الصفحة، وإذا تعاودت المشكلة عيّط على فريق AgriZed.",
+export const ZITOUNTI_FAILURE_KEYS: Record<ZitountiFailure, string> = {
+  not_signed_in: "ui.zitounti.failure_not_signed_in",
+  no_file: "ui.zitounti.failure_no_file",
+  closed: "ui.zitounti.failure_closed",
+  forbidden: "ui.zitounti.failure_forbidden",
+  not_applied: "ui.zitounti.failure_not_applied",
+  error: "ui.zitounti.failure_error",
 };

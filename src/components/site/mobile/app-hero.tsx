@@ -1,8 +1,7 @@
-import Link from "next/link";
-
 import { HERO_SLOTS } from "@/components/site/landing/hero";
 import { PhotoMarquee } from "@/components/site/landing/photo-marquee";
-import { settingText, type PublicConfig } from "@/lib/config";
+import Link from "@/components/site/link";
+import { t, type PublicConfig } from "@/lib/config";
 
 /**
  * The phone's first screen (owner, 2026-09-21, from an AgriZed app mock-up): a photograph of the grove running
@@ -17,11 +16,11 @@ import { settingText, type PublicConfig } from "@/lib/config";
  * It renders on phones only. The desktop hero is a different composition and lives in ../landing/hero.
  */
 export function AppHero({ config, href }: { config: PublicConfig; href: string }) {
-  const line = settingText(config, "site.app_hero_line", "زيتونتك اليوم… أصل لعمر كامل.");
-  const cta = settingText(config, "site.app_hero_cta", "إستكشف المشاريع");
+  const line = t(config, "site.app_hero_line");
+  const cta = t(config, "site.app_hero_cta");
 
-  const greeting = settingText(config, "site.app_greeting", "أهلاً بيك");
-  const greetingNote = settingText(config, "site.app_greeting_note", "نحو مستقبل أكثر خضرة 🌿");
+  const greeting = t(config, "site.app_greeting");
+  const greetingNote = t(config, "site.app_greeting_note");
 
   return (
     /* pt clears the header. On the home page that bar is FIXED so it can float over the desktop hero's
@@ -59,7 +58,9 @@ export function AppHero({ config, href }: { config: PublicConfig; href: string }
           {cta ? (
             <span className="mt-3 inline-flex min-h-11 items-center gap-2 rounded-full bg-forest px-5 py-2.5 text-label font-semibold text-surface shadow-[var(--shadow-raise)] transition-transform group-active:scale-[0.98]">
               {cta}
-              <span aria-hidden="true">←</span>
+              <span aria-hidden="true" className="inline-block ltr:-scale-x-100">
+                ←
+              </span>
             </span>
           ) : null}
         </div>

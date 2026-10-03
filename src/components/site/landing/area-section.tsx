@@ -1,9 +1,7 @@
-import Link from "next/link";
-
 import { SectionHead } from "@/components/site/landing/tree-picks";
+import Link from "@/components/site/link";
 import { SitePhoto } from "@/components/site/site-photo";
-import { flagState, settingText, type PublicConfig } from "@/lib/config";
-import { formatArea, formatSpacing } from "@/lib/format";
+import { flagState, formatFor, settingText, spacingClassLabel, t, type PublicConfig } from "@/lib/config";
 import { getSpacingClasses } from "@/lib/tree-pricing";
 
 type AreaSectionProps = {
@@ -28,18 +26,19 @@ type AreaSectionProps = {
  */
 export async function AreaSection({ config }: AreaSectionProps) {
   // docs/plan-zitouna.md P3-2: the section exists once its copy exists and the Back Office has spacing classes.
-  const title = settingText(config, "site.unit_title");
+  const title = t(config, "site.unit_title");
   if (!title) return null;
 
   const spacingClasses = await getSpacingClasses();
   if (spacingClasses.length === 0) return null;
 
-  const text = settingText(config, "site.unit_text");
-  const note = settingText(config, "site.unit_note");
+  const fmt = formatFor(config);
+  const text = t(config, "site.unit_text");
+  const note = t(config, "site.unit_note");
   // The reference writes a gold script line over the photograph. There is no key for it, so it stays empty
   // and the picture shows bare — deliberate, and one Back Office row away from the drawing.
   const caption = settingText(config, "site.unit_photo_caption");
-  const ctaLabel = flagState(config, "interest_form") === "public" ? settingText(config, "site.unit_cta") : "";
+  const ctaLabel = flagState(config, "interest_form") === "public" ? t(config, "site.unit_cta") : "";
 
   return (
     <section className="mx-auto max-w-6xl px-4 py-section sm:px-6">
@@ -78,10 +77,10 @@ export async function AreaSection({ config }: AreaSectionProps) {
                 key={spacing.id}
                 className="stat items-center rounded-2xl border border-line bg-gold-soft/45 px-snug py-cozy text-center"
               >
-                <span className="stat-figure text-xl sm:text-2xl">{formatArea(spacing.area_m2)}</span>
-                <span className="stat-label leading-5">{spacing.label_ar}</span>
+                <span className="stat-figure text-xl sm:text-2xl">{fmt.formatArea(spacing.area_m2)}</span>
+                <span className="stat-label leading-5">{spacingClassLabel(config, spacing)}</span>
                 <span dir="ltr" className="stat-label text-xs">
-                  {formatSpacing(spacing.row_spacing_m, spacing.tree_spacing_m)}
+                  {fmt.formatSpacing(spacing.row_spacing_m, spacing.tree_spacing_m)}
                 </span>
               </li>
             ))}

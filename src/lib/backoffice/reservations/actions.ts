@@ -118,7 +118,7 @@ function reservationsChanged(personId?: string | null) {
   revalidatePath("/admin/projects", "layout");
   if (personId) revalidatePath(`/admin/leads/${personId}`);
   updateTag(PUBLIC_PROJECTS_TAG);
-  revalidatePath("/projects", "layout");
+  revalidatePath("/[lang]/projects", "layout");
 }
 
 /**

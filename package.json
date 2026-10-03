@@ -16,7 +16,8 @@
     "demo:projects": "node --env-file=.env scripts/seed-demo-projects.mjs",
     "sms:dispatch": "node --env-file=.env scripts/sms-dispatch.mjs",
     "photos:olive": "node --env-file=.env scripts/seed-olive-photos.mjs",
-    "demo:workflow": "node --env-file=.env scripts/seed-workflow-demo.mjs"
+    "demo:workflow": "node --env-file=.env scripts/seed-workflow-demo.mjs",
+    "i18n:check": "node --env-file=.env scripts/i18n-check.mjs"
   },
   "dependencies": {
     "@supabase/ssr": "^0.12.7",

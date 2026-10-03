@@ -23,6 +23,16 @@ export function normalizePhone(input: string, allowInternational: boolean): Phon
 }
 
 /** "+21698123456" → "98 123 456"; other countries keep the international format. */
+/**
+ * A number as the page's reader dials it (0109): on the Arabic site, which a Tunisian reads, the national
+ * «98 124 111»; on the French, German, Italian and English sites — read by people who may be abroad — the
+ * international «+216 98 124 111», because the national form cannot be dialled from Germany.
+ */
+export function formatPhoneFor(e164: string, locale: string): string {
+  if (locale === "ar") return formatPhone(e164);
+  return parsePhoneNumberFromString(e164)?.formatInternational() ?? e164;
+}
+
 export function formatPhone(e164: string): string {
   const tunisian = /^\+216(\d{2})(\d{3})(\d{3})$/.exec(e164);
   if (tunisian) return `${tunisian[1]} ${tunisian[2]} ${tunisian[3]}`;

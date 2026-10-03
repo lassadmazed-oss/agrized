@@ -32,6 +32,9 @@ const nextConfig: NextConfig = {
   experimental: {
     // Pictures for the site's photo slots are posted to a Server Action (default limit is 1 MB).
     serverActions: { bodySizeLimit: "6mb" },
+    // Two root layouts since the site moved under `[lang]` (0109): an address neither claims is drawn by
+    // src/app/global-not-found.tsx.
+    globalNotFound: true,
   },
   async headers() {
     return [{ source: "/:path*", headers: securityHeaders }];

@@ -32,6 +32,8 @@ export type AdminIconKey =
   | "modules"
   | "lists"
   | "media"
+  | "languages"
+  | "translations"
   | "users"
   | "audit";
 
@@ -140,6 +142,9 @@ export const ADMIN_LABELS = {
   "/admin/settings/modules": "الموديولات",
   "/admin/settings/lists": "القوائم",
   "/admin/settings/media": "صور الموقع",
+  // 0109: the five languages, and every text of the site in each of them.
+  "/admin/settings/languages": "اللغات",
+  "/admin/settings/translations": "الترجمات",
   "/admin/users": "المستخدمون",
   "/admin/audit": "سجل العمليات",
   "/admin/account": "كلمة السر",

@@ -1,7 +1,10 @@
 "use client";
 
-import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
+
+import Link from "@/components/site/link";
+import { useLocale } from "@/lib/i18n/client";
+import { LOCALE_HEADER } from "@/lib/i18n/locales";
 
 import { AnswerText } from "./answer-text";
 
@@ -21,7 +24,11 @@ import { AnswerText } from "./answer-text";
  *
  * WHAT THE PANEL KNOWS. Nothing. It posts a question to /api/assistant and prints what comes back. The
  * offers, the prices, the persona and the limits are assembled on the server on every request, so this file
- * holds no business values and cannot fall out of date.
+ * holds no business values and cannot fall out of date. Every word it prints itself is in `copy`, built on the
+ * server by assistantCopy() in the page's language.
+ *
+ * IT SAYS WHICH LANGUAGE IT IS IN. The proxy names the language of every page, but it does not run on /api, so
+ * each question carries the page's language in the same header the proxy would have set; the route checks it.
  */
 const BUBBLE = 56; // px, matches size-14
 
@@ -41,9 +48,20 @@ export type AssistantCopy = {
   greeting: string;
   suggestions: string[];
   unavailable: string;
+  /** «سكّر المساعد» — the close button's name, and the circle's while the panel is open. */
+  close: string;
+  /** Read out while an answer is being written. */
+  typing: string;
+  placeholder: string;
+  fieldLabel: string;
+  send: string;
+  /** The short word on an offer card's pill, and the card's full name for a screen reader. */
+  cardCta: string;
+  cardCtaLabel: string;
 };
 
 export function AssistantBubble({ copy }: { copy: AssistantCopy }) {
+  const locale = useLocale();
   const [open, setOpen] = useState(false);
   const [messages, setMessages] = useState<Message[]>([]);
   const [draft, setDraft] = useState("");
@@ -79,7 +97,7 @@ export function AssistantBubble({ copy }: { copy: AssistantCopy }) {
       try {
         const response = await fetch("/api/assistant", {
           method: "POST",
-          headers: { "content-type": "application/json" },
+          headers: { "content-type": "application/json", [LOCALE_HEADER]: locale },
           body: JSON.stringify({
             question: text,
             // The last few turns only: the facts are rebuilt server-side on every request.
@@ -104,7 +122,7 @@ export function AssistantBubble({ copy }: { copy: AssistantCopy }) {
         field.current?.focus();
       }
     },
-    [busy, messages, copy.unavailable],
+    [busy, messages, copy.unavailable, locale],
   );
 
   /*
@@ -143,7 +161,7 @@ export function AssistantBubble({ copy }: { copy: AssistantCopy }) {
             <button
               type="button"
               onClick={() => setOpen(false)}
-              aria-label="سكّر المساعد"
+              aria-label={copy.close}
               className="grid size-8 place-items-center rounded-full text-surface/85 hover:bg-surface/15"
             >
               <CloseMark />
@@ -171,7 +189,7 @@ export function AssistantBubble({ copy }: { copy: AssistantCopy }) {
                           allowed={message.allowed ?? []}
                           plain={new Set(carded.map((offer) => offer.href))}
                         />
-                        <OfferCards offers={carded} />
+                        <OfferCards offers={carded} cta={copy.cardCta} ctaLabel={copy.cardCtaLabel} />
                       </>
                     );
                   })()}
@@ -181,7 +199,7 @@ export function AssistantBubble({ copy }: { copy: AssistantCopy }) {
 
             {busy ? (
               <Turn side="assistant">
-                <span className="inline-flex gap-1" aria-label="يكتب…">
+                <span className="inline-flex gap-1" aria-label={copy.typing}>
                   <Dot delay="0ms" />
                   <Dot delay="150ms" />
                   <Dot delay="300ms" />
@@ -218,15 +236,15 @@ export function AssistantBubble({ copy }: { copy: AssistantCopy }) {
               ref={field}
               value={draft}
               onChange={(event) => setDraft(event.target.value)}
-              placeholder="أكتب سؤالك…"
-              aria-label="سؤالك"
+              placeholder={copy.placeholder}
+              aria-label={copy.fieldLabel}
               className="min-w-0 flex-1 rounded-pill border border-line bg-surface px-4 py-2.5 text-body
                          outline-none focus:border-leaf"
             />
             <button
               type="submit"
               disabled={busy || draft.trim().length === 0}
-              aria-label="إبعث"
+              aria-label={copy.send}
               className="grid size-10 flex-none place-items-center rounded-full bg-forest text-surface disabled:opacity-40"
             >
               <svg viewBox="0 0 24 24" className="size-5" fill="none" stroke="currentColor" strokeWidth="2">
@@ -248,12 +266,12 @@ export function AssistantBubble({ copy }: { copy: AssistantCopy }) {
         ref={bubble}
         type="button"
         onClick={() => setOpen((value) => !value)}
-        aria-label={open ? "سكّر المساعد" : copy.title}
+        aria-label={open ? copy.close : copy.title}
         aria-expanded={open}
         style={{ width: BUBBLE, height: BUBBLE }}
         className="fixed z-50 grid place-items-center rounded-full bg-forest text-surface shadow-float
                    transition-transform active:scale-95
-                   end-3 bottom-[calc(var(--tabbar-h)+1rem)] md:bottom-4"
+                   end-3 bottom-[calc(var(--tabbar-h)+var(--floating-cta-h)+1rem)] md:bottom-4"
       >
         {open ? <CloseMark /> : <LeafMark />}
       </button>
@@ -312,7 +330,7 @@ function offersNamedIn(text: string, offers: AssistantOfferCard[]): AssistantOff
   return named.slice(0, 3);
 }
 
-function OfferCards({ offers }: { offers: AssistantOfferCard[] }) {
+function OfferCards({ offers, cta, ctaLabel }: { offers: AssistantOfferCard[]; cta: string; ctaLabel: string }) {
   if (offers.length === 0) return null;
 
   const named = offers;
@@ -332,13 +350,14 @@ function OfferCards({ offers }: { offers: AssistantOfferCard[] }) {
                 {[offer.place, offer.priceFrom].filter(Boolean).join(" · ")}
               </span>
             </span>
+            {/* The arrow points the way the page reads: drawn «←» for Arabic, turned round for the four LTR languages. */}
             <span
               aria-hidden="true"
               className="flex-none rounded-pill bg-forest px-2.5 py-1 text-[0.6875rem] font-semibold text-surface"
             >
-              شوف ←
+              {cta} <span className="inline-block ltr:-scale-x-100">←</span>
             </span>
-            <span className="sr-only">شوف العرض</span>
+            <span className="sr-only">{ctaLabel}</span>
           </Link>
         </li>
       ))}

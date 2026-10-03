@@ -107,7 +107,7 @@ function treesChanged(personId: string, projectId: string) {
   revalidatePath("/admin/projects", "layout");
   revalidatePath(`/admin/projects/${projectId}`);
   updateTag(PUBLIC_PROJECTS_TAG);
-  revalidatePath("/projects", "layout");
+  revalidatePath("/[lang]/projects", "layout");
 }
 
 /** The numbers, cleaned: distinct, whole, positive, in order, and bounded by the same cap the database uses. */

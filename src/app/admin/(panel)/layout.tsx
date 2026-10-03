@@ -109,6 +109,8 @@ const ROW_RULES: Record<WorkspaceRow, RowRule> = {
   "/admin/settings/modules": { icon: "modules", roles: ADMIN_ROLES },
   "/admin/settings/lists": { icon: "lists", roles: ADMIN_ROLES },
   "/admin/settings/media": { icon: "media", roles: ADMIN_ROLES },
+  "/admin/settings/translations": { icon: "translations", roles: ADMIN_ROLES },
+  "/admin/settings/languages": { icon: "languages", roles: ADMIN_ROLES },
   // Records, not settings: who may sign in, and what everyone did. They keep their own rows.
   "/admin/users": { icon: "users", roles: ADMIN_ROLES },
   "/admin/audit": { icon: "audit", roles: ADMIN_ROLES },

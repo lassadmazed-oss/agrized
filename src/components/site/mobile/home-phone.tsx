@@ -1,7 +1,6 @@
-import Link from "next/link";
 import type { ReactNode } from "react";
 
-import { formatCount } from "@/lib/format";
+import Link from "@/components/site/link";
 
 /**
  * The home screen, as a phone reads it (owner, 2026-09-22, from the redesign canvas: «fully remake them to
@@ -37,6 +36,8 @@ export type HomePhoneStat = {
   label: string;
   /** Null when nothing honest answers it — the cell is dropped rather than shown as a zero. */
   value: number | null;
+  /** The figure as the page's language writes it, formatted by the page like every other figure here. */
+  figure: string;
   /** «+» before a figure that keeps growing. Never on a fixed one like the governorates. */
   growing?: boolean;
 };
@@ -116,6 +117,11 @@ export type HomePhoneProps = {
   progressNote: string | null;
   /** 0–100, how far the counter has come. Null when there is nothing to draw. */
   progressPercent: number | null;
+  /**
+   * The language selector, for a phone (0109): the site header that carries it is not drawn there, so it sits
+   * in the hero's top corner — the first thing a visitor who cannot read the page is looking for.
+   */
+  language?: ReactNode;
 };
 
 export function HomePhone({
@@ -132,6 +138,7 @@ export function HomePhone({
   offersHref,
   progressNote,
   progressPercent,
+  language,
 }: HomePhoneProps) {
   const shownStats = stats.filter((stat) => stat.value !== null);
 
@@ -160,6 +167,7 @@ export function HomePhone({
             separate control, because «ما نعرفش نبدا» goes somewhere else entirely. */}
         <section className="group relative overflow-hidden rounded-3xl shadow-[var(--shadow-card)] lg:rounded-[2rem] lg:shadow-[var(--shadow-float)]">
           <div className="absolute inset-0 [&_img]:transition-transform [&_img]:duration-[1.2s] group-hover:[&_img]:scale-[1.03]">{hero}</div>
+          {language ? <div className="absolute end-3 top-3 z-10 md:hidden">{language}</div> : null}
 
           {/* DEPTH IS THREE LAYERS, NOT ONE WASH (owner, 2026-09-24: «make it nice and deep and clean»).
               A single bottom-to-top gradient flattens a photograph into a poster: every part of the image is
@@ -173,15 +181,16 @@ export function HomePhone({
               follow them — otherwise the page darkens the half of the picture with nothing on it and lights
               the half carrying the headline, which is how a hero ends up looking like a poster.
               So the bottom wash drops to what the figures bar needs to sit on, and the SIDE wash becomes the
-              strong one. `to-l` is the inline-start here because the site is RTL at the root. The sea and the
-              sky — the reason this photograph was chosen — keep their light instead of being flattened. */}
+              strong one. The wash starts dark at the inline start: `to-l` on the Arabic page, `to-r` on a
+              left-to-right one (a gradient has no logical axis). The sea and the sky — the reason this
+              photograph was chosen — keep their light instead of being flattened. */}
           <div
             aria-hidden="true"
             className="absolute inset-0 bg-gradient-to-t from-forest-700/94 via-forest-700/50 to-forest-700/10 lg:from-forest-700/80 lg:via-forest-700/18 lg:via-38% lg:to-transparent"
           />
           <div
             aria-hidden="true"
-            className="absolute inset-0 hidden bg-gradient-to-l from-forest-700/92 via-forest-700/55 via-44% to-transparent to-82% lg:block"
+            className="absolute inset-0 hidden bg-gradient-to-l from-forest-700/92 via-forest-700/55 via-44% to-transparent to-82% lg:block ltr:bg-gradient-to-r"
           />
           <div
             aria-hidden="true"
@@ -261,7 +270,7 @@ export function HomePhone({
                 <p className="flex-1 py-2.5 text-center md:py-5">
                   <span className="figure-in block font-display text-lg font-bold leading-none tabular-nums text-forest md:text-3xl">
                     {stat.growing ? "+" : ""}
-                    {formatCount(stat.value as number)}
+                    {stat.figure}
                   </span>
                   <span className="mt-1 block text-[0.625rem] leading-none text-muted md:mt-2 md:text-sm">{stat.label}</span>
                 </p>
@@ -308,7 +317,10 @@ export function HomePhone({
                 href={offersHref}
                 className="text-caption font-semibold text-forest transition-colors hover:text-leaf md:text-sm"
               >
-                {copy.all} ←
+                {copy.all}{" "}
+                <span aria-hidden="true" className="inline-block ltr:-scale-x-100">
+                  ←
+                </span>
               </Link>
             </div>
 
@@ -483,9 +495,10 @@ function LeafGlyph() {
   );
 }
 
+/** Forward: drawn toward the physical left for the Arabic page, turned on a left-to-right one. */
 function ArrowGo({ className }: { className: string }) {
   return (
-    <svg viewBox="0 0 24 24" aria-hidden="true" className={className} fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+    <svg viewBox="0 0 24 24" aria-hidden="true" className={`${className} ltr:-scale-x-100`} fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
       <path d="M20 12H4m0 0 6-6m-6 6 6 6" />
     </svg>
   );

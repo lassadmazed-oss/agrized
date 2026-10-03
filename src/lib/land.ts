@@ -34,5 +34,25 @@ export const REVIEW_OUTCOME_LABELS = {
 export const CAPACITY_LABELS = { owner: "مالك", agent: "وكيل", broker: "وسيط" } as const;
 export const IRRIGATION_LABELS = { rainfed: "بعلية", irrigated: "مروية" } as const;
 
+export type ContactCapacity = Database["public"]["Enums"]["contact_capacity"];
+export type IrrigationType = Database["public"]["Enums"]["irrigation_type"];
+
+/**
+ * The words the PUBLIC site prints for these values live in settings, in the visitor's language: these are
+ * their keys — `t(config, IRRIGATION_TEXT_KEYS[value])` on the server, `useT()(CAPACITY_TEXT_KEYS[value])` in a
+ * Client Component under <Texts prefixes={["ui.land."]}>. The *_LABELS above stay the Back Office's Arabic.
+ * Client-safe: this file imports types only.
+ */
+export const CAPACITY_TEXT_KEYS = {
+  owner: "ui.land.capacity_owner",
+  agent: "ui.land.capacity_agent",
+  broker: "ui.land.capacity_broker",
+} as const satisfies Record<ContactCapacity, string>;
+
+export const IRRIGATION_TEXT_KEYS = {
+  rainfed: "ui.land.irrigation_rainfed",
+  irrigated: "ui.land.irrigation_irrigated",
+} as const satisfies Record<IrrigationType, string>;
+
 export const REVIEW_STAGES = ["under_study", "legal_review", "technical_review", "field_visit"] as const satisfies readonly LandOfferStatus[];
 export const FINAL_STATUSES = ["accepted", "rejected", "postponed", "converted"] as const satisfies readonly LandOfferStatus[];

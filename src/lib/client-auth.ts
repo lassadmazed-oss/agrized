@@ -5,6 +5,7 @@ import { createClient as createBareClient } from "@supabase/supabase-js";
 import { cookies, headers } from "next/headers";
 
 import { publicEnv } from "@/lib/env";
+import { currentLocale, displayHeaders, localeHeaders } from "@/lib/i18n/server";
 import { auditHeaders } from "@/lib/request-context";
 import { createAdminClient } from "@/lib/supabase/admin";
 import type { Database } from "@/lib/supabase/database.types";
@@ -186,6 +187,21 @@ function createThrowawayClient() {
   });
 }
 
+/**
+ * The service-role client for an auth RPC, carrying the language of the page the buyer is on (0109).
+ *
+ * `display` is for the two calls that WRITE AN SMS — request_client_login_code here and
+ * request_phone_change_code below: their body is app.setting_text(…), which answers in the display language,
+ * so the code arrives in the language the buyer asked for it in. Every other auth call only says which
+ * language that is, so the trigger on public.persons records it on the buyer's file (preferred_locale) and the
+ * messages after it go out in it. Neither header changes what any of these functions answers — the same
+ * object for a client and a stranger, the same throttles.
+ */
+async function createAuthAdminClient({ display = false }: { display?: boolean } = {}) {
+  const locale = await currentLocale();
+  return createAdminClient(display ? displayHeaders(locale) : localeHeaders(locale));
+}
+
 // ---------------------------------------------------------------------------
 // Reading a person for the door
 // ---------------------------------------------------------------------------
@@ -225,7 +241,7 @@ export async function requestLoginCode(
   phone: string,
   purpose: CodePurpose = "login",
 ): Promise<{ ok: true; ttlSeconds: number } | { ok: false; reason: ClientLoginFailure }> {
-  const admin = createAdminClient();
+  const admin = await createAuthAdminClient({ display: true });
   const { data, error } = await admin.rpc(
     "request_client_login_code" as never,
     { p_phone: phone, p_purpose: purpose } as never,
@@ -248,7 +264,7 @@ type VerifiedCode =
  * open a session.
  */
 async function verifyCode(phone: string, code: string, purpose: CodePurpose): Promise<VerifiedCode> {
-  const admin = createAdminClient();
+  const admin = await createAuthAdminClient();
   const { data, error } = await admin.rpc(
     "verify_client_login_code" as never,
     { p_phone: phone, p_code: code, p_purpose: purpose } as never,
@@ -307,7 +323,7 @@ async function ensureAuthUser(personId: string, fullName: string | null, knownUs
  * signed in but is shown nothing but «أنشئ كلمة سرّ» until they do.
  */
 export async function signInWithCode(phone: string, code: string): Promise<ClientLoginResult> {
-  const admin = createAdminClient();
+  const admin = await createAuthAdminClient();
 
   // 1 · The code. Everything that makes this safe happened in SQL before this line returned.
   const verified = await verifyCode(phone, code, "login");
@@ -369,7 +385,7 @@ export async function setClientPassword(
   personId: string,
   password: string,
 ): Promise<{ ok: true } | { ok: false; reason: "not_applied" | "weak" | "error" }> {
-  const admin = createAdminClient();
+  const admin = await createAuthAdminClient();
   const updated = await admin.auth.admin.updateUserById(userId, { password });
   if (updated.error) {
     // Auth's own minimum (its dashboard setting) is enforced there too; «weak» lets the screen say so.
@@ -426,7 +442,7 @@ export async function signInWithPassword(
   password: string,
   remember: boolean,
 ): Promise<ClientPasswordResult> {
-  const admin = createAdminClient();
+  const admin = await createAuthAdminClient();
 
   const attempt = await admin.rpc("client_password_attempt" as never, { p_phone: phone } as never);
   if (attempt.error) return { ok: false, reason: isMissingFunction(attempt.error) ? "not_applied" : "error" };
@@ -509,7 +525,7 @@ export async function requestPhoneChange(
   personId: string,
   newPhone: string,
 ): Promise<{ ok: true; ttlSeconds: number } | { ok: false; reason: ClientLoginFailure | "same_phone" }> {
-  const admin = createAdminClient();
+  const admin = await createAuthAdminClient({ display: true });
   const { data, error } = await admin.rpc(
     "request_phone_change_code" as never,
     { p_person: personId, p_new_phone: newPhone } as never,
@@ -532,7 +548,7 @@ export async function confirmPhoneChange(
   personId: string,
   code: string,
 ): Promise<{ ok: true; phoneE164: string } | { ok: false; reason: PhoneChangeFailure; attemptsLeft?: number }> {
-  const admin = createAdminClient();
+  const admin = await createAuthAdminClient();
   const { data, error } = await admin.rpc(
     "confirm_phone_change" as never,
     { p_person: personId, p_code: code } as never,

@@ -1,4 +1,4 @@
-import Link from "next/link";
+import Link from "@/components/site/link";
 
 /**
  * Renders the assistant's answer.
@@ -11,6 +11,9 @@ import Link from "next/link";
  * offers that were open at that moment plus the handful of fixed routes. A path outside that list is
  * printed as its own label with no link, because an invented `/projects/DEMO-99` sends a visitor to a 404
  * and reads, to them, as the site being broken.
+ *
+ * The paths are the Arabic site's, as the model writes them; the Link prefixes the visitor's language when it
+ * draws one, so a French reader lands on /fr/projects/… and the allow-list never has to know about languages.
  */
 
 // `[label](/path)`: internal paths only — a leading slash is required, so no scheme can ever appear here.

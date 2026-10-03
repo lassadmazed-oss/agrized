@@ -4,7 +4,8 @@ import { SectionHeader } from "@/components/ui";
 import type { ProjectPicture } from "@/lib/public-projects";
 
 /**
- * Report v3 §20 gallery. Each picture opens at full size; the caption, when set, sits under it.
+ * Report v3 §20 gallery. Each picture opens at full size; the caption, when set, sits under it. Alt text and
+ * caption arrive in the visitor's language (getProjectPage).
  *
  * Two faults measured on 2026-09-19, both on the live TX-00215 page:
  *
@@ -48,14 +49,14 @@ export function ProjectGallery({ pictures, title }: { pictures: ProjectPicture[]
               >
                 <Image
                   src={picture.url}
-                  alt={picture.alt_ar}
+                  alt={picture.alt}
                   fill
                   sizes={single ? "(min-width: 640px) 28rem, 100vw" : "(min-width: 1024px) 380px, (min-width: 640px) 33vw, 50vw"}
                   className="object-cover transition duration-300 group-hover:scale-[1.03]"
                 />
               </a>
-              {picture.caption_ar ? (
-                <figcaption className="mt-tight text-caption leading-6 text-muted">{picture.caption_ar}</figcaption>
+              {picture.caption ? (
+                <figcaption className="mt-tight text-caption leading-6 text-muted">{picture.caption}</figcaption>
               ) : null}
             </figure>
           </li>

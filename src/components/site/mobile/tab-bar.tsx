@@ -1,7 +1,9 @@
 "use client";
 
-import Link from "next/link";
 import { usePathname } from "next/navigation";
+
+import Link from "@/components/site/link";
+import { splitLocale } from "@/lib/i18n/locales";
 
 /**
  * The bottom bar on a phone (owner, 2026-09-21, from two AgriZed app mock-ups — the home screen and the offers
@@ -93,8 +95,9 @@ function isCurrent(pathname: string, href: string): boolean {
   return pathname === href || pathname.startsWith(`${href}/`);
 }
 
-export function TabBar({ tabs }: { tabs: readonly Tab[] }) {
-  const pathname = usePathname();
+export function TabBar({ tabs, label }: { tabs: readonly Tab[]; /** The bar's accessible name. */ label: string }) {
+  // The tab's own path is the Arabic-site one («/projects»); the address may carry a language («/fr/projects»).
+  const pathname = splitLocale(usePathname() ?? "/").path;
   if (tabs.length === 0) return null;
 
   return (
@@ -104,7 +107,7 @@ export function TabBar({ tabs }: { tabs: readonly Tab[] }) {
       <div aria-hidden="true" data-sticky-cta="" className="h-[var(--tabbar-h)] md:hidden" />
 
       <nav
-        aria-label="التنقّل"
+        aria-label={label}
         data-sticky-cta=""
         className="fixed inset-x-0 bottom-0 z-40 border-t border-line bg-surface pb-[max(0.5rem,env(safe-area-inset-bottom))] pt-1.5 shadow-[0_-6px_18px_-12px_rgb(27_42_31_/_0.35)] md:hidden"
       >

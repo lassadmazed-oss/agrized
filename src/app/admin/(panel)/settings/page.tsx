@@ -24,7 +24,6 @@ import Link from "next/link";
 
 import { ActionForm } from "@/components/admin/action-form";
 import { LegacyPricingNotice, treePricingReady } from "@/components/admin/legacy-pricing-notice";
-import { NavIcon } from "@/components/admin/nav-icons";
 import { ADMIN_LABELS } from "@/components/admin/nav-model";
 import { PricingEditor } from "@/components/admin/pricing-editor";
 import { ADMIN_ROLES, requireStaff } from "@/lib/auth";
@@ -35,16 +34,10 @@ import { createClient } from "@/lib/supabase/server";
 import { updateSetting } from "./actions";
 import { PairListEditor } from "./pair-list-editor";
 import { INTEGER_RANGES } from "./ranges";
+import { SettingsRooms } from "./rooms";
 
 export const metadata: Metadata = { title: ADMIN_LABELS["/admin/settings"] };
 
-/** The four tables of this one room. The first is this page. */
-const ROOMS = [
-  { href: "/admin/settings", label: "النصوص والأرقام", icon: "settings" },
-  { href: "/admin/settings/modules", label: ADMIN_LABELS["/admin/settings/modules"], icon: "modules" },
-  { href: "/admin/settings/lists", label: ADMIN_LABELS["/admin/settings/lists"], icon: "lists" },
-  { href: "/admin/settings/media", label: ADMIN_LABELS["/admin/settings/media"], icon: "media" },
-] as const;
 
 /**
  * The sections, in the order a setting is looked for: the pages the visitor walks first, then the demand
@@ -151,7 +144,8 @@ export default async function SettingsPage() {
     .order("sort_order");
   if (error) throw new Error(error.message);
 
-  const rows = settings ?? [];
+  // ui.* are the site's own words (0110): they live in the translation room, beside their four languages.
+  const rows = (settings ?? []).filter((setting) => !setting.key.startsWith("ui."));
   const claimed = new Set(SECTIONS.flatMap((section) => section.prefixes));
   const sections = [...SECTIONS, OTHER]
     .map((section) => ({
@@ -173,17 +167,16 @@ export default async function SettingsPage() {
           </p>
         </div>
 
-        <nav aria-label="أقسام الإعدادات" className="flex flex-wrap gap-tight">
-          {ROOMS.map((room) => {
-            const current = room.href === "/admin/settings";
-            return (
-              <Link key={room.href} href={room.href} className="chip" aria-current={current ? "true" : undefined}>
-                <NavIcon name={room.icon} className="size-4" />
-                {room.label}
-              </Link>
-            );
-          })}
-        </nav>
+        <SettingsRooms current="/admin/settings" />
+        {/* The site's own words (ui.*) are not cards here: there are hundreds of them, and the room built for
+            them shows each beside its four translations. Everything else stays on this page as it was. */}
+        <p className="text-sm text-muted">
+          نصوص الموقع (الأزرار، الاستمارات، الرسائل…) وترجماتها للغات الخمسة موجودين في{" "}
+          <Link href="/admin/settings/translations" className="font-semibold text-forest underline-offset-4 hover:underline">
+            الترجمات
+          </Link>
+          .
+        </p>
       </header>
 
       {/* Where a setting is, without scrolling three hundred cards to find out. */}

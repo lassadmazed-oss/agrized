@@ -1108,6 +1108,21 @@ body {
 }
 
 /*
+ * A page that pins its own action above the tab bar (the offer's «سجّل اهتمامك», its form's send button) marks
+ * that bar `data-floating-cta`, and the assistant's circle rises by its height instead of sitting on the
+ * button's end — it covered the arrow of the one action the page exists for. Zero everywhere else, and from
+ * `md`, where neither bar is drawn.
+ */
+:root {
+  --floating-cta-h: 0rem;
+}
+@media (width < 48rem) {
+  body:has([data-floating-cta]) {
+    --floating-cta-h: 4.75rem;
+  }
+}
+
+/*
  * No double-tap zoom on anything you tap (owner, 2026-09-22: «remove the auto zoom when typing or the
  * double click»).
  *

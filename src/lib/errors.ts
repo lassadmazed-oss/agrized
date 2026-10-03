@@ -1,5 +1,15 @@
-// Arabic messages for error codes raised by the database intake functions.
-// Each message says what went wrong and how to fix it (spec LEAD-10).
+// Messages for error codes raised by the database functions. Each one says what went wrong and how to fix it
+// (spec LEAD-10).
+//
+// TWO READERS (0109, five languages). The VISITOR's sentence lives in settings as `ui.errors.<code>`, one row
+// per code, translated and editable in the Back Office: `intakeErrorMessage(config, code)` reads it in the
+// page's language. The Back Office stays Arabic and reads the map below with `intakeErrorMessage(code)` — staff
+// screens, some of them Client Components, which is also why this file imports nothing server-only.
+// A public code keeps its Arabic line here as well: the Back Office meets the same codes (below_min_trees,
+// invalid_offer_trees…), and `isKnownIntakeError` is answered from this list.
+
+import type { PublicConfig } from "@/lib/config";
+import { formatMessage } from "@/lib/i18n/message";
 
 const MESSAGES: Record<string, string> = {
   invalid_full_name: "اكتب الاسم واللقب كاملين.",
@@ -111,8 +121,30 @@ const MESSAGES: Record<string, string> = {
 
 const FALLBACK = "تعذّر إرسال الطلب. تحقق من اتصالك وحاول مرة أخرى.";
 
-export function intakeErrorMessage(code: string | undefined | null): string {
-  return (code && MESSAGES[code]) || FALLBACK;
+/**
+ * The sentence for a database error code.
+ *
+ *   intakeErrorMessage(config, code)  the visitor's, in the page's language: `ui.errors.<code>` from settings,
+ *                                     else `ui.errors.unknown` — so a code with no public sentence (a staff-only
+ *                                     code, a raw database message) never reaches a visitor as Arabic or English.
+ *   intakeErrorMessage(code)          the Back Office's, in Arabic, from the map above.
+ */
+export function intakeErrorMessage(config: PublicConfig, code: string | undefined | null): string;
+export function intakeErrorMessage(code: string | undefined | null): string;
+export function intakeErrorMessage(
+  configOrCode: PublicConfig | string | undefined | null,
+  publicCode?: string | null,
+): string {
+  if (configOrCode !== null && typeof configOrCode === "object") {
+    const config = configOrCode;
+    const own = publicCode ? `ui.errors.${publicCode}` : null;
+    const key = own && typeof config.settings[own] === "string" ? own : "ui.errors.unknown";
+    const value = config.settings[key];
+    // The contract of t() in src/lib/config.ts, which this file cannot import (server-only): a missing key
+    // prints itself.
+    return typeof value === "string" ? formatMessage(config.locale, value) : key;
+  }
+  return (configOrCode && MESSAGES[configOrCode]) || FALLBACK;
 }
 
 export function isKnownIntakeError(code: string | undefined | null): boolean {

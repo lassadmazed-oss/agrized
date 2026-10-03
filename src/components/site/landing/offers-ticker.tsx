@@ -1,8 +1,6 @@
-import Link from "next/link";
-
+import Link from "@/components/site/link";
 import { areaPerTree, offersTitle, offerTreePrice } from "@/components/site/offers";
-import { flagState, settingText, type PublicConfig } from "@/lib/config";
-import { formatArea, formatCount, formatMillimes } from "@/lib/format";
+import { flagState, formatFor, t, type PublicConfig } from "@/lib/config";
 import { projectHref } from "@/lib/public-hrefs";
 import type { PublicProject } from "@/lib/public-projects";
 
@@ -43,10 +41,10 @@ export function OffersTicker({ config, offers }: OffersTickerProps) {
   if (flagState(config, "projects") !== "public" || offers.length === 0) return null;
 
   const pricingOpen = flagState(config, "pricing") === "public";
-  const unitTree = settingText(config, "offers.unit_tree", "زيتونة");
-  const perTree = settingText(config, "offers.unit_per_tree", "للزيتونة");
-  const fromWord = settingText(config, "start.from_prefix", "ابتداءً من");
-  const place = (governorateId: number) => config.governorates.find((g) => g.id === governorateId)?.name_ar ?? "";
+  const fmt = formatFor(config);
+  const perTree = t(config, "offers.unit_per_tree");
+  const fromWord = t(config, "start.from_prefix");
+  const place = (governorateId: number) => config.governorates.find((g) => g.id === governorateId)?.name ?? "";
 
   const items = offers.map((offer) => {
     const price = offerTreePrice(offer, pricingOpen);
@@ -67,8 +65,8 @@ export function OffersTicker({ config, offers }: OffersTickerProps) {
             <span className="whitespace-nowrap text-caption leading-tight text-muted">
               {[
                 where,
-                offer.tree_count ? `${formatCount(offer.tree_count)} ${unitTree}` : null,
-                area ? formatArea(area) : null,
+                offer.tree_count ? t(config, "ui.cards.trees_count", { count: offer.tree_count }) : null,
+                area ? fmt.formatArea(area) : null,
               ]
                 .filter(Boolean)
                 .join(" · ")}
@@ -81,7 +79,7 @@ export function OffersTicker({ config, offers }: OffersTickerProps) {
             <span className="flex flex-col items-center rounded-full bg-leaf-soft px-4 py-1.5 leading-tight">
               <span className="whitespace-nowrap text-[0.6875rem] text-forest/70">{fromWord}</span>
               <span className="whitespace-nowrap font-bold tabular-nums text-forest">
-                {formatMillimes(price)}
+                {fmt.formatMillimes(price)}
               </span>
               <span className="whitespace-nowrap text-[0.6875rem] text-forest/70">{perTree}</span>
             </span>

@@ -46,7 +46,7 @@ function dinarsToMillimes(value: number | null | undefined): number | null | und
 /** The public projects pages cache their rows; any change to a project or parcel expires them. */
 function expirePublicProjects() {
   updateTag(PUBLIC_PROJECTS_TAG);
-  revalidatePath("/projects", "layout");
+  revalidatePath("/[lang]/projects", "layout");
 }
 
 const PLANTATION = ["", "traditional", "intensive", "other"] as const;

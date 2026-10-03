@@ -1,8 +1,7 @@
-import Link from "next/link";
-
-import { LandingIcon } from "@/components/site/landing/hero";
+import { LandingIcon, rowText } from "@/components/site/landing/hero";
+import Link from "@/components/site/link";
 import { OliveMark } from "@/components/site/tree-card";
-import { flagState, optionsFor, settingJson, settingText, type PublicConfig } from "@/lib/config";
+import { flagState, optionsFor, settingJson, t, type PublicConfig } from "@/lib/config";
 
 type TreePicksProps = {
   config: PublicConfig;
@@ -31,15 +30,13 @@ export function TreePicks({ config }: TreePicksProps) {
   if (flagState(config, "interest_form") !== "public") return null;
 
   const treeCounts = optionsFor(config, "tree_count");
-  const title = settingText(config, "site.trees_question", "قدّاش زيتونة تحب تبدا بيهم؟");
-  const subtitle = settingText(
-    config,
-    "site.trees_subtitle",
-    "اختيارك يمشي معك للخطوة الموالية. تنجم تبدّلو وقت اللي تحب.",
-  );
-  const taglines = settingJson<Record<string, { ar: string; fr?: string }>>(config, "start.tier_taglines", {});
-  const otherCardLabel = settingText(config, "site.trees_other_card_label", "عدد آخر");
-  const otherLink = settingText(config, "site.trees_other_link");
+  const title = t(config, "site.trees_question");
+  const subtitle = t(config, "site.trees_subtitle");
+  // One line per tile in the page's language — the Arabic and French pair is /start's, not this strip's.
+  const taglines = settingJson<Record<string, unknown>>(config, "start.tier_taglines", {});
+  const tagline = (code: string | null | undefined) => (code ? rowText(taglines[code], config.locale) : "");
+  const otherCardLabel = t(config, "site.trees_other_card_label");
+  const otherLink = t(config, "site.trees_other_link");
 
   if (treeCounts.length === 0 && !otherCardLabel) return null;
 
@@ -54,10 +51,10 @@ export function TreePicks({ config }: TreePicksProps) {
             <Link href={`/start?trees=${option.id}`} className={pickTileClass}>
               <PickMark trees={option.min_number} />
               <span className="font-display text-xl font-bold leading-tight text-forest text-balance sm:text-2xl">
-                {option.label_ar}
+                {option.label}
               </span>
-              {option.code && taglines[option.code]?.ar ? (
-                <span className="text-caption leading-5 text-muted">{taglines[option.code]?.ar}</span>
+              {tagline(option.code) ? (
+                <span className="text-caption leading-5 text-muted">{tagline(option.code)}</span>
               ) : null}
             </Link>
           </li>
@@ -72,9 +69,7 @@ export function TreePicks({ config }: TreePicksProps) {
               <span className="font-display text-xl font-bold leading-tight text-forest text-balance sm:text-2xl">
                 {otherCardLabel}
               </span>
-              {taglines.custom?.ar ? (
-                <span className="text-caption leading-5 text-muted">{taglines.custom.ar}</span>
-              ) : null}
+              {tagline("custom") ? <span className="text-caption leading-5 text-muted">{tagline("custom")}</span> : null}
             </Link>
           </li>
         ) : null}

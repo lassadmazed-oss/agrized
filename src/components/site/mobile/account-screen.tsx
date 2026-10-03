@@ -1,7 +1,6 @@
-import Link from "next/link";
-
+import Link from "@/components/site/link";
 import { StatusPill } from "@/components/ui";
-import { formatCount, formatMillimes, formatMonthYear } from "@/lib/format";
+import { formatFor, t, type PublicConfig } from "@/lib/config";
 
 /**
  * The client's own screen on a phone (owner, 2026-09-21, from the AgriZed app mock-up «حسابي / متابعتي»):
@@ -21,6 +20,10 @@ import { formatCount, formatMillimes, formatMonthYear } from "@/lib/format";
  *
  * It is a full screen, not a phone-only band: it is centred in a narrow column and reads the same on a desktop,
  * because a client opening their file on a laptop is not a different client.
+ *
+ * ITS OWN FEW WORDS — the greeting, «معانا منذ …», the unit after the count — are the owner's, from settings
+ * `ui.zitounti.*` in the visitor's language, and every figure is formatted for that language (formatFor). That
+ * is why it takes `config`: a Server Component, rendered by the /zitounti page and nothing else.
  */
 
 /** The drawings the rows use. One per §39 section, plus the two the summary card needs. */
@@ -107,6 +110,8 @@ export type AccountRow = {
 };
 
 type AccountScreenProps = {
+  /** The site's configuration in the visitor's language: the screen's own words and its number formats. */
+  config: PublicConfig;
   /** The screen's own title, «حسابي». */
   title: string;
   holder: AccountHolder | null;
@@ -114,8 +119,6 @@ type AccountScreenProps = {
   rows: readonly AccountRow[];
   /** The card's title, «زيتوناتي». */
   holdingsTitle: string;
-  /** Unit of the count, «زيتونة». */
-  treesLabel: string;
   /** What the card says instead of figures when there is no file to read. */
   emptyNote: string;
   /** The one door that is real for a reader with no file: the offers. */
@@ -125,16 +128,17 @@ type AccountScreenProps = {
 };
 
 export function AccountScreen({
+  config,
   title,
   holder,
   holdings,
   rows,
   holdingsTitle,
-  treesLabel,
   emptyNote,
   emptyAction = null,
   sampleLabel = null,
 }: AccountScreenProps) {
+  const fmt = formatFor(config);
   return (
     /* A WHITE SHEET IN A BOLD SANS, which is the styling the owner settled on the offer screen the same day
        («match the new styling of the img»): his drawings are app screens, and an app screen is one white
@@ -153,15 +157,20 @@ export function AccountScreen({
     >
       <h1 className="text-center text-[1.375rem] font-bold text-forest">{title}</h1>
 
-      {/* Who this file belongs to. The greeting keeps the start of the row — the right, where the reading eye
-          lands — and the mark closes it, which is the mock-up's own arrangement. A face we do not have is not
-          drawn: the mark is the holder's own initial on the leaf ground, and with no holder it is the olive. */}
+      {/* Who this file belongs to. The greeting keeps the start of the row — where the reading eye lands, the
+          right in Arabic — and the mark closes it, which is the mock-up's own arrangement. A face we do not have
+          is not drawn: the mark is the holder's own initial on the leaf ground, and with no holder it is the
+          olive. */}
       <div className="mt-roomy flex items-center gap-snug">
         <div className="min-w-0 flex-1">
           <p className="truncate text-xl font-bold text-forest">
-            {holder ? `أهلاً يا ${holder.name}` : "أهلاً بيك"}
+            {holder ? t(config, "ui.zitounti.greeting", { name: isolate(holder.name) }) : t(config, "ui.zitounti.greeting_anonymous")}
           </p>
-          {holder?.since ? <p className="text-caption text-muted">معانا منذ {formatMonthYear(holder.since)}</p> : null}
+          {holder?.since ? (
+            <p className="text-caption text-muted">
+              {t(config, "ui.zitounti.member_since", { date: fmt.formatMonthYear(holder.since) })}
+            </p>
+          ) : null}
         </div>
         <span
           aria-hidden="true"
@@ -184,14 +193,16 @@ export function AccountScreen({
         {holdings ? (
           <>
             {/* The count of trees first and the money second — the order the mock-up itself reads in, right to
-                left, and the order of a product whose unit is the tree and whose price is what it cost. */}
+                left, and the order of a product whose unit is the tree and whose price is what it cost. The unit
+                is the owner's word in the form that count takes («زيتونة», «oliviers»). */}
             <div className="mt-cozy flex flex-wrap items-baseline justify-center gap-x-6 gap-y-1">
               <p className="text-[2rem] font-bold leading-none tabular-nums">
-                {formatCount(holdings.trees)} <span className="text-2xl font-semibold">{treesLabel}</span>
+                {fmt.formatCount(holdings.trees)}{" "}
+                <span className="text-2xl font-semibold">{t(config, "ui.zitounti.trees_unit", { count: holdings.trees })}</span>
               </p>
               {holdings.valueMillimes !== null ? (
                 <p className="text-xl font-bold leading-none tabular-nums text-gold-bright">
-                  {formatMillimes(holdings.valueMillimes)}
+                  {fmt.formatMillimes(holdings.valueMillimes)}
                 </p>
               ) : null}
             </div>
@@ -255,9 +266,14 @@ function AccountRowBody({ row }: { row: AccountRow }) {
       <span className="min-w-0 flex-1 font-semibold">{row.label}</span>
       {row.note ? <StatusPill tone="line">{row.note}</StatusPill> : null}
       {row.href ? (
-        // The page is RTL, so forward is left and the chevron points left. It is decoration: the link is the
-        // whole row and the label is what a screen reader announces.
-        <svg viewBox="0 0 24 24" aria-hidden="true" className="size-5 flex-none fill-none stroke-current stroke-2 text-line-strong">
+        // Forward is the end of the row: the chevron is drawn pointing left for Arabic and mirrored for the
+        // left-to-right languages. It is decoration: the link is the whole row and the label is what a screen
+        // reader announces.
+        <svg
+          viewBox="0 0 24 24"
+          aria-hidden="true"
+          className="size-5 flex-none fill-none stroke-current stroke-2 text-line-strong ltr:-scale-x-100"
+        >
           <path d="M14.5 6 8.5 12l6 6" strokeLinecap="round" strokeLinejoin="round" />
         </svg>
       ) : null}
@@ -275,4 +291,14 @@ function AccountRowBody({ row }: { row: AccountRow }) {
       {inner}
     </Link>
   );
+}
+
+/**
+ * A name set inside a sentence of another direction — an Arabic name in «Bonjour …», a Latin one in «مرحبا …» —
+ * wrapped in Unicode's first-strong isolate (U+2068 … U+2069), so the bidi algorithm lays the name out on its
+ * own and the sentence around it keeps its order. Without it, a truncated Arabic name in a French greeting
+ * lost its beginning and wore its ellipsis on the wrong side.
+ */
+function isolate(text: string): string {
+  return `\u2068${text}\u2069`;
 }

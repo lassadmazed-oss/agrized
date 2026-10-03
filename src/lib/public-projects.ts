@@ -2,6 +2,9 @@ import "server-only";
 
 import { unstable_cache } from "next/cache";
 
+import { getPublicConfig, PUBLIC_CONFIG_TAG } from "@/lib/config";
+import { DEFAULT_LOCALE, type Locale } from "@/lib/i18n/locales";
+import { currentLocale } from "@/lib/i18n/server";
 import type { ModuleAccess } from "@/lib/modules";
 import { toTreeQuote, type PaymentMode, type TreeQuote } from "@/lib/tree-pricing";
 import { createPublicClient } from "@/lib/supabase/public";
@@ -21,6 +24,11 @@ export function publicMode(access: ModuleAccess): PublicMode {
   return access === "preview" ? "preview" : "anon";
 }
 
+/**
+ * One offer of the catalogue. Its own words — `name`, `location_description`, `olive_variety` — arrive in the
+ * visitor's language (public.translations, 0109), falling back along the owner's chain and then to the Arabic
+ * the team typed.
+ */
 export type PublicProject = {
   id: string;
   code: string;
@@ -51,14 +59,20 @@ export type PublicProject = {
   max_area_m2: number | null;
   parcel_trees: number | null;
   cover_url: string | null;
+  /**
+   * The cover's alt text, in the visitor's language. The name is the column's, kept for the pages that read
+   * it; public_project_covers() (0114) names which picture the cover is, which is where its translation is
+   * filed.
+   */
   cover_alt_ar: string | null;
 };
 
-export type ProjectPicture = { id: string; url: string; alt_ar: string; caption_ar: string | null; is_cover: boolean };
+/** One picture of an offer; `alt` and `caption` in the visitor's language (else the Arabic source). */
+export type ProjectPicture = { id: string; url: string; alt: string; caption: string | null; is_cover: boolean };
 
-/** Report v3 §20: what public_project_page() adds to a project's listing row. */
+/** Report v3 §20: what public_project_page() adds to a project's listing row. Texts in the visitor's language. */
 export type ProjectPage = {
-  description_ar: string | null;
+  description: string | null;
   water_available: boolean | null;
   water_note: string | null;
   access_note: string | null;
@@ -96,18 +110,120 @@ function load(mode: PublicMode, fn: string, args: Record<string, unknown> = {}):
   return mode === "anon" ? cachedAnonRpc(fn, JSON.stringify(args)) : callRpc(mode, fn, args);
 }
 
-export async function getPublicProjects(mode: PublicMode): Promise<PublicProject[]> {
+// ---------------------------------------------------------------------------------------------------------
+// The offers' own words, in the visitor's language (0109)
+//
+// The RPCs answer in Arabic, the source: an offer's name, its description, its notes and its pictures' alt
+// texts are what the team typed. Every other language lives in public.translations — entity 'project' keyed
+// by the project's id, entity 'project_media' keyed by the picture's id — readable by anon for exactly the
+// offers anon may see (app.translation_readable). The raw RPC answer stays cached once for every language;
+// the translations are read beside it, per language, and laid over the fields the pages print.
+// ---------------------------------------------------------------------------------------------------------
+
+/** `entity|entity_key|field` → the text in the nearest language of the chain that has one. */
+type Words = Record<string, string>;
+
+/** PostgREST's page size on this project, as in src/lib/config.ts. */
+const PAGE = 1000;
+
+/**
+ * The translations of `entities` (all the readable ones, or only `keys`) along `locale`'s chain, nearest
+ * language first: the chain is the one the site's own texts fall back along (config.chain, mirroring
+ * app.locale_chain), so an offer's words and the page's words never disagree about which language fills in.
+ */
+async function readWords(mode: PublicMode, locale: Locale, entities: readonly string[], keys: readonly string[] | null): Promise<Words> {
+  const { chain } = await getPublicConfig(locale);
+  if (chain.length === 0 || (keys && keys.length === 0)) return {};
+  const rank = new Map(chain.map((code, index) => [code, index]));
+  const supabase = mode === "preview" ? await createClient() : createPublicClient();
+  const words: Words = {};
+  const rankOf: Record<string, number> = {};
+  for (let from = 0; ; from += PAGE) {
+    let query = supabase
+      .from("translations")
+      .select("entity, entity_key, field, locale, value")
+      .in("entity", [...entities])
+      .in("locale", chain);
+    if (keys) query = query.in("entity_key", [...keys]);
+    const { data, error } = await query
+      .order("entity")
+      .order("entity_key")
+      .order("field")
+      .order("locale")
+      .range(from, from + PAGE - 1);
+    if (error) throw new Error(`translations: ${error.message}`);
+    for (const row of data ?? []) {
+      const position = rank.get(row.locale);
+      if (position === undefined || typeof row.value !== "string" || !row.value.trim()) continue;
+      const id = `${row.entity}|${row.entity_key}|${row.field}`;
+      if (rankOf[id] === undefined || position < rankOf[id]) {
+        rankOf[id] = position;
+        words[id] = row.value;
+      }
+    }
+    if (!data || data.length < PAGE) return words;
+  }
+}
+
+/**
+ * Keyed by the language (and the entities and ids asked for). Expired with the offers (PUBLIC_PROJECTS_TAG,
+ * which every Back Office change to a project already sends) and with the site's texts (PUBLIC_CONFIG_TAG,
+ * which a translation saved in the Back Office sends).
+ */
+const cachedAnonWords = unstable_cache(
+  async (locale: Locale, entitiesJson: string, keysJson: string) =>
+    readWords("anon", locale, JSON.parse(entitiesJson) as string[], JSON.parse(keysJson) as string[] | null),
+  ["public-projects-words-v1"],
+  { tags: [PUBLIC_PROJECTS_TAG, PUBLIC_CONFIG_TAG], revalidate: 60 },
+);
+
+async function wordsFor(mode: PublicMode, locale: Locale, entities: readonly string[], keys: readonly string[] | null): Promise<Words> {
+  // Arabic is the source: there is nothing to lay over it.
+  if (locale === DEFAULT_LOCALE) return {};
+  try {
+    return mode === "anon"
+      ? await cachedAnonWords(locale, JSON.stringify(entities), JSON.stringify(keys))
+      : await readWords(mode, locale, entities, keys);
+  } catch (error) {
+    // A translation that cannot be read leaves the offer in Arabic, its source — never a broken page.
+    console.error(error);
+    return {};
+  }
+}
+
+/** The word for one field: the nearest translation, else the Arabic source (an empty source stays empty). */
+function worded(words: Words, entity: string, key: string, field: string, base: string): string;
+function worded(words: Words, entity: string, key: string, field: string, base: string | null): string | null;
+function worded(words: Words, entity: string, key: string, field: string, base: string | null): string | null {
+  if (base === null || !base.trim()) return base;
+  return words[`${entity}|${key}|${field}`] ?? base;
+}
+
+/**
+ * Every offer the visitor may see, its words in `locale` — the request's language when it is not given (the
+ * proxy's header in a Route Handler, the `[lang]` segment in a page).
+ */
+export async function getPublicProjects(mode: PublicMode, locale?: Locale): Promise<PublicProject[]> {
+  const language = locale ?? (await currentLocale());
   const rows = ((await load(mode, "public_projects")) ?? []) as Record<string, unknown>[];
+  // public_projects() draws the cover by url; public_project_covers() (0114) says which picture that is, so its
+  // description can be read in the visitor's language like every other picture's. Arabic needs neither.
+  const covers =
+    language === DEFAULT_LOCALE
+      ? []
+      : (((await load(mode, "public_project_covers").catch(() => [])) ?? []) as { project_id: string; media_id: string }[]);
+  const coverOf = new Map(covers.map((cover) => [String(cover.project_id), String(cover.media_id)]));
+  const words = await wordsFor(mode, language, coverOf.size > 0 ? ["project", "project_media"] : ["project"], null);
   return rows.map((row) => ({
     id: String(row.id),
     code: String(row.code),
-    name: String(row.name),
+    name: worded(words, "project", String(row.id), "name", String(row.name)),
     project_type_id: (row.project_type_id as string | null) ?? null,
     governorate_id: num(row.governorate_id),
     delegation_id: numOrNull(row.delegation_id),
-    location_description: (row.location_description as string | null) ?? null,
+    location_description: worded(words, "project", String(row.id), "location_description", (row.location_description as string | null) ?? null),
     total_area_m2: numOrNull(row.total_area_m2),
-    olive_variety: (row.olive_variety as string | null) ?? null,
+    olive_variety: worded(words, "project", String(row.id), "olive_variety", (row.olive_variety as string | null) ?? null),
     tree_count: numOrNull(row.tree_count),
     tree_age_years: numOrNull(row.tree_age_years),
     plantation_system: (row.plantation_system as string | null) ?? null,
@@ -126,7 +242,7 @@ export async function getPublicProjects(mode: PublicMode): Promise<PublicProject
     max_area_m2: numOrNull(row.max_area_m2),
     parcel_trees: numOrNull(row.parcel_trees),
     cover_url: (row.cover_url as string | null) ?? null,
-    cover_alt_ar: (row.cover_alt_ar as string | null) ?? null,
+    cover_alt_ar: worded(words, "project_media", coverOf.get(String(row.id)) ?? "", "alt", (row.cover_alt_ar as string | null) ?? null),
   }));
 }
 
@@ -135,18 +251,29 @@ export async function getPublicProjects(mode: PublicMode): Promise<PublicProject
 // the parcel on 2026-09-18 — the coverage map now reads public_offer_stock — and none of the three had a
 // caller left. The three RPCs behind them now have no caller in the product either.
 
-/** Report v3 §20: description, water, access, video, documents, services and gallery of one project. */
-export async function getProjectPage(code: string, mode: PublicMode): Promise<ProjectPage | null> {
+/**
+ * Report v3 §20: description, water, access, video, documents, services and gallery of one project — its
+ * words in `locale` (the request's language when it is not given).
+ */
+export async function getProjectPage(code: string, mode: PublicMode, locale?: Locale): Promise<ProjectPage | null> {
+  const language = locale ?? (await currentLocale());
   const row = (await load(mode, "public_project_page", { p_code: code })) as Record<string, unknown> | null;
   if (!row) return null;
   const text = (value: unknown) => (typeof value === "string" && value ? value : null);
   const ids = (value: unknown) => (Array.isArray(value) ? value.map(String) : []);
   const media = Array.isArray(row.media) ? (row.media as Record<string, unknown>[]) : [];
+  const projectId = String(row.project_id ?? "");
+  const words = await wordsFor(
+    mode,
+    language,
+    ["project", "project_media"],
+    [projectId, ...media.map((picture) => String(picture.id))].filter(Boolean),
+  );
   return {
-    description_ar: text(row.description_ar),
+    description: worded(words, "project", projectId, "description", text(row.description_ar)),
     water_available: typeof row.water_available === "boolean" ? row.water_available : null,
-    water_note: text(row.water_note),
-    access_note: text(row.access_note),
+    water_note: worded(words, "project", projectId, "water_note", text(row.water_note)),
+    access_note: worded(words, "project", projectId, "access_note", text(row.access_note)),
     video_url: text(row.video_url),
     latitude: numOrNull(row.latitude),
     longitude: numOrNull(row.longitude),
@@ -155,8 +282,8 @@ export async function getProjectPage(code: string, mode: PublicMode): Promise<Pr
     media: media.map((picture) => ({
       id: String(picture.id),
       url: String(picture.url),
-      alt_ar: String(picture.alt_ar),
-      caption_ar: text(picture.caption_ar),
+      alt: worded(words, "project_media", String(picture.id), "alt", String(picture.alt_ar ?? "")),
+      caption: worded(words, "project_media", String(picture.id), "caption", text(picture.caption_ar)),
       is_cover: Boolean(picture.is_cover),
     })),
   };

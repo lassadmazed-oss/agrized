@@ -1,11 +1,12 @@
-import Link from "next/link";
 import type { ReactNode } from "react";
 
 import { Wordmark } from "@/components/brand/wordmark";
+import { LanguageSwitcher } from "@/components/site/language-switcher";
+import Link from "@/components/site/link";
 import { siteNav } from "@/components/site/site-header";
 import { SitePhoto } from "@/components/site/site-photo";
-import { flagState, getPublicConfig, settingJson, settingText } from "@/lib/config";
-import { formatPhone } from "@/lib/phone";
+import { flagState, getPublicConfig, settingJson, settingText, t } from "@/lib/config";
+import { formatPhoneFor } from "@/lib/phone";
 
 type SiteFooterProps = {
   legalNotice: string;
@@ -64,17 +65,23 @@ export async function SiteFooter({ legalNotice, taglineFr, phone, whatsapp, emai
    * The word is the owner's, from `site.nav_track_label` — emptying that setting removes the link, the same
    * contract every other sentence in this footer has.
    */
-  const trackLabel = settingText(config, "site.nav_track_label", "وين وصل مطلبي؟");
+  const trackLabel = settingText(config, "site.nav_track_label");
   const links = [...siteNav(config), ...(trackLabel ? [{ href: "/track", label: trackLabel }] : [])];
   // The word that introduces the photographers. It was written into the markup; it is a setting like every
   // other sentence on the site now, so emptying it prints the names alone and the owner never edits code.
-  const creditsLabel = settingText(config, "site.photo_credits_label", "مصادر الصور");
-  // Four headings and two labels that used to be strings in this file. They have no seeded row yet, so they
-  // carry the fallback the site already showed — the same shape as site.how_title and site.land_title.
-  const navTitle = settingText(config, "site.nav_title", "روابط سريعة");
-  const contactTitle = settingText(config, "site.contact_title", "تواصل معنا");
-  const staffLabel = settingText(config, "site.staff_door_label", "دخول الفريق");
-  const copyright = settingText(config, "site.copyright_label", "© AgriZed");
+  const creditsLabel = settingText(config, "site.photo_credits_label");
+  // Four headings and two labels that used to be strings in this file. Each is a setting, in the visitor's
+  // language; emptying one removes it, the same contract as every other sentence in this footer.
+  const navTitle = settingText(config, "site.nav_title");
+  const contactTitle = settingText(config, "site.contact_title");
+  const staffLabel = settingText(config, "site.staff_door_label");
+  const copyright = settingText(config, "site.copyright_label");
+  const homeAria = t(config, "ui.shell.home_aria");
+  const navAria = navTitle || t(config, "ui.shell.nav_aria");
+  // The French line under the wordmark is the Arabic site's bilingual signature. On the French, German,
+  // Italian and English sites the header already prints the tagline in the page's own language, so a
+  // French line under it would be a third language on the page, not a signature.
+  const showTaglineFr = config.locale === "ar" && Boolean(taglineFr);
   // «تونس، صفاقس» in the drawing. A place is a fact about the company, so it has no fallback: no setting,
   // no line.
   const address = settingText(config, "site.contact_address");
@@ -93,12 +100,12 @@ export async function SiteFooter({ legalNotice, taglineFr, phone, whatsapp, emai
   return (
     <footer className="relative isolate hidden overflow-hidden bg-forest-700 text-paper md:block">
       {showPhoto ? (
-        // The picture holds the END half and dissolves into flat green before it reaches the words. The
-        // gradient axis is written physically because this document is `dir="rtl"` at the root
-        // (src/app/layout.tsx) and is never anything else: «to the right» is «toward the inline start».
+        // The picture holds the END half and dissolves into flat green before it reaches the words. A gradient
+        // has no logical axis to write, so it is written twice: «to the right» is «toward the inline start» on
+        // the right-to-left Arabic page, and the `ltr:` variant mirrors it for the four other languages.
         <div aria-hidden="true" className="absolute inset-y-0 end-0 hidden w-full md:block lg:w-[58%]">
           <SitePhoto config={config} slot="home.land" fill sizes="(min-width: 1024px) 58vw, 100vw" />
-          <div className="absolute inset-0 bg-linear-to-r from-transparent via-forest-700/70 to-forest-700" />
+          <div className="absolute inset-0 bg-linear-to-r from-transparent via-forest-700/70 to-forest-700 ltr:bg-linear-to-l" />
         </div>
       ) : null}
       {/* One even darkening over everything, so the type keeps the same contrast whichever photograph the
@@ -113,7 +120,7 @@ export async function SiteFooter({ legalNotice, taglineFr, phone, whatsapp, emai
           The full one is unchanged from `md` up. */}
       <div className="relative px-4 py-6 md:hidden">
         <div className="flex items-center justify-between gap-3">
-          <Link href="/" className="inline-flex items-center gap-2" aria-label="AgriZed، الصفحة الرئيسية">
+          <Link href="/" className="inline-flex items-center gap-2" aria-label={homeAria}>
             <Wordmark onDark className="text-2xl" />
           </Link>
           {phone || whatsapp ? (
@@ -121,7 +128,7 @@ export async function SiteFooter({ legalNotice, taglineFr, phone, whatsapp, emai
               {phone ? (
                 <a
                   href={`tel:${phone.replace(/\s/g, "")}`}
-                  aria-label={phone}
+                  aria-label={formatPhoneFor(phone, config.locale)}
                   className="flex size-10 items-center justify-center rounded-xl bg-paper/12 text-gold-bright"
                 >
                   <PhoneGlyph />
@@ -143,7 +150,7 @@ export async function SiteFooter({ legalNotice, taglineFr, phone, whatsapp, emai
         {legalNotice ? <p className="mt-3 text-[0.6875rem] leading-5 text-paper/65">{legalNotice}</p> : null}
 
         {links.length > 0 ? (
-          <nav aria-label={navTitle || "أقسام الموقع"} className="mt-3 flex flex-wrap gap-x-4 gap-y-1">
+          <nav aria-label={navAria} className="mt-3 flex flex-wrap gap-x-4 gap-y-1">
             {links.map((link) => (
               <Link key={link.href} href={link.href} className="py-1 text-[0.75rem] text-paper/85">
                 {link.label}
@@ -156,11 +163,11 @@ export async function SiteFooter({ legalNotice, taglineFr, phone, whatsapp, emai
       <div className="relative mx-auto hidden max-w-6xl px-4 py-section sm:px-6 md:block lg:py-band">
         <div className="grid gap-roomy sm:grid-cols-2 lg:grid-cols-[1.15fr_0.7fr_1fr_0.85fr] lg:gap-cozy">
           <div className="space-y-snug">
-            <Link href="/" className="inline-flex items-center gap-tight rounded-md" aria-label="AgriZed، الصفحة الرئيسية">
+            <Link href="/" className="inline-flex items-center gap-tight rounded-md" aria-label={homeAria}>
               <LeafMark />
               <Wordmark onDark className="text-3xl" />
             </Link>
-            {taglineFr ? (
+            {showTaglineFr ? (
               <p dir="ltr" className="text-start text-xs uppercase tracking-[0.2em] text-gold-bright/90">
                 {taglineFr}
               </p>
@@ -170,7 +177,7 @@ export async function SiteFooter({ legalNotice, taglineFr, phone, whatsapp, emai
           </div>
 
           {links.length > 0 ? (
-            <nav aria-label={navTitle || "أقسام الموقع"}>
+            <nav aria-label={navAria}>
               {navTitle ? <h2 className="text-label font-semibold text-gold-bright">{navTitle}</h2> : null}
               {/* Two columns of 44px rows at 375, one tight column from sm up: a link in a footer is a tap
                   target on a phone and a line of a list on a desk, and it should not be the same thing twice. */}
@@ -195,12 +202,12 @@ export async function SiteFooter({ legalNotice, taglineFr, phone, whatsapp, emai
               <ul className="mt-tight text-caption">
                 {phone ? (
                   <ContactRow href={`tel:${phone}`} icon={<PhoneGlyph />}>
-                    <span dir="ltr">{formatPhone(phone)}</span>
+                    <span dir="ltr">{formatPhoneFor(phone, config.locale)}</span>
                   </ContactRow>
                 ) : null}
                 {whatsappDigits ? (
                   <ContactRow href={`https://wa.me/${whatsappDigits}`} icon={<WhatsAppGlyph />}>
-                    <span dir="ltr">{formatPhone(whatsapp)}</span>
+                    <span dir="ltr">{formatPhoneFor(whatsapp, config.locale)}</span>
                   </ContactRow>
                 ) : null}
                 {email ? (
@@ -231,6 +238,8 @@ export async function SiteFooter({ legalNotice, taglineFr, phone, whatsapp, emai
       <div className="relative border-t border-paper/12 bg-transparent md:bg-forest-700/60">
         <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-x-cozy gap-y-tight px-4 py-2.5 text-[0.6875rem] text-paper/65 sm:px-6 sm:py-4 sm:text-xs">
           <p>{copyright}</p>
+          {/* Every language, by its own name: the same choice as the header's selector, as plain links. */}
+          <LanguageSwitcher choices={config.locales} variant="list" />
           {credits.length > 0 ? <PhotoCredits credits={credits} label={creditsLabel} /> : null}
           <div className="flex flex-wrap items-center gap-x-cozy gap-y-tight">
             {legalLinks.map((link) => (

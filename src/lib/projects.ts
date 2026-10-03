@@ -32,6 +32,16 @@ export function projectStatusLabel(status: string): string {
   return (PROJECT_STATUS_LABELS as Record<string, string>)[status] ?? status;
 }
 
+/**
+ * The PUBLIC site's word for an offer's status, as a settings key (ui.offer.status_*: internal, published,
+ * sold_out, operating — the four a visitor or a previewing staff member can meet). Read it with
+ * `t(config, publicStatusKey(status))` so the visitor reads it in their language. PROJECT_STATUS_LABELS above
+ * stays the Back Office's Arabic.
+ */
+export function publicStatusKey(status: string): string {
+  return `ui.offer.status_${status}`;
+}
+
 export function projectStatusTone(status: string): string {
   return (PROJECT_STATUS_TONES as Record<string, string>)[status] ?? UNKNOWN_TONE;
 }

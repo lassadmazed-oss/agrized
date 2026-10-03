@@ -1,11 +1,12 @@
 import { LandingIcon, type LandingIconName } from "@/components/site/landing/hero";
-import { optionsFor, settingText, type PublicConfig } from "@/lib/config";
+import { optionsFor, t, type PublicConfig } from "@/lib/config";
 
 type ServicesMapProps = {
   config: PublicConfig;
   /**
-   * The governorates that actually hold a live offer today, by Arabic name — the page already derives them
-   * from the offers' `governorate_id` through `config.governorates`. A marked chip is a row, not a caption.
+   * The governorates that actually hold a live offer today, by their name in the page's language — the page
+   * already derives them from the offers' `governorate_id` through `config.governorates`. A marked chip is a
+   * row, not a caption.
    */
   offerPlaces?: string[];
 };
@@ -24,13 +25,13 @@ type ServicesMapProps = {
  */
 export function ServicesMap({ config, offerPlaces = [] }: ServicesMapProps) {
   // No title in settings, no services card — the rule the home page has always applied to this block.
-  const servicesTitle = settingText(config, "site.services_title");
+  const servicesTitle = t(config, "site.services_title");
   const services = servicesTitle ? optionsFor(config, "agrized_service") : [];
-  const servicesText = settingText(config, "site.services_text");
-  const servicesNote = settingText(config, "site.services_note");
+  const servicesText = t(config, "site.services_text");
+  const servicesNote = t(config, "site.services_note");
 
-  const coverageTitle = settingText(config, "site.coverage_title");
-  const coverageText = settingText(config, "site.coverage_text");
+  const coverageTitle = t(config, "site.coverage_title");
+  const coverageText = t(config, "site.coverage_text");
   const governorates = coverageTitle ? config.governorates : [];
 
   const cards = (servicesTitle ? 1 : 0) + (coverageTitle ? 1 : 0);
@@ -55,7 +56,7 @@ export function ServicesMap({ config, offerPlaces = [] }: ServicesMapProps) {
               <ul className="mt-cozy flex flex-wrap gap-tight">
                 {services.map((service) => (
                   <li key={service.id}>
-                    <span className="chip cursor-default">{service.label_ar}</span>
+                    <span className="chip cursor-default">{service.label}</span>
                   </li>
                 ))}
               </ul>
@@ -79,7 +80,7 @@ export function ServicesMap({ config, offerPlaces = [] }: ServicesMapProps) {
               {governorates.length > 0 ? (
                 <ul className="mt-cozy flex flex-wrap gap-tight">
                   {governorates.map((governorate) => {
-                    const hasOffer = live.has(governorate.name_ar);
+                    const hasOffer = live.has(governorate.name);
                     return (
                       <li key={governorate.id}>
                         {/* The filled one is the governorate that already holds land on offer — one chip
@@ -90,7 +91,7 @@ export function ServicesMap({ config, offerPlaces = [] }: ServicesMapProps) {
                           aria-current={hasOffer ? "true" : undefined}
                           className={`chip cursor-default ${hasOffer ? "border-forest bg-forest text-paper" : ""}`}
                         >
-                          {governorate.name_ar}
+                          {governorate.name}
                         </span>
                       </li>
                     );

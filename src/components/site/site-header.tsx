@@ -1,8 +1,9 @@
-import Link from "next/link";
-
+import { LogoMark } from "@/components/brand/logo";
 import { Wordmark } from "@/components/brand/wordmark";
+import { LanguageSwitcher } from "@/components/site/language-switcher";
+import Link from "@/components/site/link";
 import { offersTitle } from "@/components/site/offers";
-import { flagState, getPublicConfig, settingText, type PublicConfig } from "@/lib/config";
+import { flagState, getPublicConfig, settingText, t, type PublicConfig } from "@/lib/config";
 
 type SiteHeaderProps = {
   tagline: string;
@@ -20,17 +21,17 @@ type SiteHeaderProps = {
  * control that opens the calculator says what the calculator does.
  */
 export function estimateLabel(config: PublicConfig): string {
-  return settingText(config, "site.cta_estimate_label") || settingText(config, "site.unit_cta", "احسب مشروعك");
+  return settingText(config, "site.cta_estimate_label") || t(config, "site.unit_cta");
 }
 
 /** «كيفاش تخدم AgriZed؟» — the heading of the home page's own section, and the label of every link to it. */
 export function howTitle(config: PublicConfig): string {
-  return settingText(config, "site.how_title", "كيفاش تخدم AgriZed؟");
+  return t(config, "site.how_title");
 }
 
 /** «عندك أرض أو ضيعة؟» — the landowner door, named the same on the home page and in the footer. */
 export function landTitle(config: PublicConfig): string {
-  return settingText(config, "site.land_title", "عندك أرض أو ضيعة؟");
+  return t(config, "site.land_title");
 }
 
 /**
@@ -41,7 +42,7 @@ export function landTitle(config: PublicConfig): string {
  */
 export function primaryCta(config: PublicConfig): { label: string; href: "/start" | "/register" } {
   const href = settingText(config, "site.cta_primary_target", "start") === "register" ? "/register" : "/start";
-  const configured = settingText(config, "site.cta_primary_label", "سجّل اهتمامك");
+  const configured = settingText(config, "site.cta_primary_label");
   return { label: configured ? (href === "/start" ? estimateLabel(config) : configured) : "", href };
 }
 
@@ -59,7 +60,7 @@ export type SiteLink = { href: string; label: string };
  */
 export function siteNav(config: PublicConfig): SiteLink[] {
   const links: SiteLink[] = [];
-  const home = settingText(config, "site.nav_home_label", "الرئيسية");
+  const home = settingText(config, "site.nav_home_label");
   if (home) links.push({ href: "/", label: home });
   // What is real comes first.
   if (flagState(config, "projects") === "public") links.push({ href: "/projects", label: offersTitle(config) });
@@ -70,7 +71,7 @@ export function siteNav(config: PublicConfig): SiteLink[] {
   // link at all: it looks like navigation and does nothing. `site.how_it_works` is untouched, so putting
   // the section back anywhere restores the entry by restoring these two lines.
   if (flagState(config, "public_statistics") === "public")
-    links.push({ href: "/#million", label: settingText(config, "site.progress_title", "وين وصلنا؟") });
+    links.push({ href: "/#million", label: t(config, "site.progress_title") });
   if (flagState(config, "land_offers") === "public") links.push({ href: "/land", label: landTitle(config) });
   return links;
 }
@@ -96,11 +97,12 @@ export function siteNav(config: PublicConfig): SiteLink[] {
  * the bar has is which module is open. That is also why the current section is marked in CSS rather than
  * with `usePathname()` — see the `.nav-link` rule.
  *
- * WHAT THE DRAWING HAS AND THIS DOES NOT, both reported to the owner rather than faked:
- *  · the «FR» lozenge. There is no French route, no locale and no _fr page anywhere in the app; the only
- *    French the site renders is printed INLINE beside the Arabic on /start (bilingual.tsx), which is a
- *    page-scoped exception, not a language. A control in the bar that changes nothing is a claim about the
- *    product that is not true, and this is a product whose argument is «بلا وعود»;
+ * THE DRAWING'S «FR» LOZENGE became real on 2026-10-03 (0109): the site speaks five languages and the bar
+ * carries the selector (language-switcher.tsx) beside the account icon — at every width, because unlike the
+ * calculator and the account, no other control on a phone offers it. It was left out until then because a
+ * control that changes nothing is a claim about the product that is not true.
+ *
+ * WHAT THE DRAWING HAS AND THIS DOES NOT, reported to the owner rather than faked:
  *  · the hamburger standing beside a full four-item nav at 1790px. It opens nothing in the drawing and
  *    duplicates a menu that is already entirely visible. Between md and lg its job is done by the chip row
  *    under the bar and below md by the phone's own tab bar — neither of which needs an open state, hides a
@@ -112,12 +114,22 @@ export async function SiteHeader({ tagline, showInterestCta, showProjects }: Sit
   const cta = primaryCta(config);
   // The same word the phone's tab bar prints under the account icon, from the same setting, so renaming it
   // in الإعدادات renames it in both places. It is the icon's accessible name, never drawn as text here.
-  const accountLabel = settingText(config, "zitounti.screen_title", "حسابي");
-  // The account icon closes the bar, so it is the element that must push to the end — but only when the
-  // calculator button before it is not already doing that. Two `ms-auto` in one flex row means the first
-  // one wins and the second is dead weight; none at all, on a bar whose nav is hidden below lg, leaves the
-  // icon sitting against the wordmark.
+  const accountLabel = t(config, "zitounti.screen_title");
+  // The language selector and the account icon close the bar, so the first of them — the selector — is the
+  // element that must push to the end, but only when the calculator button before it is not already doing
+  // that. Two `ms-auto` in one flex row means the first one wins and the second is dead weight; none at all,
+  // on a bar whose nav is hidden below lg, leaves the icons sitting against the wordmark. On a phone the
+  // selector is the only control in the bar, so it always takes the push there.
   const accountPush = showInterestCta && cta.label ? "" : "ms-auto";
+  // WHERE THE FULL NAV TAKES OVER FROM THE CHIP ROW. The Arabic labels — «الرئيسية»، «عروضنا»، «وين وصلنا؟» —
+  // fit beside the lockup, the button and the two icons from 1024px. The same three in French or German
+  // («Où en sommes-nous ?», «Unsere Angebote») are half as long again and wrapped onto two lines between 1024
+  // and 1280 (measured 2026-10-03), so on the left-to-right sites the chip row under the bar carries the
+  // sections until `xl`. Spelled out, not computed: Tailwind only ships the classes it can read in the source.
+  const fullNav =
+    config.dir === "rtl"
+      ? { show: "lg:flex", hideChips: "lg:hidden", ctaNoPush: "lg:ms-0" }
+      : { show: "xl:flex", hideChips: "xl:hidden", ctaNoPush: "xl:ms-0" };
   // The button beside the nav is already one of the doors; listing it twice in one bar is the «double
   // buttons» the owner asked to end. The offers row honours the module state the layout read.
   const links = siteNav(config).filter((link) => {
@@ -150,9 +162,11 @@ export async function SiteHeader({ tagline, showInterestCta, showProjects }: Sit
         <div className="flex items-center gap-cozy px-3 py-2 max-md:justify-end sm:px-4 lg:px-6 lg:py-3">
           {/* THE LOCKUP: mark, then the name with what the name promises under it. Stacking the tagline
               rather than setting it beside the wordmark is what lets it show at EVERY width — it used to
-              appear only from xl up, which is to say almost never. */}
-          <Link href="/" className="flex shrink-0 flex-row-reverse items-center gap-snug rounded-xl" aria-label="AgriZed، الصفحة الرئيسية">
-            <OliveLeafMark className="size-10 lg:size-12" />
+              appear only from xl up, which is to say almost never. A lockup is a drawing, not a sentence: it
+              keeps the same shape — the mark on the left of the Latin wordmark — in every language, hence
+              `row-reverse` on the right-to-left page and plain `row` on the left-to-right ones. */}
+          <Link href="/" className="flex shrink-0 flex-row-reverse items-center gap-snug rounded-xl ltr:flex-row" aria-label={t(config, "ui.shell.home_aria")}>
+            <LogoMark className="h-10 w-auto lg:h-12" />
             <span className="flex flex-col">
               <Wordmark className="text-[1.25rem] leading-none md:text-[1.5rem] lg:text-[1.85rem]" />
               {tagline ? <span className="mt-0.5 text-[0.6875rem] leading-tight text-muted md:mt-1 md:text-[0.78rem]">{tagline}</span> : null}
@@ -162,13 +176,13 @@ export async function SiteHeader({ tagline, showInterestCta, showProjects }: Sit
           {/* The full nav appears from lg. Between md and lg the four Arabic labels, the lockup and the
               button do not fit one 768px row, so the chip row below carries the sections there — the same
               links, no smaller, and nothing hidden behind a control. */}
-          <nav aria-label="أقسام الموقع" className="hidden flex-1 justify-center lg:flex">
+          <nav aria-label={t(config, "ui.shell.nav_aria")} className={`hidden flex-1 justify-center ${fullNav.show}`}>
             <ul className="flex items-center gap-1">
               {links.map((link) => (
                 <li key={link.href}>
                   {/* data-nav="home" is how the home page's own marker reaches its entry; every other
                       destination is marked with aria-current by whoever knows it is current. */}
-                  <Link href={link.href} data-nav={link.href === "/" ? "home" : undefined} className="nav-link">
+                  <Link href={link.href} data-nav={link.href === "/" ? "home" : undefined} className="nav-link whitespace-nowrap">
                     {link.label}
                   </Link>
                 </li>
@@ -182,7 +196,7 @@ export async function SiteHeader({ tagline, showInterestCta, showProjects }: Sit
           {showInterestCta && cta.label ? (
             <Link
               href={cta.href}
-              className="btn btn-primary ms-auto hidden min-h-12 rounded-[1.5rem] px-6 md:inline-flex lg:ms-0 lg:min-h-14 lg:px-7 lg:text-[1.0625rem]"
+              className={`btn btn-primary ms-auto hidden min-h-12 rounded-[1.5rem] px-6 md:inline-flex lg:min-h-14 lg:px-7 lg:text-[1.0625rem] ${fullNav.ctaNoPush}`}
             >
               {cta.label}
               <CalculatorMark className="size-5" />
@@ -198,11 +212,13 @@ export async function SiteHeader({ tagline, showInterestCta, showProjects }: Sit
               second one competes with it — the calculator is what this page is selling, the account is what
               a returning visitor already knows to look for in this corner. `aria-label` carries the name the
               owner writes, so a screen reader is told what the icon never says out loud. */}
+          <LanguageSwitcher choices={config.locales} className={`shrink-0 max-md:ms-auto ${accountPush}`.trim()} />
+
           <Link
             href="/zitounti"
             aria-label={accountLabel}
             title={accountLabel}
-            className={`hidden size-12 shrink-0 items-center justify-center rounded-[1.25rem] border border-line bg-surface text-forest transition-colors hover:border-forest/30 hover:bg-leaf-soft md:inline-flex lg:size-14 ${accountPush}`.trim()}
+            className="hidden size-12 shrink-0 items-center justify-center rounded-[1.25rem] border border-line bg-surface text-forest transition-colors hover:border-forest/30 hover:bg-leaf-soft md:inline-flex lg:size-14"
           >
             <AccountMark className="size-5 lg:size-6" />
           </Link>
@@ -219,7 +235,7 @@ export async function SiteHeader({ tagline, showInterestCta, showProjects }: Sit
             hold is #how and #million, and those are sections of this page: on a phone they are reached by
             scrolling, which is what a landing page is for. */}
         {links.length > 0 ? (
-          <nav aria-label="أقسام الموقع" className="hidden border-t border-line/70 md:block lg:hidden">
+          <nav aria-label={t(config, "ui.shell.nav_aria")} className={`hidden border-t border-line/70 md:block ${fullNav.hideChips}`}>
             <ul className="flex flex-wrap justify-center gap-tight px-3 py-2">
               {links.map((link) => (
                 <li key={link.href}>
@@ -236,43 +252,6 @@ export async function SiteHeader({ tagline, showInterestCta, showProjects }: Sit
         ) : null}
       </div>
     </header>
-  );
-}
-
-/**
- * The mark of the lockup: an olive leaf held in a gold curve.
- *
- * The reference draws a logo we hold no asset for — `Wordmark` is text only, «Agri» forest and «Zed» gold —
- * so it is drawn here in the same line vocabulary the site already uses for its olive drawings
- * (site-photo.tsx, tree-card.tsx). No file is downloaded and no icon library is added; it is decoration, so
- * it is aria-hidden and the link beside it carries the name.
- */
-function OliveLeafMark({ className = "size-11" }: { className?: string }) {
-  return (
-    <svg viewBox="0 0 48 48" aria-hidden="true" focusable="false" className={className}>
-      {/* the gold curve the leaf rests in */}
-      <path
-        d="M5.5 21.5c0 11.6 9.4 21 21 21 5.4 0 10.3-2 14-5.4"
-        className="stroke-gold-bright"
-        fill="none"
-        strokeWidth="4"
-        strokeLinecap="round"
-      />
-      {/* the leaf */}
-      <path
-        d="M42.4 4.2c-13.6.5-24 6.3-28 14.9-2.5 5.3-1.9 11.1 1 15 4.9-1.2 10.2-4.5 14.5-9.2 6.4-7 11.9-14.1 12.5-20.7Z"
-        className="fill-forest"
-      />
-      {/* its midrib, drawn in paper so the leaf reads as a leaf at 40px */}
-      <path
-        d="M38.6 7.8C29.4 13.7 21.6 22.3 16.3 33"
-        className="stroke-paper"
-        fill="none"
-        strokeWidth="1.9"
-        strokeLinecap="round"
-        opacity="0.85"
-      />
-    </svg>
   );
 }
 

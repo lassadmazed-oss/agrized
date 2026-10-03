@@ -4,6 +4,7 @@ import { createServerClient } from "@supabase/ssr";
 import { cookies, headers } from "next/headers";
 
 import { publicEnv } from "@/lib/env";
+import { DISPLAY_LOCALE_HEADER, type Locale } from "@/lib/i18n/locales";
 import { auditHeaders } from "@/lib/request-context";
 
 import type { Database } from "./database.types";
@@ -11,8 +12,11 @@ import type { Database } from "./database.types";
 /**
  * Supabase client acting as the signed-in user, so Row Level Security applies.
  * Create a new one for every request; never share it.
+ *
+ * `display` makes the database answer labels in that language (0109 rule 5) — for a read whose answer is
+ * shown to the visitor, like the client's own file. Never for a write: intake snapshots stay Arabic.
  */
-export async function createClient() {
+export async function createClient({ display }: { display?: Locale } = {}) {
   const cookieStore = await cookies();
   const requestHeaders = await headers();
 
@@ -31,6 +35,11 @@ export async function createClient() {
         }
       },
     },
-    global: { headers: auditHeaders(requestHeaders) },
+    global: {
+      headers: {
+        ...auditHeaders(requestHeaders),
+        ...(display && display !== "ar" ? { [DISPLAY_LOCALE_HEADER]: display } : {}),
+      },
+    },
   });
 }

@@ -1,9 +1,7 @@
-import Link from "next/link";
-
 import { LandingIcon, type LandingIconName } from "@/components/site/landing/hero";
+import Link from "@/components/site/link";
 import type { MillionFigures } from "@/components/site/million-counter";
-import { settingJson, settingText, type PublicConfig } from "@/lib/config";
-import { formatCount } from "@/lib/format";
+import { formatFor, settingJson, settingText, t, type PublicConfig } from "@/lib/config";
 
 /*
  * The four-figure slab that floats low in the hero photograph.
@@ -70,28 +68,29 @@ function coverageLabel(config: PublicConfig, count: number): string {
 export function heroStatColumns(config: PublicConfig, progress: MillionFigures | null): HeroStatColumn[] {
   if (!progress) return [];
   const columns: HeroStatColumn[] = [];
+  const fmt = formatFor(config);
 
   const requested = figure(progress.treesRequested);
-  const requestedLabel = settingText(config, "million.tile_requested_label", "زيتونات مطلوبة");
+  const requestedLabel = t(config, "million.tile_requested_label");
   if (requested !== null && requestedLabel) {
     const goal = figure(progress.goal) ?? 0;
     // `million.goal_label` was emptied by the owner (0044) and the goal is 0, so no third line today.
-    const goalLabel = settingText(config, "million.goal_label");
+    const goalLabel = t(config, "million.goal_label");
     columns.push({
       key: "requested",
-      figure: formatCount(requested),
+      figure: fmt.formatCount(requested),
       label: requestedLabel,
-      hint: goal > 0 && goalLabel ? goalLabel.replace("{goal}", formatCount(goal)) : undefined,
+      hint: goal > 0 && goalLabel ? t(config, "million.goal_label", { goal }) : undefined,
       icon: "tree",
     });
   }
 
   const participants = figure(progress.participants);
-  const participantsLabel = settingText(config, "million.tile_participants_label", "عدد المشاركين");
+  const participantsLabel = t(config, "million.tile_participants_label");
   if (participants !== null && participants > 0 && participantsLabel) {
     columns.push({
       key: "participants",
-      figure: formatCount(participants),
+      figure: fmt.formatCount(participants),
       label: participantsLabel,
       icon: "people",
     });
@@ -100,7 +99,7 @@ export function heroStatColumns(config: PublicConfig, progress: MillionFigures |
   const governorates = config.governorates.length;
   const coverage = coverageLabel(config, governorates);
   if (governorates > 0 && coverage) {
-    columns.push({ key: "coverage", figure: formatCount(governorates), label: coverage, icon: "pin" });
+    columns.push({ key: "coverage", figure: fmt.formatCount(governorates), label: coverage, icon: "pin" });
   }
 
   // The closing column carries no figure, which is why it reads as the slab's last word rather than as a

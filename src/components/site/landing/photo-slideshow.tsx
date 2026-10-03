@@ -88,13 +88,18 @@ export function PhotoSlideshow({
   const step = 100 / (count * 2);
   const cycle = count * (dwell + slide);
   const pct = (seconds: number) => Math.round((seconds / cycle) * 10000) / 100;
-  const name = `az-slide-${count}`;
+  // In a right-to-left row the first frame sits at the RIGHT edge and the strip overflows to the left, so the
+  // track travels toward positive x; in a left-to-right row it is the mirror image. A transform has no
+  // logical form, so the page's direction picks the sign — and names the keyframes, so an Arabic and a French
+  // slideshow can never share one.
+  const sign = config.dir === "rtl" ? 1 : -1;
+  const name = `az-slide-${count}-${config.dir}`;
 
   // One pair of frames per stop: hold where you are, then travel to the next.
   const stops: string[] = [];
   for (let i = 0; i <= count; i += 1) {
     const at = i * (dwell + slide);
-    const x = `translateX(${Math.round(i * step * 100) / 100}%)`;
+    const x = `translateX(${(sign * Math.round(i * step * 100)) / 100}%)`;
     stops.push(`${pct(at)}%{transform:${x}}`);
     if (i < count) stops.push(`${pct(at + dwell)}%{transform:${x}}`);
   }
@@ -108,8 +113,8 @@ export function PhotoSlideshow({
       style={aspect ? { aspectRatio: aspect } : undefined}
     >
       <style>{keyframes}</style>
-      {/* The document is RTL at the root and never anything else, so the first frame sits at the RIGHT edge
-          and the strip overflows to the left: the track travels toward positive x. */}
+      {/* The track travels toward the inline start: positive x on the Arabic page, negative on a
+          left-to-right one (see `sign` above). */}
       <div
         className="az-slide-track flex h-full"
         style={{

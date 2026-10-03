@@ -11,6 +11,7 @@ declare
   v_b uuid;
   v_status uuid;
   v_ok boolean;
+  v_cin text;
 begin
   select id into v_status from public.lead_statuses where stage = 'new' order by sort_order limit 1;
 
@@ -35,11 +36,17 @@ begin
   exception when check_violation then null;
   end;
 
-  update public.persons set cin = '12345678' where id = v_a;
+  -- A CIN no real file holds: a fixed «12345678» collided the day somebody typed it on a real file
+  -- (2026-10-03), and the test then measured the live data instead of the constraint.
+  select c into v_cin
+  from (select lpad((floor(random() * 100000000))::bigint::text, 8, '0') as c from generate_series(1, 50)) x
+  where not exists (select 1 from public.persons p where p.cin = x.c)
+  limit 1;
+  update public.persons set cin = v_cin where id = v_a;
 
   -- 2 · One CIN, one file.
   begin
-    update public.persons set cin = '12345678' where id = v_b;
+    update public.persons set cin = v_cin where id = v_b;
     assert false, 'two files were allowed to share one CIN';
   exception when unique_violation then null;
   end;

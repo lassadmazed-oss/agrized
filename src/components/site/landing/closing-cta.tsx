@@ -1,7 +1,6 @@
-import Link from "next/link";
-
+import Link from "@/components/site/link";
 import { SitePhoto } from "@/components/site/site-photo";
-import { settingText, type PublicConfig } from "@/lib/config";
+import { settingText, t, type PublicConfig } from "@/lib/config";
 
 type ClosingCtaProps = {
   config: PublicConfig;
@@ -38,9 +37,9 @@ type ClosingCtaProps = {
  *    wording, not the owner's; what prints is `site.final_cta_note` and the two keys the page already reads.
  */
 export function ClosingCta({ config, ctaLabel, ctaHref = "/start", offers = null }: ClosingCtaProps) {
-  const title = settingText(config, "site.final_cta_title", "ابدا أصلك اليوم، على قدّ إمكانياتك");
-  const note = settingText(config, "site.final_cta_note");
-  const contactLabel = settingText(config, "site.final_cta_contact_label", "أو تواصل معنا");
+  const title = t(config, "site.final_cta_title");
+  const note = t(config, "site.final_cta_note");
+  const contactLabel = t(config, "site.final_cta_contact_label");
   // The drawing's chat bubble opens a real conversation or it is not drawn: WhatsApp first, the telephone
   // after it, nothing at all when the owner has filled in neither.
   const whatsapp = settingText(config, "site.contact_whatsapp").replace(/\D/g, "");
@@ -56,11 +55,12 @@ export function ClosingCta({ config, ctaLabel, ctaHref = "/start", offers = null
           text block's padding below, which is what actually moves. */}
       <div className="absolute inset-x-0 top-0 h-36 sm:inset-y-0 sm:start-auto sm:end-0 sm:h-auto sm:w-[38%]">
         <SitePhoto config={config} slot="home.closing" fill sizes="(min-width: 640px) 22vw, 100vw" />
-        {/* No seam where the photograph meets the green: it dissolves into the card's own ground. The axis is
-            written physically because this document is RTL at the root (src/app/layout.tsx) and never
-            anything else — `to-b` at a phone, `to-l` (toward the end) from sm up, which is the side the
-            picture sits on. The same convention the progress bar already uses (million-counter.tsx). */}
-        <div className="absolute inset-0 bg-linear-to-b from-transparent to-forest-700 sm:bg-linear-to-l sm:from-forest-700 sm:via-forest-700/55 sm:to-transparent" />
+        {/* No seam where the photograph meets the green: it dissolves into the card's own ground. A gradient
+            has no logical axis, so it is written physically — `to-b` at a phone, and from sm up running from
+            the picture's start edge, where it meets the words, toward the card's end: `to-l` on the Arabic
+            page, `to-r` on a left-to-right one (the `ltr:sm:` variant sorts after `sm:`, so it wins there and
+            leaves the phone's `to-b` alone). The same convention the progress bar uses (million-counter.tsx). */}
+        <div className="absolute inset-0 bg-linear-to-b from-transparent to-forest-700 sm:bg-linear-to-l sm:from-forest-700 sm:via-forest-700/55 sm:to-transparent ltr:sm:bg-linear-to-r" />
       </div>
 
       <div className="relative p-card pt-40 sm:p-roomy sm:pt-roomy sm:pe-[40%]">
@@ -110,12 +110,12 @@ export function ClosingCta({ config, ctaLabel, ctaHref = "/start", offers = null
 }
 
 /**
- * The arrow in the button. It points toward the physical left, which on this document — `dir="rtl"` on
- * <html>, with no other locale in the app — is forward, exactly as the reference draws it.
+ * The arrow in the button. It is drawn toward the physical left, which on the Arabic site — `dir="rtl"` on
+ * <html> — is forward, exactly as the reference draws it; on a left-to-right page it is turned to the right.
  */
 function ForwardArrow() {
   return (
-    <svg viewBox="0 0 20 20" aria-hidden="true" className="size-4 flex-none" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+    <svg viewBox="0 0 20 20" aria-hidden="true" className="size-4 flex-none ltr:-scale-x-100" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
       <path d="M16 10H4" />
       <path d="M8.5 5.5 4 10l4.5 4.5" />
     </svg>

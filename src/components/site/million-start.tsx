@@ -1,16 +1,20 @@
-import Link from "next/link";
-
+import Link from "@/components/site/link";
 import { TreeCardBody, treeCardClass } from "@/components/site/tree-card";
 
-type TreeOption = { id: string; code: string | null; label_ar: string; min_number: number | null };
+/** A tree_count option; `label` is in the page's language (config). */
+type TreeOption = { id: string; code: string | null; label: string; min_number: number | null };
 
 type MillionStartProps = {
   treeCounts: TreeOption[];
   treesQuestion: string;
   /** Line under the question; hidden when the setting is empty. */
   subtitle: string;
-  /** `start.tier_taglines`, keyed by tree_count code ("custom" for the free number); only the Arabic line is used here. */
-  taglines: Record<string, { ar: string; fr?: string }>;
+  /**
+   * `start.tier_taglines` resolved for the page (startTaglines in src/app/[lang]/(public)/start/copy.ts), keyed by
+   * tree_count code ("custom" for the free number); `ar` is the line in the page's language, and only it is
+   * used here — the home band is never bilingual.
+   */
+  taglines: Record<string, { ar: string; fr?: string | null }>;
   /** «عدد آخر» card closing the row (spec v2 §7); hidden when the setting is empty. */
   otherCardLabel: string;
   /** «عدد آخر؟» text under the grid, shown only when the card is hidden so the same choice is not offered twice. */
@@ -36,7 +40,7 @@ export function MillionStart({ treeCounts, treesQuestion, subtitle, taglines, ot
             <li key={option.id}>
               <Link href={`/start?trees=${option.id}`} className={treeCardClass(false, "dark")}>
                 <TreeCardBody
-                  labelAr={option.label_ar}
+                  labelAr={option.label}
                   trees={option.min_number}
                   taglineAr={option.code ? taglines[option.code]?.ar : undefined}
                   tone="dark"

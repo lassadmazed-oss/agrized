@@ -1,10 +1,8 @@
-import Link from "next/link";
-
+import Link from "@/components/site/link";
 import { RemotePhoto } from "@/components/site/site-photo";
 import { StatusPill } from "@/components/ui";
-import { PLANTATION_LABELS, PRODUCTION_LABELS } from "@/lib/crm";
-import { formatArea, formatCount, formatMillimes } from "@/lib/format";
-import { projectStatusLabel, projectStatusTone } from "@/lib/projects";
+import type { SiteFormat } from "@/lib/format";
+import { projectStatusTone } from "@/lib/projects";
 import type { PublicProject } from "@/lib/public-projects";
 
 /**
@@ -56,13 +54,18 @@ export type OfferCardStock = {
   sold: number;
 };
 
+/**
+ * Every word the card prints, built once per page by `offerCardLabels()` (src/components/site/offers.tsx)
+ * from settings in the request's language, and the format its figures are written in. The card is a Server
+ * Component on every page that renders it, so the words that depend on a figure travel as functions.
+ */
 export type OfferCardLabels = {
-  /** The tree unit with the «متاحة» status: the word under the stock figure. */
-  available: string;
-  /** `offers.stock_reserved_label` — «المحجوزة». */
-  reserved: string;
-  /** `offers.stock_sold_label` — «المباعة». */
-  sold: string;
+  /** `ui.cards.available_label` — «زيتونة متاحة», the word beside the stock figure, worded for `count`. */
+  available: (count: number) => string;
+  /** `ui.cards.reserved_count` — «3 المحجوزة», a figure and its word in one text. */
+  reservedCount: (count: number) => string;
+  /** `ui.cards.sold_count` — «3 المباعة». */
+  soldCount: (count: number) => string;
   /** `start.row_trees` — what the stock figure counts while the trees are not numbered yet. */
   trees: string;
   /** `start.row_area_per_tree` — «المساحة لكل زيتونة». */
@@ -73,16 +76,18 @@ export type OfferCardLabels = {
   from: string;
   /** `projects.price_pending` — what stands in for a price that is not published yet. */
   pricePending: string;
-  /**
-   * `offers.card_cta_label` — «أكتشف العرض», the button at the foot.
-   *
-   * Optional, and only until `offerCardLabels()` (src/components/site/offers.tsx) reads the two keys:
-   * that function is the one place the card's words are built from settings, and both belong there so the
-   * owner can rewrite them. The defaults below keep every existing call site compiling and rendering.
-   */
-  cta?: string;
-  /** `offers.card_cta_unavailable` — «غير متاح», the same button on an offer nobody can buy into today. */
-  ctaUnavailable?: string;
+  /** `ui.cards.cta_open` — «أكتشف العرض», the button at the foot. */
+  cta: string;
+  /** `ui.cards.cta_unavailable` — «غير متاح», the same button on an offer nobody can buy into today. */
+  ctaUnavailable: string;
+  /** `ui.cards.plantation_*` — the planting system's word, or the code when the owner has not named it. */
+  plantation: (code: string) => string;
+  /** `ui.cards.production_*` — the production stage's word. */
+  production: (code: string) => string;
+  /** `ui.offer.status_*` — the status pill's word. */
+  status: (status: string) => string;
+  /** Money, areas and counts in the page's language. */
+  format: SiteFormat;
 };
 
 export type OfferCardProps = {
@@ -97,10 +102,6 @@ export type OfferCardProps = {
   pricePerTreeMillimes: number | null;
   labels: OfferCardLabels;
 };
-
-/** The word on the button while the offer can still be bought into, and while it cannot. */
-const CTA_FALLBACK = "أكتشف العرض";
-const CTA_UNAVAILABLE_FALLBACK = "غير متاح";
 
 /**
  * One of the secondary facts under the price: land per tree, and stock. `label` is the owner's own wording
@@ -117,14 +118,14 @@ type StatCell = {
 export function OfferCard({ project, stock, href, place, areaPerTreeM2, pricePerTreeMillimes, labels }: OfferCardProps) {
   const facts = [
     project.olive_variety,
-    project.plantation_system ? PLANTATION_LABELS[project.plantation_system] : null,
-    project.production_status ? PRODUCTION_LABELS[project.production_status] : null,
+    project.plantation_system ? labels.plantation(project.plantation_system) : null,
+    project.production_status ? labels.production(project.production_status) : null,
   ].filter((fact): fact is string => Boolean(fact));
 
   // Zeros are the same on every offer and say nothing; a figure that moved is worth the room.
   const taken = [
-    { key: "reserved", value: stock.reserved, label: labels.reserved },
-    { key: "sold", value: stock.sold, label: labels.sold },
+    { key: "reserved", value: stock.reserved, text: labels.reservedCount },
+    { key: "sold", value: stock.sold, text: labels.soldCount },
   ].filter((bucket) => bucket.value > 0);
 
   // An offer whose trees are not numbered yet has no availability to state, so the card counts what the
@@ -138,24 +139,29 @@ export function OfferCard({ project, stock, href, place, areaPerTreeM2, pricePer
   // The price is the card's one figure of size, and the two facts under it are read against it: what one
   // tree costs, then how much land comes with it and how many are left. A price the pricing module keeps
   // closed prints the owner's own sentence in caption type, so a sentence never wears figure type.
-  const price = pricePerTreeMillimes ? formatMillimes(pricePerTreeMillimes) : null;
+  const fmt = labels.format;
+  const price = pricePerTreeMillimes ? fmt.formatMillimes(pricePerTreeMillimes) : null;
   const pricePending = !price && project.offered ? labels.pricePending : "";
 
   const cells: StatCell[] = [];
   if (areaPerTreeM2) {
-    cells.push({ key: "area", value: formatArea(areaPerTreeM2), label: labels.areaPerTree });
+    cells.push({ key: "area", value: fmt.formatArea(areaPerTreeM2), label: labels.areaPerTree });
   }
   cells.push({
     key: "trees",
-    value: formatCount(trees),
-    label: counted ? labels.available : labels.trees,
+    value: fmt.formatCount(trees),
+    label: counted ? labels.available(trees) : labels.trees,
     dim: !counted || trees === 0,
   });
 
   return (
     <li className="card overflow-hidden transition-shadow hover:shadow-card">
       <Link href={href} className="flex h-full flex-col focus-visible:outline-offset-[-2px]">
-        <OfferCover project={project} place={place} />
+        <OfferCover
+          project={project}
+          place={place}
+          status={project.status !== "published" ? labels.status(project.status) : ""}
+        />
 
         <div className="flex flex-1 flex-col p-card">
           {/* The offer's own name, off the photograph and on the card's ground where it is a heading
@@ -235,11 +241,8 @@ export function OfferCard({ project, stock, href, place, areaPerTreeM2, pricePer
                 </li>
               ))}
               {taken.map((bucket) => (
-                <li key={bucket.key} className="pill pill-line">
-                  <span dir="ltr" className="tabular-nums">
-                    {formatCount(bucket.value)}
-                  </span>
-                  {bucket.label}
+                <li key={bucket.key} className="pill pill-line tabular-nums">
+                  {bucket.text(bucket.value)}
                 </li>
               ))}
             </ul>
@@ -258,8 +261,11 @@ export function OfferCard({ project, stock, href, place, areaPerTreeM2, pricePer
                 open ? "btn-primary" : "bg-line text-ink"
               }`}
             >
-              {open ? labels.cta || CTA_FALLBACK : labels.ctaUnavailable || CTA_UNAVAILABLE_FALLBACK}
-              <span aria-hidden="true">←</span>
+              {open ? labels.cta : labels.ctaUnavailable}
+              {/* Forward is the inline end: drawn for Arabic, turned for a left-to-right page. */}
+              <span aria-hidden="true" className="inline-block ltr:-scale-x-100">
+                ←
+              </span>
             </span>
             <p className="mt-snug text-center text-xs leading-4 text-muted">
               <span dir="ltr" className="tabular-nums">
@@ -285,7 +291,7 @@ export function OfferCard({ project, stock, href, place, areaPerTreeM2, pricePer
  * The cover carries no figure of its own, so nothing on it can be mistaken for a price (PRN-01) or for a
  * stock count (PRJ-03) — those are printed below it, from the values the page was given.
  */
-function OfferCover({ project, place }: { project: PublicProject; place: string }) {
+function OfferCover({ project, place, status }: { project: PublicProject; place: string; status: string }) {
   return (
     <div className="relative">
       <RemotePhoto
@@ -300,12 +306,12 @@ function OfferCover({ project, place }: { project: PublicProject; place: string 
         aria-hidden="true"
         className="absolute inset-0 bg-linear-to-t from-forest-700/92 via-forest-700/26 to-forest-700/8"
       />
-      {project.status !== "published" ? (
+      {status ? (
         <StatusPill
           toneClass={projectStatusTone(project.status)}
           className="absolute end-3 top-3 shadow-[var(--shadow-raise)]"
         >
-          {projectStatusLabel(project.status)}
+          {status}
         </StatusPill>
       ) : null}
       {place ? (

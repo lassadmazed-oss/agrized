@@ -1,7 +1,7 @@
 import { headers } from "next/headers";
 import { z } from "zod";
 
-import { getPublicConfig, settingBool, settingText } from "@/lib/config";
+import { getPublicConfig, settingBool, t } from "@/lib/config";
 import { intakeErrorMessage, isKnownIntakeError } from "@/lib/errors";
 import { normalizePhone } from "@/lib/phone";
 import { getPublicProjects } from "@/lib/public-projects";
@@ -37,21 +37,28 @@ import { createAdminClient } from "@/lib/supabase/admin";
 
 export const dynamic = "force-dynamic";
 
+/**
+ * Each refusal names the owner's sentence by its settings key (`ui.errors.mobile_*`); POST reads it in the
+ * caller's language. A check without a key of its own falls back to `ui.errors.mobile_incomplete`.
+ */
 const schema = z.object({
-  fullName: z.string().trim().min(3, "الاسم قصير برشة.").max(120, "الاسم طويل برشة."),
-  phone: z.string().trim().min(6, "رقم التلفون موش صحيح.").max(24, "رقم التلفون طويل برشة."),
+  fullName: z.string().trim().min(3, "ui.errors.mobile_name_too_short").max(120, "ui.errors.mobile_name_too_long"),
+  phone: z.string().trim().min(6, "ui.errors.mobile_phone_invalid").max(24, "ui.errors.mobile_phone_too_long"),
   // Required by both intake functions, and checked against the real table below rather than trusted.
-  governorateId: z.number("إختار ولايتك.").int().positive("إختار ولايتك."),
+  governorateId: z
+    .number("ui.errors.mobile_governorate_required")
+    .int()
+    .positive("ui.errors.mobile_governorate_required"),
   /**
    * Why they want olive trees. A CODE, never an option id: the app sends «family», the server looks up which
    * row that is today. An id from a client is an id a client could swap for another list's.
    */
-  goal: z.enum(["family", "investment", "both"], "إختار علاش تحب زياتين."),
-  email: z.string().trim().email("الإيميل موش صحيح.").max(160).optional().or(z.literal("")),
+  goal: z.enum(["family", "investment", "both"], "ui.errors.mobile_goal_required"),
+  email: z.string().trim().email("ui.errors.mobile_email_invalid").max(160).optional().or(z.literal("")),
   /** The offer this came from, when the visitor was looking at one. */
   offerCode: z.string().trim().max(50).nullish(),
-  trees: z.number().int().positive().max(100_000, "عدد الزيتونات كبير برشة.").nullish(),
-  note: z.string().trim().max(500, "الملاحظة طويلة برشة.").nullish(),
+  trees: z.number().int().positive().max(100_000, "ui.errors.mobile_trees_too_many").nullish(),
+  note: z.string().trim().max(500, "ui.errors.mobile_note_too_long").nullish(),
 });
 
 function fail(message: string, status = 400) {
@@ -59,25 +66,27 @@ function fail(message: string, status = 400) {
 }
 
 export async function POST(request: Request) {
+  // Arabic unless the app sends its language in `x-agrized-locale` (src/lib/i18n/server.ts).
+  const config = await getPublicConfig();
+
   const body = await request.json().catch(() => null);
   const parsed = schema.safeParse(body);
   if (!parsed.success) {
-    return fail(parsed.error.issues[0]?.message ?? "المعطيات موش كاملة.");
+    const key = parsed.error.issues[0]?.message;
+    return fail(t(config, key?.startsWith("ui.errors.") ? key : "ui.errors.mobile_incomplete"));
   }
   const input = parsed.data;
-
-  const config = await getPublicConfig();
 
   // A governorate the caller invented is refused here rather than deep inside the RPC, so the app gets a
   // sentence it can show instead of a database error code.
   if (!config.governorates.some((row) => row.id === input.governorateId)) {
-    return fail("إختار ولايتك من القائمة.");
+    return fail(t(config, "ui.errors.mobile_governorate_unknown"));
   }
 
   const phone = normalizePhone(input.phone, settingBool(config, "lead.allow_international_phone"));
   if (!phone.ok) {
     return fail(
-      phone.reason === "not_tunisian" ? "الرقم لازم يكون تونسي." : "رقم التلفون موش صحيح. مثال: 98 123 456.",
+      t(config, phone.reason === "not_tunisian" ? "ui.errors.mobile_phone_not_tunisian" : "ui.errors.mobile_phone_invalid_example"),
     );
   }
 
@@ -102,8 +111,8 @@ export async function POST(request: Request) {
     .eq("code", input.goal)
     .eq("is_active", true)
     .maybeSingle();
-  if (!goalRow?.id) return fail("ما نجّمناش نقرا سبب الاهتمام. عاود جرّب.", 503);
-  const consentText = settingText(config, "legal.consent_text", "موافقة على التواصل ومعالجة المعطيات");
+  if (!goalRow?.id) return fail(t(config, "ui.errors.mobile_goal_unavailable"), 503);
+  const consentText = t(config, "legal.consent_text");
   const ipHash = hashIp(clientIp(requestHeaders));
   const source = { channel: "mobile", app: "agrized-expo" };
 
@@ -159,13 +168,13 @@ export async function POST(request: Request) {
     if (!isKnownIntakeError(error.message)) {
       console.error(`${payload.fn} failed (mobile)`, error);
     }
-    return fail(intakeErrorMessage(error.message), 400);
+    return fail(intakeErrorMessage(config, error.message), 400);
   }
 
   const reference = (data as { request_no?: string } | null)?.request_no ?? null;
   if (!reference) {
     console.error(`${payload.fn} returned no request number (mobile)`, data);
-    return fail(intakeErrorMessage(null), 502);
+    return fail(intakeErrorMessage(config, null), 502);
   }
 
   return Response.json({ ok: true, reference });

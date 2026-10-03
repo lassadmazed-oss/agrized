@@ -33,7 +33,7 @@ export function SitePhoto({ config, slot, aspect, fill, sizes = "100vw", priorit
       {media ? (
         <Image
           src={media.url as string}
-          alt={media.alt_ar ?? ""}
+          alt={media.alt ?? ""}
           fill
           sizes={sizes}
           priority={priority}

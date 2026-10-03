@@ -1,11 +1,9 @@
-import Link from "next/link";
-
 import { LandingIcon, OliveSprig } from "@/components/site/landing/hero";
+import Link from "@/components/site/link";
 import { offersTitle } from "@/components/site/offers";
 import { estimateLabel } from "@/components/site/site-header";
 import { SitePhoto } from "@/components/site/site-photo";
-import { flagState, settingText, type PublicConfig } from "@/lib/config";
-import { formatCount } from "@/lib/format";
+import { flagState, formatFor, settingText, t, type PublicConfig } from "@/lib/config";
 
 /*
  * The two very wide cards that straddle the foot of the hero photograph.
@@ -47,20 +45,16 @@ export function twinCardsCopy(config: PublicConfig): TwinCardsCopy {
     // «تبدا بزيتونة، ويكبر مع الوقت»: seeded, owner-editable, unused anywhere else in the app, and the
     // heading of the very paragraph below it. The drawing's heading is «احسب مشروعك» — which is also what
     // the button says, so taking it here would print the same three words twice inside one small card.
-    estimateTitle: settingText(config, "site.start_title") || settingText(config, "site.unit_cta", "احسب مشروعك"),
-    estimateText: settingText(config, "site.start_text"),
+    estimateTitle: t(config, "site.start_title") || t(config, "site.unit_cta"),
+    estimateText: t(config, "site.start_text"),
     estimateCta: interestOpen ? estimateLabel(config) : "",
-    estimateNote: settingText(
-      config,
-      "start.estimate_note",
-      "هذا تقدير أولي حسب الإعدادات الحالية. التفاصيل النهائية في بطاقة المشروع والعقد.",
-    ),
-    stepperLabel: settingText(config, "start.row_trees", "عدد الزيتونات"),
+    estimateNote: t(config, "start.estimate_note"),
+    stepperLabel: t(config, "start.row_trees"),
     // NEW KEY, fallback "".
     offersPill: settingText(config, "site.paths_offers_pill"),
     offersTitle: offersTitle(config),
-    offersText: settingText(config, "projects.intro"),
-    offersCta: settingText(config, "site.cta_offers_label", "شوف العروض"),
+    offersText: t(config, "projects.intro"),
+    offersCta: t(config, "site.cta_offers_label"),
   };
 }
 
@@ -166,7 +160,7 @@ export function TwinCards({
                 <div className="mt-tight flex items-center justify-between rounded-xl border border-line px-3 py-2">
                   <span className="text-lg leading-none text-muted">−</span>
                   <span className="font-display text-2xl font-bold leading-none text-forest tabular-nums">
-                    {formatCount(sampleTreeCount)}
+                    {formatFor(config).formatCount(sampleTreeCount)}
                   </span>
                   <span className="text-lg leading-none text-muted">+</span>
                 </div>
@@ -229,14 +223,15 @@ export function TwinCards({
               />
               {/* The photograph meets the card's forest ground on a straight edge; the gradient is what
                   stops that edge reading as a seam. It runs from the inner side at 375 (the picture is on
-                  top there) and from the inline-start side at lg (the picture is beside the words). */}
+                  top there) and from the inline-start side at lg (the picture is beside the words): `to-l` on
+                  the Arabic page, `to-r` on a left-to-right one. */}
               <div
                 aria-hidden="true"
                 className="absolute inset-0 bg-linear-to-t from-forest-700/85 via-forest-700/25 to-transparent lg:hidden"
               />
               <div
                 aria-hidden="true"
-                className="absolute inset-0 hidden bg-linear-to-l from-forest-700 via-forest-700/30 to-transparent lg:block"
+                className="absolute inset-0 hidden bg-linear-to-l from-forest-700 via-forest-700/30 to-transparent lg:block ltr:bg-linear-to-r"
               />
               {/* Where the live stock actually is. «صفاقس» is a row the page looked up from the offers'
                   own governorate, not a caption; an empty place prints nothing. */}

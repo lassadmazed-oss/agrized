@@ -1,8 +1,8 @@
 import "server-only";
 
-import { flagState, getPublicConfig, settingJson, settingText, type PublicConfig } from "@/lib/config";
+import { flagState, formatFor, getPublicConfig, settingJson, settingText, t, type PublicConfig } from "@/lib/config";
 import { PRODUCTION_LABELS } from "@/lib/crm";
-import { formatMillimes } from "@/lib/format";
+import { DEFAULT_LOCALE, type Locale } from "@/lib/i18n/locales";
 import { IRRIGATION_LABELS } from "@/lib/land";
 import { getPublicProjects } from "@/lib/public-projects";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -20,6 +20,11 @@ import { createAdminClient } from "@/lib/supabase/admin";
  * as a suggestion: `assistantLinkTargets()` lists the paths that exist, and the client renders a link only
  * when the href is one of them (see safe-links.ts). A hallucinated `/projects/DEMO-99` is printed as plain
  * text, never as a link into a 404.
+ *
+ * IN THE VISITOR'S LANGUAGE (0109). The bubble names the page's language on every question; the context is
+ * built in it (place names, prices, the card captions) and the model is told to answer in it. The paths stay
+ * the Arabic site's (`/projects/CODE`) — that is what the model writes and what the allow-list matches — and
+ * the bubble's links put them in the visitor's language when they are drawn (src/components/site/link.tsx).
  */
 
 /** Everything the assistant is allowed to know, rendered as the text the model receives. */
@@ -37,8 +42,9 @@ export type AssistantOfferCard = {
   name: string;
   /** «نابل · قربة» — the governorate, and the place inside it when the offer names one. */
   place: string;
-  /** «من 167 د.ت للزيتونة», or null while the price is unannounced. */
+  /** «من 167 د.ت للزيتونة» (ui.assistant.price_from), or null while the price is unannounced. */
   priceFrom: string | null;
+  /** The Arabic site's path, `/projects/CODE`; the bubble's Link prefixes the visitor's language. */
   href: string;
 };
 
@@ -139,7 +145,10 @@ function describeOffers(
   config: PublicConfig,
   limit: number,
 ): { text: string; hrefs: string[]; cards: AssistantOfferCard[] } {
-  const govName = new Map(config.governorates.map((g) => [g.id, g.name_ar]));
+  // Place names and money in the visitor's language: the card prints them as they are, and a model handed
+  // «Nabeul» and «167 DT» answers a French reader in French figures instead of translating Arabic ones.
+  const govName = new Map(config.governorates.map((g) => [g.id, g.name]));
+  const fmt = formatFor(config);
   const open = offers.filter((o) => o.offered).slice(0, limit);
 
   if (open.length === 0) {
@@ -159,11 +168,11 @@ function describeOffers(
     if (o.production_status) bits.push(`الحالة: ${PRODUCTION_LABELS[o.production_status] ?? o.production_status}`);
     if (o.tree_count !== null) bits.push(`عدد الزياتين في الضيعة: ${o.tree_count}`);
     if (o.min_price_per_tree_millimes !== null) {
-      bits.push(`السوم يبدا من ${formatMillimes(o.min_price_per_tree_millimes)} للزيتونة`);
+      bits.push(`السوم يبدا من ${fmt.formatMillimes(o.min_price_per_tree_millimes)} للزيتونة`);
     } else {
       bits.push("السوم ما زال ما تعلنش");
     }
-    if (o.area_per_tree_min_m2 !== null) bits.push(`المساحة للزيتونة: من ${o.area_per_tree_min_m2} م²`);
+    if (o.area_per_tree_min_m2 !== null) bits.push(`المساحة للزيتونة: من ${fmt.formatArea(o.area_per_tree_min_m2)}`);
     return `- ${bits.join(" · ")}`;
   });
 
@@ -173,7 +182,7 @@ function describeOffers(
     place: govName.get(o.governorate_id) ?? "",
     priceFrom:
       o.min_price_per_tree_millimes !== null
-        ? `من ${formatMillimes(o.min_price_per_tree_millimes)} للزيتونة`
+        ? t(config, "ui.assistant.price_from", { price: fmt.formatMillimes(o.min_price_per_tree_millimes) })
         : null,
     href: `/projects/${o.code}`,
   }));
@@ -182,15 +191,37 @@ function describeOffers(
 }
 
 /**
+ * The language rule for a visitor who is not reading the Arabic site.
+ *
+ * Written in English, and placed before everything else, on purpose: the persona and the rules under it are
+ * Arabic, and «تكلّم بالتونسي» in the first line of a prompt beats a polite request further down. The language's
+ * English name comes from Intl rather than from a list in this file, and its own name from public.locales.
+ */
+function languageRule(config: PublicConfig, locale: Locale): string {
+  const english = new Intl.DisplayNames(["en"], { type: "language" }).of(locale) ?? locale;
+  const native = config.locales.find((row) => row.code === locale)?.name ?? english;
+  return [
+    `LANGUAGE — this overrides the persona and every instruction below: the visitor is reading the ${english} version of the site.`,
+    `Always answer in ${english} (${native}), never in Arabic, even though these instructions, the examples and the offer list are written in Arabic.`,
+    "If the visitor writes to you in another language, answer in that language instead.",
+    "Keep offer names, codes and link paths exactly as they are given below.",
+  ].join("\n");
+}
+
+/**
  * The instructions. Tone comes from `assistant.persona` (a row), the rules do not: they are what keeps the
  * thing honest, and they are not an editable business value.
+ *
+ * `locale` is the language of the page the question came from — the route reads it from the bubble's request,
+ * since the proxy (which names it for every page) does not run on /api.
  */
-export async function buildAssistantContext(): Promise<AssistantContext> {
+export async function buildAssistantContext(locale: Locale = DEFAULT_LOCALE): Promise<AssistantContext> {
   const [config, offers, priv] = await Promise.all([
-    getPublicConfig(),
+    getPublicConfig(locale),
     getPublicProjects("anon"),
     readPrivateSettings(),
   ]);
+  const arabic = locale === DEFAULT_LOCALE;
 
   const maxAnswer = priv.maxAnswerChars;
   const described = describeOffers(offers, config, priv.maxOffers);
@@ -217,12 +248,15 @@ export async function buildAssistantContext(): Promise<AssistantContext> {
    * what a good answer looks like copies its shape.
    */
   const system = [
+    ...(arabic ? [] : [languageRule(config, locale), ""]),
     persona,
     "",
     "مهمتك: تعاون الزائر يفهم العروض ويلقى اللي يناسبو، وتوجّهو للفورمولير. إنت مرشد، موش بيّاع.",
     "",
     "الأسلوب:",
-    `- بالعربي التونسي، جمل قصيرة، ${maxAnswer} حرف على الأكثر، وبلا مقدّمات.`,
+    arabic
+      ? `- بالعربي التونسي، جمل قصيرة، ${maxAnswer} حرف على الأكثر، وبلا مقدّمات.`
+      : `- جمل قصيرة، ${maxAnswer} حرف على الأكثر، وبلا مقدّمات، باللغة المذكورة في الأوّل.`,
     "- بلا تنسيق: بلا عناوين، بلا نجوم، بلا قوائم مرقّمة طويلة.",
     "",
     "خدمتك — هذا اللي لازمك تعملو، وما تتهرّبش منو:",
@@ -278,14 +312,26 @@ export async function buildAssistantContext(): Promise<AssistantContext> {
   };
 }
 
-/** The starter buttons and the window's copy, read by the server component that mounts the widget. */
+/**
+ * The starter buttons and every word of the window, in the request's language, read by the server component that
+ * mounts the widget. The owner's long-standing texts (assistant.*) and the window's own microcopy (ui.assistant.*)
+ * travel together as one plain object, so the bubble needs no provider of its own.
+ */
 export function assistantCopy(config: PublicConfig) {
   return {
-    title: settingText(config, "assistant.title", "مساعد AgriZed"),
-    tagline: settingText(config, "assistant.tagline", ""),
-    greeting: settingText(config, "assistant.greeting", ""),
+    title: t(config, "assistant.title"),
+    tagline: t(config, "assistant.tagline"),
+    greeting: t(config, "assistant.greeting"),
+    // A list, replaced whole by its translation (0109 rule 4): the starters are four questions, not four words.
     suggestions: settingJson<string[]>(config, "assistant.suggestions", []),
-    unavailable: settingText(config, "assistant.unavailable", "المساعد مش متوفّر توّا."),
+    unavailable: t(config, "assistant.unavailable"),
+    close: t(config, "ui.assistant.close"),
+    typing: t(config, "ui.assistant.typing"),
+    placeholder: t(config, "ui.assistant.placeholder"),
+    fieldLabel: t(config, "ui.assistant.field_label"),
+    send: t(config, "ui.assistant.send"),
+    cardCta: t(config, "ui.assistant.card_cta"),
+    cardCtaLabel: t(config, "ui.assistant.card_cta_label"),
   };
 }
 

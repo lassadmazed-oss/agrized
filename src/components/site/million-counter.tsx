@@ -1,7 +1,9 @@
 import { Fragment, type ReactNode } from "react";
 
-import { settingJson, settingText, type PublicConfig } from "@/lib/config";
-import { formatCount } from "@/lib/format";
+import { formatFor, settingJson, t, type PublicConfig } from "@/lib/config";
+import type { SiteFormat } from "@/lib/format";
+import { INTL_NUMBER, type Locale } from "@/lib/i18n/locales";
+import { formatMessage } from "@/lib/i18n/message";
 import type { MillionProgress } from "@/lib/million";
 
 type TileKey = "requested" | "reserved" | "contracted" | "planted" | "participants" | "projects";
@@ -25,41 +27,40 @@ export type MillionCounterCopy = {
   /** `{share}` is replaced by the smallest share the bar prints. */
   shareBelow: string;
   tiles: Record<TileKey, TileCopy>;
+  /** How the figures are written in the page's language. */
+  format: SiteFormat;
 };
 
-/** Every text of the section from settings (MIL-02). An empty label hides its tile. */
+/**
+ * Every text of the section from settings (MIL-02), in the request's language. An empty label hides its tile.
+ * The sentences with blanks stay templates here — `{count}`, `{goal}`, `{share}`, `{people}` and any plural
+ * the owner wrote around them — and are filled by the component, which has the figures.
+ */
 export function millionCounterCopy(config: PublicConfig): MillionCounterCopy {
-  const tile = (key: TileKey, label: string, hint: string): TileCopy => ({
-    label: settingText(config, `million.tile_${key}_label`, label),
-    hint: settingText(config, `million.tile_${key}_hint`, hint),
+  const tile = (key: TileKey): TileCopy => ({
+    label: t(config, `million.tile_${key}_label`),
+    hint: t(config, `million.tile_${key}_hint`),
   });
 
   return {
-    title: settingText(config, "site.progress_title", "وين وصلنا؟"),
-    note: settingText(config, "site.progress_note"),
-    peopleLead: settingText(config, "million.people_lead", "{people} بدات تبني أصل زيتوني مع AgriZed"),
+    title: t(config, "site.progress_title"),
+    note: t(config, "site.progress_note"),
+    peopleLead: t(config, "million.people_lead"),
     peopleBands: settingJson<PeopleBand[]>(config, "million.people_bands", []),
-    peopleEncourage: settingText(
-      config,
-      "million.people_encourage",
-      "إنت زادة تنجم تبدأ بزيتونة وتكبر على قد إمكانياتك.",
-    ),
-    goalLabel: settingText(config, "million.goal_label", "الهدف: {goal} زيتونة"),
-    barCaption: settingText(config, "million.bar_caption", "{count} زيتونة مطلوبة من {goal} · {share}"),
-    barEmpty: settingText(
-      config,
-      "million.bar_empty",
-      "المشروع في بدايته: مازال ما وصلنا حتى مطلب بعدد زيتونات محدّد.",
-    ),
-    shareBelow: settingText(config, "million.share_below", "أقل من {share}"),
+    peopleEncourage: t(config, "million.people_encourage"),
+    goalLabel: t(config, "million.goal_label"),
+    barCaption: t(config, "million.bar_caption"),
+    barEmpty: t(config, "million.bar_empty"),
+    shareBelow: t(config, "million.share_below"),
     tiles: {
-      requested: tile("requested", "زيتونات مطلوبة", "مجموع الزيتونات الموجودة في مطالب المستخدمين."),
-      reserved: tile("reserved", "زيتونات محجوزة", "مرتبطة بحجوزات فعلية."),
-      contracted: tile("contracted", "زيتونات تم التعاقد عليها", "عقود فعلية أو في طور الإمضاء."),
-      planted: tile("planted", "زيتونات مغروسة / موجودة فعلياً", "مشاريع منجزة."),
-      participants: tile("participants", "عدد المشاركين", "كل شخص يُحتسب مرة واحدة."),
-      projects: tile("projects", "مشاريع قيد الدراسة", "عقارات تحت الدراسة قبل أي عرض."),
+      requested: tile("requested"),
+      reserved: tile("reserved"),
+      contracted: tile("contracted"),
+      planted: tile("planted"),
+      participants: tile("participants"),
+      projects: tile("projects"),
     },
+    format: formatFor(config),
   };
 }
 
@@ -165,14 +166,25 @@ function tiles(
  * many people there are.
  */
 export function MillionCounter({ progress, copy, photo }: MillionCounterProps) {
+  const fmt = copy.format;
   const goal = figure(progress.goal) ?? 0;
   const requested = figure(progress.treesRequested);
   const treesRequested = requested ?? 0;
   const share = goal > 0 && requested !== null ? Math.min(treesRequested / goal, 1) : 0;
   // A real but tiny share still deserves a mark on the bar, never a rounded-up number next to it.
   const barWidth = treesRequested > 0 ? Math.max(share * 100, 0.8) : 0;
-  const figures = { count: formatCount(treesRequested), goal: formatCount(goal), share: formatShare(share, copy.shareBelow) };
+  const figures = { count: fmt.formatCount(treesRequested), goal: fmt.formatCount(goal) };
   const caption = treesRequested > 0 ? copy.barCaption : copy.barEmpty;
+  // The owner's sentences with their blanks filled in the page's language (plurals included); the figure the
+  // eye looks for is then set in weight inside the finished sentence, wherever that language put it.
+  const captionText = caption
+    ? formatMessage(fmt.locale, caption, {
+        count: treesRequested,
+        goal,
+        share: formatShare(share, copy.shareBelow, fmt.locale),
+      })
+    : "";
+  const goalText = copy.goalLabel ? formatMessage(fmt.locale, copy.goalLabel, { goal }) : "";
 
   // Owner, 2026-09-16: the section leads with the people who started, not with the number of trees. The count is
   // the real one (MIL-01); the word describing it lives in the Back Office, so «عشرات» becomes «مئات» on its own.
@@ -184,7 +196,7 @@ export function MillionCounter({ progress, copy, photo }: MillionCounterProps) {
       ? []
       : copy.peopleBands.filter((band) => Number.isFinite(band.min) && participants >= band.min);
   const band = reached.length > 0 ? reached.reduce((best, item) => (item.min > best.min ? item : best)) : null;
-  const peopleLine = band && copy.peopleLead ? fillText(copy.peopleLead, { people: band.text }) : "";
+  const peopleLine = band && copy.peopleLead ? formatMessage(fmt.locale, copy.peopleLead, { people: band.text }) : "";
 
   // A stage keeps its tile at 0: beside a stage that has moved, a zero is information — it says how far the
   // offer has come. A stage the counter did not answer with is another matter and does not appear at all.
@@ -250,7 +262,7 @@ export function MillionCounter({ progress, copy, photo }: MillionCounterProps) {
                     <dd aria-hidden="true" className="order-1 mb-tight text-gold">
                       <TileGlyph name={tile.key} />
                     </dd>
-                    <dd className="stat-figure order-2 tabular-nums">{formatCount(tile.value)}</dd>
+                    <dd className="stat-figure order-2 tabular-nums">{fmt.formatCount(tile.value)}</dd>
                     {copy.tiles[tile.key].hint ? (
                       <dd className="order-4 text-xs leading-5 text-muted">{copy.tiles[tile.key].hint}</dd>
                     ) : null}
@@ -268,7 +280,7 @@ export function MillionCounter({ progress, copy, photo }: MillionCounterProps) {
                   <div key={tile.key} className="flex items-baseline gap-tight">
                     <dt className="order-2">{copy.tiles[tile.key].label}</dt>
                     <dd className="order-1 font-display text-xl font-bold text-gold-bright tabular-nums">
-                      {formatCount(tile.value)}
+                      {fmt.formatCount(tile.value)}
                     </dd>
                   </div>
                 ))}
@@ -288,29 +300,33 @@ export function MillionCounter({ progress, copy, photo }: MillionCounterProps) {
                   aria-valuemin={0}
                   aria-valuemax={goal}
                   aria-valuenow={treesRequested}
-                  aria-label={fillText(caption, figures) || copy.title}
+                  aria-label={captionText || copy.title}
                   className="h-1.5 w-full overflow-hidden rounded-full bg-paper/20"
                 >
+                  {/* The fill grows from the inline start, so its gold end is there in both directions: `to-l`
+                      on the Arabic page, `to-r` on a left-to-right one. */}
                   <div
                     style={{ width: `${barWidth}%` }}
-                    className="h-full rounded-full bg-linear-to-l from-gold-bright to-leaf-soft transition-[width] duration-700"
+                    className="h-full rounded-full bg-linear-to-l from-gold-bright to-leaf-soft transition-[width] duration-700 ltr:bg-linear-to-r"
                   />
                 </div>
                 <div className="mt-snug flex flex-wrap items-baseline justify-between gap-x-cozy gap-y-hair text-caption text-paper/75">
-                  {copy.goalLabel ? (
+                  {goalText ? (
                     <p>
-                      {fill(copy.goalLabel, {
-                        goal: <span className="font-semibold text-paper tabular-nums">{figures.goal}</span>,
-                      })}
+                      {emphasize(
+                        goalText,
+                        figures.goal,
+                        <span className="font-semibold text-paper tabular-nums">{figures.goal}</span>,
+                      )}
                     </p>
                   ) : null}
-                  {caption ? (
+                  {captionText ? (
                     <p>
-                      {fill(caption, {
-                        count: <span className="font-semibold text-gold-bright tabular-nums">{figures.count}</span>,
-                        goal: figures.goal,
-                        share: figures.share,
-                      })}
+                      {emphasize(
+                        captionText,
+                        figures.count,
+                        <span className="font-semibold text-gold-bright tabular-nums">{figures.count}</span>,
+                      )}
                     </p>
                   ) : null}
                 </div>
@@ -400,21 +416,29 @@ function SectionLeaf({ className = "" }: { className?: string }) {
   );
 }
 
-/** Replaces `{name}` tokens with nodes; an unknown token stays visible so a typo in settings shows up. */
-function fill(template: string, values: Record<string, ReactNode>): ReactNode[] {
-  return template.split(/(\{[a-z]+\})/).map((part, index) => {
-    const name = /^\{([a-z]+)\}$/.exec(part)?.[1];
-    return <Fragment key={index}>{name && name in values ? values[name] : part}</Fragment>;
-  });
+/**
+ * A finished sentence with one figure in it set as `node`: the first place the formatted figure occurs. The
+ * sentence is the owner's, already filled in its language, so the figure is found where that language put it;
+ * a sentence that does not print it (the owner left the blank out) is returned as it is.
+ */
+function emphasize(text: string, figureText: string, node: ReactNode): ReactNode[] {
+  const at = figureText ? text.indexOf(figureText) : -1;
+  if (at < 0) return [text];
+  return [
+    <Fragment key="before">{text.slice(0, at)}</Fragment>,
+    <Fragment key="figure">{node}</Fragment>,
+    <Fragment key="after">{text.slice(at + figureText.length)}</Fragment>,
+  ];
 }
 
-function fillText(template: string, values: Record<string, string>): string {
-  return template.replace(/\{([a-z]+)\}/g, (token, name: string) => values[name] ?? token);
-}
-
-/** Says «أقل من 0.1%» rather than rounding a real 0.03% up to a friendlier number. */
-function formatShare(share: number, below: string): string {
+/**
+ * Says «أقل من 0.1%» rather than rounding a real 0.03% up to a friendlier number. The percent is written the
+ * way the page's language writes one — «12.5%» on the Arabic site as before, «12,5 %» in French.
+ */
+function formatShare(share: number, below: string, locale: Locale): string {
   const percent = share * 100;
-  if (percent > 0 && percent < 0.1) return fillText(below, { share: "0.1%" });
-  return `${formatCount(Number(percent.toFixed(percent < 10 ? 1 : 0)))}%`;
+  const write = (value: number, digits: number) =>
+    new Intl.NumberFormat(INTL_NUMBER[locale], { style: "percent", maximumFractionDigits: digits }).format(value);
+  if (percent > 0 && percent < 0.1) return formatMessage(locale, below, { share: write(0.001, 1) });
+  return write(share, percent < 10 ? 1 : 0);
 }

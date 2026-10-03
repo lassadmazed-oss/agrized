@@ -1,5 +1,4 @@
-import Link from "next/link";
-
+import Link from "@/components/site/link";
 import { OfferCard } from "@/components/site/offer-card";
 import {
   areaPerTree,
@@ -11,7 +10,7 @@ import {
 } from "@/components/site/offers";
 import { estimateLabel } from "@/components/site/site-header";
 import { EmptyState } from "@/components/ui";
-import { flagState, settingText, type PublicConfig } from "@/lib/config";
+import { flagState, settingText, t, type PublicConfig } from "@/lib/config";
 import { projectHref } from "@/lib/public-hrefs";
 import type { PublicProject } from "@/lib/public-projects";
 
@@ -73,15 +72,15 @@ export function OffersSection({ config, offers, stockOf, shown = homeOffers(offe
 
   const title = offersTitle(config);
   const intro = settingText(config, "offers.intro");
-  const offersCta = settingText(config, "site.cta_offers_label", "شوف العروض");
-  const note = settingText(config, "legal.parcel_card_note");
+  const offersCta = t(config, "site.cta_offers_label");
+  const note = t(config, "legal.parcel_card_note");
   const interestOpen = flagState(config, "interest_form") === "public";
   const estimateCta = estimateLabel(config);
   // The price of a tree exists for the visitor only while the pricing module is open to them (FLAG-02).
   // Read from the flag alone, never from the staff session: the home page is prerendered for everyone (§54).
   const pricingOpen = flagState(config, "pricing") === "public";
   const labels = offerCardLabels(config);
-  const place = (governorateId: number) => config.governorates.find((g) => g.id === governorateId)?.name_ar ?? "";
+  const place = (governorateId: number) => config.governorates.find((g) => g.id === governorateId)?.name ?? "";
 
   return (
     // A data section: it is the densest rhythm of the page, and it stays that way on a wide screen. It sits
@@ -132,7 +131,9 @@ export function OffersSection({ config, offers, stockOf, shown = homeOffers(offe
             <p className="mt-cozy text-center">
               <Link href="/projects" className="btn btn-secondary">
                 {offersCta}
-                <span aria-hidden="true">←</span>
+                <span aria-hidden="true" className="inline-block ltr:-scale-x-100">
+                  ←
+                </span>
               </Link>
             </p>
           ) : null}
@@ -149,11 +150,7 @@ export function OffersSection({ config, offers, stockOf, shown = homeOffers(offe
             ) : null
           }
         >
-          {settingText(
-            config,
-            "projects.empty_text",
-            "ما فماش عروض بهذه المعايير توّا. سجّل مطلبك ونعلموك أول ما يتوفّر عرض يشبه اللي تحب.",
-          )}
+          {t(config, "projects.empty_text")}
         </EmptyState>
       )}
     </section>

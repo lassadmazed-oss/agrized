@@ -1,5 +1,3 @@
-import { formatCount } from "@/lib/format";
-
 /**
  * The four tiles under the hero card on a phone (owner, 2026-09-21, from an AgriZed app mock-up): the trees,
  * the people, the land and the reach.
@@ -15,10 +13,12 @@ import { formatCount } from "@/lib/format";
  * statements and only one of them is true.
  */
 export type AppStat = {
-  /** What it counts, e.g. «زيتونة». */
+  /** What it counts, e.g. «زيتونة», worded by the page for the figure it stands under. */
   label: string;
   /** The figure itself, or null when nothing honest answers it — the tile is then dropped. */
   value: number | null;
+  /** The same figure as the page's language writes it («1,234», «1 234»), formatted by the page. */
+  figure: string;
   /** «+» before the figure, for a count that keeps growing. Never on a fixed one like the governorates. */
   growing?: boolean;
   icon: "tree" | "people" | "land" | "place";
@@ -58,7 +58,7 @@ export function AppStats({ stats }: { stats: readonly AppStat[] }) {
           </svg>
           <p className="font-display text-[1.375rem] font-bold leading-none text-forest tabular-nums">
             {stat.growing ? "+" : ""}
-            {formatCount(stat.value as number)}
+            {stat.figure}
           </p>
           <p className="text-[0.6875rem] leading-tight text-muted">{stat.label}</p>
         </div>

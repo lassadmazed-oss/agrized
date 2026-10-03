@@ -9,6 +9,7 @@ import { formatPercent } from "@/components/admin/tree-pricing-inputs";
 import { DataList, DataRow, EmptyState, SectionHeader, StatusPill } from "@/components/ui";
 import { ADMIN_ROLES, CRM_READ_ROLES, hasRole, requireStaff, type StaffRole } from "@/lib/auth";
 import { getPublicConfig, settingText } from "@/lib/config";
+import { isLocale } from "@/lib/i18n/locales";
 import { readRequestStages } from "@/lib/journey";
 import {
   ATTEMPT_CHANNEL_LABELS,
@@ -31,6 +32,7 @@ import { HeldTreesSection, type HeldOffer, type HeldTree, type StateLabels } fro
 import { MatchingOffers } from "./matching-offers";
 import { ReservationCard } from "./reservation-card";
 import { ReserveTreesCard, type ReserveChoice } from "./reserve-trees-card";
+import { setPersonLocale } from "./locale-actions";
 import { VisitCard } from "./visit-card";
 
 export const metadata: Metadata = { title: "ملف حريف" };
@@ -68,7 +70,7 @@ export default async function LeadDetailPage({ params, searchParams }: PageProps
   const { data: person } = await supabase
     .from("persons")
     .select(
-      "id, full_name, phone_e164, whatsapp_e164, email, governorate_id, delegation_id, created_at, assigned_to, status:lead_statuses(id, stage, label_ar), owner:profiles!persons_assigned_to_fkey(full_name)",
+      "id, full_name, phone_e164, whatsapp_e164, email, governorate_id, delegation_id, created_at, assigned_to, preferred_locale, status:lead_statuses(id, stage, label_ar), owner:profiles!persons_assigned_to_fkey(full_name)",
     )
     .eq("id", personId)
     .maybeSingle();
@@ -281,7 +283,27 @@ export default async function LeadDetailPage({ params, searchParams }: PageProps
   const defaultRequestId = typeof reserveParam === "string" && UUID.test(reserveParam) ? reserveParam : null;
 
   const whatsappNumber = (person.whatsapp_e164 ?? person.phone_e164).replace(/\D/g, "");
-  const whatsappText = whatsappTemplate.data?.body_ar
+  // The first WhatsApp is written in the client's language (0109): the template's translation along that
+  // language's fallback chain, else the Arabic.
+  const personLocale = isLocale(person.preferred_locale) ? person.preferred_locale : "ar";
+  const [{ data: localeRows }, localeChain] = await Promise.all([
+    supabase.from("locales").select("code, name_ar").order("sort_order"),
+    personLocale === "ar" ? Promise.resolve([] as string[]) : getPublicConfig(personLocale).then((localized) => localized.chain),
+  ]);
+  const { data: whatsappTranslations } =
+    localeChain.length > 0
+      ? await supabase
+          .from("translations")
+          .select("locale, value")
+          .eq("entity", "message_template")
+          .eq("entity_key", "lead.whatsapp_first_contact")
+          .eq("field", "body")
+          .in("locale", localeChain)
+      : { data: [] as { locale: string; value: unknown }[] };
+  const translatedWhatsapp = localeChain
+    .map((code) => whatsappTranslations?.find((row) => row.locale === code)?.value)
+    .find((value): value is string => typeof value === "string");
+  const whatsappText = (whatsappTemplate.data ? (translatedWhatsapp ?? whatsappTemplate.data.body_ar) : undefined)
     ?.replace("{name}", person.full_name.split(" ")[0] ?? person.full_name)
     .replace("{agent}", session.fullName || "فريق AgriZed")
     .replace("{request_no}", latestRequest?.request_no ?? "");
@@ -338,6 +360,34 @@ export default async function LeadDetailPage({ params, searchParams }: PageProps
             المسؤول: <span className="font-semibold text-ink">{person.owner?.full_name ?? "بدون مسؤول"}</span> · ملف منذ{" "}
             <span className="tabular-nums">{formatDateTime(person.created_at)}</span>
           </p>
+          {/* لغة التواصل (0109): what every SMS to this client is written in. Set by their own requests on
+              the site and by the language selector; set here when they asked on the phone. */}
+          {canEdit ? (
+            <ActionForm
+              action={setPersonLocale.bind(null, person.id)}
+              submitLabel="حفظ"
+              className="flex flex-wrap items-center gap-2 text-sm"
+              buttonClassName="btn btn-secondary min-h-9 px-3 text-sm"
+            >
+              <label htmlFor="person-locale" className="text-muted">
+                لغة التواصل:
+              </label>
+              <select id="person-locale" name="locale" defaultValue={personLocale} className="field min-h-9 w-auto py-1 text-sm">
+                {(localeRows ?? []).map((row) => (
+                  <option key={row.code} value={row.code}>
+                    {row.name_ar}
+                  </option>
+                ))}
+              </select>
+            </ActionForm>
+          ) : (
+            <p className="text-sm text-muted">
+              لغة التواصل:{" "}
+              <span className="font-semibold text-ink">
+                {(localeRows ?? []).find((row) => row.code === personLocale)?.name_ar ?? personLocale}
+              </span>
+            </p>
+          )}
         </div>
         <div className="flex flex-wrap gap-2">
           <a href={`tel:${person.phone_e164}`} className="btn btn-primary" dir="ltr">

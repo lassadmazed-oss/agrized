@@ -2,6 +2,8 @@ import "server-only";
 
 import { createHash } from "node:crypto";
 
+import { isLocale, LOCALE_HEADER } from "@/lib/i18n/locales";
+
 export function clientIp(headers: Headers): string | null {
   const forwarded = headers.get("x-forwarded-for");
   if (forwarded) {
@@ -14,6 +16,11 @@ export function clientIp(headers: Headers): string | null {
 /**
  * Headers forwarded to Supabase so database audit triggers can record the visitor's IP and
  * browser (see app.write_audit). Informational only, never used for access control.
+ *
+ * And the visitor's language (0109): the proxy writes it into every public request from the URL, and passing
+ * it on is what lets the database record it on the person a form creates or touches — so the confirmation
+ * SMS, and every message after it, goes out in the language the form was filled in. It never changes what a
+ * function answers; that is the separate display header (src/lib/i18n/server.ts).
  */
 export function auditHeaders(headers: Headers): Record<string, string> {
   const result: Record<string, string> = {};
@@ -21,6 +28,8 @@ export function auditHeaders(headers: Headers): Record<string, string> {
   if (ip) result["x-client-ip"] = ip.slice(0, 64);
   const userAgent = headers.get("user-agent");
   if (userAgent) result["x-client-ua"] = userAgent.replace(/[^\x20-\x7E]/g, "").slice(0, 300);
+  const locale = headers.get(LOCALE_HEADER);
+  if (isLocale(locale)) result[LOCALE_HEADER] = locale;
   return result;
 }
 

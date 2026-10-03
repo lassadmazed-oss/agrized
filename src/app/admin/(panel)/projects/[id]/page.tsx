@@ -265,6 +265,14 @@ export default async function OfferPage({ params, searchParams }: PageProps<"/ad
             <Link href={demandsHref} className="btn btn-ghost btn-sm">
               مطالب هذا العرض
             </Link>
+            {/* The offer's name, description and conditions in the four other languages (0109): edited in
+                the translation room, which this opens on this offer. */}
+            <Link
+              href={`/admin/settings/translations?tab=offers&q=${encodeURIComponent(project.code.toLowerCase())}`}
+              className="btn btn-ghost btn-sm"
+            >
+              الترجمات
+            </Link>
             {newPricing && canWrite ? (
               <Link href={pricingHref} className="btn btn-ghost btn-sm">
                 قواعد التسعير

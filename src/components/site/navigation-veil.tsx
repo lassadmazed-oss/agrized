@@ -34,8 +34,12 @@ import { usePathname, useSearchParams } from "next/navigation";
  * HOW IT COMES DOWN. `usePathname` and `useSearchParams` both change the moment the new screen is committed,
  * so the effect that watches them lowers the veil. `pagehide` covers the case where the click left the site
  * altogether and the browser is showing us again from its back-forward cache.
+ *
+ * ITS ONE WORD IS PASSED IN (`label`, what a screen reader announces), because it is drawn by BOTH root layouts:
+ * the site's, which reads it from settings in the visitor's language (ui.common.loading), and the Back Office's,
+ * which has no language provider at all. A hook here would find the words on one side and print a key on the other.
  */
-export function NavigationVeil() {
+export function NavigationVeil({ label }: { label: string }) {
   const pathname = usePathname();
   const search = useSearchParams();
 
@@ -120,7 +124,7 @@ export function NavigationVeil() {
       {/* One element, one composited animation. The bar is the whole hint: no sheet over the page, no blur
           sampling the screen behind it on the frame the router is busiest. */}
       <span aria-hidden="true" />
-      <span className="sr-only">جارٍ التحميل…</span>
+      <span className="sr-only">{label}</span>
     </div>
   );
 }

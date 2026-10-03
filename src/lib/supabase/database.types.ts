@@ -1997,6 +1997,54 @@ export type Database = {
           },
         ]
       }
+      locales: {
+        Row: {
+          code: string
+          fallback_code: string | null
+          is_enabled: boolean
+          name_ar: string
+          name_native: string
+          sort_order: number
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          code: string
+          fallback_code?: string | null
+          is_enabled?: boolean
+          name_ar: string
+          name_native: string
+          sort_order?: number
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          code?: string
+          fallback_code?: string | null
+          is_enabled?: boolean
+          name_ar?: string
+          name_native?: string
+          sort_order?: number
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "locales_fallback_code_fkey"
+            columns: ["fallback_code"]
+            isOneToOne: false
+            referencedRelation: "locales"
+            referencedColumns: ["code"]
+          },
+          {
+            foreignKeyName: "locales_updated_by_fkey"
+            columns: ["updated_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       message_templates: {
         Row: {
           body_ar: string
@@ -2049,6 +2097,7 @@ export type Database = {
           created_at: string
           id: string
           last_error: string | null
+          locale: string | null
           provider: string | null
           provider_message_id: string | null
           related_entity: string | null
@@ -2066,6 +2115,7 @@ export type Database = {
           created_at?: string
           id?: string
           last_error?: string | null
+          locale?: string | null
           provider?: string | null
           provider_message_id?: string | null
           related_entity?: string | null
@@ -2083,6 +2133,7 @@ export type Database = {
           created_at?: string
           id?: string
           last_error?: string | null
+          locale?: string | null
           provider?: string | null
           provider_message_id?: string | null
           related_entity?: string | null
@@ -2796,6 +2847,7 @@ export type Database = {
           last_request_at: string | null
           password_set_at: string | null
           phone_e164: string
+          preferred_locale: string | null
           profile_id: string | null
           status_id: string
           updated_at: string
@@ -2819,6 +2871,7 @@ export type Database = {
           last_request_at?: string | null
           password_set_at?: string | null
           phone_e164: string
+          preferred_locale?: string | null
           profile_id?: string | null
           status_id: string
           updated_at?: string
@@ -2842,6 +2895,7 @@ export type Database = {
           last_request_at?: string | null
           password_set_at?: string | null
           phone_e164?: string
+          preferred_locale?: string | null
           profile_id?: string | null
           status_id?: string
           updated_at?: string
@@ -2868,6 +2922,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "governorates"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "persons_preferred_locale_fkey"
+            columns: ["preferred_locale"]
+            isOneToOne: false
+            referencedRelation: "locales"
+            referencedColumns: ["code"]
           },
           {
             foreignKeyName: "persons_profile_id_fkey"
@@ -3843,6 +3904,54 @@ export type Database = {
           },
         ]
       }
+      translations: {
+        Row: {
+          entity: string
+          entity_key: string
+          field: string
+          is_draft: boolean
+          locale: string
+          updated_at: string
+          updated_by: string | null
+          value: Json
+        }
+        Insert: {
+          entity: string
+          entity_key: string
+          field: string
+          is_draft?: boolean
+          locale: string
+          updated_at?: string
+          updated_by?: string | null
+          value: Json
+        }
+        Update: {
+          entity?: string
+          entity_key?: string
+          field?: string
+          is_draft?: boolean
+          locale?: string
+          updated_at?: string
+          updated_by?: string | null
+          value?: Json
+        }
+        Relationships: [
+          {
+            foreignKeyName: "translations_locale_fkey"
+            columns: ["locale"]
+            isOneToOne: false
+            referencedRelation: "locales"
+            referencedColumns: ["code"]
+          },
+          {
+            foreignKeyName: "translations_updated_by_fkey"
+            columns: ["updated_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       tree_cost_items: {
         Row: {
           amount_millimes: number
@@ -4585,6 +4694,7 @@ export type Database = {
           created_at: string
           id: string
           last_error: string | null
+          locale: string | null
           provider: string | null
           provider_message_id: string | null
           related_entity: string | null
@@ -4813,6 +4923,13 @@ export type Database = {
           tree_age_years: number
         }[]
       }
+      public_project_covers: {
+        Args: never
+        Returns: {
+          media_id: string
+          project_id: string
+        }[]
+      }
       public_project_page: { Args: { p_code: string }; Returns: Json }
       public_project_quote: {
         Args: {
@@ -4888,6 +5005,7 @@ export type Database = {
         }
         Returns: undefined
       }
+      set_my_locale: { Args: { p_locale: string }; Returns: Json }
       staff_agri_operations: {
         Args: { p_filter?: string; p_limit?: number; p_project?: string }
         Returns: Json
@@ -5244,6 +5362,10 @@ export type Database = {
       }
       staff_set_legal_note: {
         Args: { p_file: string; p_note: string; p_reason: string }
+        Returns: Json
+      }
+      staff_set_person_locale: {
+        Args: { p_locale: string; p_person: string }
         Returns: Json
       }
       staff_set_subscription_status: {

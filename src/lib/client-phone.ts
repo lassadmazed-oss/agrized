@@ -1,13 +1,16 @@
 import { toWesternDigits } from "@/lib/digits";
 
 /*
- * The buyer's phone number and the buyer's Arabic, in a plain module.
+ * The buyer's phone number, in a plain module.
  *
  * WHY A MODULE OF ITS OWN. A `"use server"` file may export only async functions, so a synchronous helper
  * written in one action file could not be imported by the next — and the phone normaliser was copied into
  * src/app/(public)/zitounti/security/security-actions.ts as a «twin» that had already drifted (it did not
- * convert Arabic-Indic digits and did not strip parentheses). One copy, imported by both, and by the client
- * components for the sentences below. No "server-only", no React: it must run on both sides.
+ * convert Arabic-Indic digits and did not strip parentheses). One copy, imported by both. No "server-only",
+ * no React: it must run on both sides.
+ *
+ * The Arabic counts that used to live here too (countAr, minutesAr, lettersAr) are gone: «دقيقة · دقيقتين ·
+ * 5 دقايق» is now the owner's text, one plural message per language (src/lib/i18n/message.ts).
  */
 
 /**
@@ -29,26 +32,4 @@ export function normalisePhone(raw: string): string {
   if (/^216[0-9]{8}$/.test(trimmed)) return `+${trimmed}`;
   if (/^[0-9]{8}$/.test(trimmed)) return `+216${trimmed}`;
   return trimmed;
-}
-
-/**
- * Tunisian Arabic agreement for a counted noun: the singular alone for one (no numeral — «دقيقة», never
- * «1 دقايق»), the dual for two, the plural with the numeral from three to ten, and the singular with the
- * numeral above ten. The forms are passed in so every screen that prints a count reads one rule.
- */
-export function countAr(n: number, forms: { one: string; two: string; few: string; many: string }): string {
-  if (n === 1) return forms.one;
-  if (n === 2) return forms.two;
-  if (n >= 3 && n <= 10) return `${n} ${forms.few}`;
-  return `${n} ${forms.many}`;
-}
-
-/** «دقيقة» · «دقيقتين» · «5 دقايق» · «12 دقيقة». */
-export function minutesAr(n: number): string {
-  return countAr(n, { one: "دقيقة", two: "دقيقتين", few: "دقايق", many: "دقيقة" });
-}
-
-/** «حرف واحد» · «حرفين» · «8 أحرف» · «12 حرف». */
-export function lettersAr(n: number): string {
-  return countAr(n, { one: "حرف واحد", two: "حرفين", few: "أحرف", many: "حرف" });
 }

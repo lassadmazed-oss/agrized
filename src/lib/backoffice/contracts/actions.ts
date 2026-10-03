@@ -239,7 +239,7 @@ function contractsChanged(personId?: string | null) {
   revalidatePath("/admin/reservations");
   if (personId) revalidatePath(`/admin/leads/${personId}`);
   updateTag(PUBLIC_PROJECTS_TAG);
-  revalidatePath("/projects", "layout");
+  revalidatePath("/[lang]/projects", "layout");
 }
 
 /**
