@@ -17,7 +17,8 @@
     "sms:dispatch": "node --env-file=.env scripts/sms-dispatch.mjs",
     "photos:olive": "node --env-file=.env scripts/seed-olive-photos.mjs",
     "demo:workflow": "node --env-file=.env scripts/seed-workflow-demo.mjs",
-    "i18n:check": "node --env-file=.env scripts/i18n-check.mjs"
+    "i18n:check": "node --env-file=.env scripts/i18n-check.mjs",
+    "brand:icons": "node scripts/brand-icons.mjs"
   },
   "dependencies": {
     "@supabase/ssr": "^0.12.7",
@@ -38,6 +39,7 @@
     "eslint": "^9",
     "eslint-config-next": "16.3.5",
     "pg": "^8.23.0",
+    "sharp": "^0.35.4",
     "tailwindcss": "^4",
     "typescript": "^5"
   }

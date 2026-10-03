@@ -6,6 +6,7 @@ import { NavigationVeil } from "@/components/site/navigation-veil";
 import { formatUnits, getPublicConfig, pickTexts, settingText, t } from "@/lib/config";
 import { TextProvider } from "@/lib/i18n/client";
 import { isLocale, LOCALE_DIR, LOCALES, OG_LOCALE } from "@/lib/i18n/locales";
+import { SITE_ORIGIN } from "@/lib/site-origin";
 
 import { markazi, plexArabic } from "../fonts";
 
@@ -41,12 +42,24 @@ export async function generateMetadata({ params }: LayoutProps<"/[lang]">): Prom
   const description = text("site.meta_description", "");
 
   return {
+    // Absolute addresses for everything a scraper reads, without a single one being written out: the share card
+    // (src/app/opengraph-image.png) and the icons are file conventions, and Next composes them onto this base.
+    // Without it they would be built from VERCEL_URL — the deployment's own agrized-xxxx.vercel.app address —
+    // and every link preview in the wild would point at a deployment instead of at the site.
+    metadataBase: new URL(SITE_ORIGIN),
     title: {
       default: title,
       template: "%s · AgriZed",
     },
     description,
     applicationName: "AgriZed",
+    // src/app/manifest.ts. Next serves that route, but it does not declare it; the install prompt only appears
+    // on a page that links to it.
+    manifest: "/manifest.webmanifest",
+    // «أضف إلى الشاشة الرئيسية» on an iPhone: opened from the home screen it runs without Safari's chrome,
+    // under this name. Android reads the same intent from the manifest's `display`.
+    appleWebApp: { capable: true, title: "AgriZed", statusBarStyle: "default" },
+    twitter: { card: "summary_large_image", title, description },
     openGraph: {
       type: "website",
       locale: OG_LOCALE[lang],
