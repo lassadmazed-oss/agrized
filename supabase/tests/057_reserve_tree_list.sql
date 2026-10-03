@@ -79,8 +79,16 @@ begin
   if v_ok then
     assert (select count(*) from public.trees t where t.held_by = v_two) = 1,
       'a repeated tree number produced more than one tree';
+    -- The trees FIRST: trees.reservation_id points at the row below with NO ACTION, so deleting the
+    -- reservation while a tree still names it is refused by the database. Until the offers list was cleaned
+    -- out this branch never ran — every offer it could pick asked for more than one tree, so the duplicate
+    -- number was refused for being under the minimum and `v_ok` stayed false.
+    -- Every holder column, because trees_holder_check reads them together: an «available» tree has no
+    -- holder, no request and no allocation moment. Clearing only some of them is a half-released tree.
+    update public.trees t
+       set state = 'available', held_by = null, reservation_id = null, request_id = null, allocated_at = null
+     where t.held_by = v_two;
     delete from public.reservations r where r.person_id = v_two;
-    update public.trees t set state = 'available', held_by = null, reservation_id = null where t.held_by = v_two;
   end if;
 
   -- 3 · A set containing an already-sold tree is refused whole.

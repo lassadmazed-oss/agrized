@@ -29,6 +29,20 @@ import { offerStocks, totalStock, type OfferStock } from "@/lib/backoffice/offer
 
 export const metadata: Metadata = { title: "العروض" };
 
+/** What an offer carries, as it is said on the card: [key from app.offer_history, one, many]. */
+const HISTORY_LABELS: ReadonlyArray<readonly [string, string, string]> = [
+  ["contracts", "عقد", "عقود"],
+  ["payments", "دفعة", "دفوعات"],
+  ["reservations", "حجز", "حجوزات"],
+  ["requests", "مطلب", "مطالب"],
+  ["held_trees", "زيتونة مش متاحة", "زيتونة مش متاحة"],
+  ["visits", "زيارة", "زيارات"],
+  ["subscriptions", "اشتراك", "اشتراكات"],
+  ["harvests", "موسم", "مواسم"],
+  ["operations", "عملية فلاحية", "عمليات فلاحية"],
+  ["legal_files", "ملف قانوني", "ملفات قانونية"],
+];
+
 const WRITE_ROLES = ["finance", "admin", "super_admin"] as const satisfies readonly StaffRole[];
 
 type StaffClient = Awaited<ReturnType<typeof createClient>>;
@@ -106,6 +120,26 @@ export default async function OffersPage({ searchParams }: PageProps<"/admin/pro
     const carries = history.get(project.id);
     if (carries && Object.keys(carries).length === 0 && canDelete) return "delete";
     return "archive";
+  };
+
+  /**
+   * Why this offer shows «أرشفة» and not «حذف» (owner, 2026-10-03: «idk why i cannot remove»).
+   *
+   * The button alone could not say it: an offer that carries one visit and an offer that carries two contracts
+   * both came out as «أرشفة», with nothing on the card to tell them apart or to explain why the offer would not
+   * go. So the reason is printed beside the button, in the offer's own numbers — and when the history is empty
+   * and the button is still not «حذف», the reason is the reader's own role, which is worth saying too.
+   */
+  const removeReason = (project: { id: string; status: string }): string | null => {
+    if (!canWrite || project.status === "archived") return null;
+    const carries = history.get(project.id);
+    if (!carries) return null;
+    const parts = HISTORY_LABELS.flatMap(([key, one, many]) => {
+      const n = carries[key] ?? 0;
+      return n > 0 ? [`${formatCount(n)} ${n === 1 ? one : many}`] : [];
+    });
+    if (parts.length > 0) return `ما يتفسخش: فيه ${parts.join(" و")}.`;
+    return canDelete ? null : "الحذف للمدير العام وحده.";
   };
 
   const stocks = await offerStocks(
@@ -289,7 +323,14 @@ export default async function OffersPage({ searchParams }: PageProps<"/admin/pro
                         تعديل
                       </Link>
                     ) : null}
-                    {mode ? <OfferRemove action={removeOffer.bind(null, project.id, mode)} mode={mode} name={project.name} /> : null}
+                    {mode ? (
+                      <OfferRemove
+                        action={removeOffer.bind(null, project.id, mode)}
+                        mode={mode}
+                        name={project.name}
+                        reason={removeReason(project)}
+                      />
+                    ) : null}
                   </div>
                 ) : null}
               </li>

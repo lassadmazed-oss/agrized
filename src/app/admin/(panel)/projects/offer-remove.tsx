@@ -10,15 +10,21 @@ export type OfferRemoveMode = "delete" | "archive" | "restore";
 /**
  * The remove button of one offer card: the button turns into the question in place (ConfirmButton), and a
  * refusal — an offer that gained a reservation since the page was drawn — is said under it.
+ *
+ * `reason` is the other half of that: it says BEFORE the click why the button is «أرشفة» and not «حذف», so an
+ * offer that will not be deleted stops looking like a button that does not work (owner, 2026-10-03).
  */
 export function OfferRemove({
   action,
   mode,
   name,
+  reason = null,
 }: {
   action: (previous: ActionResult, formData: FormData) => Promise<ActionResult>;
   mode: OfferRemoveMode;
   name: string;
+  /** Why this is «أرشفة» and not «حذف», built on the server from the offer's own history. Null when it is «حذف». */
+  reason?: string | null;
 }) {
   const [state, formAction, pending] = useActionState(action, null);
   const copy = COPY[mode];
@@ -37,6 +43,8 @@ export function OfferRemove({
         <p role="alert" className="mt-2 max-w-sm text-xs leading-5 text-danger">
           {state.message}
         </p>
+      ) : reason ? (
+        <p className="mt-2 max-w-sm text-xs leading-5 text-muted">{reason}</p>
       ) : null}
     </form>
   );
