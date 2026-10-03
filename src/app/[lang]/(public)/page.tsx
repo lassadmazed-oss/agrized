@@ -12,7 +12,7 @@ import { type AppStat } from "@/components/site/mobile/app-stats";
 import { areaPerTree, offersTitle, offerTreePrice } from "@/components/site/offers";
 import { estimateLabel } from "@/components/site/site-header";
 import { RemotePhoto } from "@/components/site/site-photo";
-import { flagState, formatFor, getPublicConfig, settingJson, t } from "@/lib/config";
+import { coverSlots, flagState, formatFor, getPublicConfig, settingJson, t } from "@/lib/config";
 import { getMillionProgress } from "@/lib/million";
 import { projectHref } from "@/lib/public-hrefs";
 import { getPublicProjects, type PublicProject } from "@/lib/public-projects";
@@ -188,7 +188,7 @@ export default async function HomePage() {
           a four-column slab, and at 375 it is four scrolls before a visitor reaches anything they can act on.
           Below md this replaces it; from md the drawing's hero takes over unchanged. */}
       <HomePhone
-        hero={<PhotoSlideshow config={config} slots={HERO_SLOTS} priority sizes="100vw" />}
+        hero={<PhotoSlideshow config={config} slots={coverSlots(config, HERO_SLOTS)} priority sizes="100vw" />}
         language={<LanguageSwitcher choices={config.locales} variant="hero" />}
         // Each quote in the page's language: a row still carrying one field per language is read through
         // rowText, the same reader the hero's slogans use.

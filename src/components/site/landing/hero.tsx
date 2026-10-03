@@ -3,7 +3,7 @@ import type { ReactNode } from "react";
 import Link from "@/components/site/link";
 import { estimateLabel } from "@/components/site/site-header";
 import { PhotoMarquee } from "@/components/site/landing/photo-marquee";
-import { settingJson, settingText, t, type PublicConfig } from "@/lib/config";
+import { coverSlots, type PublicConfig, settingJson, settingText, t } from "@/lib/config";
 import type { Locale } from "@/lib/i18n/locales";
 
 /*
@@ -195,6 +195,18 @@ export function LandingIcon({ name, className = "size-5" }: IconProps) {
  * and a slot he has not filled is skipped rather than drawn as a placeholder (PhotoMarquee). `home.hero`
  * leads because it is the one chosen for this position and it is the frame a visitor lands on.
  */
+/**
+ * NO LONGER THE LIST — now only the FALLBACK for it (owner, 2026-10-03: «in the cover giv me in the admin
+ * some acsess to manige the imges of the cover thing that is auto sliding»).
+ *
+ * Which pictures slide on the home page is his decision and it is made in الإعدادات ← صور الموقع, one
+ * checkbox per picture, ordered the way that screen already orders them (0123 puts `in_cover` on
+ * public.site_media). Read it with `coverSlots(config, HERO_SLOTS)`.
+ *
+ * This array survives for one window: a database that has not had 0123 applied answers `in_cover` for
+ * nothing, and without a fallback the home page would open on an empty frame. It is also what 0123 seeds
+ * as ticked, so applying it changes nothing on screen — it only moves the decision off this line.
+ */
 export const HERO_SLOTS = ["home.hero", "home.journey", "home.coverage", "home.land", "home.closing"] as const;
 
 /**
@@ -360,7 +372,7 @@ export function Hero({ config, copy, promises, primaryHref, secondaryHref = "", 
           out, and with one photograph left it renders exactly what this line rendered before. */}
       <PhotoMarquee
         config={config}
-        slots={HERO_SLOTS}
+        slots={coverSlots(config, HERO_SLOTS)}
         seconds={7}
         eager="first"
         priority

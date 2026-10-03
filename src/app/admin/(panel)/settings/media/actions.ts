@@ -81,3 +81,45 @@ export async function clearSlotImage(slot: string): Promise<void> {
   revalidatePath("/admin/settings/media");
   revalidatePath("/");
 }
+
+/**
+ * Puts a picture into the home page's sliding cover, or takes it out (owner, 2026-10-03: «in the cover giv
+ * me in the admin some acsess to manige the imges of the cover thing that is auto sliding»).
+ *
+ * Which pictures slide was an array in src/components/site/landing/hero.tsx until today, so changing the
+ * front page of the business needed a developer and a deploy. It is a checkbox now.
+ *
+ * The decision is made in SQL (staff_set_media_cover, 0123) rather than with an update from here, because
+ * two of the three rules it enforces cannot be seen from one row: a slot with no picture may not be in the
+ * slider, and the slider may not be emptied — the home page would open on a blank frame either way, and the
+ * second one is only knowable by counting every other row. A disabled checkbox is not a rule.
+ */
+export async function setSlotInCover(slot: string, inCover: boolean): Promise<ActionResult> {
+  await requireStaff(ADMIN_ROLES);
+  const supabase = await createClient();
+
+  const { error } = await supabase.rpc("staff_set_media_cover", { p_slot: slot, p_in_cover: inCover });
+  if (error) return { ok: false, message: coverMessage(error.message) };
+
+  return done(inCover ? "تزادت الصورة في شريط الغلاف." : "تنحّات الصورة من شريط الغلاف.");
+}
+
+/** Every refusal says what happened AND what to do about it. */
+function coverMessage(code: string): string {
+  if (code.includes("media_slot_empty")) {
+    return "ما تنجّمش تحطّ في شريط الغلاف موضع فارغ: الشريط بش يوري رسم العلامة في وسط الدوران وكأنّ الصورة تكسّرت. إرفع الصورة الأول، ومن بعد علّمها.";
+  }
+  if (code.includes("media_cover_empty")) {
+    return "لازم تبقى صورة وحدة على الأقل في شريط الغلاف: كان نحّيناهم الكل، الصفحة الرئيسية تفتح على إطار فارغ. علّم صورة أخرى الأول، ومن بعد نحّي هذي.";
+  }
+  if (code.includes("media_slot_not_found")) {
+    return "هذا الموضع ما عادش موجود. حدّث الصفحة وأعد المحاولة.";
+  }
+  if (code.includes("forbidden") || code.includes("42501")) {
+    return "ما عندكش الصلاحية باش تبدّل صور الموقع. هذي شاشة إدارة.";
+  }
+  if (code.includes("PGRST202") || code.includes("42883")) {
+    return "ميزة شريط الغلاف مازالت ما تركّبتش في قاعدة البيانات (supabase/migrations/0123_cover_slots.sql). كلّم المسؤول باش يركّبها.";
+  }
+  return "تعذّر الحفظ. حدّث الصفحة وأعد المحاولة.";
+}

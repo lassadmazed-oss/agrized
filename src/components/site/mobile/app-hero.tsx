@@ -1,7 +1,7 @@
 import { HERO_SLOTS } from "@/components/site/landing/hero";
 import { PhotoMarquee } from "@/components/site/landing/photo-marquee";
 import Link from "@/components/site/link";
-import { t, type PublicConfig } from "@/lib/config";
+import { coverSlots, type PublicConfig, t } from "@/lib/config";
 
 /**
  * The phone's first screen (owner, 2026-09-21, from an AgriZed app mock-up): a photograph of the grove running
@@ -48,7 +48,7 @@ export function AppHero({ config, href }: { config: PublicConfig; href: string }
             (owner, 2026-09-21: «i want the thing to feel alive»). Same strip and same order as the desktop
             hero, so the two screens are showing the same place. Quicker here than there — this photograph
             carries one line of text, not a whole composition. */}
-        <PhotoMarquee config={config} slots={HERO_SLOTS} aspect="4/3" seconds={6} priority sizes="100vw" />
+        <PhotoMarquee config={config} slots={coverSlots(config, HERO_SLOTS)} aspect="4/3" seconds={6} priority sizes="100vw" />
 
         {/* Strong where the words are, absent where the sky is: the bay is the reason this photograph is here. */}
         <div aria-hidden="true" className="absolute inset-0 bg-gradient-to-t from-forest-700/90 via-forest-700/35 to-transparent" />

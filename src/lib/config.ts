@@ -116,7 +116,16 @@ const loadPublicConfig = unstable_cache(
             .order("sort_order")
             .range(from, to),
         ),
-        supabase.from("site_media").select("slot, url, alt_ar, aspect, credit_text, credit_url"),
+        // `*`, NOT A COLUMN LIST, and it stays that way after 0123 rather than reverting. The sliding cover
+        // reads `in_cover`; while that column was still a draft, naming it here made PostgREST reject THE
+        // WHOLE QUERY — not just the unknown field — so loadPublicConfig threw «Could not load public
+        // configuration» and every page of the site went down. It was caught by `npm run build` failing to
+        // prerender /de/register, which is luck: nothing in typecheck or lint can see it.
+        //
+        // That is a property of the deploy order, not of this one column: a column list here means the code
+        // must never reach production before its migration, and the two do not land atomically. `*` is
+        // indifferent to the order. site_media is six rows, so the extra columns cost nothing.
+        supabase.from("site_media").select("*"),
         supabase.from("locales").select("code, name_native, name_ar, is_enabled, fallback_code, sort_order").order("sort_order"),
       ]);
 
@@ -332,6 +341,27 @@ export function optionsFor(config: PublicConfig, listKey: string): OptionItem[] 
 export function mediaFor(config: PublicConfig, slot: string): MediaSlot | undefined {
   const row = config.media[slot];
   return row?.url ? row : undefined;
+}
+
+/**
+ * The slots in the home page's sliding cover, in the order they rotate (MED-01, 0123).
+ *
+ * The owner chooses these from الإعدادات ← صور الموقع, one checkbox per picture; the order is the one that
+ * screen already lists by. A slot with no image is never returned even if it is ticked, because a gap
+ * mid-rotation reads as a broken page rather than as a slot waiting for a photograph.
+ *
+ * `fallback` is what the array in hero.tsx used to be, and it is used for exactly one window: a database
+ * that has not had 0123 applied yet answers `in_cover` as undefined for every row, so without it the home
+ * page would open on nothing. Once the migration lands this returns the owner's own choice and the fallback
+ * is dead weight — kept because the cost of being wrong here is a blank front page.
+ */
+export function coverSlots(config: PublicConfig, fallback: readonly string[] = []): string[] {
+  const chosen = Object.values(config.media)
+    .filter((row) => row.in_cover && row.url)
+    .sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0))
+    .map((row) => row.slot);
+  if (chosen.length > 0) return chosen;
+  return fallback.filter((slot) => config.media[slot]?.url);
 }
 
 /** Photo credits the licences require us to print (CC BY). Own and CC0 pictures carry none. */

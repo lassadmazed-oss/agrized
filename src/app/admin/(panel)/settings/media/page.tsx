@@ -5,9 +5,20 @@ import { ADMIN_ROLES, requireStaff } from "@/lib/auth";
 import { formatDateTime } from "@/lib/format";
 import { createClient } from "@/lib/supabase/server";
 
-import { clearSlotImage, saveSlotImage } from "./actions";
+import { clearSlotImage, saveSlotImage, setSlotInCover } from "./actions";
 
 export const metadata: Metadata = { title: "صور الموقع" };
+
+/**
+ * The form the cover checkbox posts to. A plain <form action> needs a function taking FormData, and
+ * `setSlotInCover` takes (slot, boolean) so it can also be called from anywhere else — this is the adapter,
+ * not a second implementation. Every rule still lives in SQL.
+ */
+async function toggleSlotCover(formData: FormData) {
+  "use server";
+  const slot = String(formData.get("slot") ?? "");
+  await setSlotInCover(slot, formData.get("next") === "on");
+}
 
 export default async function MediaPage() {
   await requireStaff(ADMIN_ROLES);
@@ -15,12 +26,13 @@ export default async function MediaPage() {
 
   const { data: slots, error } = await supabase
     .from("site_media")
-    .select("slot, label_ar, description_ar, url, alt_ar, aspect, updated_at, editor:profiles!site_media_updated_by_fkey(full_name)")
+    .select("*, editor:profiles!site_media_updated_by_fkey(full_name)")
     .order("group_key")
     .order("sort_order");
   if (error) throw new Error(error.message);
 
-  const filled = (slots ?? []).filter((slot) => slot.url).length;
+  const rows = slots ?? [];
+  const filled = rows.filter((slot) => slot.url).length;
 
   return (
     <div className="max-w-4xl space-y-8">
@@ -31,12 +43,12 @@ export default async function MediaPage() {
           العلامة بدل إطار مكسور.
         </p>
         <p className="mt-3 text-sm font-medium text-forest">
-          {filled} من {slots?.length ?? 0} مواضع فيها صورة.
+          {filled} من {rows.length} مواضع فيها صورة.
         </p>
       </header>
 
       <ul className="space-y-4">
-        {(slots ?? []).map((slot) => (
+        {rows.map((slot) => (
           <li key={slot.slot} className="card p-5">
             <div className="grid gap-5 sm:grid-cols-[12rem_1fr]">
               <div>
@@ -103,6 +115,28 @@ export default async function MediaPage() {
                     />
                   </div>
                 </ActionForm>
+
+                {/* THE SLIDING COVER (owner, 2026-10-03). Which pictures rotate on the home page was an
+                    array in the source until today; it is this control now. Only offered on a slot that
+                    HAS a picture, because the database refuses an empty one (media_slot_empty) and a
+                    control that always fails is a lie. The order they rotate in is the order of this
+                    list — there is no second ordering to keep in step with it. */}
+                {slot.url ? (
+                  <form action={toggleSlotCover} className="mt-4 flex items-center gap-2 border-t border-line pt-3">
+                    <input type="hidden" name="slot" value={slot.slot} />
+                    <input type="hidden" name="next" value={slot.in_cover ? "off" : "on"} />
+                    <button
+                      type="submit"
+                      className={`chip gap-2 ${slot.in_cover ? "border-transparent bg-forest text-surface" : ""}`}
+                    >
+                      <span aria-hidden="true">{slot.in_cover ? "✓" : "+"}</span>
+                      {slot.in_cover ? "في شريط الغلاف" : "زيدها لشريط الغلاف"}
+                    </button>
+                    <span className="text-xs text-muted">
+                      {slot.in_cover ? "تدور في واجهة الصفحة الرئيسية" : "ما تدورش في الواجهة"}
+                    </span>
+                  </form>
+                ) : null}
 
                 {slot.url ? (
                   <form action={clearSlotImage.bind(null, slot.slot)} className="mt-3">

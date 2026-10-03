@@ -1,5 +1,7 @@
 import type { ReactNode } from "react";
 
+import { LogoMark } from "@/components/brand/logo";
+import { Wordmark } from "@/components/brand/wordmark";
 import Link from "@/components/site/link";
 
 /**
@@ -156,6 +158,29 @@ export function HomePhone({
           so it still takes the site header off a phone that carries its own furniture, and still leaves the
           header alone on a wide screen where the bar is the only navigation there is. */}
       <div className="mx-auto max-w-md px-4 pb-6 pt-3 md:max-w-5xl md:px-6 md:pb-14 md:pt-6 lg:max-w-6xl">
+        {/* THE BRAND, ON A PHONE ONLY (owner, 2026-10-03: «in the mobile view i dont see any logo»).
+            He was right, and it was not the logo that was missing — it was the whole bar. `data-phone-screen`
+            above takes the site header off below md, which is deliberate: this screen carries its own
+            furniture and a second navigation bar on a 375px phone is a row of nothing useful. But the lockup
+            went with the bar, so AgriZed appeared NOWHERE on a phone — not at the top, not in the hero, not
+            above the fold at all. A visitor arriving from a shared link met a green card with no name on it.
+
+            The same thing happened to the language chip in 0109 and was solved the same way: what the header
+            carried and the phone still needs gets re-placed on the screen itself (see `language` below). This
+            is that, for the brand.
+
+            `md:hidden` because from md the real header is drawn again and would make two lockups. The mark
+            and the wordmark are the header's own, one size down. No aria-label: Wordmark renders «AgriZed»
+            as text, so the link already has its name — an aria-label here would only override it with a
+            worse one, and in the wrong language. */}
+        <Link
+          href="/"
+          className="mb-3 flex w-fit flex-row-reverse items-center gap-snug rounded-xl md:hidden ltr:flex-row"
+        >
+          <LogoMark className="h-9 w-auto" />
+          <Wordmark className="text-[1.15rem] leading-none" />
+        </Link>
+
         {/* 0 · The quote strip — on a phone only (owner, 2026-09-24: «remove the quotes from the desktop
             view»). It is a sliding card of proverbs: on a 375px screen, above a photograph, it reads as the
             app greeting somebody. Across 1200px it is a wide band of aphorism sitting above the one thing the
@@ -347,15 +372,23 @@ export function HomePhone({
               ))}
             </div>
 
-            <div className="marquee -mx-4 mt-2 md:hidden" style={{ ["--marquee-duration" as string]: "48s" }}>
-              <div className="marquee-track marquee-track-reverse">
-                {offers.map((offer) => (
-                  <OfferTile key={offer.id} offer={offer} from={copy.from} />
-                ))}
-                {offers.map((offer) => (
-                  <OfferTile key={`echo-${offer.id}`} offer={offer} from={copy.from} echo />
-                ))}
-              </div>
+            {/* THE STRIP NO LONGER DRIVES ITSELF (owner, 2026-10-03: «offre remove it»).
+                It was a marquee — the tiles rendered twice and drifted right to left forever on a 48s loop.
+                The reasoning above still holds about a STRIP rather than a grid on a 375px screen, and that is
+                kept: this is the same row of the same tiles at the same size. What is gone is the motion. A
+                price that slides away while somebody is reading it is the one thing a page selling olive trees
+                cannot afford, and «there are more» is already said by a tile cut off at the edge.
+
+                It scrolls because the reader scrolls it: `snap-x` parks each tile at the start edge, which is
+                the right edge here and the left on the Latin sites, since `scroll-ps-4` is logical. The second,
+                aria-hidden copy of every offer is gone with the loop that needed it, so a screen reader now
+                hears thirteen offers instead of twenty-six. */}
+            <div className="-mx-4 mt-2 flex snap-x snap-mandatory gap-3 overflow-x-auto scroll-ps-4 px-4 pb-1 [scrollbar-width:none] md:hidden [&::-webkit-scrollbar]:hidden">
+              {offers.map((offer) => (
+                <div key={offer.id} className="snap-start">
+                  <OfferTile offer={offer} from={copy.from} />
+                </div>
+              ))}
             </div>
           </section>
         ) : null}
@@ -469,9 +502,12 @@ function OfferCard({ offer, from }: { offer: HomePhoneOffer; from: string }) {
   );
 }
 
-function OfferTile({ offer, from, echo }: { offer: HomePhoneOffer; from: string; echo?: boolean }) {
+// `echo` is gone with the marquee that needed it: it marked the second, duplicated copy of every offer
+// aria-hidden and out of the tab order so the loop did not read the catalogue twice. A strip the reader
+// scrolls renders each offer once, so there is nothing to hide.
+function OfferTile({ offer, from }: { offer: HomePhoneOffer; from: string }) {
   return (
-    <Link href={offer.href} aria-hidden={echo || undefined} tabIndex={echo ? -1 : undefined} className="card w-44 flex-none overflow-hidden md:w-64">
+    <Link href={offer.href} className="card w-44 flex-none overflow-hidden md:w-64">
       <div className="relative h-28 overflow-hidden md:h-40">{offer.image}</div>
       <div className="p-2">
         <p className="truncate text-[0.75rem] font-semibold leading-tight text-ink">{offer.name}</p>
