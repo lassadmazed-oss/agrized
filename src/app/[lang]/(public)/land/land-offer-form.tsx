@@ -6,6 +6,7 @@ import Link from "@/components/site/link";
 import { readVisitSource } from "@/components/site/source-capture";
 import { FormField } from "@/components/ui";
 import { toWesternDigits } from "@/lib/digits";
+import { focusFirstError } from "@/lib/focus-first-error";
 import { useT } from "@/lib/i18n/client";
 import { CAPACITY_TEXT_KEYS, IRRIGATION_TEXT_KEYS, type ContactCapacity, type IrrigationType } from "@/lib/land";
 import { getStorageUploadClient, LAND_OFFER_BUCKET } from "@/lib/supabase/storage-upload";
@@ -156,9 +157,7 @@ export function LandOfferForm(props: LandOfferFormProps) {
     const found = validate();
     if (Object.values(found).some(Boolean)) {
       setErrors(found);
-      setTimeout(() => {
-        document.querySelector<HTMLElement>('[aria-invalid="true"], [data-error-anchor]')?.focus();
-      }, 0);
+      focusFirstError();
       return;
     }
 

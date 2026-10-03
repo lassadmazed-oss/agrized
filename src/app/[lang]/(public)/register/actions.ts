@@ -38,6 +38,8 @@ const interestSchema = z.object({
   wantsVisit: z.boolean().nullable(),
   wantsBankFinancing: z.boolean().nullable(),
   contactChannel: z.enum(["phone", "whatsapp", "both"]),
+  /** «من المواطنين بالخارج» (0121). A checkbox, so absent is a «no» and never an unknown. */
+  livesAbroad: z.boolean().default(false),
   contactTimeOptionId: z.uuid().nullable(),
   consent: z.literal(true),
   website: z.string().max(200), // honeypot: real visitors never fill it
@@ -161,6 +163,7 @@ export async function submitInterest(input: InterestInput): Promise<SubmitIntere
       wants_visit: data.wantsVisit,
       wants_bank_financing: data.wantsBankFinancing,
       contact_channel: data.contactChannel,
+      lives_abroad: data.livesAbroad,
       contact_time_option_id: data.contactTimeOptionId,
       // The sentence the visitor ticked, in the language they read it in (the review step shows this same key).
       consent_text: t(config, "legal.consent_text"),

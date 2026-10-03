@@ -6,6 +6,7 @@ import Link from "@/components/site/link";
 import { readVisitSource } from "@/components/site/source-capture";
 import { FormField } from "@/components/ui";
 import { toWesternDigits } from "@/lib/digits";
+import { focusFirstError } from "@/lib/focus-first-error";
 import { useDir, useT } from "@/lib/i18n/client";
 
 import type { CalculatorChoices, SummaryRowKey } from "../start/calculator-summary";
@@ -81,6 +82,8 @@ type FormState = {
   whatsapp: string;
   email: string;
   governorateId: number | null;
+  /** «من المواطنين بالخارج» (0121): changes what the governorate question is asking. */
+  livesAbroad: boolean;
   investAnywhere: boolean;
   investGovernorateIds: number[];
   goalOptionId: string | null;
@@ -145,6 +148,7 @@ function emptyForm(props: RegisterWizardProps): FormState {
     whatsapp: "",
     email: "",
     governorateId: null,
+    livesAbroad: false,
     investAnywhere: false,
     investGovernorateIds: [],
     goalOptionId: null,
@@ -172,6 +176,7 @@ function sanitize(form: FormState, props: RegisterWizardProps): FormState {
     whatsapp: text(form.whatsapp),
     email: text(form.email),
     governorateId: form.governorateId && governorateIds.has(form.governorateId) ? form.governorateId : null,
+    livesAbroad: form.livesAbroad === true,
     investAnywhere: form.investAnywhere === true,
     investGovernorateIds: Array.isArray(form.investGovernorateIds) ? form.investGovernorateIds.filter((id) => governorateIds.has(id)) : [],
     goalOptionId: has(props.goals, form.goalOptionId),
@@ -221,13 +226,6 @@ function validateStep(step: number, form: FormState, props: RegisterWizardProps,
   if (step === 5 && !form.contactChannel) errors.contactChannel = t("ui.register.error_contact_channel");
   if (step === 6 && !form.consent) errors.consent = t("ui.errors.consent_required");
   return errors;
-}
-
-function focusFirstError() {
-  // setTimeout (not requestAnimationFrame) so it also runs after React commits in background tabs.
-  setTimeout(() => {
-    document.querySelector<HTMLElement>('[aria-invalid="true"], [data-error-anchor]')?.focus();
-  }, 0);
 }
 
 export function RegisterWizard(props: RegisterWizardProps) {
@@ -362,6 +360,7 @@ export function RegisterWizard(props: RegisterWizardProps) {
           whatsapp: form.whatsapp,
           email: form.email,
           governorateId: form.governorateId ?? 0,
+          livesAbroad: form.livesAbroad,
           investAnywhere: form.investAnywhere,
           investGovernorateIds: form.investGovernorateIds,
           treeCountOptionId: choices.treeId,
@@ -619,9 +618,25 @@ function IdentityStep({ form, errors, update, governorates }: StepProps & { gove
         />
       </FormField>
 
+      {/* Asked BEFORE the governorate, because it changes what that question means: a Tunisian in Lyon has no
+          governorate of residence, he has one he is from. The box rewrites the label rather than hiding the
+          question — the matching and the CRM both read that column. */}
+      <label className="choice items-start">
+        <input
+          type="checkbox"
+          className="mt-1"
+          checked={form.livesAbroad}
+          onChange={(event) => update("livesAbroad", event.target.checked)}
+        />
+        <span>
+          <span className="font-semibold">{t("ui.register.abroad_label")}</span>
+          <span className="mt-0.5 block text-caption text-muted">{t("ui.register.abroad_hint")}</span>
+        </span>
+      </label>
+
       <FormField
         id="governorate"
-        label={t("ui.register.governorate_label")}
+        label={form.livesAbroad ? t("ui.register.abroad_governorate_label") : t("ui.register.governorate_label")}
         hint={t("ui.register.governorate_hint")}
         error={errors.governorateId}
       >

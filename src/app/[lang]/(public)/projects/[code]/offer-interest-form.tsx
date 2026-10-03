@@ -5,6 +5,7 @@ import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { readVisitSource } from "@/components/site/source-capture";
 import { DataRow, FormField } from "@/components/ui";
 import { toWesternDigits } from "@/lib/digits";
+import { focusFirstError } from "@/lib/focus-first-error";
 import { useFormat, useLocale, useT } from "@/lib/i18n/client";
 import { formatMessage, type MessageVars } from "@/lib/i18n/message";
 import type { ProjectQuote } from "@/lib/public-projects";
@@ -127,6 +128,8 @@ type FormState = {
   whatsapp: string;
   email: string;
   governorateId: string;
+  /** «من المواطنين بالخارج» (0121). */
+  livesAbroad: boolean;
   contactChannel: ContactChannel | null;
   contactTimeOptionId: string | null;
   wantsVisit: boolean;
@@ -283,6 +286,7 @@ export function OfferInterestForm(props: OfferInterestFormProps) {
     whatsapp: "",
     email: "",
     governorateId: "",
+    livesAbroad: false,
     contactChannel: null,
     contactTimeOptionId: null,
     wantsVisit: false,
@@ -573,7 +577,12 @@ export function OfferInterestForm(props: OfferInterestFormProps) {
     event.preventDefault();
     const found = validate();
     setErrors(found);
-    if (Object.keys(found).length > 0) return;
+    if (Object.keys(found).length > 0) {
+      // This form printed its errors and left the visitor to find them — on a phone the first bad field is
+      // often above the fold they are standing on (owner, 2026-10-03).
+      focusFirstError();
+      return;
+    }
 
     setSubmitError(null);
     setSlow(false);
@@ -602,6 +611,7 @@ export function OfferInterestForm(props: OfferInterestFormProps) {
           whatsapp: toWesternDigits(form.whatsapp).trim(),
           email: form.email.trim(),
           governorateId: Number(form.governorateId),
+          livesAbroad: form.livesAbroad,
           contactChannel: form.contactChannel ?? "phone",
           contactTimeOptionId: form.contactTimeOptionId,
           // What the commercial calling back needs to know before they dial. The two ids belong to instalments
@@ -963,6 +973,18 @@ export function OfferInterestForm(props: OfferInterestFormProps) {
                 </FormField>
               ) : null}
             </div>
+
+            {/* The diaspora buys offers too — and the answer decides how the call back and the signing are
+                arranged (consular power of attorney, signing in the summer). */}
+            <label className="choice items-start">
+              <input
+                type="checkbox"
+                className="mt-1"
+                checked={form.livesAbroad}
+                onChange={(event) => update("livesAbroad", event.target.checked)}
+              />
+              <span className="font-semibold">{t("ui.offer.form_abroad_label")}</span>
+            </label>
 
             <FormField id="offer-governorate" label={t("ui.offer.form_governorate_label")} error={errors.governorateId}>
               <select

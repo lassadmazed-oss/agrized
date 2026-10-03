@@ -95,6 +95,8 @@ const offerSchema = z.object({
   email: z.string().trim().max(200),
   governorateId: z.number().int().positive(),
   contactChannel: z.enum(["phone", "whatsapp", "both"]),
+  /** «من المواطنين بالخارج» (0121). A checkbox, so absent is a «no» and never an unknown. */
+  livesAbroad: z.boolean().default(false),
   contactTimeOptionId: z.uuid().nullable(),
   // How the visitor wants to pay for THIS offer (owner, 2026-09-19: «in the form it's missing the payment
   // method like the main form»). Same three answers /start sends to submit_interest_request, and the same
@@ -156,6 +158,7 @@ export async function submitOfferInterest(input: OfferInterestInput): Promise<Su
       email: data.email,
       residence_governorate_id: data.governorateId,
       contact_channel: data.contactChannel,
+      lives_abroad: data.livesAbroad,
       contact_time_option_id: data.contactTimeOptionId,
       // The plan travels with the request, in the keys `submit_interest_request` already reads (0032). A cash
       // payer answered neither of the other two questions, so neither key is sent.
