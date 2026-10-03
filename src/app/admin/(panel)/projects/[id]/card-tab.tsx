@@ -13,8 +13,11 @@
 // must read the pricing only when the field is present — exactly as it already guards `page_fields` and
 // `delegation_id` — or the whole card save fails with «اختر طريقة التسعير». The column itself is untouched.
 
+import Link from "next/link";
+
 import { ActionForm } from "@/components/admin/action-form";
 import { FormField, SectionHeader } from "@/components/ui";
+import { dinarsFieldValue } from "@/lib/backoffice/contracts/model";
 import { optionsFor, settingInt, settingText, type PublicConfig } from "@/lib/config";
 import { PLANTATION_LABELS, PRODUCTION_LABELS } from "@/lib/crm";
 import { PROJECT_STATUS_LABELS } from "@/lib/projects";
@@ -183,15 +186,6 @@ export function CardTab({
               <option value="irrigated">مروية</option>
             </select>
           </FormField>
-          <FormField size="sm" label="المصاريف السنوية التقديرية للعرض (د.ت)">
-            <input
-              name="annual_costs_dinars"
-              defaultValue={project.annual_costs_millimes !== null ? project.annual_costs_millimes / 1000 : ""}
-              inputMode="decimal"
-              dir="ltr"
-              className="field field-sm text-left"
-            />
-          </FormField>
           <FormField size="sm" label="الحالة">
             <select name="status" defaultValue={project.status} className="field field-sm">
               {Object.entries(PROJECT_STATUS_LABELS).map(([value, label]) => (
@@ -201,6 +195,54 @@ export function CardTab({
               ))}
             </select>
           </FormField>
+
+          {/* Owner, 2026-10-03: «المصاريف السنوية التقديرية للعرض (د.ت) is it for tree or per m 3iek what???»
+              — and the field could not answer him, because nothing has ever used it. projects.annual_costs_millimes
+              (0012:32) carries no comment, enters no calculation, and is rendered on no screen: not here, not on
+              the public page; 0020:250 puts it in a payload nobody reads. Seventeen of the eighteen offers carry a
+              value he typed in, 9,382,000 millimes in all, so the column stays and the QUESTION is what gets
+              fixed: the label states the unit — the whole offer, one year — and the note says plainly that the
+              figure is his own reference and prices nothing.
+
+              Then it points at the costs that DO price a tree. Those are public.tree_cost_items, which
+              app.tree_price reads and where every line declares its own basis, للزيتونة or للمتر المربع — and
+              they are edited under «التسعير ← مصاريف هذا العرض», NOT under «التكاليف». التكاليف is
+              public.project_costs, the internal purchase ledger behind «الهامش المتوقّع», which prices nothing
+              either. Sending him to the wrong tab is how this field got its reputation.
+
+              Full width because a note this long in a third of a row is unreadable on the phone he reads the
+              Back Office on. */}
+          <div className="sm:col-span-2 lg:col-span-3">
+            <FormField
+              size="sm"
+              label="المصاريف السنوية التقديرية لكامل العرض (د.ت في العام)"
+              hint={
+                <>
+                  مصاريف العرض كامل في عام واحد — موش للزيتونة وموش للمتر المربع. رقم تقديري تحتفظ بيه لروحك: ما
+                  يظهرش للحرفاء، وما يدخلش في حساب سعر الزيتونة. المصاريف اللي تدخل فعلاً في السعر تتكتب في{" "}
+                  <Link
+                    href={`/admin/projects/${project.id}?tab=pricing`}
+                    className="font-semibold text-forest underline underline-offset-4"
+                  >
+                    التسعير ← مصاريف هذا العرض
+                  </Link>
+                  ، وكل سطر فيها يقول وحدتو: للزيتونة ولّا للمتر المربع.
+                </>
+              }
+            >
+              <input
+                name="annual_costs_dinars"
+                /* dinarsFieldValue splits the digits as text (contracts/model.ts:826). `millimes / 1000` was
+                   floating-point arithmetic on money inside a component — this project stores integer millimes
+                   and src/lib/format.ts owns the formatting — and it printed 1234.567 for every amount that is
+                   not a whole dinar, into a box a Server Action then scales back by 1000. */
+                defaultValue={project.annual_costs_millimes === null ? "" : dinarsFieldValue(project.annual_costs_millimes)}
+                inputMode="decimal"
+                dir="ltr"
+                className="field field-sm text-left"
+              />
+            </FormField>
+          </div>
 
           {/* Report v3 §20: what the public project page shows beyond the facts */}
           <input type="hidden" name="page_fields" value="1" />

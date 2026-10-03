@@ -120,6 +120,9 @@ export default async function OfferPage({ params, searchParams }: PageProps<"/ad
   // The trees this quote is about: the rows that exist, never more than the offer declares (the database refuses
   // a larger figure). The multiplication itself is Postgres's — nothing here computes money.
   const declaredTrees = project.tree_count ?? 0;
+  // numeric arrives as a string or a number depending on the driver, and "0.00" is truthy: every test of this
+  // figure goes through the same Number() so a zero area reads as a zero area.
+  const totalAreaM2 = project.total_area_m2 === null ? null : Number(project.total_area_m2);
   const quoteTrees = stock.trees_total > 0 ? Math.min(stock.trees_total, declaredTrees || stock.trees_total) : declaredTrees;
   const quote = await offerQuote(supabase, id, quoteTrees);
 
@@ -136,12 +139,25 @@ export default async function OfferPage({ params, searchParams }: PageProps<"/ad
   // incomplete it names only the margin, so the empty field is looked up and named here (Finance and Admin see
   // the reason at all — app.can_price gates the breakdown).
   const missingInput = quote?.reason === "margin_not_set" ? await missingPricingInput(supabase, id) : null;
-  const pricePerTree = treePriceOf(quote, { spacingHref, pricingHref, missingInput });
+  const pricePerTree = treePriceOf(quote, {
+    offer: { areaM2: totalAreaM2, trees: declaredTrees },
+    cardHref,
+    spacingHref,
+    pricingHref,
+    missingInput,
+    canPrice,
+  });
 
-  // «المساحة لكل زيتونة»: the class measures it exactly; the offer's own two numbers only estimate it.
-  const declaredArea = project.total_area_m2 && project.tree_count ? Number(project.total_area_m2) / project.tree_count : null;
-  const areaPerTree: AreaPerTree | null = quote?.areaPerTreeM2
-    ? { m2: Number(quote.areaPerTreeM2), source: "class" }
+  // «المساحة لكل زيتونة»: a class measures it exactly; the offer's own two numbers only estimate it.
+  //
+  // The quote's figure counts as the CLASS's only while a class is what the quote used. Once app.tree_price
+  // derives the area from المساحة ÷ الزيتونات for an offer that lists no class (2026-10-03), the same
+  // `area_per_tree_m2` key carries a derived figure — and labelling that «من فئة المساحة» would credit a
+  // class the offer does not have.
+  const declaredArea = totalAreaM2 && project.tree_count ? totalAreaM2 / project.tree_count : null;
+  const classArea = quote?.spacingStatus === "ok" && quote.areaPerTreeM2 ? Number(quote.areaPerTreeM2) : null;
+  const areaPerTree: AreaPerTree | null = classArea
+    ? { m2: classArea, source: "class" }
     : declaredArea
       ? { m2: Math.round(declaredArea * 100) / 100, source: "declared" }
       : null;
@@ -162,12 +178,28 @@ export default async function OfferPage({ params, searchParams }: PageProps<"/ad
 
   // PRJ-04: what is actually wrong with this offer, and where to go about it. Each of these can fire today —
   // the three they replace all read parcel rows, so none of them ever could.
+  //
+  // WHAT LEFT, 2026-10-03 (owner: «there is no need for the space surface»). A third banner stood here —
+  // «هذا العرض بلا فئة مساحة: ما يتحسب حتى سعر للزيتونة» — and it fired on FOURTEEN of the eighteen offers,
+  // ten of them published. Not because he had forgotten to configure something: public.tree_spacing_classes
+  // holds eight fixed densities, 6 · 8 · 25 · 35 · 49 · 100 · 196 · 576 m² per tree, and his land falls
+  // between them (DEMO-15 at 250 m² per tree, DEMO-14 at 43.78). The class fed app.tree_price exactly one
+  // number, v_class.area_m2, which public.projects already carries as total_area_m2 ÷ tree_count. So the
+  // class became optional in the database and the banner is replaced by the two figures that do price a
+  // tree now — and both of them live on بطاقة العرض, one click away instead of in a taxonomy.
   const warnings: { text: string; href?: string; action?: string }[] = [];
   if (declaredTrees < 1) {
     warnings.push({
-      text: "هذا العرض ما عندوش عدد زيتونات مكتوب: ما ينجّمش يترقّم وما يتباعش بالزيتونة.",
+      text: "هذا العرض ما عندوش عدد زيتونات مكتوب: ما ينجّمش يترقّم، ما يتباعش بالزيتونة، وما يتحسبش سعر الزيتونة.",
       href: cardHref,
       action: "اكتب عدد الأشجار",
+    });
+  }
+  if (newPricing && !totalAreaM2) {
+    warnings.push({
+      text: "هذا العرض ما عندوش مساحة جملية: سعر الزيتونة يتحسب من المساحة ÷ عدد الأشجار، فالموقع ما يعرضش سعر وما يفتحش استمارة الاهتمام.",
+      href: cardHref,
+      action: "اكتب المساحة الجملية",
     });
   }
   if (stock.status === "partial") {
@@ -177,13 +209,6 @@ export default async function OfferPage({ params, searchParams }: PageProps<"/ad
       )}).`,
       href: treesHref,
       action: "أعد الترقيم",
-    });
-  }
-  if (newPricing && attachedClasses.length === 0) {
-    warnings.push({
-      text: "هذا العرض بلا فئة مساحة: ما يتحسب حتى سعر للزيتونة، والموقع ما يعرض سعر وما يفتحش استمارة الاهتمام.",
-      href: spacingHref,
-      action: "اعتماد فئة المساحة",
     });
   }
 
@@ -284,7 +309,7 @@ export default async function OfferPage({ params, searchParams }: PageProps<"/ad
 
       <OfferIdentity
         locationText={[project.location_description, governorate].filter(Boolean).join(" · ")}
-        totalAreaM2={project.total_area_m2 === null ? null : Number(project.total_area_m2)}
+        totalAreaM2={totalAreaM2}
         declaredTrees={project.tree_count}
         variety={project.olive_variety}
         ageYears={project.tree_age_years === null ? null : Number(project.tree_age_years)}
@@ -378,40 +403,99 @@ export default async function OfferPage({ params, searchParams }: PageProps<"/ad
 /**
  * The price per tree, or the one thing standing in its way — named, with the screen that supplies it.
  * «يتحدّد بعد اعتماد فئة المساحة» was the old answer to every case: passive, and false on both live offers.
+ *
+ * NO BRANCH DEMANDS A SPACING CLASS ANY MORE (owner, 2026-10-03). app.tree_price took one number from the
+ * class, its area, and derives it from المساحة ÷ الزيتونات when the offer lists none — so the cases that can
+ * still refuse are the offer's own two numbers, the bounds on what they produce, and the pricing rules. A
+ * class remains something an offer MAY pick, and the two branches below cover a pick that has gone wrong.
+ *
+ * Every link is gated on `canPrice`: فئة المساحة and قواعد التسعير both live inside the التسعير tab, which
+ * readOfferTab refuses to a reader without PRICE_ROLES — so for them the sentence names the blocker and says
+ * who fixes it, instead of carrying a link that lands back on بطاقة العرض.
  */
 function treePriceOf(
   quote: OfferQuote | null,
-  links: { spacingHref: string; pricingHref: string; missingInput: string | null },
+  links: {
+    /** The two figures on بطاقة العرض the area now comes from. */
+    offer: { areaM2: number | null; trees: number | null };
+    cardHref: string;
+    spacingHref: string;
+    pricingHref: string;
+    missingInput: string | null;
+    canPrice: boolean;
+  },
 ): TreePrice {
   if (!quote) return null;
   if (quote.pricing === "ok" && quote.pricePerTreeMillimes) {
     return { millimes: quote.pricePerTreeMillimes, annualMillimes: quote.annualFeePerTreeMillimes };
   }
-  if (quote.pricing === "legacy") {
-    return {
-      blocked: "ما فمّاش فئة مساحة لهذا العرض: علّم التباعد باش يتحسب سعر الزيتونة.",
-      href: links.spacingHref,
-      action: "علّم فئة المساحة",
-    };
-  }
+
+  // Both of these are sections of the التسعير tab, which readOfferTab refuses to a reader without
+  // PRICE_ROLES: undefined, so TreePriceValue draws the sentence and no link.
+  const pricingHref = links.canPrice ? links.pricingHref : undefined;
+  const spacingHref = links.canPrice ? links.spacingHref : undefined;
+
+  // The offer's own two numbers come first: they are what the area is computed from now, they are on a screen
+  // the reader is already looking at, and a reader without app.can_price receives no reason code at all — so
+  // for them this is the only answer there is to give.
+  const missing = missingOfferInput(links.offer);
+  if (missing) return { blocked: missing.text, href: links.cardHref, action: missing.action };
+
   if (quote.spacingStatus === "required") {
-    return { blocked: "العرض فيه أكثر من فئة مساحة: خلّي وحدة برك.", href: links.spacingHref, action: "اختر فئة وحدة" };
+    return { blocked: "العرض فيه أكثر من فئة مساحة: خلّي وحدة برك باش يتحدّد السعر.", href: spacingHref, action: "اختر فئة وحدة" };
   }
   if (quote.reason === "spacing_not_found" || quote.spacingStatus === "not_allowed") {
     return {
-      blocked: "فئة المساحة متاع هذا العرض تعطّلت: فعّلها ولا اختار وحدة أخرى.",
-      href: links.spacingHref,
+      blocked: "فئة المساحة المعلّمة في هذا العرض تعطّلت: فعّلها، بدّلها، ولّا نحّيها وخلّي السعر يتحسب من المساحة ÷ عدد الأشجار.",
+      href: spacingHref,
       action: "بدّل فئة المساحة",
     };
   }
-  if (quote.reason === "margin_not_set") {
+  // `area_out_of_range` is the string the DATABASE actually raises (0118: app.tree_price_for_area and
+  // app.project_quote_payload). This branch read `area_out_of_bounds` and so never fired: an offer whose area
+  // per tree falls outside the bounds fell through to the generic «السعر ما تحسبش» at the foot, which sends
+  // the reader to قواعد التسعير — the wrong screen entirely, because the two numbers at fault are the area
+  // and the tree count on بطاقة العرض. Two agents named the same state differently and nothing typechecks a
+  // string compared against a string.
+  if (quote.reason === "area_out_of_range") {
     return {
-      blocked: links.missingInput ?? "قواعد التسعير مازالت ناقصة.",
-      href: links.pricingHref,
-      action: "افتح قواعد التسعير",
+      blocked: "المساحة لكل زيتونة (المساحة الجملية ÷ عدد الأشجار) برّا الحدود المقبولة في قواعد التسعير: ثبّت الزوز أرقام.",
+      href: links.cardHref,
+      action: "ثبّت المساحة وعدد الأشجار",
     };
   }
-  return { blocked: "السعر ما تحسبش. تثبّت من قواعد التسعير متاع هذا العرض.", href: links.pricingHref, action: "افتح قواعد التسعير" };
+  if (quote.reason === "margin_not_set") {
+    return { blocked: links.missingInput ?? "قواعد التسعير مازالت ناقصة.", href: pricingHref, action: "افتح قواعد التسعير" };
+  }
+  return {
+    blocked: links.canPrice
+      ? "السعر ما تحسبش. تثبّت من قواعد التسعير متاع هذا العرض."
+      : "السعر ما تحسبش. اطلب من المالية تثبّت من قواعد تسعير هذا العرض.",
+    href: pricingHref,
+    action: "افتح قواعد التسعير",
+  };
+}
+
+/**
+ * The two figures on بطاقة العرض that price a tree once no class is required: with either of them empty
+ * app.tree_price has no area to work from. The database refuses these as reason codes of its own, but they
+ * are named here rather than read back from the quote, because they are also the only blockers a reader
+ * without app.can_price can be told about — and because the fix is a field, not a rule.
+ */
+function missingOfferInput(offer: { areaM2: number | null; trees: number | null }): { text: string; action: string } | null {
+  if (!offer.areaM2 || offer.areaM2 <= 0) {
+    return {
+      text: "سعر الزيتونة يتحسب من المساحة الجملية ÷ عدد الأشجار، والمساحة الجملية مازالت فارغة.",
+      action: "اكتب المساحة الجملية",
+    };
+  }
+  if (!offer.trees || offer.trees <= 0) {
+    return {
+      text: "سعر الزيتونة يتحسب من المساحة الجملية ÷ عدد الأشجار، وعدد الأشجار مازال فارغ.",
+      action: "اكتب عدد الأشجار",
+    };
+  }
+  return null;
 }
 
 /**
@@ -427,7 +511,9 @@ async function missingPricingInput(supabase: Awaited<ReturnType<typeof createCli
     .select("project_id, land_price_per_m2_millimes, planting_cost_per_tree_millimes, price_rounding_millimes, margin_mode")
     .or(`project_id.eq.${projectId},project_id.is.null`);
   const rows = data ?? [];
-  if (rows.length === 0) return null;
+  // Neither this offer's rule nor the general one exists: «اضبط الهامش» would be the fourth wrong answer in a
+  // row, because there is no rule to set a margin on yet.
+  if (rows.length === 0) return "ما فمّاش قواعد تسعير مسجّلة: اكتب ثمن المتر المربع، تكلفة الغراسة، الهامش والتدوير.";
 
   const own = rows.find((row) => row.project_id === projectId);
   const global = rows.find((row) => row.project_id === null);

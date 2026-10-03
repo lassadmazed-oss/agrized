@@ -19,10 +19,11 @@ export function CostsTab({
   costs: readonly ProjectCost[];
   /**
    * What all the offer's trees come to, as the database priced them (app.project_quote_payload →
-   * total_price_millimes). Null when the offer has no price yet — a missing spacing class, an empty
-   * pricing rule — and the tile then says «—» rather than claiming a revenue of zero, which would read as
-   * a margin equal to minus the costs. It used to be the cash price of the lots that are not withdrawn,
-   * summed over `public.parcels`; that table has no rows, so the figure was always 0.
+   * total_price_millimes). Null when the offer has no price yet — an empty المساحة الجملية or عدد الأشجار,
+   * an area outside the accepted bounds, an unfinished pricing rule — and the tile then says «—» rather than
+   * claiming a revenue of zero, which would read as a margin equal to minus the costs. It used to be the
+   * cash price of the lots that are not withdrawn, summed over `public.parcels`; that table has no rows, so
+   * the figure was always 0.
    */
   expectedRevenue: number | null;
 }) {
@@ -39,7 +40,11 @@ export function CostsTab({
           size="sm"
           label="المداخيل المتوقّعة"
           value={expectedRevenue === null ? "—" : formatMillimes(expectedRevenue)}
-          note={expectedRevenue === null ? "ما فماش سعر لهذا العرض بعد: علّم فئة المساحة في بطاقة العرض." : "سعر الحاضر لكل زيتونات العرض"}
+          /* It said «علّم فئة المساحة في بطاقة العرض»: the wrong fix (no offer needs a class since 2026-10-03)
+             on the wrong screen (the class moved to التسعير). The reason now has one home — «السعر للزيتونة»
+             in the card at the top of this page, which stays in view on every tab — so this points there
+             instead of keeping a second copy that drifts. */
+          note={expectedRevenue === null ? "ما فماش سعر لهذا العرض بعد. سطر «السعر للزيتونة» فوق يقولّك شنوّة ناقص." : "سعر الحاضر لكل زيتونات العرض"}
           quiet={expectedRevenue === null || expectedRevenue === 0}
         />
         <StatTile
