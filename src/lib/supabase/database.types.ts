@@ -1074,6 +1074,7 @@ export type Database = {
           invest_anywhere: boolean
           invest_governorate_ids: number[]
           is_duplicate: boolean
+          lives_abroad: boolean
           monthly_millimes: number | null
           offer_annual_fee_per_tree_millimes: number | null
           offer_annual_fee_total_millimes: number | null
@@ -1165,6 +1166,7 @@ export type Database = {
           invest_anywhere?: boolean
           invest_governorate_ids?: number[]
           is_duplicate?: boolean
+          lives_abroad?: boolean
           monthly_millimes?: number | null
           offer_annual_fee_per_tree_millimes?: number | null
           offer_annual_fee_total_millimes?: number | null
@@ -1256,6 +1258,7 @@ export type Database = {
           invest_anywhere?: boolean
           invest_governorate_ids?: number[]
           is_duplicate?: boolean
+          lives_abroad?: boolean
           monthly_millimes?: number | null
           offer_annual_fee_per_tree_millimes?: number | null
           offer_annual_fee_total_millimes?: number | null
@@ -2845,6 +2848,7 @@ export type Database = {
           governorate_id: number | null
           id: string
           last_request_at: string | null
+          lives_abroad: boolean
           password_set_at: string | null
           phone_e164: string
           preferred_locale: string | null
@@ -2869,6 +2873,7 @@ export type Database = {
           governorate_id?: number | null
           id?: string
           last_request_at?: string | null
+          lives_abroad?: boolean
           password_set_at?: string | null
           phone_e164: string
           preferred_locale?: string | null
@@ -2893,6 +2898,7 @@ export type Database = {
           governorate_id?: number | null
           id?: string
           last_request_at?: string | null
+          lives_abroad?: boolean
           password_set_at?: string | null
           phone_e164?: string
           preferred_locale?: string | null
@@ -3687,6 +3693,7 @@ export type Database = {
           credit_url: string | null
           description_ar: string | null
           group_key: string
+          in_cover: boolean
           label_ar: string
           slot: string
           sort_order: number
@@ -3701,6 +3708,7 @@ export type Database = {
           credit_url?: string | null
           description_ar?: string | null
           group_key?: string
+          in_cover?: boolean
           label_ar: string
           slot: string
           sort_order?: number
@@ -3715,6 +3723,7 @@ export type Database = {
           credit_url?: string | null
           description_ar?: string | null
           group_key?: string
+          in_cover?: boolean
           label_ar?: string
           slot?: string
           sort_order?: number
@@ -4465,6 +4474,7 @@ export type Database = {
           invest_anywhere: boolean | null
           invest_governorate_ids: number[] | null
           is_duplicate: boolean | null
+          lives_abroad: boolean | null
           monthly_millimes: number | null
           offer_annual_fee_per_tree_millimes: number | null
           offer_annual_fee_total_millimes: number | null
@@ -4786,6 +4796,7 @@ export type Database = {
           invest_anywhere: boolean
           invest_governorate_ids: number[]
           is_duplicate: boolean
+          lives_abroad: boolean
           monthly_millimes: number
           offer_trees: number
           payment_mode: string
@@ -5132,6 +5143,10 @@ export type Database = {
         Args: { p_project: string; p_reason: string }
         Returns: undefined
       }
+      staff_delete_project: {
+        Args: { p_project: string; p_reason?: string }
+        Returns: Json
+      }
       staff_delete_spacing_class: {
         Args: { p_id: string; p_reason: string }
         Returns: undefined
@@ -5172,6 +5187,13 @@ export type Database = {
       staff_match_offers: {
         Args: { p_limit?: number; p_request: string }
         Returns: Json
+      }
+      staff_offer_history: {
+        Args: { p_projects: string[] }
+        Returns: {
+          history: Json
+          project_id: string
+        }[]
       }
       staff_offer_services: { Args: { p_project: string }; Returns: Json }
       staff_offer_stock: { Args: { p_project: string }; Returns: Json }
@@ -5362,6 +5384,10 @@ export type Database = {
       }
       staff_set_legal_note: {
         Args: { p_file: string; p_note: string; p_reason: string }
+        Returns: Json
+      }
+      staff_set_media_cover: {
+        Args: { p_in_cover: boolean; p_slot: string }
         Returns: Json
       }
       staff_set_person_locale: {
