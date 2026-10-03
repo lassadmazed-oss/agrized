@@ -12,8 +12,7 @@ export async function PhoneLanguage({ className = "" }: { className?: string }) 
   if (config.locales.length < 2) return null;
   return (
     <section aria-label={t(config, "ui.common.language")} className={`md:hidden ${className}`.trim()}>
-      <p className="mb-2 text-caption font-semibold text-muted">{t(config, "ui.common.language")}</p>
-      <LanguageSwitcher choices={config.locales} variant="pills" />
+      <LanguageSwitcher choices={config.locales} variant="row" />
     </section>
   );
 }

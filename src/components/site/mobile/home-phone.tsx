@@ -212,7 +212,11 @@ export function HomePhone({
               real measure instead of a centred ribbon.
               `pb` stays deep at every width: the figures bar is lifted onto the foot of this card and nothing
               said here may end up behind it. */}
-          <div className="relative flex min-h-[13rem] flex-col items-center justify-end p-4 pb-14 text-center md:min-h-[26rem] md:p-9 md:pb-24 lg:min-h-[38rem] lg:items-start lg:justify-center lg:p-14 lg:pb-32 lg:text-start xl:min-h-[41rem] xl:p-16">
+          {/* On a phone the language chip owns the card's top corner, so the words start a row lower: centred, the
+              badge is as wide as the chip leaves room for and the two would touch. */}
+          <div
+            className={`relative flex min-h-[13rem] flex-col items-center justify-end p-4 pb-14 text-center md:min-h-[26rem] md:p-9 md:pb-24 lg:min-h-[38rem] lg:items-start lg:justify-center lg:p-14 lg:pb-32 lg:text-start xl:min-h-[41rem] xl:p-16 ${language ? "max-md:pt-14" : ""}`}
+          >
             {copy.badge ? (
               <span className="mb-2 inline-flex items-center gap-1.5 rounded-full border border-surface/25 bg-surface/15 px-2.5 py-1 text-[0.6875rem] font-medium text-paper backdrop-blur-sm md:mb-4 lg:mb-6 lg:px-3.5 lg:py-1.5 lg:text-label">
                 <LeafGlyph />

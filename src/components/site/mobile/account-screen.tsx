@@ -254,6 +254,9 @@ export function AccountScreen({
   );
 }
 
+/** Characters past which a row's note leaves the pill for a line under the label. */
+const LONG_NOTE = 16;
+
 function AccountRowBody({ row }: { row: AccountRow }) {
   const inner = (
     <>
@@ -263,8 +266,16 @@ function AccountRowBody({ row }: { row: AccountRow }) {
       >
         <Icon name={row.icon} className="size-5 fill-current" />
       </span>
-      <span className="min-w-0 flex-1 font-semibold">{row.label}</span>
-      {row.note ? <StatusPill tone="line">{row.note}</StatusPill> : null}
+      {/* A short note («2», «لا شيء») is a pill at the end of the row. A long one — «Kommt in einer späteren
+          Version» is three times «قريباً» — goes under the label instead: as a pill it pushed the label into
+          an ellipsis on a phone. */}
+      <span className="min-w-0 flex-1">
+        <span className="block font-semibold">{row.label}</span>
+        {row.note && row.note.length > LONG_NOTE ? (
+          <span className="mt-0.5 block text-caption leading-5 text-muted">{row.note}</span>
+        ) : null}
+      </span>
+      {row.note && row.note.length <= LONG_NOTE ? <StatusPill tone="line">{row.note}</StatusPill> : null}
       {row.href ? (
         // Forward is the end of the row: the chevron is drawn pointing left for Arabic and mirrored for the
         // left-to-right languages. It is decoration: the link is the whole row and the label is what a screen
