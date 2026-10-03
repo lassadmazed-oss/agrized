@@ -4,7 +4,7 @@ import { revalidatePath, updateTag } from "next/cache";
 import { z } from "zod";
 
 import type { ActionResult } from "@/components/admin/action-form";
-import { hasRole, PRICE_ROLES, requireStaff, type StaffRole } from "@/lib/auth";
+import { ADMIN_ROLES, hasRole, PRICE_ROLES, requireStaff, type StaffRole } from "@/lib/auth";
 import { getPublicConfig, settingInt } from "@/lib/config";
 import { intakeErrorMessage, isKnownIntakeError } from "@/lib/errors";
 import { readPricingForm } from "@/lib/pricing-form";
@@ -660,4 +660,54 @@ export async function removeProjectPicture(projectId: string, pictureId: string)
   const path = data?.[0]?.storage_path;
   if (path) await supabase.storage.from(PROJECT_MEDIA_BUCKET).remove([path]);
   pictureChanged(projectId);
+}
+
+/**
+ * «حذف» and «أرشفة» on the offers list (owner, 2026-10-03: «i want a button to be able to remove offers»).
+ *
+ * The list decides which one an offer gets (public.staff_offer_history): an offer nobody has touched is
+ * DELETED, with its own setup, by public.staff_delete_project (0120), which checks again under a row lock and
+ * refuses `offer_has_history` if a request, reservation, contract, payment or visit arrived meanwhile. An offer
+ * with that history is ARCHIVED — off the site and out of the list, every record kept — and can be restored.
+ * Deleting is the admins'; archiving and restoring are for whoever may edit an offer.
+ */
+export async function removeOffer(projectId: string, mode: "delete" | "archive" | "restore"): Promise<ActionResult> {
+  if (!UUID.test(projectId)) return FAILED;
+
+  if (mode === "delete") {
+    await requireStaff(ADMIN_ROLES);
+    const supabase = await createClient();
+    const { data, error } = await supabase.rpc("staff_delete_project", { p_project: projectId });
+    if (error) {
+      if (error.message.includes("offer_has_history")) {
+        return {
+          ok: false,
+          message: "العرض هذا فيه مطالب ولا حجوزات ولا عقود ولا خلاص، فما يتفسخش باش ما يضيعش تاريخ الحرفاء. أرشفه بلاصتو.",
+        };
+      }
+      if (error.message.includes("forbidden")) return { ok: false, message: "حذف العروض للإدارة فقط." };
+      return FAILED;
+    }
+    // The pictures' files, once the rows are gone; a file that cannot be removed is only storage, never a page.
+    const paths = ((data as { media_paths?: string[] } | null)?.media_paths ?? []).filter(Boolean);
+    if (paths.length > 0) await supabase.storage.from(PROJECT_MEDIA_BUCKET).remove(paths);
+  } else {
+    await requireStaff(WRITE_ROLES);
+    const supabase = await createClient();
+    // Restored offers come back «جاهز (داخلي)»: visible to the team, not to visitors, until somebody publishes.
+    const { data, error } = await supabase
+      .from("projects")
+      .update({ status: mode === "archive" ? "archived" : "internal" })
+      .eq("id", projectId)
+      .select("id");
+    if (error || !data?.length) return FAILED;
+  }
+
+  updateTag(PUBLIC_PROJECTS_TAG);
+  revalidatePath("/admin/projects");
+  revalidatePath("/[lang]/projects", "layout");
+  return {
+    ok: true,
+    message: mode === "delete" ? "تفسخ العرض." : mode === "archive" ? "تأرشف العرض." : "رجع العرض للقائمة.",
+  };
 }

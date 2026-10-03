@@ -17,13 +17,14 @@ import Link from "next/link";
 
 import { ActionForm } from "@/components/admin/action-form";
 import { EmptyState, FormField, SectionHeader, StatTile, StatusPill } from "@/components/ui";
-import { hasRole, requireStaff, type StaffRole } from "@/lib/auth";
+import { ADMIN_ROLES, hasRole, requireStaff, type StaffRole } from "@/lib/auth";
 import { getPublicConfig, settingText, type PublicConfig } from "@/lib/config";
 import { formatArea, formatCount } from "@/lib/format";
 import { PROJECT_STATUS_LABELS, projectStatusLabel, projectStatusTone } from "@/lib/projects";
 import { createClient } from "@/lib/supabase/server";
 
-import { saveProject } from "./actions";
+import { removeOffer, saveProject } from "./actions";
+import { OfferRemove, type OfferRemoveMode } from "./offer-remove";
 import { offerStocks, totalStock, type OfferStock } from "@/lib/backoffice/offers/stock";
 
 export const metadata: Metadata = { title: "العروض" };
@@ -72,9 +73,12 @@ async function treeCodeRange(supabase: StaffClient, projectId: string): Promise<
   return { first: first.data.code, last: last.data.code };
 }
 
-export default async function OffersPage() {
+export default async function OffersPage({ searchParams }: PageProps<"/admin/projects">) {
   const session = await requireStaff();
   const canWrite = hasRole(session, WRITE_ROLES);
+  const canDelete = hasRole(session, ADMIN_ROLES);
+  // Archived offers are out of the list (owner, 2026-10-03: a button to remove offers) and one link away.
+  const showArchived = (await searchParams).archived === "1";
   const supabase = await createClient();
   const config = await getPublicConfig();
   const labels = stockLabels(config);
@@ -85,7 +89,25 @@ export default async function OffersPage() {
     .order("created_at", { ascending: false });
   if (projects.error) throw new Error(projects.error.message);
 
-  const rows = projects.data ?? [];
+  const allRows = projects.data ?? [];
+  const archivedCount = allRows.filter((project) => project.status === "archived").length;
+  const rows = allRows.filter((project) => (project.status === "archived") === showArchived);
+
+  // What each offer carries decides its remove button: «حذف» for an untouched offer, «أرشفة» for one with
+  // requests, reservations, contracts, payments or visits (public.staff_offer_history, 0120).
+  const history = new Map<string, Record<string, number>>();
+  if (canWrite && rows.length > 0) {
+    const { data } = await supabase.rpc("staff_offer_history", { p_projects: rows.map((project) => project.id) });
+    for (const row of data ?? []) history.set(row.project_id, (row.history ?? {}) as Record<string, number>);
+  }
+  const removeMode = (project: { id: string; status: string }): OfferRemoveMode | null => {
+    if (!canWrite) return null;
+    if (project.status === "archived") return "restore";
+    const carries = history.get(project.id);
+    if (carries && Object.keys(carries).length === 0 && canDelete) return "delete";
+    return "archive";
+  };
+
   const stocks = await offerStocks(
     supabase,
     rows.map((project) => project.id),
@@ -110,8 +132,23 @@ export default async function OffersPage() {
     <div className="space-y-6">
       <SectionHeader
         level={1}
-        title="العروض"
-        description="مخزون حقيقي: أرض موجودة، وكل زيتونة فيها عندها رقمها وحالتها وصاحبها. موش محاكاة — المحاكي يعطي مثال تقديري، والعرض يتباع."
+        title={showArchived ? "العروض المؤرشفة" : "العروض"}
+        description={
+          showArchived
+            ? "عروض متخبّية من الموقع ومن القائمة، وكل ما فيها محفوظ. «رجّع العرض» يرجّعو للقائمة كـ«جاهز (داخلي)»."
+            : "مخزون حقيقي: أرض موجودة، وكل زيتونة فيها عندها رقمها وحالتها وصاحبها. موش محاكاة — المحاكي يعطي مثال تقديري، والعرض يتباع."
+        }
+        actions={
+          showArchived ? (
+            <Link href="/admin/projects" className="btn btn-ghost btn-sm">
+              رجوع للعروض
+            </Link>
+          ) : archivedCount > 0 ? (
+            <Link href="/admin/projects?archived=1" className="btn btn-ghost btn-sm">
+              المؤرشفة ({formatCount(archivedCount)})
+            </Link>
+          ) : null
+        }
       />
 
       {rows.length > 0 ? (
@@ -146,7 +183,7 @@ export default async function OffersPage() {
       ) : null}
 
       {/* `.disclosure` (globals.css) draws the marker, so the typed «+» that stood in for one is gone. */}
-      {canWrite ? (
+      {canWrite && !showArchived ? (
         <details className="panel disclosure">
           <summary className="font-semibold">عرض جديد</summary>
           <div className="border-t border-line pt-cozy">
@@ -201,7 +238,9 @@ export default async function OffersPage() {
         </details>
       ) : null}
 
-      {rows.length === 0 ? (
+      {rows.length === 0 && showArchived ? (
+        <EmptyState title="ما فماش عروض مؤرشفة">العروض اللي تأرشفها تظهر هنا، وتنجم ترجّعها من هنا.</EmptyState>
+      ) : rows.length === 0 ? (
         <EmptyState title="ما فماش عروض بعد">
           العرض هو أرض موجودة بزيتوناتها. أنشئ أول عرض من فوق، اكتب عدد الزيتونات، ثم ولّدها باش كل زيتونة يكون عندها
           رقمها.
@@ -210,9 +249,12 @@ export default async function OffersPage() {
         <ul className="grid gap-3 lg:grid-cols-2">
           {rows.map((project) => {
             const stock = stocks.get(project.id);
+            const mode = removeMode(project);
             return (
-              <li key={project.id}>
-                <Link href={`/admin/projects/${project.id}`} className="card block h-full p-5 transition-colors hover:border-forest">
+              // The card opens the offer; its foot carries the two acts on it. Two controls inside one link
+              // would be a link inside a link, so the link is the card's body and the foot sits beside it.
+              <li key={project.id} className="card flex h-full flex-col overflow-hidden p-0 transition-colors hover:border-forest">
+                <Link href={`/admin/projects/${project.id}`} className="block flex-1 p-5">
                   <div className="flex flex-wrap items-start justify-between gap-2">
                     <div className="min-w-0">
                       <h2 className="font-semibold">{project.name}</h2>
@@ -239,6 +281,17 @@ export default async function OffersPage() {
                     {stock && stock.min_trees > 1 ? ` · أقلّ عدد في الطلب: ${formatCount(stock.min_trees)} زيتونة` : ""}
                   </p>
                 </Link>
+                {canWrite ? (
+                  <div className="flex flex-wrap items-start justify-end gap-2 border-t border-line bg-paper/60 px-4 py-2.5">
+                    {mode !== "restore" ? (
+                      <Link href={`/admin/projects/${project.id}?tab=card`} className="btn btn-secondary btn-sm">
+                        <PencilMark />
+                        تعديل
+                      </Link>
+                    ) : null}
+                    {mode ? <OfferRemove action={removeOffer.bind(null, project.id, mode)} mode={mode} name={project.name} /> : null}
+                  </div>
+                ) : null}
               </li>
             );
           })}
@@ -313,5 +366,25 @@ function OfferStockLine({
         </p>
       ) : null}
     </>
+  );
+}
+
+/** The edit button's pencil. Decoration: the word beside it is what the button says. */
+function PencilMark() {
+  return (
+    <svg
+      viewBox="0 0 20 20"
+      aria-hidden="true"
+      focusable="false"
+      className="size-4"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.6"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <path d="M12.8 3.7a1.9 1.9 0 0 1 2.7 2.7L7 14.9l-3.5.8.8-3.5 8.5-8.5Z" />
+      <path d="m11.5 5 2.7 2.7" />
+    </svg>
   );
 }
