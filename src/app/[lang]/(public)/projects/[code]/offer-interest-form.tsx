@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState, useTransition } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from "react";
 
 import { readVisitSource } from "@/components/site/source-capture";
 import { DataRow, FormField } from "@/components/ui";
@@ -140,6 +140,34 @@ type FormState = {
 type PlanKey = "paymentMode" | "downId" | "durationId";
 
 type Errors = Partial<Record<keyof FormState | PlanKey, string>>;
+
+/**
+ * ONE QUESTION PER SCREEN (owner, 2026-10-03: «i don't like listing all the questions at once, do it question
+ * by question like the simulator, and directly take to the next after answering»).
+ *
+ * The same shape /start has, for the same reason: eleven fields in one column is a wall, and on a phone it is a
+ * wall you scroll. The ones that drop out are the ones this offer does not ask — an offer that sells for cash
+ * only never shows the payment question, and nobody is asked for a percentage or a duration.
+ *
+ * `who`, `where` and `contact` each hold the two or three answers that are one thought: a name without the
+ * number to call it on is not a question, it is half of one.
+ */
+type StepKey = "trees" | "payment" | "down" | "duration" | "who" | "where" | "contact" | "review";
+
+/** Which answers a step is allowed to be stopped by. Validation is whole-form; this is the slice that is on screen. */
+const STEP_FIELDS: Record<StepKey, readonly (keyof Errors)[]> = {
+  trees: ["trees"],
+  payment: ["paymentMode"],
+  down: ["downId"],
+  duration: ["durationId"],
+  who: ["fullName", "phone", "whatsapp"],
+  where: ["governorateId"],
+  contact: ["contactChannel"],
+  review: ["consent"],
+};
+
+/** Long enough to see the chosen card tick, short enough not to feel like waiting — /start's own figure. */
+const ADVANCE_MS = 220;
 
 /** How long an answer waits before the offer is quoted again, as on /start. */
 const QUOTE_DEBOUNCE_MS = 250;
@@ -529,6 +557,96 @@ export function OfferInterestForm(props: OfferInterestFormProps) {
               }
             : null;
 
+  /**
+   * The questions this offer actually asks, in order. It is rebuilt when the plan changes: picking «بالحاضر»
+   * on the payment screen removes the two instalment screens before `advance` reads the list, so cash walks
+   * straight from the payment question to who to call.
+   */
+  const steps = useMemo<StepKey[]>(() => {
+    const list: StepKey[] = ["trees"];
+    if (asksPayment) list.push("payment");
+    if (asksPayment && installments) {
+      if (props.downPercents.length > 0) list.push("down");
+      if (props.durations.length > 0) list.push("duration");
+    }
+    list.push("who", "where", "contact", "review");
+    return list;
+  }, [asksPayment, installments, props.downPercents.length, props.durations.length]);
+
+  const [step, setStep] = useState<StepKey>("trees");
+  // Switching back to cash takes the screen the visitor is standing on out of the list. «who» is the step
+  // those two always came before, so the form carries on from there rather than jumping to the end.
+  const activeStep: StepKey = steps.includes(step) ? step : "who";
+  const index = Math.max(steps.indexOf(activeStep), 0);
+  const isLast = activeStep === "review";
+
+  const stepsRef = useRef(steps);
+  useEffect(() => {
+    stepsRef.current = steps;
+  }, [steps]);
+
+  const advanceTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => () => (advanceTimer.current ? clearTimeout(advanceTimer.current) : undefined), []);
+
+  const go = useCallback((next: StepKey) => {
+    if (advanceTimer.current) clearTimeout(advanceTimer.current);
+    setStep(next);
+  }, []);
+
+  /** Answering carries the visitor on; the pause lets the chosen card show its tick first. */
+  const advance = useCallback(() => {
+    if (advanceTimer.current) clearTimeout(advanceTimer.current);
+    advanceTimer.current = setTimeout(() => {
+      setStep((current) => {
+        const list = stepsRef.current;
+        const position = list.indexOf(list.includes(current) ? current : "who");
+        return position >= 0 && position + 1 < list.length ? list[position + 1] : current;
+      });
+    }, ADVANCE_MS);
+  }, []);
+
+  const goBack = () => go(steps[Math.max(index - 1, 0)]);
+
+  /**
+   * Every screen opens at its own question. Without this the page keeps the scroll of the screen before, so a
+   * long one answered near its foot hands the next one over already scrolled past its heading — and the
+   * visitor is looking at a «التالي» button for a question they cannot see.
+   *
+   * Not on the first render: the form is reached by scrolling to it, or by the floating «سجّل اهتمامك» link,
+   * and pulling the page around before anybody has answered anything would undo exactly that.
+   */
+  const firstStepRender = useRef(true);
+  useEffect(() => {
+    if (firstStepRender.current) {
+      firstStepRender.current = false;
+      return;
+    }
+    const node = formRef.current;
+    if (!node) return;
+    const still = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches ?? false;
+    try {
+      node.scrollIntoView({ block: "start", behavior: still ? "auto" : "smooth" });
+    } catch {
+      // Older engines reject the options object; staying where we are is better than throwing.
+    }
+  }, [activeStep]);
+
+  /**
+   * «التالي»: this screen's own answers are checked, and nothing else. Running the whole form would stop the
+   * visitor on question one with an error about a name they have not been asked for yet.
+   */
+  function goNext() {
+    const found = validate();
+    const mine = STEP_FIELDS[activeStep].filter((key) => found[key]);
+    if (mine.length > 0) {
+      setErrors(Object.fromEntries(mine.map((key) => [key, found[key]])));
+      focusFirstError(formRef.current ?? document);
+      return;
+    }
+    setErrors({});
+    go(steps[Math.min(index + 1, steps.length - 1)]);
+  }
+
   function update<K extends keyof FormState>(key: K, value: FormState[K]) {
     setForm((current) => ({ ...current, [key]: value }));
     setErrors((current) => ({ ...current, [key]: undefined }));
@@ -546,6 +664,8 @@ export function OfferInterestForm(props: OfferInterestFormProps) {
       setDownId(null);
       setDurationId(null);
     }
+    // `steps` has already dropped the two instalment screens by the time this lands, so cash goes straight on.
+    advance();
   }
 
   function validate(): Errors {
@@ -575,6 +695,10 @@ export function OfferInterestForm(props: OfferInterestFormProps) {
 
   function onSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (!isLast) {
+      goNext();
+      return;
+    }
     const found = validate();
     setErrors(found);
     if (Object.keys(found).length > 0) {
@@ -674,9 +798,46 @@ export function OfferInterestForm(props: OfferInterestFormProps) {
         {/* A rhythm a phone can walk: the questions this offer asks, the figures they change, then who to
             call back — three blocks a hairline apart instead of one column of eleven equal fields. */}
         <form onSubmit={onSubmit} noValidate className="mt-4 space-y-5 sm:mt-6 sm:space-y-7">
+          {/* One row carrying both facts a visitor part-way through a form wants: how far in they are, and the
+              way out of the answer they just gave. /start settled on exactly this; a counter, a rail and a
+              «رجوع» on three separate lines is 90px of furniture above a single question. */}
+          <div>
+            <div className="mb-2 flex items-center gap-2">
+              {index > 0 ? (
+                <button
+                  type="button"
+                  onClick={goBack}
+                  className="-ms-1 flex size-8 flex-none items-center justify-center rounded-xl text-forest hover:bg-leaf-soft"
+                  aria-label={t("ui.offer.form_back")}
+                >
+                  {/* Pointing the way Arabic reads back; mirrored where the page runs the other way. */}
+                  <svg viewBox="0 0 24 24" aria-hidden="true" className="size-5 ltr:-scale-x-100" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M4 12h16m0 0-6-6m6 6-6 6" />
+                  </svg>
+                </button>
+              ) : null}
+              <span className="ms-auto flex-none text-[0.6875rem] text-muted tabular-nums">
+                {t("ui.offer.form_step_of", { step: index + 1, total: steps.length })}
+              </span>
+            </div>
+            <div
+              role="progressbar"
+              aria-valuemin={1}
+              aria-valuemax={steps.length}
+              aria-valuenow={index + 1}
+              aria-label={t("ui.offer.form_progress_label")}
+              className="h-1.5 overflow-hidden rounded-full bg-line"
+            >
+              <div
+                className="h-full rounded-full bg-leaf transition-[width] duration-300"
+                style={{ width: `${((index + 1) / steps.length) * 100}%` }}
+              />
+            </div>
+          </div>
+
           <div className="space-y-4 sm:space-y-6">
             {/* The offer's own question: how many of its trees. Everything else is who to call back. */}
-            <div>
+            <div hidden={activeStep !== "trees"}>
               <label htmlFor="offer-trees" className="label">
                 {props.treesLabel}
               </label>
@@ -687,7 +848,10 @@ export function OfferInterestForm(props: OfferInterestFormProps) {
                       key={count}
                       label={formatCount(count)}
                       picked={trees === count}
-                      onPick={() => update("trees", String(count))}
+                      onPick={() => {
+                        update("trees", String(count));
+                        advance();
+                      }}
                     />
                   ))}
                 </div>
@@ -721,7 +885,7 @@ export function OfferInterestForm(props: OfferInterestFormProps) {
             {/* Owner, 2026-09-19: «in the form it's missing the payment method like the main form». Asked here, in
                 the calculator's order and with the calculator's words — and with THIS offer's own answers. */}
             <div className="space-y-4">
-              {asksPayment ? (
+              {asksPayment && activeStep === "payment" ? (
                 <fieldset>
                   <legend className="label">{props.payment.title}</legend>
                   {props.payment.hint ? <p className="hint mt-1.5">{props.payment.hint}</p> : null}
@@ -745,19 +909,22 @@ export function OfferInterestForm(props: OfferInterestFormProps) {
                     </p>
                   ) : null}
                 </fieldset>
-              ) : priced && props.payment.cashOnly ? (
-                // This offer publishes no percentage or no priced duration, so it sells for cash and says so once.
+              ) : !asksPayment && priced && props.payment.cashOnly && activeStep === "trees" ? (
+                // This offer publishes no percentage or no priced duration, so it sells for cash and says so
+                // once — on the count screen, because without a payment question there is no screen of its own.
                 <p className="rounded-xl bg-paper px-4 py-3 text-sm font-semibold leading-6 text-forest">
                   {props.payment.cashOnly}
                 </p>
               ) : null}
 
               {/* How paying works on this offer, read where it is being decided. */}
-              {props.payment.note ? <p className="text-sm leading-7 text-muted">{props.payment.note}</p> : null}
+              {props.payment.note && activeStep === "payment" ? (
+                <p className="text-sm leading-7 text-muted">{props.payment.note}</p>
+              ) : null}
 
-              {asksPayment && installments ? (
+              {asksPayment && installments && (activeStep === "down" || activeStep === "duration") ? (
                 <>
-                  <fieldset>
+                  <fieldset hidden={activeStep !== "down"}>
                     <legend className="label">{props.payment.downTitle}</legend>
                     {props.payment.downHint ? <p className="hint mt-1.5">{props.payment.downHint}</p> : null}
                     <div className="mt-2 grid grid-cols-3 gap-2 sm:grid-cols-4">
@@ -770,6 +937,7 @@ export function OfferInterestForm(props: OfferInterestFormProps) {
                           onPick={() => {
                             setDownId(option.id);
                             clearError("downId");
+                            advance();
                           }}
                         />
                       ))}
@@ -781,7 +949,7 @@ export function OfferInterestForm(props: OfferInterestFormProps) {
                     ) : null}
                   </fieldset>
 
-                  <fieldset>
+                  <fieldset hidden={activeStep !== "duration"}>
                     <legend className="label">{props.payment.durationTitle}</legend>
                     <div className="mt-2 grid grid-cols-3 gap-2 sm:grid-cols-4">
                       {props.durations.map((option) => (
@@ -793,6 +961,7 @@ export function OfferInterestForm(props: OfferInterestFormProps) {
                           onPick={() => {
                             setDurationId(option.id);
                             clearError("durationId");
+                            advance();
                           }}
                         />
                       ))}
@@ -805,7 +974,7 @@ export function OfferInterestForm(props: OfferInterestFormProps) {
                   </fieldset>
 
                   {/* What is still missing, said against the questions that are missing it. */}
-                  {planPending ? (
+                  {planPending && activeStep === "duration" ? (
                     <p role="status" className="rounded-xl bg-leaf-soft px-3 py-2.5 text-sm font-medium leading-6 text-forest">
                       {planPending}
                     </p>
@@ -824,7 +993,7 @@ export function OfferInterestForm(props: OfferInterestFormProps) {
               gold is an estimate, everywhere in the product. This block used to sit on bare `bg-paper` with no
               edge at all while the offer's starting price wore the elevated `.panel`: the surface grammar was
               the wrong way round. */}
-          <section className="card card-estimate overflow-hidden">
+          <section hidden={!isLast} className="card card-estimate overflow-hidden">
             {priced && props.estimateNote ? (
               <p className="border-b border-dashed border-gold/50 bg-gold-soft/70 px-4 py-3 text-xs font-semibold leading-5 text-forest sm:px-5">
                 {props.estimateNote}
@@ -914,9 +1083,10 @@ export function OfferInterestForm(props: OfferInterestFormProps) {
             </div>
           </section>
 
-          {/* Who to call back. */}
-          <div className="space-y-5 border-t border-line pt-7">
-            <div className="grid gap-4 sm:grid-cols-2">
+          {/* Who to call back — three screens now, not one column. The rule that drew a line under the
+              offer's own questions went with the column: every screen is its own card already. */}
+          <div className="space-y-5">
+            <div hidden={activeStep !== "who"} className="grid gap-4 sm:grid-cols-2">
               <FormField id="offer-name" label={t("ui.offer.form_name_label")} error={errors.fullName}>
                 <input
                   id="offer-name"
@@ -948,7 +1118,7 @@ export function OfferInterestForm(props: OfferInterestFormProps) {
               </FormField>
             </div>
 
-            <div className="space-y-4">
+            <div hidden={activeStep !== "who"} className="space-y-4">
               <label className={`choice ${form.whatsappSame ? CHOSEN : ""}`}>
                 <input
                   type="checkbox"
@@ -975,7 +1145,9 @@ export function OfferInterestForm(props: OfferInterestFormProps) {
             </div>
 
             {/* The diaspora buys offers too — and the answer decides how the call back and the signing are
-                arranged (consular power of attorney, signing in the summer). */}
+                arranged (consular power of attorney, signing in the summer). It shares a screen with the
+                governorate because it is the same question twice: where this buyer is. */}
+            <div hidden={activeStep !== "where"} className="space-y-5">
             <label className="choice items-start">
               <input
                 type="checkbox"
@@ -1004,6 +1176,9 @@ export function OfferInterestForm(props: OfferInterestFormProps) {
               </select>
             </FormField>
 
+            </div>
+
+            <div hidden={activeStep !== "contact"} className="space-y-5">
             <fieldset>
               <legend className="label">{t("ui.offer.form_channel_legend")}</legend>
               <div className="mt-2 grid gap-2 sm:grid-cols-3">
@@ -1050,9 +1225,12 @@ export function OfferInterestForm(props: OfferInterestFormProps) {
                 </select>
               </FormField>
             ) : null}
+            </div>
           </div>
 
-          <div className="space-y-5 border-t border-line pt-7">
+          {/* THE LAST SCREEN: the figures these answers come to, the visit, the consent and the send — the
+              things a visitor wants in front of them at the same moment, which is why they are not split. */}
+          <div hidden={!isLast} className="space-y-5">
             {/* The offer's second door, landed on and ticked by a link to #offer-visit. scroll-mt clears the
                 sticky header so the visitor arrives looking at this line, not under it. */}
             {props.visitLabel ? (
@@ -1125,6 +1303,14 @@ export function OfferInterestForm(props: OfferInterestFormProps) {
               ) : null}
             </div>
           </div>
+
+          {/* Not on the last screen: that one has the send button, and two buttons that both look like «go on»
+              is a question nobody should have to answer. */}
+          {!isLast ? (
+            <button type="button" onClick={goNext} className="btn btn-primary w-full sm:w-auto sm:min-w-56">
+              {t("ui.offer.form_next")}
+            </button>
+          ) : null}
         </form>
       </section>
 
