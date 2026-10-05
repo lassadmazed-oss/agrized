@@ -125,35 +125,88 @@ function coverMessage(code: string): string {
 }
 
 /**
- * A new picture slot (owner, 2026-10-05, on this screen: «i want more option to add»).
+ * ADDING A PICTURE TO THE HOME PAGE'S SLIDING COVER, IN ONE STEP.
  *
- * The six slots he was looking at are rows, so «more» was always one INSERT away — except that site_media
- * carried a read policy and an update policy and nothing else, so no admin could add or remove one. That is
- * why this screen had no «add» button rather than a hidden one.
+ * The first version of this made the owner do it in three: name a slot, then find it in the list, then upload
+ * a file into it, then tick it into the cover. He said so plainly — «i can just show the img here … i don't
+ * like the user experience you made, bad … and auto add to the cover» — and he was right: what he wants is to
+ * add a PICTURE, and a «slot» is this code's word, not his.
  *
- * The key is generated in SQL (staff_create_media_slot, 0128) and not typed here: it becomes a folder in the
- * storage bucket, the owner writes Arabic labels, and Arabic does not slugify.
+ * So the form asks for the file and one line describing it, and this does the four steps:
+ *   1 · the row (staff_create_media_slot, 0128) — the key is generated there, never typed;
+ *   2 · the file into the public bucket;
+ *   3 · the row learns its address and its alternative text;
+ *   4 · straight into the cover (staff_set_media_cover, 0123).
  *
- * WHERE A NEW SLOT SHOWS UP: in the home page's sliding cover, once it has a picture and is ticked. The named
- * slots are rendered by name in the code; a slot nobody names has exactly one place to appear, and the form
- * says so rather than leaving him to upload a picture that goes nowhere.
+ * THE ONE LINE IS BOTH THE NAME AND THE ALTERNATIVE TEXT, which is why it is still required when the
+ * description field is gone. A picture with no alt text is unusable to a screen reader and the database
+ * refuses it outright (site_media_alt_needed); asking for the same sentence twice, once to label a row the
+ * owner never thinks about and once for accessibility, was the form being written from the table's point of
+ * view instead of his.
+ *
+ * The aspect field is gone too. coverSlots() reads `in_cover` and `url` and nothing else — a slot's aspect
+ * only ever shaped the thumbnail on this screen, so asking him to choose one was asking him to decide
+ * something that does not leave this page.
+ *
+ * ROLLBACK IS BY HAND because these are four calls and not one transaction: if the upload or the save fails,
+ * the row that was just created is deleted again rather than left as an empty slot he did not ask for. A
+ * failure at step 4 is different — the picture is good and uploaded, only the tick failed — so that one keeps
+ * everything and says what is left to do.
  */
-export async function createSlot(_previous: ActionResult, formData: FormData): Promise<ActionResult> {
+export async function addCoverPicture(_previous: ActionResult, formData: FormData): Promise<ActionResult> {
   await requireStaff(ADMIN_ROLES);
   const supabase = await createClient();
 
-  const label = String(formData.get("label") ?? "").trim();
-  const description = String(formData.get("description") ?? "").trim();
-  const aspect = String(formData.get("aspect") ?? "4/3");
+  const file = formData.get("file");
+  const alt = String(formData.get("alt") ?? "").trim();
 
-  const { error } = await supabase.rpc("staff_create_media_slot", {
-    p_label: label,
-    p_description: description || undefined,
-    p_aspect: aspect,
+  if (!(file instanceof File) || file.size === 0) return { ok: false, message: "اختار صورة من تلفونك ولا من الحاسوب." };
+  const extension = TYPES[file.type];
+  if (!extension) return { ok: false, message: "الصيغ المقبولة: JPG، PNG، WEBP أو AVIF." };
+  if (file.size > MAX_BYTES) return { ok: false, message: "حجم الصورة يتجاوز 5 ميغا. اضغطها ثم أعد المحاولة." };
+  if (!alt) {
+    return { ok: false, message: "اكتب سطر يوصف الصورة. يخدم كاسمها هنا، ويقراه قارئ الشاشة للي ما ينجّمش يشوفها." };
+  }
+
+  // 1 · the row. The label is the same sentence, cut to what the column takes.
+  const { data: created, error: createError } = await supabase.rpc("staff_create_media_slot", {
+    p_label: alt.slice(0, 80),
   });
-  if (error) return { ok: false, message: slotMessage(error.message) };
+  if (createError) return { ok: false, message: slotMessage(createError.message) };
+  // No cast: staff_create_media_slot returns the row itself, and the generated types carry its shape.
+  const slot = created?.slot;
+  if (!slot) return { ok: false, message: "تعذّر إنشاء الموضع. حدّث الصفحة وأعد المحاولة." };
 
-  return done("تزاد الموضع. إرفعلو صورة، ومن بعد علّمها باش تدور في شريط الغلاف.");
+  const undo = async () => {
+    const { error } = await supabase.rpc("staff_delete_media_slot", { p_slot: slot });
+    if (error) console.error("could not roll back the empty slot", slot, error.message);
+  };
+
+  // 2 · the file. A fresh name every time, so a replaced picture is never served from a cache.
+  const path = `${slot}/${Date.now()}.${extension}`;
+  const { error: uploadError } = await supabase.storage
+    .from(SITE_MEDIA_BUCKET)
+    .upload(path, file, { contentType: file.type, upsert: false });
+  if (uploadError) {
+    await undo();
+    return { ok: false, message: `تعذّر رفع الصورة: ${uploadError.message}` };
+  }
+  const url = supabase.storage.from(SITE_MEDIA_BUCKET).getPublicUrl(path).data.publicUrl;
+
+  // 3 · the row learns where its picture is.
+  const { error: saveError } = await supabase.from("site_media").update({ url, alt_ar: alt }).eq("slot", slot);
+  if (saveError) {
+    await undo();
+    return { ok: false, message: `تعذّر الحفظ: ${saveError.message}` };
+  }
+
+  // 4 · into the cover. It has a picture now, which is the rule staff_set_media_cover enforces.
+  const { error: coverError } = await supabase.rpc("staff_set_media_cover", { p_slot: slot, p_in_cover: true });
+  if (coverError) {
+    return done("تزادت الصورة، أمّا ما دخلتش لشريط الغلاف. علّمها من القائمة تحت.");
+  }
+
+  return done("تزادت الصورة ودخلت لشريط الغلاف. تدور توّا في الصفحة الرئيسية.");
 }
 
 /**
@@ -188,13 +241,7 @@ export async function deleteSlot(slot: string): Promise<ActionResult> {
 /** Every refusal says what happened AND what to do about it. */
 function slotMessage(code: string): string {
   if (code.includes("label_required")) {
-    return "اكتب اسم للموضع باش تعرفو في هذي الصفحة.";
-  }
-  if (code.includes("label_too_long")) {
-    return "الاسم طويل برشا. اختصرو في 80 حرف ولا أقلّ.";
-  }
-  if (code.includes("invalid_aspect")) {
-    return "اختر شكل من القائمة.";
+    return "اكتب سطر يوصف الصورة.";
   }
   if (code.includes("slot_is_builtin")) {
     return "هذا الموضع يستعملو الموقع باسمو، فما يتفسخش — كان تحبّ تنحّي صورتو، استعمل «إزالة الصورة».";

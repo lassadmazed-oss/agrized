@@ -7,7 +7,7 @@ import { createClient } from "@/lib/supabase/server";
 
 import { ConfirmButton } from "@/components/admin/confirm-button";
 
-import { clearSlotImage, createSlot, deleteSlot, saveSlotImage, setSlotInCover } from "./actions";
+import { addCoverPicture, clearSlotImage, deleteSlot, saveSlotImage, setSlotInCover } from "./actions";
 
 export const metadata: Metadata = { title: "صور الموقع" };
 
@@ -55,38 +55,41 @@ export default async function MediaPage() {
         </p>
       </header>
 
-      {/* «i want more option to add» (owner, 2026-10-05). The six slots were rows all along; what was
-          missing was any way to write one. A slot added here is not rendered by name anywhere — the named
-          ones are — so the one place it can appear is the sliding cover, and the note says so rather than
-          letting a picture be uploaded to nowhere. */}
+      {/* ADD A PICTURE, NOT A «SLOT» (owner, 2026-10-05: «i can just show the img here … i don't like the
+          user experience you made, bad … and auto add to the cover»).
+          The first version asked him to name a slot, then find it in the list below, then upload a file into
+          it, then tick it into the cover — four steps to do one thing, and three of them in this code's
+          vocabulary rather than his. It is one form now: the picture, one line describing it, done — and the
+          action puts it in the cover itself.
+          The one line is both the name and the alternative text. It stays required when the description
+          field is gone because a picture with no alt text is unusable to a screen reader and the database
+          refuses it; what was wrong was asking for the same sentence twice. The aspect select is gone
+          because the cover never read it — it only ever shaped the thumbnail on this screen. */}
       <section className="card p-5">
-        <h2 className="font-semibold">زيد موضع جديد</h2>
+        <h2 className="font-semibold">زيد صورة لشريط الغلاف</h2>
         <p className="mt-1 text-sm leading-6 text-muted">
-          الموضع اللي تزيدو هنا يظهر في <strong className="font-semibold text-forest">شريط الغلاف</strong> متاع
-          الصفحة الرئيسية، بعد ما ترفعلو صورة وتعلّمها. المواضع الأصلية (الواجهة، الولايات…) يستعملهم الموقع
-          بأسمائهم في بلايص محدّدة.
+          الصورة تتزاد وتدور في <strong className="font-semibold text-forest">واجهة الصفحة الرئيسية</strong> في
+          التوّ. تنجّم تنحّيها ولا تفسخها من القائمة تحت وقتلي تحبّ.
         </p>
 
-        <ActionForm action={createSlot} submitLabel="زيد الموضع" className="mt-4 space-y-4">
-          <div className="grid gap-4 sm:grid-cols-[1fr_9rem]">
-            <label className="block">
-              <span className="label">اسم الموضع</span>
-              <input name="label" required maxLength={80} placeholder="صورة الجني" className="field mt-1.5" />
-            </label>
-            <label className="block">
-              <span className="label">الشكل</span>
-              <select name="aspect" defaultValue="4/3" className="field mt-1.5">
-                {["16/9", "3/2", "4/3", "1/1", "3/4", "2/3"].map((ratio) => (
-                  <option key={ratio} value={ratio}>
-                    {ratio}
-                  </option>
-                ))}
-              </select>
-            </label>
-          </div>
+        <ActionForm action={addCoverPicture} submitLabel="زيد الصورة" pendingLabel="جارٍ الرفع…" className="mt-4 space-y-4">
           <label className="block">
-            <span className="label">شرح (اختياري)</span>
-            <input name="description" maxLength={200} placeholder="أشنوّة تحبّ تحطّ في الموضع هذا" className="field mt-1.5" />
+            <span className="label">الصورة</span>
+            <input
+              type="file"
+              name="file"
+              required
+              accept="image/jpeg,image/png,image/webp,image/avif"
+              className="field mt-1.5 file:me-3 file:rounded-lg file:border-0 file:bg-leaf-soft file:px-3 file:py-1.5 file:text-sm file:font-semibold file:text-forest"
+            />
+            <span className="hint mt-1.5 block">JPG أو PNG أو WEBP أو AVIF، 5 ميغا كحد أقصى.</span>
+          </label>
+          <label className="block">
+            <span className="label">وصف الصورة</span>
+            <input name="alt" required maxLength={120} placeholder="جني الزيتون في ضيعة بصفاقس" className="field mt-1.5" />
+            <span className="hint mt-1.5 block">
+              سطر واحد. يخدم كاسم الصورة هنا، ويقراه قارئ الشاشة للي ما ينجّمش يشوفها.
+            </span>
           </label>
         </ActionForm>
       </section>
