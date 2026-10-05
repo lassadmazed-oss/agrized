@@ -1,5 +1,4 @@
 
-import { AbroadBand } from "@/components/site/abroad/abroad-band";
 import { ClosingCta } from "@/components/site/landing/closing-cta";
 import { CounterBand } from "@/components/site/landing/counter-band";
 import { Faq } from "@/components/site/landing/faq";
@@ -264,9 +263,6 @@ export default async function HomePage() {
             <HowItWorks title={journey.howTitle} steps={journey.steps} />
           </>
         }
-        // «عايش برّا تونس؟» (0130) — the door to /abroad, right after the visitor has seen what the thing is.
-        // It draws nothing while the module `abroad` is not public.
-        abroad={<AbroadBand config={config} />}
         // 3 · «شنوّة موجود توّا؟» — the real offers, in cards that cannot be read as a simulation.
         offersSection={
           journeyOffers.length > 0 ? (
