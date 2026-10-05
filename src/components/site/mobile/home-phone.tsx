@@ -94,6 +94,15 @@ export type HomePhoneProps = {
    */
   journey?: ReactNode;
   /**
+   * «عايش برّا تونس؟» — the invitation to the diaspora pages, between the journey and the offers: the
+   * visitor has just watched what the thing is and has not yet been shown stock, which is the moment the
+   * question «and if I am not in the country?» actually arrives.
+   *
+   * A slot and not a component, like the rest of them: it is owned by another session's work and this file
+   * must stay a drawing. Nothing passes it yet, and an unfilled slot renders nothing.
+   */
+  abroad?: ReactNode;
+  /**
    * Stands in the offers' place when it is given (owner brief, 2026-10-05: «Real Offers لازم تكون أكثر
    * وضوحاً»). The sliding strip is what runs when it is not, unchanged — three premium cards and a strip of
    * thirteen are answers to different catalogues, and which one is right stays the owner's to change without
@@ -152,6 +161,7 @@ export function HomePhone({
   closing,
   install,
   journey,
+  abroad,
   offersSection,
   trust,
   example,
@@ -328,6 +338,8 @@ export function HomePhone({
         {install}
 
         {journey}
+
+        {abroad}
 
         {/* 4 · The offers, sliding (owner, 2026-09-22: «make this section slide infinitely»). A two-per-line
             grid showed four of thirteen and gave no sign the rest existed; a strip that never stops says
