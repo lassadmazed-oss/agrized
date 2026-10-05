@@ -28,11 +28,17 @@ begin
   select array_agg(m.slot order by m.sort_order) into v_in_cover
   from public.site_media m where m.in_cover;
 
-  assert v_in_cover @> v_expected and v_expected @> v_in_cover,
-    '0123 must seed exactly the five slots HERO_SLOTS named in code, got ' || coalesce(v_in_cover::text, '{}');
+  -- CONTAINS, not EQUALS. This read «exactly these five» until 0128, which exists so the owner can add
+  -- pictures of his own to the slider from the Back Office — and he did, the same hour. A seeded slot
+  -- dropping OUT is still a regression and still fails here; a custom one joining is the feature.
+  assert v_in_cover @> v_expected,
+    '0123 must seed the five slots HERO_SLOTS names in code, got ' || coalesce(v_in_cover::text, '{}');
 
-  -- The order the slider rotates in is sort_order, and it must be the one the Back Office lists by.
-  assert (select array_agg(m.slot order by m.sort_order) from public.site_media m where m.in_cover)
+  -- The order the slider rotates in is sort_order, and it must be the one the Back Office lists by. The
+  -- owner's own pictures sort after the seeded ones (0128 starts them at 1000), so the five keep their
+  -- order among themselves whatever he adds.
+  assert (select array_agg(m.slot order by m.sort_order) from public.site_media m
+           where m.in_cover and not m.is_custom)
          = array['home.hero', 'home.journey', 'home.coverage', 'home.land', 'home.closing'],
     'the cover must rotate in sort_order, which is the order الإعدادات ← صور الموقع shows';
 end $$;
@@ -98,9 +104,13 @@ begin
         || ' (forbidden here means the test is not signed in and is proving nothing)';
   end;
 
-  -- ... and the slider cannot be emptied. Take four of the five out, then prove the fifth refuses.
-  select count(*)::integer into v_count from public.site_media m where m.in_cover and m.url is not null;
-  assert v_count = 5, 'expected the five seeded slots, got ' || v_count;
+  -- ... and the slider cannot be emptied. The «one left» state is forced directly in section 4, so what
+  -- matters here is only that the five seeded pictures are still in it — not the total, which the owner
+  -- changes from the Back Office every time he adds one of his own (0128).
+  select count(*)::integer into v_count
+    from public.site_media m
+   where m.in_cover and m.url is not null and not m.is_custom;
+  assert v_count = 5, 'expected the five seeded pictures still in the cover, got ' || v_count;
 end $$;
 
 -- ---------------------------------------------------------------------------
