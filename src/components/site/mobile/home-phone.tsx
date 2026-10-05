@@ -223,98 +223,72 @@ export function HomePhone({
             still feeds it, so emptying `site.quotes` still removes it everywhere. */}
         <div className="md:hidden">{quotes}</div>
 
-        {/* 1 · The hero. The whole card is the link target for the primary door; the second door is a
-            separate control, because «ما نعرفش نبدا» goes somewhere else entirely. */}
-        <section className="group relative overflow-hidden rounded-3xl shadow-[var(--shadow-card)] lg:rounded-[2rem] lg:shadow-[var(--shadow-float)]">
-          <div className="absolute inset-0 [&_img]:transition-transform [&_img]:duration-[1.2s] group-hover:[&_img]:scale-[1.03]">{hero}</div>
-          {language ? <div className="absolute end-3 top-3 z-10 md:hidden">{language}</div> : null}
+        {/* 1 · THE HERO: THE PHOTOGRAPH AND THE WORDS, SIDE BY SIDE — NOT ONE ON TOP OF THE OTHER.
+            Owner, 2026-10-05, against a screenshot of what stood here: «i don't like the shadow, even on the
+            mobile the img not visible, text is over, try different layout».
 
-          {/* DEPTH IS THREE LAYERS, NOT ONE WASH (owner, 2026-09-24: «make it nice and deep and clean»).
-              A single bottom-to-top gradient flattens a photograph into a poster: every part of the image is
-              dimmed by the same rule, so nothing recedes. Here the foot is darkened for the words, the start
-              edge carries a second, softer wash so the headline has ground on the side it begins from, and a
-              faint inset ring closes the card against the page. The sky — the reason this picture is here —
-              keeps almost all of its light. */}
-          {/* FROM lg THE TWO WASHES SWAP ROLES (owner, 2026-09-25: «more modern», desktop only).
-              Below lg nothing here changes: the foot carries the words, so the foot is the dark end.
-              At 1024px and up the words move off the foot and onto the inline-start edge, and the washes
-              follow them — otherwise the page darkens the half of the picture with nothing on it and lights
-              the half carrying the headline, which is how a hero ends up looking like a poster.
-              So the bottom wash drops to what the figures bar needs to sit on, and the SIDE wash becomes the
-              strong one. The wash starts dark at the inline start: `to-l` on the Arabic page, `to-r` on a
-              left-to-right one (a gradient has no logical axis). The sea and the sky — the reason this
-              photograph was chosen — keep their light instead of being flattened. */}
-          <div
-            aria-hidden="true"
-            className="absolute inset-0 bg-gradient-to-t from-forest-700/94 via-forest-700/50 to-forest-700/10 lg:from-forest-700/80 lg:via-forest-700/18 lg:via-38% lg:to-transparent"
-          />
-          <div
-            aria-hidden="true"
-            className="absolute inset-0 hidden bg-gradient-to-l from-forest-700/92 via-forest-700/55 via-44% to-transparent to-82% lg:block ltr:bg-gradient-to-r"
-          />
-          <div
-            aria-hidden="true"
-            className="pointer-events-none absolute inset-0 rounded-3xl ring-1 ring-inset ring-surface/12 lg:rounded-[2rem]"
-          />
+            What stood here was a photograph with two dark washes over it and the words on top. Every one of
+            his four complaints came from that single decision, so softening the washes would have answered
+            none of them: text over a picture ALWAYS needs the picture dimmed to stay readable, and the
+            dimmer it is the less of it there is to see. On a 375px screen the card was 13rem tall with a
+            94 %-opaque wash across its foot — there was barely a photograph left to look at.
 
-          {/* CENTRED, AND WITH A FOOT TO SPARE (owner, 2026-09-24, against the mock-up). The words used to
-              hang off the start edge at the bottom of the card, which is a poster composition: it reads from
-              the corner, and the two doors ended up in the corner with it. The mock-up centres the promise
-              and puts the figures across the foot of the photograph — so the card keeps bottom padding deep
-              enough for the bar that now overlaps it, and nothing it says can end up behind that bar. */}
-          {/* THE DESKTOP COMPOSITION IS ANCHORED, NOT CENTRED (owner, 2026-09-25). Below lg this is exactly
-              what it was: centred on the foot of the card, which is right for a 375px screen where the card
-              is 13rem tall and there is no «beside».
-              From lg it stops being that composition. A centred block inside a 34rem card on a 1900px screen
-              leaves a third of the width empty on each side of the words and reads as the phone layout
-              stretched — which is what it literally is. Anchoring the stack to the inline-start and centring
-              it VERTICALLY gives the picture a subject and the words a ground, and lets the headline run to a
-              real measure instead of a centred ribbon.
-              `pb` stays deep at every width: the figures bar is lifted onto the foot of this card and nothing
-              said here may end up behind it. */}
-          {/* On a phone the language chip owns the card's top corner, so the words start a row lower: centred, the
-              badge is as wide as the chip leaves room for and the two would touch. */}
-          <div
-            className={`relative flex min-h-[13rem] flex-col items-center justify-end p-4 pb-14 text-center md:min-h-[26rem] md:p-9 md:pb-24 lg:min-h-[38rem] lg:items-start lg:justify-center lg:p-14 lg:pb-32 lg:text-start xl:min-h-[41rem] xl:p-16 ${language ? "max-md:pt-14" : ""}`}
-          >
+            So the two are separated. The picture is shown clean, at a real size, with nothing on it; the
+            words sit on the page's own paper beside it (from lg) or under it (below lg), in forest and
+            muted, where they need no shadow, no scrim and no backdrop to be read. The headline loses its
+            text-shadow because it is no longer fighting an image, and the buttons become the site's own
+            .btn pair instead of the white-pill-on-dark pair that only made sense over a photograph.
+
+            The language chip stays on the picture's corner: it is a control, not content, and it is the one
+            thing that belongs over the image. */}
+        <section className="grid items-center gap-4 md:gap-6 lg:grid-cols-2 lg:gap-12">
+          {/* The words come SECOND in the source and first from lg, so a phone opens on the photograph —
+              which is what he is actually missing — and a wide screen reads words-then-picture. */}
+          <div className="order-2 text-center lg:order-1 lg:text-start">
             {copy.badge ? (
-              <span className="mb-2 inline-flex items-center gap-1.5 rounded-full border border-surface/25 bg-surface/15 px-2.5 py-1 text-[0.6875rem] font-medium text-paper backdrop-blur-sm md:mb-4 lg:mb-6 lg:px-3.5 lg:py-1.5 lg:text-label">
+              <span className="pill mb-2 bg-gold-soft text-forest ring-1 ring-gold/30 md:mb-4 lg:mb-6">
                 <LeafGlyph />
                 {copy.badge}
               </span>
             ) : null}
-            {/* NO `tracking-*` AT ANY WIDTH. Letter-spacing breaks the joins in Arabic, which this project has
-                already written down once in landing/hero.tsx. The size and the leading do the work instead. */}
-            <p className="max-w-2xl font-display text-[1.75rem] font-bold leading-[1.15] text-surface [text-shadow:0_2px_28px_rgb(0_0_0/0.28)] md:text-5xl lg:max-w-[15ch] lg:text-[4rem] lg:leading-[1.04] xl:text-[4.75rem]">
+            {/* NO `tracking-*` AT ANY WIDTH. Letter-spacing breaks the joins in Arabic, which this project
+                has already written down once in landing/hero.tsx. The size and the leading do the work. */}
+            <p className="font-display text-[1.75rem] font-bold leading-[1.15] text-forest md:text-5xl lg:max-w-[15ch] lg:text-[3.75rem] lg:leading-[1.04] xl:text-[4.25rem]">
               {copy.line}
             </p>
-            {/* The supporting sentence, from lg only — see `copy.lead`. It sits on the strong half of the side
-                wash, so it is paper at 88 % over forest rather than white on a photograph. */}
-            {/* MEASURED AGAINST THE PICTURE, NOT AGAINST ONE PICTURE. The card drifts through five grove
-                slots the owner uploads, so this line has to stay readable over whichever is in the slot next
-                month — including the brightest sea-and-sky frame, which is the one that broke it first.
-                Two things keep it honest: a measure short enough that the line never leaves the strong half
-                of the side wash, and the headline's own text-shadow, so the words carry their own ground
-                instead of relying on the photograph being dark where they happen to fall. */}
+            {/* It can be read at every width now: there is no photograph underneath it to lose a contest
+                with. It used to be printed from lg only because below that it sat on the darkest part of
+                the wash, on top of the picture, in a card 13rem tall. */}
             {copy.lead ? (
-              <p className="hidden lg:mt-7 lg:block lg:max-w-[33rem] lg:text-lg lg:leading-8 lg:text-paper/90 lg:[text-shadow:0_1px_16px_rgb(0_0_0/0.45)]">
+              <p className="mx-auto mt-2.5 max-w-prose text-sm leading-7 text-muted md:mt-4 md:text-base md:leading-8 lg:mx-0 lg:mt-7 lg:max-w-[33rem] lg:text-lg">
                 {copy.lead}
               </p>
             ) : null}
-            <div className="mt-3 flex flex-wrap justify-center gap-2 lg:mt-9 lg:justify-start lg:gap-3">
-              <Link
-                href={offersHref}
-                className="inline-flex min-h-11 items-center gap-2 rounded-full bg-surface px-4 text-label font-semibold text-ink shadow-[var(--shadow-card)] transition-all active:scale-[0.98] lg:min-h-[3.25rem] lg:gap-2.5 lg:px-7 lg:text-base lg:hover:-translate-y-0.5 lg:hover:shadow-[var(--shadow-float)]"
-              >
+            <div className="mt-4 flex flex-wrap justify-center gap-2 md:mt-6 lg:mt-9 lg:justify-start lg:gap-3">
+              <Link href={offersHref} className="btn btn-primary gap-2 lg:min-h-[3.25rem] lg:px-7 lg:text-base">
                 {copy.exploreCta}
                 <ArrowGo className="size-4" />
               </Link>
-              <Link
-                href={guideHref}
-                className="inline-flex min-h-11 items-center rounded-full border-[1.5px] border-surface/40 px-4 text-label font-semibold text-surface backdrop-blur-sm transition-colors hover:border-surface/70 hover:bg-surface/10 lg:min-h-[3.25rem] lg:px-7 lg:text-base"
-              >
+              <Link href={guideHref} className="btn btn-secondary border-line lg:min-h-[3.25rem] lg:px-7 lg:text-base">
                 {copy.guideCta}
               </Link>
+            </div>
+          </div>
+
+          {/* The picture, and nothing over it but the chip. A ratio per width rather than a fixed height:
+              wide on a phone where it is the top of the screen, and tall beside the words on a desktop so
+              the two columns finish together. */}
+          <div className="order-1 lg:order-2">
+            <div className="group relative aspect-[4/3] overflow-hidden rounded-3xl shadow-[var(--shadow-card)] sm:aspect-[16/10] lg:aspect-[4/5] lg:rounded-[2rem] lg:shadow-[var(--shadow-float)]">
+              <div className="absolute inset-0 [&_img]:transition-transform [&_img]:duration-[1.2s] group-hover:[&_img]:scale-[1.03]">
+                {hero}
+              </div>
+              {language ? <div className="absolute end-3 top-3 z-10 md:hidden">{language}</div> : null}
+              {/* A hairline, not a wash: it closes the card against the page without touching the image. */}
+              <div
+                aria-hidden="true"
+                className="pointer-events-none absolute inset-0 rounded-3xl ring-1 ring-inset ring-ink/10 lg:rounded-[2rem]"
+              />
             </div>
           </div>
         </section>
@@ -327,7 +301,9 @@ export function HomePhone({
             card's edges so the rounded corners of the photograph still read behind it, and it is raised above
             the hero so its own shadow falls on the image. */}
         {shownStats.length > 0 ? (
-          <section className="card relative z-10 -mt-10 mx-3 flex items-center shadow-[var(--shadow-float)] md:-mt-16 md:mx-10 lg:-mt-20 lg:mx-16">
+          // It used to be lifted onto the foot of the hero photograph, which was one composition with it.
+          // The picture is its own column now, so the bar is simply the next thing down the page.
+          <section className="card mt-3 flex items-center shadow-[var(--shadow-card)] md:mt-5">
             {shownStats.map((stat, index) => (
               <div key={stat.label} className="flex flex-1 items-center">
                 {index > 0 ? <span aria-hidden="true" className="h-7 w-px flex-none bg-line" /> : null}
