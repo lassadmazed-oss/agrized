@@ -36,6 +36,8 @@ export function JourneyDemo({ offersHref, interestHref }: { offersHref: string; 
   /** Set once the visitor uses a control: after that the demo is theirs and never restarts itself. */
   const [taken, setTaken] = useState(false);
   const [still, setStill] = useState(false);
+  /** False while the tab is in the background. See the effect below for why the observer cannot cover this. */
+  const [awake, setAwake] = useState(true);
 
   const frameRef = useRef<HTMLDivElement>(null);
   const total = SCENES.length;
@@ -48,6 +50,20 @@ export function JourneyDemo({ offersHref, interestHref }: { offersHref: string; 
     read();
     query.addEventListener("change", read);
     return () => query.removeEventListener("change", read);
+  }, []);
+
+  /**
+   * Switching to another tab stops it too, and the observer CANNOT do this job on its own: a hidden document
+   * is delivered no IntersectionObserver callbacks at all, so nothing fires to say «you are not being looked
+   * at any more» — the element's intersection has not changed, the whole page has simply gone away. Left to
+   * the observer, a demo that was playing when the tab went to the background would keep stepping through its
+   * eleven scenes for as long as the tab lived.
+   */
+  useEffect(() => {
+    const read = () => setAwake(!document.hidden);
+    read();
+    document.addEventListener("visibilitychange", read);
+    return () => document.removeEventListener("visibilitychange", read);
   }, []);
 
   // On screen → play. Off screen → stop. Never plays before it has been seen, which is also what keeps the
@@ -64,10 +80,10 @@ export function JourneyDemo({ offersHref, interestHref }: { offersHref: string; 
   }, [taken, still]);
 
   useEffect(() => {
-    if (!playing) return;
+    if (!playing || !awake) return;
     const timer = setTimeout(() => setIndex((current) => (current + 1) % total), SCENE_MS);
     return () => clearTimeout(timer);
-  }, [playing, index, total]);
+  }, [playing, awake, index, total]);
 
   /** Any deliberate move: it stops the timer for good and leaves the visitor in charge. */
   const take = useCallback((next: number) => {
