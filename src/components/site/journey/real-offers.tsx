@@ -4,7 +4,11 @@ import { RemotePhoto } from "@/components/site/site-photo";
 import type { SiteFormat } from "@/lib/format";
 import { projectHref } from "@/lib/public-hrefs";
 import { areaPerTree, offerTreePrice, stockCounted, type OfferStock } from "@/components/site/offers";
+import { formatMessage } from "@/lib/i18n/message";
+import type { Locale } from "@/lib/i18n/locales";
 import type { PublicProject } from "@/lib/public-projects";
+
+import type { JourneyCopy } from "./copy";
 
 /**
  * The offers that exist today, drawn so they cannot be mistaken for a simulation (owner brief, section 3).
@@ -26,8 +30,12 @@ export function RealOffers({
   stockOf,
   place,
   fmt,
+  copy,
+  locale,
   pricingOpen,
 }: {
+  copy: JourneyCopy["offers"];
+  locale: Locale;
   offers: readonly PublicProject[];
   /** Counted over rows of public.trees (public_offer_stock), never the offer's declared tree_count. */
   stockOf: Map<string, OfferStock>;
@@ -44,11 +52,11 @@ export function RealOffers({
     <section className="mt-6 md:mt-10">
       <div className="flex items-end justify-between gap-3">
         <div>
-          <h2 className="section-title">عروض موجودة توّا</h2>
-          <p className="mt-1.5 text-sm leading-7 text-muted sm:text-base">أراضٍ حقيقية، بصورها وأرقامها. تنجم تزورها قبل أي التزام.</p>
+          <h2 className="section-title">{copy.title}</h2>
+          <p className="mt-1.5 text-sm leading-7 text-muted sm:text-base">{copy.lead}</p>
         </div>
         <Link href="/projects" className="btn btn-secondary btn-sm flex-none border-line">
-          الكل
+          {copy.all}
         </Link>
       </div>
 
@@ -75,28 +83,28 @@ export function RealOffers({
                   <h3 className="min-w-0 font-display text-base font-bold leading-tight text-forest">{offer.name}</h3>
                   {/* Real stock, counted in Postgres over rows of public.trees — not the declared count. */}
                   {free !== null ? (
-                    <span className="pill flex-none bg-leaf-soft text-forest">{fmt.formatCount(free)} متاحة</span>
+                    <span className="pill flex-none bg-leaf-soft text-forest">{formatMessage(locale, copy.available, { count: fmt.formatCount(free) })}</span>
                   ) : null}
                 </div>
                 <p className="mt-1 text-[0.75rem] text-muted">{place(offer.governorate_id)}</p>
 
                 <dl className="mt-3 grid grid-cols-2 gap-x-3 gap-y-2 border-t border-dashed border-line pt-3">
-                  <Fact label="الزيتونات" value={offer.tree_count !== null ? fmt.formatCount(offer.tree_count) : "—"} />
-                  <Fact label="المساحة" value={offer.total_area_m2 !== null ? fmt.formatArea(Number(offer.total_area_m2)) : "—"} />
-                  {offer.olive_variety ? <Fact label="الصنف" value={offer.olive_variety} /> : null}
-                  {area !== null ? <Fact label="لكل زيتونة" value={fmt.formatArea(area)} /> : null}
-                  {offer.tree_age_years !== null ? <Fact label="عمر الزيتون" value={`${fmt.formatCount(offer.tree_age_years)} عام`} /> : null}
+                  <Fact label={copy.factTrees} value={offer.tree_count !== null ? fmt.formatCount(offer.tree_count) : "—"} />
+                  <Fact label={copy.factArea} value={offer.total_area_m2 !== null ? fmt.formatArea(Number(offer.total_area_m2)) : "—"} />
+                  {offer.olive_variety ? <Fact label={copy.factVariety} value={offer.olive_variety} /> : null}
+                  {area !== null ? <Fact label={copy.factAreaPerTree} value={fmt.formatArea(area)} /> : null}
+                  {offer.tree_age_years !== null ? <Fact label={copy.factAge} value={formatMessage(locale, copy.factAgeValue, { count: fmt.formatCount(offer.tree_age_years) })} /> : null}
                 </dl>
 
                 <div className="mt-auto pt-3">
                   {price !== null ? (
                     <p className="font-display text-lg font-bold text-forest tabular-nums">
                       {fmt.formatMillimes(price)}
-                      <span className="ms-1.5 text-[0.6875rem] font-normal text-muted">سعر الزيتونة · ابتداءً من</span>
+                      <span className="ms-1.5 text-[0.6875rem] font-normal text-muted">{copy.priceSuffix}</span>
                     </p>
                   ) : null}
                   <Link href={projectHref(offer.code)} className="btn btn-primary btn-sm mt-2.5 w-full">
-                    شوف العرض
+                    {copy.cta}
                   </Link>
                 </div>
               </div>
@@ -110,13 +118,13 @@ export function RealOffers({
         <span className="flex items-center gap-2">
           <span aria-hidden className="size-4 flex-none rounded-md border border-line bg-surface shadow-[var(--shadow-raise)]" />
           <span className="text-ink">
-            <b className="font-semibold text-forest">أرض موجودة</b> — بصورتها وأرقامها، تنجم تزورها.
+            <b className="font-semibold text-forest">{copy.legendReal}</b> — {copy.legendRealNote}
           </span>
         </span>
         <span className="flex items-center gap-2">
           <span aria-hidden className="card-estimate size-4 flex-none rounded-md" />
           <span className="text-ink">
-            <b className="font-semibold text-gold">تقدير</b> — حساب تقريبي، موش عرض.
+            <b className="font-semibold text-gold">{copy.legendEstimate}</b> — {copy.legendEstimateNote}
           </span>
         </span>
       </div>

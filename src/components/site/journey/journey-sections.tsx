@@ -1,7 +1,7 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
 
-import { EXAMPLE, HOW, TRUST } from "./copy";
+import type { ExampleStep, Step, TrustItem } from "./copy";
 
 /**
  * The three reading sections around the demo: how it works, what you actually get, and one person all the way
@@ -17,15 +17,16 @@ import { EXAMPLE, HOW, TRUST } from "./copy";
 
 /* ── 2 · كيفاش تخدم AgriZed؟ ───────────────────────────────────────────────────────────────────────────── */
 
-export function HowItWorks() {
+export function HowItWorks({ title, steps }: { title: string; steps: readonly Step[] }) {
+  if (steps.length === 0) return null;
   return (
     <section className="mt-6 md:mt-10">
-      <h2 className="section-title text-center">{HOW.title}</h2>
+      <h2 className="section-title text-center">{title}</h2>
 
       {/* A chain on a wide screen; on a phone it wraps into a column without the arrows fighting the wrap,
           which is why the arrow lives inside each step rather than between them. */}
       <ol className="mt-4 flex flex-wrap items-stretch justify-center gap-1.5 md:mt-6 md:gap-2">
-        {HOW.steps.map((step, i) => (
+        {steps.map((step, i) => (
           <li key={step.key} className="flex items-center gap-1.5 md:gap-2">
             <div className="flex min-w-24 flex-col items-center gap-1.5 rounded-2xl border border-line bg-surface px-2.5 py-3 text-center md:min-w-32 md:px-4 md:py-4">
               <span className="flex size-8 items-center justify-center rounded-xl bg-leaf-soft text-forest md:size-10">
@@ -33,7 +34,7 @@ export function HowItWorks() {
               </span>
               <span className="text-[0.6875rem] font-semibold leading-tight text-ink md:text-sm">{step.label}</span>
             </div>
-            {i < HOW.steps.length - 1 ? (
+            {i < steps.length - 1 ? (
               <svg viewBox="0 0 24 24" aria-hidden className="size-3.5 flex-none text-line-strong ltr:-scale-x-100 md:size-4" fill="none" stroke="currentColor" strokeWidth={2.4} strokeLinecap="round" strokeLinejoin="round">
                 <path d="M19 12H5m0 0 5-5m-5 5 5 5" />
               </svg>
@@ -47,18 +48,19 @@ export function HowItWorks() {
 
 /* ── 4 · شنوّة بالضبط باش يكون عندي؟ ────────────────────────────────────────────────────────────────────── */
 
-export function TrustGrid() {
+export function TrustGrid({ title, lead, items }: { title: string; lead: string; items: readonly TrustItem[] }) {
+  if (items.length === 0) return null;
   return (
     <section className="mt-6 md:mt-10">
       <div className="text-center">
-        <h2 className="section-title">{TRUST.title}</h2>
-        <p className="mt-2 text-sm leading-7 text-muted sm:text-base">{TRUST.lead}</p>
+        <h2 className="section-title">{title}</h2>
+        <p className="mt-2 text-sm leading-7 text-muted sm:text-base">{lead}</p>
       </div>
 
       {/* Ten short answers, not an accordion. The brief was explicit: nothing to open, nothing to hunt
           through — a visitor scanning this should have read all ten before deciding to read any. */}
       <div className="mt-4 grid gap-2 sm:grid-cols-2 md:mt-6 md:gap-3 lg:grid-cols-3">
-        {TRUST.items.map((item) => (
+        {items.map((item) => (
           <div key={item.key} className="flex gap-2.5 rounded-2xl border border-line bg-surface p-3 md:p-4">
             <span className="flex size-8 flex-none items-center justify-center rounded-xl bg-leaf-soft text-forest">
               <StepGlyph name={item.icon} className="size-4" />
@@ -76,21 +78,30 @@ export function TrustGrid() {
 
 /* ── 5 · مثال حريف ─────────────────────────────────────────────────────────────────────────────────────── */
 
-export function ExampleStory({ interestHref }: { interestHref: string }) {
+export function ExampleStory({
+  copy,
+  steps,
+  interestHref,
+}: {
+  copy: { eyebrow: string; title: string; lead: string; note: string; cta: string };
+  steps: readonly ExampleStep[];
+  interestHref: string;
+}) {
+  if (steps.length === 0) return null;
   return (
     <section className="mt-6 md:mt-10">
       <div className="rounded-3xl bg-forest p-4 text-paper md:p-8">
         <p className="pill bg-paper/15 text-gold-bright">
           <span aria-hidden className="size-1.5 rounded-full bg-gold-bright" />
-          {EXAMPLE.eyebrow}
+          {copy.eyebrow}
         </p>
-        <h2 className="section-title mt-2.5 text-paper">{EXAMPLE.title}</h2>
-        <p className="mt-1.5 text-[0.8125rem] leading-6 text-paper/75 md:text-sm">{EXAMPLE.lead}</p>
+        <h2 className="section-title mt-2.5 text-paper">{copy.title}</h2>
+        <p className="mt-1.5 text-[0.8125rem] leading-6 text-paper/75 md:text-sm">{copy.lead}</p>
 
         {/* A rail of nine beads. It is one line of reading on a wide screen and one column on a phone — the
             same list either way, because the point is the ORDER and the order survives the wrap. */}
         <ol className="mt-5 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
-          {EXAMPLE.steps.map((step, i) => (
+          {steps.map((step, i) => (
             <li key={step.key} className="flex items-start gap-2.5 rounded-2xl bg-paper/[0.07] p-3">
               <span className="flex size-6 flex-none items-center justify-center rounded-full bg-gold-bright text-[0.625rem] font-bold text-forest-700 tabular-nums">
                 {i + 1}
@@ -104,9 +115,9 @@ export function ExampleStory({ interestHref }: { interestHref: string }) {
         </ol>
 
         <div className="mt-5 flex flex-col gap-2.5 sm:flex-row sm:items-center sm:justify-between">
-          <p className="text-[0.6875rem] leading-5 text-paper/60">{EXAMPLE.note}</p>
+          <p className="text-[0.6875rem] leading-5 text-paper/60">{copy.note}</p>
           <Link href={interestHref} className="btn btn-primary flex-none bg-gold-bright text-forest-700 hover:opacity-90">
-            {EXAMPLE.startCta}
+            {copy.cta}
           </Link>
         </div>
       </div>

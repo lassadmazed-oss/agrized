@@ -3,7 +3,10 @@
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
-import { DEMO, SCENES } from "./copy";
+import { formatMessage } from "@/lib/i18n/message";
+import type { Locale } from "@/lib/i18n/locales";
+
+import type { DemoCopy, Scene } from "./copy";
 import { SCENE_VIEWS } from "./scenes";
 
 /**
@@ -30,7 +33,20 @@ import { SCENE_VIEWS } from "./scenes";
 /** Each scene's time on screen. Eleven of these is 26.4s, inside the 20–30s the brief asked for. */
 const SCENE_MS = 2400;
 
-export function JourneyDemo({ offersHref, interestHref }: { offersHref: string; interestHref: string }) {
+export function JourneyDemo({
+  scenes,
+  copy,
+  locale,
+  offersHref,
+  interestHref,
+}: {
+  /** The owner's own list (site.journey_scenes), already in this page's language. */
+  scenes: readonly Scene[];
+  copy: DemoCopy;
+  locale: Locale;
+  offersHref: string;
+  interestHref: string;
+}) {
   const [index, setIndex] = useState(0);
   const [playing, setPlaying] = useState(false);
   /** Set once the visitor uses a control: after that the demo is theirs and never restarts itself. */
@@ -40,7 +56,7 @@ export function JourneyDemo({ offersHref, interestHref }: { offersHref: string; 
   const [awake, setAwake] = useState(true);
 
   const frameRef = useRef<HTMLDivElement>(null);
-  const total = SCENES.length;
+  const total = scenes.length;
 
   // prefers-reduced-motion is read once on the client, and followed afterwards if the visitor changes it.
   useEffect(() => {
@@ -89,8 +105,10 @@ export function JourneyDemo({ offersHref, interestHref }: { offersHref: string; 
   const take = useCallback((next: number) => {
     setTaken(true);
     setPlaying(false);
-    setIndex(((next % SCENES.length) + SCENES.length) % SCENES.length);
-  }, []);
+    setIndex(((next % scenes.length) + scenes.length) % scenes.length);
+    // `scenes` is the owner's list and its length decides the wrap; a closure holding the old one would send
+    // «اللي بعدو» to the wrong scene the first time he adds or removes a step.
+  }, [scenes.length]);
 
   const touch = useRef<{ x: number; y: number } | null>(null);
   const onTouchStart = (event: React.TouchEvent) => {
@@ -110,22 +128,25 @@ export function JourneyDemo({ offersHref, interestHref }: { offersHref: string; 
     take(index + (forward ? 1 : -1));
   };
 
-  const scene = SCENES[index];
+  const scene = scenes[index];
   const stepText = useMemo(
-    () => DEMO.stepOf.replace("{step}", String(index + 1)).replace("{total}", String(total)),
-    [index, total],
+    () => formatMessage(locale, copy.stepOf, { step: index + 1, total }),
+    [locale, copy.stepOf, index, total],
   );
 
   const heading = (
     <>
       <p className="pill mx-auto bg-gold-soft text-forest ring-1 ring-gold/30 lg:mx-0">
         <span aria-hidden className="size-1.5 rounded-full bg-gold-bright" />
-        {DEMO.eyebrow}
+        {copy.eyebrow}
       </p>
-      <h2 className="section-title mt-2.5">{DEMO.title}</h2>
-      <p className="mt-2 text-sm leading-7 text-muted sm:text-base">{DEMO.lead}</p>
+      <h2 className="section-title mt-2.5">{copy.title}</h2>
+      <p className="mt-2 text-sm leading-7 text-muted sm:text-base">{copy.lead}</p>
     </>
   );
+
+  // An emptied site.journey_scenes is a section the owner has switched off, not a crash on scenes[0].
+  if (!scene) return null;
 
   return (
     <section className="mt-4 md:mt-8">
@@ -144,7 +165,7 @@ export function JourneyDemo({ offersHref, interestHref }: { offersHref: string; 
             {/* The earpiece bar, so the frame reads as a phone without a photograph of one. */}
             <span className="absolute inset-x-0 top-1 z-10 mx-auto h-1 w-10 rounded-full bg-paper/25" />
             <div className="relative h-[21rem] overflow-hidden rounded-[1.6rem] bg-paper sm:h-[27rem]">
-              {SCENES.map((item, i) => (
+              {scenes.map((item, i) => (
                 <div
                   key={item.key}
                   aria-hidden={i !== index}
@@ -155,15 +176,21 @@ export function JourneyDemo({ offersHref, interestHref }: { offersHref: string; 
                     i === index ? "opacity-100" : "pointer-events-none opacity-0"
                   }`}
                 >
-                  {SCENE_VIEWS[item.key]}
+                  {(() => {
+                    // The drawing is looked up by the row's `key`, which is why a translated list must not
+                    // change it (0127, and 077_journey.sql proves it). A key with no drawing shows nothing
+                    // rather than breaking the section — the owner can add a row before anyone draws it.
+                    const View = SCENE_VIEWS[item.key];
+                    return View ? <View title={item.title} /> : null;
+                  })()}
                 </div>
               ))}
             </div>
           </div>
 
           {/* The dots, and the same fact in words for anybody who cannot see them. */}
-          <div className="mt-3 flex items-center gap-1.5" role="group" aria-label={DEMO.progressLabel}>
-            {SCENES.map((item, i) => (
+          <div className="mt-3 flex items-center gap-1.5" role="group" aria-label={copy.progressLabel}>
+            {scenes.map((item, i) => (
               <button
                 key={item.key}
                 type="button"
@@ -183,7 +210,7 @@ export function JourneyDemo({ offersHref, interestHref }: { offersHref: string; 
           {/* The caption under the phone. `aria-live` so the step is spoken as it changes, politely. */}
           <div aria-live="polite" className="min-h-24 rounded-2xl border border-line bg-surface p-4 text-start lg:mt-4">
             <p className="text-[0.6875rem] font-bold text-gold tabular-nums">
-              {scene.no} · {stepText}
+              {String(index + 1).padStart(2, "0")} · {stepText}
             </p>
             <p className="mt-1 font-display text-lg font-bold text-forest">{scene.title}</p>
             <p className="mt-1 text-[0.8125rem] leading-6 text-muted">{scene.line}</p>
@@ -191,11 +218,11 @@ export function JourneyDemo({ offersHref, interestHref }: { offersHref: string; 
 
           {/* Back, play/pause, forward — in that order on the line, whichever way the line runs. */}
           <div className="mt-3 flex items-center justify-center gap-2 lg:justify-start">
-            <Control label={DEMO.previous} onClick={() => take(index - 1)}>
+            <Control label={copy.previous} onClick={() => take(index - 1)}>
               <Arrow className="size-4" />
             </Control>
             <Control
-              label={playing ? DEMO.pause : DEMO.play}
+              label={playing ? copy.pause : copy.play}
               onClick={() => {
                 if (playing) {
                   setTaken(true);
@@ -217,17 +244,17 @@ export function JourneyDemo({ offersHref, interestHref }: { offersHref: string; 
                 </svg>
               )}
             </Control>
-            <Control label={DEMO.next} onClick={() => take(index + 1)}>
+            <Control label={copy.next} onClick={() => take(index + 1)}>
               <Arrow className="size-4 rotate-180" />
             </Control>
           </div>
 
           <div className="mt-5 flex flex-col gap-2 sm:flex-row sm:justify-center lg:justify-start">
             <Link href={interestHref} className="btn btn-primary">
-              {DEMO.primaryCta}
+              {copy.ctaPrimary}
             </Link>
             <Link href={offersHref} className="btn btn-secondary border-line">
-              {DEMO.offersCta}
+              {copy.ctaOffers}
             </Link>
           </div>
         </div>

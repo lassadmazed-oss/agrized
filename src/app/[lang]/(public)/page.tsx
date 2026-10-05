@@ -7,6 +7,11 @@ import { LanguageSwitcher } from "@/components/site/language-switcher";
 import { PhotoSlideshow } from "@/components/site/landing/photo-slideshow";
 import { ServicesMap } from "@/components/site/landing/services-map";
 import { InstallApp } from "@/components/site/install-app";
+import { journeyCopy } from "@/components/site/journey/copy";
+import { JourneyDemo } from "@/components/site/journey/journey-demo";
+import { ExampleStory, HowItWorks, TrustGrid } from "@/components/site/journey/journey-sections";
+import { RealOffers } from "@/components/site/journey/real-offers";
+import { getOfferStocks } from "@/components/site/offers";
 import { HomePhone, type HomePhoneOffer } from "@/components/site/mobile/home-phone";
 import { QuoteStrip, type Quote } from "@/components/site/mobile/quote-strip";
 import { type AppStat } from "@/components/site/mobile/app-stats";
@@ -90,6 +95,13 @@ export default async function HomePage() {
   // Report v3 §17: the offers door opens only once the module is public, so it never leads to a «قريباً» page.
   const offersOpen = flagState(config, "projects") === "public";
   const offers = offersOpen ? await liveOffers() : [];
+  // The journey sections (0127). Every word is the owner's, already in this page's language; a list he has
+  // emptied draws nothing, so each section can be switched off from the Back Office without a deploy.
+  const journey = journeyCopy(config);
+  // Three ids at most, through the same cached anon read the catalogue makes — no query this page was not
+  // already making, and the figure is counted over rows of public.trees rather than the declared tree_count.
+  const journeyOffers = offers.slice(0, 3);
+  const stockOf = journeyOffers.length > 0 ? await getOfferStocks(journeyOffers.map((offer) => offer.id), "anon") : new Map();
   // An answer whose module is closed is not shown: it would name a section that is not on the page.
   const faq = settingJson<Faq[]>(config, "site.faq", []).filter(
     (item) => !item.flag || flagState(config, item.flag) === "public",
@@ -223,6 +235,36 @@ export default async function HomePage() {
             cta={t(config, "ui.install.cta")}
           />
         }
+        // 2 · «كيفاش تخدم AgriZed؟» — the journey played inside a phone, then the whole model in seven words.
+        journey={
+          <>
+            <JourneyDemo
+              scenes={journey.scenes}
+              copy={journey.demo}
+              locale={config.locale}
+              offersHref={offersOpen ? "/projects" : "/start"}
+              interestHref="/register"
+            />
+            <HowItWorks title={journey.howTitle} steps={journey.steps} />
+          </>
+        }
+        // 3 · «شنوّة موجود توّا؟» — the real offers, in cards that cannot be read as a simulation.
+        offersSection={
+          journeyOffers.length > 0 ? (
+            <RealOffers
+              offers={journeyOffers}
+              stockOf={stockOf}
+              place={place}
+              fmt={fmt}
+              copy={journey.offers}
+              locale={config.locale}
+              pricingOpen={flagState(config, "pricing") === "public"}
+            />
+          ) : null
+        }
+        // 4 and 5 · «كيفاش نوثّق؟» then «كيفاش نبدا؟» — answered before the counter and the questions.
+        trust={<TrustGrid title={journey.trustTitle} lead={journey.trustLead} items={journey.trust} />}
+        example={<ExampleStory copy={journey.exampleCopy} steps={journey.example} interestHref="/register" />}
         faq={faq.length > 0 ? <Faq config={config} items={faq} /> : null}
         closing={interestOpen ? <ClosingCta config={config} ctaLabel={estimateCta} /> : null}
         copy={{

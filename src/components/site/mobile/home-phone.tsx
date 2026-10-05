@@ -87,6 +87,22 @@ export type HomePhoneProps = {
    * nothing at all on most visits — the browser decides — and this file must stay a drawing.
    */
   install?: ReactNode;
+
+  /**
+   * The journey: the demo in its phone, and the seven steps under it. It sits between the two doors and the
+   * offers, because by then the visitor knows what this is and has not yet been asked to choose anything.
+   */
+  journey?: ReactNode;
+  /**
+   * Stands in the offers' place when it is given (owner brief, 2026-10-05: «Real Offers لازم تكون أكثر
+   * وضوحاً»). The sliding strip is what runs when it is not, unchanged — three premium cards and a strip of
+   * thirteen are answers to different catalogues, and which one is right stays the owner's to change without
+   * this file being touched again.
+   */
+  offersSection?: ReactNode;
+  /** What exactly a buyer ends up with, and one worked example. Both after the offers, before the counter. */
+  trust?: ReactNode;
+  example?: ReactNode;
   copy: {
     badge: string;
     line: string;
@@ -140,6 +156,10 @@ export function HomePhone({
   faq,
   closing,
   install,
+  journey,
+  offersSection,
+  trust,
+  example,
   copy,
   stats,
   offers,
@@ -349,13 +369,15 @@ export function HomePhone({
 
         {install}
 
+        {journey}
+
         {/* 4 · The offers, sliding (owner, 2026-09-22: «make this section slide infinitely»). A two-per-line
             grid showed four of thirteen and gave no sign the rest existed; a strip that never stops says
             «there are more» without a control and without a second screen. The same .marquee primitive the
             rest of the site uses: the list is rendered twice and the track travels exactly -50%, so the seam
             lands on an identical copy and nothing here has to know how many offers there are. The second copy
             is aria-hidden — it is the same offers, and a reader told there are twenty-six is told wrong. */}
-        {offers.length > 0 ? (
+        {offersSection ?? (offers.length > 0 ? (
           <section className="mt-4 md:mt-8">
             <div className="flex items-baseline justify-between px-0">
               <h2 className="font-display text-xl font-bold text-forest md:text-3xl">{copy.offersTitle}</h2>
@@ -408,7 +430,10 @@ export function HomePhone({
               ))}
             </div>
           </section>
-        ) : null}
+        ) : null)}
+
+        {trust}
+        {example}
 
         {/* 5 · Where the counter has got to (owner, 2026-09-24: «add these 2 in the landing page»).
             The full band was written for the landing page it was then taken off — six counted figures, the

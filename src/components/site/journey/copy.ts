@@ -1,108 +1,85 @@
+import { settingJson, t, type PublicConfig } from "@/lib/config";
+
 /**
- * The words of the journey sections — PROTOTYPE COPY, and the one place they live for now.
+ * Every word of the journey sections, read from `settings` in the page's language (0127).
  *
- * WHY THEY ARE NOT IN `settings` YET, which is the project's rule and will be honoured. The owner asked for a
- * prototype of these sections BEFORE the final implementation, and the first thing a prototype gets told is
- * that the wording is wrong. Seeding seventy keys and four translations each for sentences that exist to be
- * rewritten would put a page's worth of dead rows in `settings` and in `translations` — and every later edit
- * would be a migration. They move to `ui.journey.*` with their fr/de/it/en drafts in the same change that puts
- * these sections on the real home page, once the shape and the words are settled.
+ * This file used to HOLD the words — it was the prototype's copy module, and the owner has since asked for
+ * them where he can reach them («ركّبهم في الصفحة الرئيسية مع النصوص في الإعدادات وبالخمس لغات»). It is now
+ * the one place that reads them, so no section has to know a key.
  *
- * ARABIC ONLY, for the same reason: the five languages are a requirement of the finished feature, not of a
- * drawing the owner is judging on shape and motion.
+ * THE FOUR LISTS ARRIVE ALREADY TRANSLATED. `settingJson` reads the value config.ts resolved for this
+ * request's language: for a json array, settingValue() takes the whole translated array from
+ * public.translations, so a French page gets the French list and never a row-by-row mixture. An empty list is
+ * a section that draws nothing — which is the right behaviour for a setting the owner has emptied, and the
+ * reason every consumer checks for it rather than assuming eleven scenes.
  *
- * THE COPY RULE THE BRIEF SETS, which applies to every line here: short, human, no promised yield, no
- * guaranteed profit, no production figures presented as certain. AgriZed is a real farming experience that can
- * be followed and documented — the words never say more than that.
+ * `key` and `icon` are NOT words. The code looks its drawings up by them (SCENE_VIEWS, GLYPHS), the migration
+ * says so on the row, and 077_journey.sql fails the build if a translated list changes one.
  */
 
-export type Scene = {
-  key: string;
-  /** The step number as it is drawn, 01…11. */
-  no: string;
-  title: string;
-  /** One sentence. If it does not fit on a phone under the title, it is too long. */
-  line: string;
-};
+export type Scene = { key: string; title: string; line: string };
+export type Step = { key: string; label: string };
+export type TrustItem = { key: string; icon: string; q: string; a: string };
+export type ExampleStep = { key: string; label: string; detail: string };
 
-export const SCENES: readonly Scene[] = [
-  { key: "interest", no: "01", title: "سجّل اهتمامك", line: "تكتب اسمك ونمرتك، وتقوللنا شنوّة تحب. التسجيل مجاني وما يلزمك بالشراء." },
-  { key: "offers", no: "02", title: "اختار العرض", line: "تشوف العروض الموجودة فعلاً — بالصور، بالولاية وبالمساحة." },
-  { key: "trees", no: "03", title: "اختار قدّاش زيتونة", line: "تحدّد العدد اللي يناسبك، وتشوف السعر والمساحة قبل ما تقرّر." },
-  { key: "visit", no: "04", title: "احجز زيارتك", line: "تختار نهار يناسبك باش تمشي تشوف الأرض بعينيك." },
-  { key: "land", no: "05", title: "زور الأرض", line: "تمشي للأرض مع الفريق، تشوف الزيتون والموقع قبل أي التزام." },
-  { key: "deposit", no: "06", title: "خلّص العربون", line: "تثبّت اختيارك، والزيتونات اللي اخترتها تتحجز باسمك." },
-  { key: "contract", no: "07", title: "امضي العقد", line: "عقد مكتوب يسمّي الزيتونات، المساحة والالتزامات. نسخة تبقى عندك." },
-  { key: "paying", no: "08", title: "تابع الخلاص", line: "بالحاضر ولا بأقساط شهرية. كل دفعة مسجّلة وتشوفها وقتلي تحب." },
-  { key: "follow", no: "09", title: "تابع مشروعك", line: "من حسابك: الزيتونات، الصور، حالة الأرض والأشغال اللي صارت." },
-  { key: "harvest", no: "10", title: "الجني والعصر", line: "وقت الجني، الزيتون يتجنى ويمشي للمعصرة — وإنت تتابع." },
-  { key: "oil", no: "11", title: "زيتك يوصلك", line: "زيت من زيتونك إنت، بالاسم، في آخر الموسم." },
-];
+export type JourneyCopy = ReturnType<typeof journeyCopy>;
+/** The words the player needs in the browser. Kept apart so only these cross to the client. */
+export type DemoCopy = JourneyCopy["demo"];
 
-/** The section around the phone. */
-export const DEMO = {
-  eyebrow: "رحلتك مع AgriZed",
-  title: "من التسجيل حتى قارورة الزيت",
-  lead: "هاذي الرحلة كاملة، خطوة بخطوة. شوفها قبل ما تبدا.",
-  primaryCta: "ابدأ رحلتك مع AgriZed",
-  offersCta: "اكتشف العروض",
-  interestCta: "سجّل اهتمامك",
-  play: "شغّل",
-  pause: "وقّف",
-  next: "اللي بعدو",
-  previous: "اللي قبلو",
-  stepOf: "المرحلة {step} من {total}",
-  progressLabel: "التقدّم في عرض الرحلة",
-};
+export function journeyCopy(config: PublicConfig) {
+  return {
+    scenes: settingJson<Scene[]>(config, "site.journey_scenes", []),
+    steps: settingJson<Step[]>(config, "site.journey_steps", []),
+    trust: settingJson<TrustItem[]>(config, "site.journey_trust", []),
+    example: settingJson<ExampleStep[]>(config, "site.journey_example", []),
 
-/** Section 2 — the whole business model in under ten seconds. */
-export const HOW = {
-  title: "كيفاش تخدم AgriZed؟",
-  steps: [
-    { key: "pick-offer", label: "اختار العرض" },
-    { key: "pick-trees", label: "اختار مشروعك" },
-    { key: "visit", label: "زور الأرض" },
-    { key: "confirm", label: "ثبّت اختيارك" },
-    { key: "contract", label: "اعمل العقد" },
-    { key: "follow", label: "تابع مشروعك" },
-    { key: "oil", label: "استلم زيتك" },
-  ],
-};
+    demo: {
+      eyebrow: t(config, "ui.journey.eyebrow"),
+      title: t(config, "ui.journey.title"),
+      lead: t(config, "ui.journey.lead"),
+      ctaPrimary: t(config, "ui.journey.cta_primary"),
+      ctaOffers: t(config, "ui.journey.cta_offers"),
+      play: t(config, "ui.journey.play"),
+      pause: t(config, "ui.journey.pause"),
+      next: t(config, "ui.journey.next"),
+      previous: t(config, "ui.journey.previous"),
+      // Carries {step} and {total}; the player fills them, so it travels as its template.
+      stepOf: t(config, "ui.journey.step_of"),
+      progressLabel: t(config, "ui.journey.progress_label"),
+    },
 
-/** Section 4 — answered before anybody has to ask. */
-export const TRUST = {
-  title: "شنوّة بالضبط باش يكون عندي؟",
-  lead: "كل سؤال يجي في بالك قبل ما تبدا، وجوابو في سطر.",
-  items: [
-    { key: "what", icon: "tree", q: "شنوّة ناخذ بالضبط؟", a: "زيتونات مرقّمة باسمك، كل وحدة بمساحتها من الأرض." },
-    { key: "where", icon: "pin", q: "وين موجود المشروع؟", a: "أرض معروفة بولايتها ومعتمديتها، وتنجم تزورها قبل." },
-    { key: "which", icon: "tag", q: "كيفاش نعرف زيتوناتي؟", a: "كل زيتونة عندها رقم خاصّ بيها في العرض، مكتوب في العقد." },
-    { key: "papers", icon: "doc", q: "شنوّة الوثائق؟", a: "وثائق الأرض وعقدك إنت — الزوز تشوفهم قبل الإمضاء." },
-    { key: "contract", icon: "pen", q: "شنوّة العقد؟", a: "عقد يسمّي الزيتونات والمساحة والالتزامات، ونسخة تبقى عندك." },
-    { key: "pay", icon: "wallet", q: "كيفاش يتم الخلاص؟", a: "بالحاضر ولا بأقساط شهرية حسب العرض. كل دفعة مسجّلة." },
-    { key: "follow", icon: "screen", q: "كيفاش نتابع؟", a: "من حسابك: الصور، حالة الأرض والأشغال اللي صارت." },
-    { key: "visit", icon: "calendar", q: "كيفاش تتم الزيارة؟", a: "تختار نهار، والفريق يستنّاك في الأرض." },
-    { key: "harvest", icon: "basket", q: "الجني والعصر؟", a: "الزيتون يتجنى في وقتو ويمشي للمعصرة، والمراحل تتصوّر." },
-    { key: "oil", icon: "bottle", q: "كيفاش يوصلني الزيت؟", a: "في آخر الموسم، زيت من زيتونك، ونتفاهمو على التوصيل." },
-  ],
-};
+    howTitle: t(config, "ui.journey.how_title"),
 
-/** Section 5 — one person, all the way through, so the model is seen and not explained. */
-export const EXAMPLE = {
-  eyebrow: "مثال",
-  title: "محمد اختار مشروع في صفاقس",
-  lead: "مثال توضيحي. الأرقام متاع عرض حقيقي موجود في الموقع.",
-  note: "محمد شخصية توضيحية — الأرض والأرقام عرض حقيقي.",
-  startCta: "ابدأ رحلتك",
-  steps: [
-    { key: "offer", label: "اختار العرض", detail: "عرض في صفاقس" },
-    { key: "count", label: "اختار العدد", detail: "عشر زيتونات" },
-    { key: "book", label: "حجز زيارة", detail: "نهار سبت" },
-    { key: "visited", label: "زار الأرض", detail: "شاف الزيتون والموقع" },
-    { key: "deposit", label: "خلّص العربون", detail: "الزيتونات تحجزت باسمو" },
-    { key: "contract", label: "أمضى العقد", detail: "بالأرقام متاع زيتوناتو" },
-    { key: "follow", label: "تابع المشروع", detail: "من حسابو، بالصور" },
-    { key: "harvest", label: "تابع الجني", detail: "الزيتون مشى للمعصرة" },
-    { key: "oil", label: "استلم زيتو", detail: "في آخر الموسم" },
-  ],
-};
+    trustTitle: t(config, "ui.journey.trust_title"),
+    trustLead: t(config, "ui.journey.trust_lead"),
+
+    offers: {
+      title: t(config, "ui.journey.offers_title"),
+      lead: t(config, "ui.journey.offers_lead"),
+      all: t(config, "ui.journey.offers_all"),
+      /** Carries {count}; filled where the figure is known. */
+      available: t(config, "ui.journey.offers_available"),
+      cta: t(config, "ui.journey.offers_cta"),
+      priceSuffix: t(config, "ui.journey.offers_price_suffix"),
+      factTrees: t(config, "ui.journey.fact_trees"),
+      factArea: t(config, "ui.journey.fact_area"),
+      factVariety: t(config, "ui.journey.fact_variety"),
+      factAreaPerTree: t(config, "ui.journey.fact_area_per_tree"),
+      factAge: t(config, "ui.journey.fact_age"),
+      /** Carries {count}. */
+      factAgeValue: t(config, "ui.journey.fact_age_value"),
+      legendReal: t(config, "ui.journey.legend_real"),
+      legendRealNote: t(config, "ui.journey.legend_real_note"),
+      legendEstimate: t(config, "ui.journey.legend_estimate"),
+      legendEstimateNote: t(config, "ui.journey.legend_estimate_note"),
+    },
+
+    exampleCopy: {
+      eyebrow: t(config, "ui.journey.example_eyebrow"),
+      title: t(config, "ui.journey.example_title"),
+      lead: t(config, "ui.journey.example_lead"),
+      note: t(config, "ui.journey.example_note"),
+      cta: t(config, "ui.journey.example_cta"),
+    },
+  };
+}
