@@ -13,6 +13,12 @@ type SitePhotoProps = {
   /** Passed to next/image so a wide hero does not download a phone-sized file. */
   sizes?: string;
   priority?: boolean;
+  /**
+   * False for a picture the reader will not see for several seconds — the frames waiting their turn in the
+   * hero's rotation. It does not stop them loading; it tells the browser they may wait behind the things the
+   * first screen is actually made of. Without it eleven photographs compete with the page they sit on.
+   */
+  eager?: boolean;
   className?: string;
 };
 
@@ -21,7 +27,7 @@ type SitePhotoProps = {
  * While AgriZed has not uploaded a photo, a branded drawing keeps the layout intact instead of a
  * broken frame, so the page is presentable from the first day.
  */
-export function SitePhoto({ config, slot, aspect, fill, sizes = "100vw", priority, className = "" }: SitePhotoProps) {
+export function SitePhoto({ config, slot, aspect, fill, sizes = "100vw", priority, eager, className = "" }: SitePhotoProps) {
   const media = mediaFor(config, slot);
   const ratio = (aspect ?? media?.aspect ?? "4/3").replace("/", " / ");
 
@@ -37,6 +43,7 @@ export function SitePhoto({ config, slot, aspect, fill, sizes = "100vw", priorit
           fill
           sizes={sizes}
           priority={priority}
+          fetchPriority={priority ? "high" : eager === false ? "low" : undefined}
           className="object-cover"
         />
       ) : (

@@ -1,4 +1,5 @@
 
+import { AbroadBand } from "@/components/site/abroad/abroad-band";
 import { ClosingCta } from "@/components/site/landing/closing-cta";
 import { CounterBand } from "@/components/site/landing/counter-band";
 import { Faq } from "@/components/site/landing/faq";
@@ -201,7 +202,20 @@ export default async function HomePage() {
           a four-column slab, and at 375 it is four scrolls before a visitor reaches anything they can act on.
           Below md this replaces it; from md the drawing's hero takes over unchanged. */}
       <HomePhone
-        hero={<PhotoSlideshow config={config} slots={coverSlots(config, HERO_SLOTS)} priority sizes="100vw" />}
+        // `sizes` describes the BOX, and the box stopped being the full width when the hero split into two
+        // columns on 2026-10-05. Left at 100vw the browser asked for a 1920- or 3840-wide frame to fill a
+        // column that is never wider than 35rem, and paid for the difference on every picture in the
+        // rotation. Measured on the live eleven: 1,245 KB at 100vw against 949 KB with this, on a desktop.
+        //   · from lg the page is max-w-6xl (72rem) in two columns with a 3rem gap → (1152 − 48) / 2 ≈ 35rem
+        //   · below that the picture is the container, which is the viewport less the 1rem/1.5rem gutters
+        hero={
+          <PhotoSlideshow
+            config={config}
+            slots={coverSlots(config, HERO_SLOTS)}
+            priority
+            sizes="(min-width: 1024px) 35rem, 92vw"
+          />
+        }
         // The default «header» chip, not the glass one: it is on paper in the phone's top row now, where a
         // translucent control would read as a smudge rather than as a button.
         language={<LanguageSwitcher choices={config.locales} />}
@@ -250,6 +264,9 @@ export default async function HomePage() {
             <HowItWorks title={journey.howTitle} steps={journey.steps} />
           </>
         }
+        // «عايش برّا تونس؟» (0130) — the door to /abroad, right after the visitor has seen what the thing is.
+        // It draws nothing while the module `abroad` is not public.
+        abroad={<AbroadBand config={config} />}
         // 3 · «شنوّة موجود توّا؟» — the real offers, in cards that cannot be read as a simulation.
         offersSection={
           journeyOffers.length > 0 ? (

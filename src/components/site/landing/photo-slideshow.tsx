@@ -138,6 +138,9 @@ export function PhotoSlideshow({
               fill
               sizes={sizes}
               priority={priority && index === 0}
+              // Only the frame on screen competes for bandwidth. The other ten are each a second or two
+              // away and the browser may fetch them behind everything the first screen is made of.
+              eager={index === 0}
               className="size-full"
             />
           </div>
