@@ -278,10 +278,6 @@ export default async function HomePage() {
           offersTitle: offersTitle(config),
           all: t(config, "offers.filter_all"),
           from: t(config, "start.from_prefix"),
-          guideTitle: t(config, "site.app_guide_title"),
-          guideNote: t(config, "site.app_guide_note"),
-          pickTitle: t(config, "site.app_pick_title"),
-          pickNote: t(config, "site.app_pick_note"),
           progressTitle: t(config, "million.title"),
         }}
         stats={appStats}

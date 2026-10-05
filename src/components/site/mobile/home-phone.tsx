@@ -125,11 +125,6 @@ export type HomePhoneProps = {
     offersTitle: string;
     all: string;
     from: string;
-    /** The two entry cards. */
-    guideTitle: string;
-    guideNote: string;
-    pickTitle: string;
-    pickNote: string;
     progressTitle: string;
   };
   stats: readonly HomePhoneStat[];
@@ -319,29 +314,11 @@ export function HomePhone({
           </section>
         ) : null}
 
-        {/* 3 · The split. Two doors, named by what the visitor already knows, not by what we want to sell. */}
-        <section className="mt-4 grid grid-cols-2 gap-2 md:mt-8 md:gap-5">
-          <Link
-            href={guideHref}
-            className="flex flex-col gap-1.5 rounded-2xl bg-forest-700 p-3 text-paper transition-transform active:scale-[0.99] md:gap-3 md:p-6"
-          >
-            <span className="flex size-7 items-center justify-center rounded-[0.625rem] bg-gold-bright/20">
-              <SearchGlyph className="size-4 text-gold-bright" />
-            </span>
-            <span className="text-[0.8125rem] font-semibold leading-tight md:text-xl">{copy.guideTitle}</span>
-            <span className="text-[0.625rem] leading-[1.4] text-paper/70 md:text-sm">{copy.guideNote}</span>
-          </Link>
-          <Link
-            href={offersHref}
-            className="card flex flex-col gap-1.5 p-3 transition-transform active:scale-[0.99] md:gap-3 md:p-6"
-          >
-            <span className="flex size-7 items-center justify-center rounded-[0.625rem] bg-gold-soft">
-              <GridGlyph className="size-4 text-gold" />
-            </span>
-            <span className="text-[0.8125rem] font-semibold leading-tight text-ink md:text-xl">{copy.pickTitle}</span>
-            <span className="text-[0.625rem] leading-[1.4] text-muted md:text-sm">{copy.pickNote}</span>
-          </Link>
-        </section>
+        {/* THE TWO DOOR CARDS ARE GONE (owner, 2026-10-05: «remove these 2 buttons, keep the 2 simple ones
+            on the top, they are the same»). «إكتشف العروض» and «إلقى العرض المناسب» led to offersHref and
+            guideHref — the exact two destinations the hero's own two buttons already carry, one screen
+            above. Two cards restating the two buttons is not a second chance to choose; it is the same
+            choice asked twice, and it pushed everything real further down the page. */}
 
         {install}
 
@@ -562,22 +539,4 @@ function ArrowGo({ className }: { className: string }) {
   );
 }
 
-function SearchGlyph({ className }: { className: string }) {
-  return (
-    <svg viewBox="0 0 24 24" aria-hidden="true" className={className} fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <circle cx="11" cy="11" r="7" />
-      <path d="m20 20-3.2-3.2" />
-    </svg>
-  );
-}
 
-function GridGlyph({ className }: { className: string }) {
-  return (
-    <svg viewBox="0 0 24 24" aria-hidden="true" className={className} fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <rect x="3" y="3" width="7.5" height="7.5" rx="2" />
-      <rect x="13.5" y="3" width="7.5" height="7.5" rx="2" />
-      <rect x="3" y="13.5" width="7.5" height="7.5" rx="2" />
-      <rect x="13.5" y="13.5" width="7.5" height="7.5" rx="2" />
-    </svg>
-  );
-}
