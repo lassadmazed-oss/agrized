@@ -73,13 +73,17 @@ declare
   v_empty text;
   v_err   text;
   v_count integer;
+  v_made  public.site_media;
 begin
-  -- A slot with no picture. `start.side` ships empty; if someone has filled it, make a throwaway one.
+  -- A slot with no picture. `start.side` shipped empty, and on 2026-10-05 the owner filled every slot there
+  -- was — which ran this fallback for the first time and found it could not work: the raw insert here is
+  -- made as `authenticated`, and that role has SELECT and UPDATE on site_media and nothing else. It goes
+  -- through staff_create_media_slot (0128) now, which is the sanctioned way to make one and is allowed to
+  -- an admin — which this block already is.
   select m.slot into v_empty from public.site_media m where m.url is null limit 1;
   if v_empty is null then
-    insert into public.site_media (slot, label_ar, aspect, group_key, sort_order)
-    values ('test.empty_slot', 'موضع فارغ للاختبار', '16/9', 'test', 999)
-    returning slot into v_empty;
+    v_made := public.staff_create_media_slot('موضع فارغ للاختبار', null, '16/9');
+    v_empty := v_made.slot;
   end if;
 
   -- ... cannot join the slider: mid-rotation it would draw the brand placeholder and read as a broken image.

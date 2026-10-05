@@ -5,7 +5,9 @@ import { ADMIN_ROLES, requireStaff } from "@/lib/auth";
 import { formatDateTime } from "@/lib/format";
 import { createClient } from "@/lib/supabase/server";
 
-import { clearSlotImage, saveSlotImage, setSlotInCover } from "./actions";
+import { ConfirmButton } from "@/components/admin/confirm-button";
+
+import { clearSlotImage, createSlot, deleteSlot, saveSlotImage, setSlotInCover } from "./actions";
 
 export const metadata: Metadata = { title: "صور الموقع" };
 
@@ -14,6 +16,12 @@ export const metadata: Metadata = { title: "صور الموقع" };
  * `setSlotInCover` takes (slot, boolean) so it can also be called from anywhere else — this is the adapter,
  * not a second implementation. Every rule still lives in SQL.
  */
+/** Same adapter shape as the cover toggle: a plain <form action> hands over FormData, nothing more. */
+async function removeSlot(formData: FormData) {
+  "use server";
+  await deleteSlot(String(formData.get("slot") ?? ""));
+}
+
 async function toggleSlotCover(formData: FormData) {
   "use server";
   const slot = String(formData.get("slot") ?? "");
@@ -46,6 +54,42 @@ export default async function MediaPage() {
           {filled} من {rows.length} مواضع فيها صورة.
         </p>
       </header>
+
+      {/* «i want more option to add» (owner, 2026-10-05). The six slots were rows all along; what was
+          missing was any way to write one. A slot added here is not rendered by name anywhere — the named
+          ones are — so the one place it can appear is the sliding cover, and the note says so rather than
+          letting a picture be uploaded to nowhere. */}
+      <section className="card p-5">
+        <h2 className="font-semibold">زيد موضع جديد</h2>
+        <p className="mt-1 text-sm leading-6 text-muted">
+          الموضع اللي تزيدو هنا يظهر في <strong className="font-semibold text-forest">شريط الغلاف</strong> متاع
+          الصفحة الرئيسية، بعد ما ترفعلو صورة وتعلّمها. المواضع الأصلية (الواجهة، الولايات…) يستعملهم الموقع
+          بأسمائهم في بلايص محدّدة.
+        </p>
+
+        <ActionForm action={createSlot} submitLabel="زيد الموضع" className="mt-4 space-y-4">
+          <div className="grid gap-4 sm:grid-cols-[1fr_9rem]">
+            <label className="block">
+              <span className="label">اسم الموضع</span>
+              <input name="label" required maxLength={80} placeholder="صورة الجني" className="field mt-1.5" />
+            </label>
+            <label className="block">
+              <span className="label">الشكل</span>
+              <select name="aspect" defaultValue="4/3" className="field mt-1.5">
+                {["16/9", "3/2", "4/3", "1/1", "3/4", "2/3"].map((ratio) => (
+                  <option key={ratio} value={ratio}>
+                    {ratio}
+                  </option>
+                ))}
+              </select>
+            </label>
+          </div>
+          <label className="block">
+            <span className="label">شرح (اختياري)</span>
+            <input name="description" maxLength={200} placeholder="أشنوّة تحبّ تحطّ في الموضع هذا" className="field mt-1.5" />
+          </label>
+        </ActionForm>
+      </section>
 
       <ul className="space-y-4">
         {rows.map((slot) => (
@@ -138,13 +182,30 @@ export default async function MediaPage() {
                   </form>
                 ) : null}
 
-                {slot.url ? (
-                  <form action={clearSlotImage.bind(null, slot.slot)} className="mt-3">
-                    <button type="submit" className="text-sm font-medium text-danger underline-offset-4 hover:underline">
-                      إزالة الصورة
-                    </button>
-                  </form>
-                ) : null}
+                <div className="mt-3 flex flex-wrap items-center gap-4">
+                  {slot.url ? (
+                    <form action={clearSlotImage.bind(null, slot.slot)}>
+                      <button type="submit" className="text-sm font-medium text-danger underline-offset-4 hover:underline">
+                        إزالة الصورة
+                      </button>
+                    </form>
+                  ) : null}
+
+                  {/* Only a slot the owner added. The seeded ones are rendered by name on the site, and the
+                      database refuses to delete them — this just does not offer what would be refused. */}
+                  {slot.is_custom ? (
+                    <form action={removeSlot}>
+                      <input type="hidden" name="slot" value={slot.slot} />
+                      <ConfirmButton
+                        label="افسخ الموضع"
+                        question={`«${slot.label_ar}» يتفسخ نهائياً مع صورتو. ما فماش رجوع.`}
+                        confirmLabel="افسخ"
+                        className="text-sm font-medium text-danger underline-offset-4 hover:underline"
+                        confirmClassName="btn btn-sm border border-danger bg-danger text-white hover:opacity-90"
+                      />
+                    </form>
+                  ) : null}
+                </div>
               </div>
             </div>
           </li>

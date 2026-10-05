@@ -3694,6 +3694,7 @@ export type Database = {
           description_ar: string | null
           group_key: string
           in_cover: boolean
+          is_custom: boolean
           label_ar: string
           slot: string
           sort_order: number
@@ -3709,6 +3710,7 @@ export type Database = {
           description_ar?: string | null
           group_key?: string
           in_cover?: boolean
+          is_custom?: boolean
           label_ar: string
           slot: string
           sort_order?: number
@@ -3724,6 +3726,7 @@ export type Database = {
           description_ar?: string | null
           group_key?: string
           in_cover?: boolean
+          is_custom?: boolean
           label_ar?: string
           slot?: string
           sort_order?: number
@@ -5089,6 +5092,31 @@ export type Database = {
         }
         Returns: Json
       }
+      staff_create_media_slot: {
+        Args: { p_aspect?: string; p_description?: string; p_label: string }
+        Returns: {
+          alt_ar: string | null
+          aspect: string
+          credit_text: string | null
+          credit_url: string | null
+          description_ar: string | null
+          group_key: string
+          in_cover: boolean
+          is_custom: boolean
+          label_ar: string
+          slot: string
+          sort_order: number
+          updated_at: string
+          updated_by: string | null
+          url: string | null
+        }
+        SetofOptions: {
+          from: "*"
+          to: "site_media"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       staff_create_person: {
         Args: {
           p_email?: string
@@ -5135,6 +5163,7 @@ export type Database = {
         Args: { p_id: string; p_reason: string }
         Returns: undefined
       }
+      staff_delete_media_slot: { Args: { p_slot: string }; Returns: Json }
       staff_delete_offer_service: {
         Args: { p_id: string; p_reason: string }
         Returns: undefined
