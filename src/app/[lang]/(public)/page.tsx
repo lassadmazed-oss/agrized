@@ -202,7 +202,9 @@ export default async function HomePage() {
           Below md this replaces it; from md the drawing's hero takes over unchanged. */}
       <HomePhone
         hero={<PhotoSlideshow config={config} slots={coverSlots(config, HERO_SLOTS)} priority sizes="100vw" />}
-        language={<LanguageSwitcher choices={config.locales} variant="hero" />}
+        // The default «header» chip, not the glass one: it is on paper in the phone's top row now, where a
+        // translucent control would read as a smudge rather than as a button.
+        language={<LanguageSwitcher choices={config.locales} />}
         // Each quote in the page's language: a row still carrying one field per language is read through
         // rowText, the same reader the hero's slogans use.
         quotes={

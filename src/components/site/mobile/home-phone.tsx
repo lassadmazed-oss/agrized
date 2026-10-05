@@ -203,13 +203,19 @@ export function HomePhone({
             left in every language and break the mirror that the rest of this page — and the header's own
             lockup, with its flex-row-reverse / ltr:flex-row — keeps. The logo sits in the same place in
             every language; which hand that is depends on which way the language runs. */}
-        <Link
-          href="/"
-          className="mb-3 ms-auto flex w-fit flex-row-reverse items-center gap-snug rounded-xl md:hidden ltr:flex-row"
-        >
-          <LogoMark className="h-9 w-auto" />
-          <Wordmark className="text-[1.15rem] leading-none" />
-        </Link>
+        {/* THE LANGUAGE CHIP SITS HERE, NOT ON THE PICTURE (owner, 2026-10-05: «put the language thing on
+            the top in the header, not in the cover — much better, make it more visible»).
+            On the photograph it had to be glass — a translucent chip with a blur, because anything solid
+            would have been a hole punched in the image — and glass over a changing photograph is exactly as
+            legible as whatever frame is behind it that week. In the header it is the site's own chip: paper,
+            a hairline border, forest text, the same control the wide header has carried all along. */}
+        <div className="mb-3 flex items-center justify-between gap-3 md:hidden">
+          {language}
+          <Link href="/" className="ms-auto flex w-fit flex-row-reverse items-center gap-snug rounded-xl ltr:flex-row">
+            <LogoMark className="h-9 w-auto" />
+            <Wordmark className="text-[1.15rem] leading-none" />
+          </Link>
+        </div>
 
         {/* 0 · The quote strip — on a phone only (owner, 2026-09-24: «remove the quotes from the desktop
             view»). It is a sliding card of proverbs: on a 375px screen, above a photograph, it reads as the
@@ -278,7 +284,6 @@ export function HomePhone({
               <div className="absolute inset-0 [&_img]:transition-transform [&_img]:duration-[1.2s] group-hover:[&_img]:scale-[1.03]">
                 {hero}
               </div>
-              {language ? <div className="absolute end-3 top-3 z-10 md:hidden">{language}</div> : null}
               {/* A hairline, not a wash: it closes the card against the page without touching the image. */}
               <div
                 aria-hidden="true"
