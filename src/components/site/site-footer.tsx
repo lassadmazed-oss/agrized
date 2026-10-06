@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 
 import { Wordmark } from "@/components/brand/wordmark";
+import { CallChooser } from "@/components/site/call-chooser";
 import { LanguageSwitcher } from "@/components/site/language-switcher";
 import Link from "@/components/site/link";
 import { siteNav } from "@/components/site/site-header";
@@ -66,7 +67,14 @@ export async function SiteFooter({ legalNotice, taglineFr, phone, whatsapp, emai
    * contract every other sentence in this footer has.
    */
   const trackLabel = settingText(config, "site.nav_track_label");
-  const links = [...siteNav(config), ...(trackLabel ? [{ href: "/track", label: trackLabel }] : [])];
+  // «للتوانسة بالخارج» (0130) rides here and not in the bar for the same reason: the bar is full — a fifth link
+  // pushed the French button onto three lines at 1280px — and the page's real door is the band on the home page.
+  const abroadLabel = flagState(config, "abroad") === "public" ? t(config, "ui.abroad.nav") : "";
+  const links = [
+    ...siteNav(config),
+    ...(abroadLabel ? [{ href: "/abroad", label: abroadLabel }] : []),
+    ...(trackLabel ? [{ href: "/track", label: trackLabel }] : []),
+  ];
   // The word that introduces the photographers. It was written into the markup; it is a setting like every
   // other sentence on the site now, so emptying it prints the names alone and the owner never edits code.
   const creditsLabel = settingText(config, "site.photo_credits_label");
@@ -126,13 +134,15 @@ export async function SiteFooter({ legalNotice, taglineFr, phone, whatsapp, emai
           {phone || whatsapp ? (
             <div className="flex gap-2">
               {phone ? (
-                <a
-                  href={`tel:${phone.replace(/\s/g, "")}`}
-                  aria-label={formatPhoneFor(phone, config.locale)}
+                // Call or WhatsApp, chosen in one panel (owner, 2026-10-05) — the same chooser every call button uses.
+                <CallChooser
+                  phone={phone}
+                  whatsapp={whatsapp}
+                  ariaLabel={`${t(config, "ui.common.call_us")} · ${formatPhoneFor(phone, config.locale)}`}
                   className="flex size-10 items-center justify-center rounded-xl bg-paper/12 text-gold-bright"
                 >
                   <PhoneGlyph />
-                </a>
+                </CallChooser>
               ) : null}
               {whatsappDigits ? (
                 <a
@@ -201,9 +211,19 @@ export async function SiteFooter({ legalNotice, taglineFr, phone, whatsapp, emai
               <h2 className="text-label font-semibold text-gold-bright">{contactTitle}</h2>
               <ul className="mt-tight text-caption">
                 {phone ? (
-                  <ContactRow href={`tel:${phone}`} icon={<PhoneGlyph />}>
-                    <span dir="ltr">{formatPhoneFor(phone, config.locale)}</span>
-                  </ContactRow>
+                  <li>
+                    <CallChooser
+                      phone={phone}
+                      whatsapp={whatsapp}
+                      ariaLabel={`${t(config, "ui.common.call_us")} · ${formatPhoneFor(phone, config.locale)}`}
+                      className="flex min-h-11 items-center gap-snug text-paper/85 underline-offset-4 hover:text-paper hover:underline sm:min-h-9"
+                    >
+                      <span aria-hidden="true" className="flex-none text-gold-bright">
+                        <PhoneGlyph />
+                      </span>
+                      <span dir="ltr">{formatPhoneFor(phone, config.locale)}</span>
+                    </CallChooser>
+                  </li>
                 ) : null}
                 {whatsappDigits ? (
                   <ContactRow href={`https://wa.me/${whatsappDigits}`} icon={<WhatsAppGlyph />}>

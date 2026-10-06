@@ -3,6 +3,8 @@
 import { useMemo, useState, type ReactNode } from "react";
 
 import Link from "@/components/site/link";
+import { ShareButton, ShareMark } from "@/components/site/share-button";
+import { useT } from "@/lib/i18n/client";
 
 /**
  * The catalogue, as a phone reads it (owner, 2026-09-21, on a drawing of this screen, «match the exact
@@ -69,6 +71,7 @@ export type ProjectsPhoneProps = {
 };
 
 export function ProjectsPhone({ title, backHref, offers, facets, copy }: ProjectsPhoneProps) {
+  const t = useT();
   const [query, setQuery] = useState("");
   const [facet, setFacet] = useState<string | null>(null);
 
@@ -98,6 +101,14 @@ export function ProjectsPhone({ title, backHref, offers, facets, copy }: Project
           <h1 className="pointer-events-none absolute inset-x-12 text-center font-display text-2xl font-bold text-forest">
             {title}
           </h1>
+          {/* «شارك» (owner, 2026-10-06): the catalogue, to WhatsApp and the rest — at the end of the bar,
+              opposite the way back, where the offer screen puts its own. */}
+          <ShareButton
+            ariaLabel={t("ui.common.share")}
+            className="ms-auto flex size-10 items-center justify-center rounded-full text-forest hover:bg-leaf-soft"
+          >
+            <ShareMark />
+          </ShareButton>
         </div>
 
         {/* 2 · The search box. It reads what is already on the page — name, place and reference code — so

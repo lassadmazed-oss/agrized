@@ -27,6 +27,7 @@
 // cannot leak it.
 
 import { StatusPill } from "@/components/ui/status-pill";
+import { CallChooser } from "@/components/site/call-chooser";
 import { useFormat, useLocale, useT } from "@/lib/i18n/client";
 import { formatPhoneFor } from "@/lib/phone";
 import { journeyProgress, stageText, stageTone, type JourneyStage, type JourneySpineStage } from "@/lib/journey";
@@ -189,7 +190,8 @@ export type TrackResultProps = {
 /**
  * A sentence of the owner's with the phone number set inside it as a link: «… كلّمنا على {phone}». The message
  * is formatted with a marker in place of `{phone}` and split on it, so the number sits wherever the language
- * puts it — at the end in Arabic, perhaps in the middle elsewhere — and is still a `tel:` link read left to right.
+ * puts it — at the end in Arabic, perhaps in the middle elsewhere — and is still read left to right; pressed, it
+ * offers a call or WhatsApp (call-chooser.tsx).
  */
 export function PhoneSentence({ text, phone }: { text: (vars: { phone: string }) => string; phone: string }) {
   const locale = useLocale();
@@ -198,13 +200,10 @@ export function PhoneSentence({ text, phone }: { text: (vars: { phone: string })
   return (
     <>
       {before}
-      <a
-        href={`tel:${phone.replace(/\s/g, "")}`}
-        dir="ltr"
-        className="font-semibold text-forest underline-offset-4 hover:underline"
-      >
-        {formatPhoneFor(phone, locale)}
-      </a>
+      {/* The number opens the call chooser (call or WhatsApp), like every call button on the site. */}
+      <CallChooser phone={phone} className="font-semibold text-forest underline-offset-4 hover:underline">
+        <span dir="ltr">{formatPhoneFor(phone, locale)}</span>
+      </CallChooser>
       {after}
     </>
   );

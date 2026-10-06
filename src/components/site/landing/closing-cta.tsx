@@ -1,3 +1,4 @@
+import { CallChooser } from "@/components/site/call-chooser";
 import Link from "@/components/site/link";
 import { SitePhoto } from "@/components/site/site-photo";
 import { settingText, t, type PublicConfig } from "@/lib/config";
@@ -40,11 +41,13 @@ export function ClosingCta({ config, ctaLabel, ctaHref = "/start", offers = null
   const title = t(config, "site.final_cta_title");
   const note = t(config, "site.final_cta_note");
   const contactLabel = t(config, "site.final_cta_contact_label");
-  // The drawing's chat bubble opens a real conversation or it is not drawn: WhatsApp first, the telephone
-  // after it, nothing at all when the owner has filled in neither.
-  const whatsapp = settingText(config, "site.contact_whatsapp").replace(/\D/g, "");
+  // The drawing's chat bubble opens a real conversation or it is not drawn. With a phone number it opens the
+  // call chooser (owner, 2026-10-05) — a plain call or WhatsApp; with only a WhatsApp number, WhatsApp
+  // directly; with neither, nothing.
+  const whatsapp = settingText(config, "site.contact_whatsapp");
   const phone = settingText(config, "site.contact_phone");
-  const contactHref = whatsapp ? `https://wa.me/${whatsapp}` : phone ? `tel:${phone}` : "";
+  const contactClass =
+    "inline-flex min-h-11 items-center justify-center gap-tight text-caption font-semibold text-gold-bright underline underline-offset-4 hover:text-paper";
 
   if (!title && !ctaLabel) return null;
 
@@ -79,12 +82,13 @@ export function ClosingCta({ config, ctaLabel, ctaHref = "/start", offers = null
             </Link>
           ) : null}
 
-          {contactHref ? (
-            <a
-              href={contactHref}
-              rel="noopener"
-              className="inline-flex min-h-11 items-center justify-center gap-tight text-caption font-semibold text-gold-bright underline underline-offset-4 hover:text-paper"
-            >
+          {phone ? (
+            <CallChooser phone={phone} whatsapp={whatsapp} className={contactClass}>
+              <ChatGlyph />
+              {contactLabel}
+            </CallChooser>
+          ) : whatsapp ? (
+            <a href={`https://wa.me/${whatsapp.replace(/\D/g, "")}`} rel="noopener" className={contactClass}>
               <ChatGlyph />
               {contactLabel}
             </a>

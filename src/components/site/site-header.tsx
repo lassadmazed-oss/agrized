@@ -1,6 +1,7 @@
 import { LogoMark } from "@/components/brand/logo";
 import { Wordmark } from "@/components/brand/wordmark";
 import { LanguageSwitcher } from "@/components/site/language-switcher";
+import { ShareButton, ShareMark } from "@/components/site/share-button";
 import Link from "@/components/site/link";
 import { offersTitle } from "@/components/site/offers";
 import { flagState, getPublicConfig, settingText, t, type PublicConfig } from "@/lib/config";
@@ -193,10 +194,13 @@ export async function SiteHeader({ tagline, showInterestCta, showProjects }: Sit
           {/* Always reachable while scrolling from md up; below that the fixed bar at the foot of the phone
               screen carries it (sticky-cta.tsx), and printing it in both places is the duplication the
               owner named. The two breakpoints are deliberately the same one. */}
+          {/* One line, always (`whitespace-nowrap shrink-0`): with the share icon in the bar, the German
+              «Projekt berechnen» broke in two at 1280 while the centred nav still had slack to give. Now the
+              nav gives it. */}
           {showInterestCta && cta.label ? (
             <Link
               href={cta.href}
-              className={`btn btn-primary ms-auto hidden min-h-12 rounded-[1.5rem] px-6 md:inline-flex lg:min-h-14 lg:px-7 lg:text-[1.0625rem] ${fullNav.ctaNoPush}`}
+              className={`btn btn-primary ms-auto hidden min-h-12 shrink-0 whitespace-nowrap rounded-[1.5rem] px-6 md:inline-flex lg:min-h-14 lg:px-7 lg:text-[1.0625rem] ${fullNav.ctaNoPush}`}
             >
               {cta.label}
               <CalculatorMark className="size-5" />
@@ -213,6 +217,16 @@ export async function SiteHeader({ tagline, showInterestCta, showProjects }: Sit
               a returning visitor already knows to look for in this corner. `aria-label` carries the name the
               owner writes, so a screen reader is told what the icon never says out loud. */}
           <LanguageSwitcher choices={config.locales} className={`shrink-0 max-md:ms-auto ${accountPush}`.trim()} />
+
+          {/* «شارك · Partager» (owner, 2026-10-06): the page the visitor is on, to WhatsApp, Facebook, Telegram,
+              an e-mail or the clipboard (share-button.tsx). An icon like the account door beside it, at every
+              width — on a phone it is the one way to pass a page on without leaving it. */}
+          <ShareButton
+            ariaLabel={t(config, "ui.common.share")}
+            className="inline-flex size-10 shrink-0 items-center justify-center rounded-[1.1rem] border border-line bg-surface text-forest transition-colors hover:border-forest/30 hover:bg-leaf-soft md:size-12 md:rounded-[1.25rem] lg:size-14"
+          >
+            <ShareMark className="size-5 lg:size-6" />
+          </ShareButton>
 
           <Link
             href="/zitounti"

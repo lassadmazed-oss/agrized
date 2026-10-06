@@ -1,16 +1,16 @@
 "use client";
 
 import { usePathname } from "next/navigation";
-import { useEffect, useId, useRef, useState, type MouseEvent as ReactMouseEvent } from "react";
-import { createPortal } from "react-dom";
+import type { MouseEvent as ReactMouseEvent } from "react";
 
 import { rememberLanguage } from "@/app/[lang]/(public)/language-actions";
+import { ChoicePanel, useChoicePanel } from "@/components/site/choice-panel";
 import { useLocale, useT } from "@/lib/i18n/client";
 import { LOCALE_COOKIE, LOCALE_DIR, localePath, splitLocale, type Locale } from "@/lib/i18n/locales";
 
 export type LanguageChoice = { code: Locale; name: string };
 
-type Variant = "header" | "hero" | "row" | "list";
+type Variant = "header" | "row" | "list";
 
 /**
  * The language selector (owner, 2026-10-03: «Language Selector واضح في الموقع»; redesigned the same evening:
@@ -25,17 +25,17 @@ type Variant = "header" | "hero" | "row" | "list";
  * (persons.preferred_locale). A FULL PAGE LOAD, deliberately: the document changes direction between Arabic and
  * the others, and `<html dir>` belongs to the first byte.
  *
- * FOUR FACES, ONE LIST.
- *   header  the bar's control: the globe, the language's code (its full name from xl), a chevron. On a wide
- *           screen it opens a dropdown under itself; on a phone, a sheet.
- *   hero    the phone home's glass chip on the photograph — translucent, blurred, white type, so it belongs
- *           to the picture instead of sitting on it like a sticker (owner: «the button … is messed up»).
+ * THREE FACES, ONE LIST. (A fourth, the glass chip on the home photograph, went when the chip moved into the
+ * phone's header on 2026-10-05.)
+ *   header  the bar's control: the globe, the language's code (its full name from 2xl: at 1280 the name and
+ *           the share icon beside it did not both fit), a chevron. On a wide screen it opens a dropdown under
+ *           itself; on a phone, a sheet.
  *   row     a settings row for the phone's account tab: «اللغة» and the current one, opening the sheet.
  *   list    plain links, for the footer's small print.
  *
  * THE PHONE GETS A SHEET, not a dropdown: a thumb reaches the bottom of the screen, five rows of 56px are
  * easy targets, and it is the shape the assistant already uses on this site. Both panels are drawn in a portal
- * on <body>, because the bar and the hero clip their overflow (that is how they keep their rounded corners).
+ * on <body>, because the bar and the cards clip their overflow (that is how they keep their rounded corners).
  */
 export function LanguageSwitcher({
   choices,
@@ -49,55 +49,13 @@ export function LanguageSwitcher({
   const locale = useLocale();
   const t = useT();
   const pathname = usePathname() ?? "/";
-  const [panel, setPanel] = useState<
-    { kind: "sheet" } | { kind: "dropdown"; top: number; inlineEnd: number } | null
-  >(null);
-  const triggerRef = useRef<HTMLButtonElement>(null);
-  const panelRef = useRef<HTMLDivElement>(null);
-  const panelId = useId();
-  const titleId = useId();
+  const { panel, toggle, close, triggerRef, panelRef, panelId, titleId } = useChoicePanel({
+    dropdownOnWide: variant === "header",
+  });
 
   // The page's own path without its language: /fr/projects → /projects.
   const bare = splitLocale(pathname).path;
   const hrefFor = (code: Locale) => (code === "ar" ? `/ar${bare === "/" ? "" : bare}` : localePath(code, bare));
-
-  useEffect(() => {
-    if (!panel) return;
-    const trigger = triggerRef.current;
-    const close = () => setPanel(null);
-    const onPointer = (event: PointerEvent) => {
-      const target = event.target as Node;
-      if (panelRef.current?.contains(target) || trigger?.contains(target)) return;
-      close();
-    };
-    const onKey = (event: KeyboardEvent) => {
-      if (event.key === "Escape") close();
-    };
-    // A dropdown is pinned where its button was; once the page moves under it, it would float away from it.
-    const onScroll = () => {
-      if (panel.kind === "dropdown") close();
-    };
-    document.addEventListener("pointerdown", onPointer);
-    document.addEventListener("keydown", onKey);
-    window.addEventListener("scroll", onScroll, { passive: true });
-    window.addEventListener("resize", close);
-
-    // A sheet holds the page still beneath it, and the current language takes the focus so a keyboard or a
-    // screen reader starts where the visitor is.
-    const html = document.documentElement;
-    const previousOverflow = html.style.overflow;
-    if (panel.kind === "sheet") html.style.overflow = "hidden";
-    panelRef.current?.querySelector<HTMLElement>('[aria-current="true"]')?.focus();
-
-    return () => {
-      document.removeEventListener("pointerdown", onPointer);
-      document.removeEventListener("keydown", onKey);
-      window.removeEventListener("scroll", onScroll);
-      window.removeEventListener("resize", close);
-      html.style.overflow = previousOverflow;
-      trigger?.focus({ preventScroll: true });
-    };
-  }, [panel]);
 
   if (choices.length < 2) return null;
   const current = choices.find((choice) => choice.code === locale) ?? choices[0];
@@ -107,7 +65,7 @@ export function LanguageSwitcher({
     if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey || event.button !== 0) return;
     event.preventDefault();
     if (code === locale) {
-      setPanel(null);
+      close();
       return;
     }
     writeLocaleCookie(code);
@@ -140,24 +98,6 @@ export function LanguageSwitcher({
     );
   }
 
-  const toggle = () => {
-    if (panel) return setPanel(null);
-    const wide = window.matchMedia("(min-width: 48rem)").matches;
-    const trigger = triggerRef.current;
-    if (variant === "header" && wide && trigger) {
-      const rect = trigger.getBoundingClientRect();
-      const rtl = document.documentElement.dir === "rtl";
-      // clientWidth, not innerWidth: the latter counts the scrollbar, which pushed the list off the button's edge.
-      setPanel({
-        kind: "dropdown",
-        top: rect.bottom + 10,
-        inlineEnd: rtl ? rect.left : document.documentElement.clientWidth - rect.right,
-      });
-    } else {
-      setPanel({ kind: "sheet" });
-    }
-  };
-
   const label = `${t("ui.common.choose_language")} — ${current.name}`;
   const common = {
     ref: triggerRef,
@@ -169,19 +109,7 @@ export function LanguageSwitcher({
   };
 
   const trigger =
-    variant === "hero" ? (
-      <button
-        {...common}
-        aria-label={label}
-        className={`inline-flex h-9 items-center gap-1.5 rounded-full border border-white/35 bg-forest-700/35 ps-2.5 pe-3 text-[0.8125rem] font-semibold text-paper shadow-[0_6px_18px_-8px_rgb(0_0_0/0.55)] backdrop-blur-md transition-colors hover:bg-forest-700/50 ${className}`.trim()}
-      >
-        <GlobeMark className="size-4" />
-        <span aria-hidden="true" lang="en">
-          {current.code.toUpperCase()}
-        </span>
-        <ChevronMark open={panel !== null} />
-      </button>
-    ) : variant === "row" ? (
+    variant === "row" ? (
       <button
         {...common}
         aria-label={label}
@@ -206,100 +134,64 @@ export function LanguageSwitcher({
         className={`inline-flex h-10 items-center gap-1.5 rounded-xl border border-line bg-surface ps-2.5 pe-3 text-forest shadow-[0_1px_2px_rgb(27_42_31/0.05)] transition-colors hover:border-forest/25 hover:bg-leaf-soft aria-expanded:border-forest/30 aria-expanded:bg-leaf-soft md:h-12 md:rounded-[1.25rem] md:ps-3 md:pe-3.5 lg:h-14 ${className}`.trim()}
       >
         <GlobeMark className="size-[1.125rem] lg:size-5" />
-        <span aria-hidden="true" className="text-[0.8125rem] font-bold xl:hidden" lang="en">
+        <span aria-hidden="true" className="text-[0.8125rem] font-bold 2xl:hidden" lang="en">
           {current.code.toUpperCase()}
         </span>
-        <span aria-hidden="true" className="hidden text-sm font-semibold xl:inline" lang={current.code}>
+        <span aria-hidden="true" className="hidden text-sm font-semibold 2xl:inline" lang={current.code}>
           {current.name}
         </span>
         <ChevronMark open={panel !== null} className="size-3.5 opacity-70" />
       </button>
     );
 
-  const rows = choices.map((choice) => {
-    const isCurrent = choice.code === locale;
-    return (
-      <a
-        key={choice.code}
-        href={hrefFor(choice.code)}
-        hrefLang={choice.code}
-        aria-current={isCurrent ? "true" : undefined}
-        onClick={(event) => void choose(event, choice.code)}
-        className={`flex items-center gap-3 rounded-xl px-3 outline-none transition-colors hover:bg-paper focus-visible:ring-2 focus-visible:ring-forest/40 aria-[current]:bg-leaf-soft ${
-          panel?.kind === "sheet" ? "min-h-14" : "min-h-11"
-        }`}
-      >
-        <span
-          aria-hidden="true"
-          lang="en"
-          className="grid size-8 flex-none place-items-center rounded-lg bg-paper text-[0.6875rem] font-bold text-forest ring-1 ring-inset ring-line"
+  const rows = (kind: "sheet" | "dropdown") =>
+    choices.map((choice) => {
+      const isCurrent = choice.code === locale;
+      return (
+        <a
+          key={choice.code}
+          href={hrefFor(choice.code)}
+          hrefLang={choice.code}
+          aria-current={isCurrent ? "true" : undefined}
+          onClick={(event) => void choose(event, choice.code)}
+          className={`flex items-center gap-3 rounded-xl px-3 outline-none transition-colors hover:bg-paper focus-visible:ring-2 focus-visible:ring-forest/40 aria-[current]:bg-leaf-soft ${
+            kind === "sheet" ? "min-h-14" : "min-h-11"
+          }`}
         >
-          {choice.code.toUpperCase()}
-        </span>
-        {/* The row keeps the list's own direction, so every name starts on the same edge; the name itself is
-            an isolated run in its own direction, so «العربية» reads right to left inside a French list. */}
-        <span className={`flex-1 text-start ${panel?.kind === "sheet" ? "text-base" : "text-sm"} ${isCurrent ? "font-semibold text-forest" : "text-ink"}`}>
-          <span lang={choice.code} dir={LOCALE_DIR[choice.code]}>
-            {choice.name}
+          <span
+            aria-hidden="true"
+            lang="en"
+            className="grid size-8 flex-none place-items-center rounded-lg bg-paper text-[0.6875rem] font-bold text-forest ring-1 ring-inset ring-line"
+          >
+            {choice.code.toUpperCase()}
           </span>
-        </span>
-        {isCurrent ? <CheckMark className="size-5 flex-none text-forest" /> : null}
-      </a>
-    );
-  });
+          {/* The row keeps the list's own direction, so every name starts on the same edge; the name itself is
+              an isolated run in its own direction, so «العربية» reads right to left inside a French list. */}
+          <span className={`flex-1 text-start ${kind === "sheet" ? "text-base" : "text-sm"} ${isCurrent ? "font-semibold text-forest" : "text-ink"}`}>
+            <span lang={choice.code} dir={LOCALE_DIR[choice.code]}>
+              {choice.name}
+            </span>
+          </span>
+          {isCurrent ? <CheckMark className="size-5 flex-none text-forest" /> : null}
+        </a>
+      );
+    });
 
-  const portal =
-    panel && typeof document !== "undefined"
-      ? createPortal(
-          panel.kind === "dropdown" ? (
-            <div
-              ref={panelRef}
-              id={panelId}
-              role="dialog"
-              aria-labelledby={titleId}
-              style={{ top: panel.top, insetInlineEnd: panel.inlineEnd }}
-              className="lang-pop fixed z-[60] w-64 rounded-2xl border border-line bg-surface p-2 shadow-[var(--shadow-float)]"
-            >
-              <p id={titleId} className="px-3 pb-2 pt-1 text-caption font-semibold text-muted">
-                {t("ui.common.language")}
-              </p>
-              <div className="space-y-0.5">{rows}</div>
-            </div>
-          ) : (
-            <>
-              <div aria-hidden="true" className="lang-fade fixed inset-0 z-[60] bg-forest-700/45 backdrop-blur-[2px]" />
-              <div
-                ref={panelRef}
-                id={panelId}
-                role="dialog"
-                aria-modal="true"
-                aria-labelledby={titleId}
-                className="lang-sheet fixed inset-x-0 bottom-0 z-[61] mx-auto w-full max-w-md rounded-t-[1.75rem] bg-surface px-3 pb-[max(1rem,env(safe-area-inset-bottom))] pt-2 shadow-[0_-18px_40px_-20px_rgb(27_42_31/0.45)]"
-              >
-                <span aria-hidden="true" className="mx-auto mb-2 block h-1.5 w-10 rounded-full bg-line" />
-                <div className="flex items-center gap-3 px-2 pb-3 pt-1">
-                  <span className="grid size-10 place-items-center rounded-full bg-leaf-soft text-forest">
-                    <GlobeMark className="size-5" />
-                  </span>
-                  <p id={titleId} className="flex-1 text-lg font-semibold text-ink">
-                    {t("ui.common.choose_language")}
-                  </p>
-                  <button
-                    type="button"
-                    onClick={() => setPanel(null)}
-                    aria-label={t("ui.common.close")}
-                    className="grid size-10 place-items-center rounded-full text-muted hover:bg-paper"
-                  >
-                    <CloseMark />
-                  </button>
-                </div>
-                <div className="space-y-1">{rows}</div>
-              </div>
-            </>
-          ),
-          document.body,
-        )
-      : null;
+  const portal = (
+    <ChoicePanel
+      state={panel}
+      panelRef={panelRef}
+      panelId={panelId}
+      titleId={titleId}
+      title={t("ui.common.choose_language")}
+      dropdownTitle={t("ui.common.language")}
+      icon={<GlobeMark className="size-5" />}
+      closeLabel={t("ui.common.close")}
+      onClose={close}
+    >
+      {rows}
+    </ChoicePanel>
+  );
 
   return (
     <>
@@ -364,10 +256,3 @@ function CheckMark({ className = "size-5" }: { className?: string }) {
   );
 }
 
-function CloseMark() {
-  return (
-    <svg viewBox="0 0 20 20" aria-hidden="true" focusable="false" className="size-5" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
-      <path d="m5 5 10 10M15 5 5 15" />
-    </svg>
-  );
-}

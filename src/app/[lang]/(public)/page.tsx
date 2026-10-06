@@ -1,9 +1,11 @@
 
+import { AbroadBand } from "@/components/site/abroad/abroad-band";
 import { ClosingCta } from "@/components/site/landing/closing-cta";
 import { CounterBand } from "@/components/site/landing/counter-band";
 import { Faq } from "@/components/site/landing/faq";
 import { HERO_SLOTS, rowText } from "@/components/site/landing/hero";
 import { LanguageSwitcher } from "@/components/site/language-switcher";
+import { ShareButton, ShareMark } from "@/components/site/share-button";
 import { PhotoSlideshow } from "@/components/site/landing/photo-slideshow";
 import { ServicesMap } from "@/components/site/landing/services-map";
 import { InstallApp } from "@/components/site/install-app";
@@ -217,7 +219,19 @@ export default async function HomePage() {
         }
         // The default «header» chip, not the glass one: it is on paper in the phone's top row now, where a
         // translucent control would read as a smudge rather than as a button.
-        language={<LanguageSwitcher choices={config.locales} />}
+        // The phone's top row holds the language chip and, beside it, «شارك» (owner, 2026-10-06): the home page
+        // is the page people pass on. Both are the site's own controls, so the row needs no slot of its own.
+        language={
+          <span className="flex items-center gap-2">
+            <LanguageSwitcher choices={config.locales} />
+            <ShareButton
+              ariaLabel={t(config, "ui.common.share")}
+              className="inline-flex size-10 shrink-0 items-center justify-center rounded-xl border border-line bg-surface text-forest shadow-[0_1px_2px_rgb(27_42_31/0.05)] transition-colors hover:border-forest/25 hover:bg-leaf-soft"
+            >
+              <ShareMark />
+            </ShareButton>
+          </span>
+        }
         // Each quote in the page's language: a row still carrying one field per language is read through
         // rowText, the same reader the hero's slogans use.
         quotes={
@@ -263,6 +277,9 @@ export default async function HomePage() {
             <HowItWorks title={journey.howTitle} steps={journey.steps} />
           </>
         }
+        // «عايش برّا تونس؟» (0130) — the door to /abroad, right after the visitor has seen what the thing is.
+        // It draws nothing while the module `abroad` is not public.
+        abroad={<AbroadBand config={config} />}
         // 3 · «شنوّة موجود توّا؟» — the real offers, in cards that cannot be read as a simulation.
         offersSection={
           journeyOffers.length > 0 ? (

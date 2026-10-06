@@ -9,6 +9,7 @@ import { createClient } from "@/lib/supabase/server";
 
 import { BookVisitForm } from "./book-visit-form";
 import { readVisitBoard } from "./visit-data";
+import { VideoVisits } from "./video-visits";
 import { VisitEntry } from "./visit-entry";
 import type { VisitOffer, VisitTerms, WaitingDemand } from "./visit-model";
 
@@ -101,6 +102,9 @@ export default async function VisitsPage({ searchParams }: PageProps<"/admin/vis
         <StatTile label="مؤكّدة" value={formatCount(counts.confirmed)} />
         <StatTile label="مطالب تستنّى زيارة" value={formatCount(board.waiting_total)} note="حرفاء طلبوا يزورو الأرض" />
       </div>
+
+      {/* The live video visits booked from /abroad (0130): the same days, a different kind of visit. */}
+      <VideoVisits />
 
       <form method="get" className="card flex flex-wrap items-end gap-snug p-cozy">
         <label className="block space-y-hair">

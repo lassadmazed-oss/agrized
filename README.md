@@ -110,6 +110,17 @@ Arabic.
 - **Database display reads** that should answer in the visitor's language send `x-agrized-display-locale`
   (`displayHeaders()`, `createClient({ display })`). Intake calls never do: they snapshot labels for the staff.
 
+## For Tunisians abroad (0130–0131)
+
+- **/abroad** — their page: the time at home beside their own, every offer as a virtual visit, a live video visit
+  booked on their own clock, the path from abroad in four steps. Module `abroad` in feature_flags; words
+  `ui.abroad.*`; picture slot `abroad.hero` (until it is filled, the home page's first cover picture).
+- **/projects/<code>/visit** — the offer told full screen, scene by scene (photos with their captions, the land,
+  the trees, the satellite map when the offer has a point, its video, then «عجبتك الضيعة؟»). Words `ui.tour.*`.
+- **Live video visits** — `public.video_visit_requests`, written by `submit_video_visit` (service role; any
+  international WhatsApp number; sets `persons.lives_abroad`), moved by `staff_set_video_visit`, shown on
+  /admin/visits. Hours (Tunisian time), weekdays, window, notice and capacity are `abroad.*` settings.
+
 ## Not done yet
 
 - SMS sending: messages are queued in `notification_outbox`; no provider is connected (decision D-05).

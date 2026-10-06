@@ -1224,3 +1224,49 @@ select {
     display: none;
   }
 }
+
+/*
+ * THE VIRTUAL VISIT (0130, src/components/site/abroad/virtual-tour.tsx).
+ *
+ * `tour-fill` is the scene's timer as well as its progress bar: the player moves on when it ends and pauses it
+ * with animation-play-state, so the bar and the clock cannot disagree. It grows from the reading start, which
+ * is the right edge in Arabic.
+ *
+ * `tour-drift` is the slow push into each photograph that makes a still picture read as a place someone is
+ * standing in. A visitor who asked for less motion gets the still picture, and a player that waits for them:
+ * the blanket 0.01ms rule at the top of this file would otherwise end every timer at once and run the whole
+ * visit past them in a blink, so the component stops timing scenes altogether (useReducedMotion).
+ */
+@keyframes tour-fill {
+  from {
+    transform: scaleX(0);
+  }
+  to {
+    transform: scaleX(1);
+  }
+}
+.tour-fill {
+  transform-origin: left;
+  animation-name: tour-fill;
+  animation-timing-function: linear;
+  animation-fill-mode: both;
+}
+[dir="rtl"] .tour-fill {
+  transform-origin: right;
+}
+@keyframes tour-drift {
+  from {
+    transform: scale(1.02) translate3d(0, 0, 0);
+  }
+  to {
+    transform: scale(1.14) translate3d(-1.5%, -1%, 0);
+  }
+}
+.tour-drift {
+  animation: tour-drift 16s ease-out both;
+}
+@media (prefers-reduced-motion: reduce) {
+  .tour-drift {
+    animation: none;
+  }
+}

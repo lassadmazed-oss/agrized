@@ -15,6 +15,7 @@ import {
 } from "@/components/site/offers";
 import { ProjectGallery } from "@/components/site/project-gallery";
 import { ProjectVideo } from "@/components/site/project-video";
+import { ShareButton, ShareMark } from "@/components/site/share-button";
 import { RemotePhoto } from "@/components/site/site-photo";
 import { DataList, DataRow, StatusPill } from "@/components/ui";
 import { flagState, formatFor, getPublicConfig, optionsFor, settingText, t, type PublicConfig } from "@/lib/config";
@@ -401,10 +402,10 @@ export default async function ProjectPage({ params }: PageProps<"/[lang]/project
         services={services}
         accessNote={page?.access_note ?? ""}
         formHref={formOpen ? `/projects/${encodeURIComponent(code)}/interest` : null}
+        tourHref={`/projects/${encodeURIComponent(code)}/visit`}
         copy={{
           back: offersTitle(config),
           share: t(config, "offers.share_label"),
-          shareCopied: t(config, "offers.share_copied"),
           perTreeSuffix: t(config, "offers.price_per_tree_suffix"),
           total: t(config, "start.row_total_price"),
           // The floating control and the page it opens say the same thing (owner, 2026-09-22).
@@ -423,6 +424,7 @@ export default async function ProjectPage({ params }: PageProps<"/[lang]/project
           videoLink,
           mapCta: t(config, "projects.location_cta"),
           accessTitle: t(config, "ui.offer.fact_access"),
+          tour: t(config, "ui.tour.open"),
         }}
       />
 
@@ -430,13 +432,20 @@ export default async function ProjectPage({ params }: PageProps<"/[lang]/project
           bound to them. On a phone that is the order of the markup, so no fact waits behind a photo;
           from lg the picture shares the top and the bottom of the text column beside it. */}
       <section className="mx-auto hidden max-w-6xl px-4 pb-8 pt-6 sm:px-6 sm:pt-10 md:block">
-        <Link href="/projects" className="text-sm font-semibold text-forest underline-offset-4 hover:underline">
-          {/* «→» points back on an RTL page; mirrored where the page reads left to right. */}
-          <span aria-hidden="true" className="inline-block ltr:-scale-x-100">
-            →
-          </span>{" "}
-          {offersTitle(config)}
-        </Link>
+        <div className="flex items-center justify-between gap-4">
+          <Link href="/projects" className="text-sm font-semibold text-forest underline-offset-4 hover:underline">
+            {/* «→» points back on an RTL page; mirrored where the page reads left to right. */}
+            <span aria-hidden="true" className="inline-block ltr:-scale-x-100">
+              →
+            </span>{" "}
+            {offersTitle(config)}
+          </Link>
+          {/* «شارك العرض» (owner, 2026-10-06): this offer, with its name as the message. */}
+          <ShareButton text={project.name} className="btn btn-secondary btn-sm gap-2 border-line">
+            <ShareMark className="size-4" />
+            {t(config, "ui.common.share_offer")}
+          </ShareButton>
+        </div>
 
         <div className="mt-5 grid gap-6 lg:grid-cols-2 lg:gap-8">
           <div className="flex flex-col">
@@ -500,6 +509,18 @@ export default async function ProjectPage({ params }: PageProps<"/[lang]/project
               // the scrim of the catalogue card fades to transparent and lets a collage's figures through.
               className="absolute inset-0 bg-linear-to-t from-forest-700/90 via-forest-700/60 to-forest-700/35"
             />
+            {/* «زيارة افتراضية» (0130): the offer full screen, scene by scene, opened from its own picture. */}
+            <Link
+              href={`/projects/${encodeURIComponent(code)}/visit`}
+              className="absolute start-4 top-4 z-1 inline-flex min-h-11 items-center gap-2 rounded-full bg-paper/90 px-4 text-sm font-semibold text-forest shadow-[var(--shadow-float)] backdrop-blur-md transition-colors hover:bg-paper sm:start-5 sm:top-5"
+            >
+              <span className="grid size-6 place-items-center rounded-full bg-forest text-paper">
+                <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false" className="size-3" fill="currentColor">
+                  <path d="M8 5.5v13a1 1 0 0 0 1.5.9l10.4-6.5a1 1 0 0 0 0-1.8L9.5 4.6A1 1 0 0 0 8 5.5Z" />
+                </svg>
+              </span>
+              {t(config, "ui.tour.open")}
+            </Link>
             <figcaption className="absolute inset-x-0 bottom-0 flex flex-wrap items-baseline gap-x-4 gap-y-1 p-cozy text-paper sm:p-roomy">
               {placeLine ? <span className="font-display text-2xl font-bold leading-tight text-balance">{placeLine}</span> : null}
               {mapHref ? (

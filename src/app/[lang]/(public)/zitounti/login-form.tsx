@@ -3,6 +3,7 @@
 import { useActionState, type ReactNode } from "react";
 
 import { ErrorAlert } from "@/components/site/error-alert";
+import { CallChooser } from "@/components/site/call-chooser";
 import { useLocale, useT } from "@/lib/i18n/client";
 import { formatPhoneFor } from "@/lib/phone";
 
@@ -262,14 +263,10 @@ export function ClientLoginForm({
         {helpPhone ? (
           <p className="pt-1 text-center text-caption leading-7 text-muted">
             {withSlot(t("ui.login.help_call", { phone: SLOT }), (key) => (
-              <a
-                key={key}
-                href={`tel:${helpPhone}`}
-                dir="ltr"
-                className="font-semibold text-forest underline-offset-4 hover:underline"
-              >
-                {formatPhoneFor(helpPhone, locale)}
-              </a>
+              // A call or WhatsApp, chosen in one panel — a `type="button"`, so it never submits this form.
+              <CallChooser key={key} phone={helpPhone} className="font-semibold text-forest underline-offset-4 hover:underline">
+                <span dir="ltr">{formatPhoneFor(helpPhone, locale)}</span>
+              </CallChooser>
             ))}
           </p>
         ) : null}

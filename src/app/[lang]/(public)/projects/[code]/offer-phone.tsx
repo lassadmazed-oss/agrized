@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 
 import Link from "@/components/site/link";
+import { ShareButton, ShareMark } from "@/components/site/share-button";
 import { ProjectVideo } from "@/components/site/project-video";
 import { useFormat, useLocaleHref } from "@/lib/i18n/client";
 
@@ -81,10 +82,11 @@ export type OfferPhoneProps = {
    * language — or null when the offer is not taking requests.
    */
   formHref: string | null;
+  /** «زيارة افتراضية» (0130): the offer told full screen, scene by scene. Null hides the door. */
+  tourHref?: string | null;
   copy: {
     back: string;
     share: string;
-    shareCopied: string;
     perTreeSuffix: string;
     total: string;
     book: string;
@@ -103,6 +105,8 @@ export type OfferPhoneProps = {
     videoLink: string;
     mapCta: string;
     accessTitle: string;
+    /** The words on the virtual-visit door over the picture. */
+    tour?: string;
   };
 };
 
@@ -117,7 +121,6 @@ export function OfferPhone(props: OfferPhoneProps) {
      whole machine — state, ticket, timer, server action — went with it. The form's own page re-quotes
      properly, and `submit_offer_request` prices the request again on submit regardless. */
   const price = props.price;
-  const [copied, setCopied] = useState(false);
 
   const tabs: { key: TabKey; label: string; shown: boolean }[] = [
     // The place leads: where the land is decides whether the rest of the page is worth reading.
@@ -131,22 +134,6 @@ export function OfferPhone(props: OfferPhoneProps) {
     { key: "documents", label: copy.tabDocuments, shown: props.documents.length > 0 },
   ];
   const visibleTabs = tabs.filter((tab) => tab.shown);
-
-  /** The offer's own link, shared the way a phone shares: the sheet when there is one, the clipboard otherwise. */
-  async function share() {
-    const url = window.location.href;
-    try {
-      if (navigator.share) {
-        await navigator.share({ title: props.name, url });
-        return;
-      }
-      await navigator.clipboard.writeText(url);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2500);
-    } catch {
-      // A cancelled share sheet and a refused clipboard are both "nothing happened", not an error to report.
-    }
-  }
 
   const priced = price.perTree !== null;
 
@@ -174,24 +161,34 @@ export function OfferPhone(props: OfferPhoneProps) {
           >
             <ChevronBack />
           </Link>
-          <div className="flex items-center gap-2">
-            {/* Without a share sheet the link goes to the clipboard, and a copy nobody confirms reads as a
-                button that did nothing. */}
-            {copied ? <span className="text-caption text-muted">{copy.shareCopied}</span> : null}
-            <button
-              type="button"
-              onClick={share}
-              aria-label={copy.share}
-              className="flex size-9 items-center justify-center rounded-full text-forest hover:bg-leaf-soft"
-            >
-              <ShareIcon />
-            </button>
-          </div>
+          {/* The site's one share chooser (share-button.tsx): WhatsApp, Facebook, Telegram, e-mail, the link,
+              and the phone's own sheet — with the offer's name as the message. */}
+          <ShareButton
+            text={props.name}
+            ariaLabel={copy.share}
+            className="flex size-9 items-center justify-center rounded-full text-forest hover:bg-leaf-soft"
+          >
+            <ShareMark />
+          </ShareButton>
         </div>
 
         {/* 2 · The place itself, edge to edge — and moving, when the offer has more than one picture. */}
         <figure className="relative">
           <HeroSlides slides={props.slides ?? []} fallback={props.cover} />
+          {/* The virtual visit opens from the picture it starts with — the one place on this screen a visitor
+              already looks at to imagine standing there. Top start: the slide dots hold the foot of the
+              picture, and «Visite virtuelle» is long enough to run into them there. */}
+          {props.tourHref && copy.tour ? (
+            <Link
+              href={props.tourHref}
+              className="absolute start-3 top-3 inline-flex min-h-10 items-center gap-2 rounded-full bg-ink/55 px-3.5 text-sm font-semibold text-paper shadow-[var(--shadow-float)] backdrop-blur-md hover:bg-ink/70"
+            >
+              <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false" className="size-4" fill="currentColor">
+                <path d="M8 5.5v13a1 1 0 0 0 1.5.9l10.4-6.5a1 1 0 0 0 0-1.8L9.5 4.6A1 1 0 0 0 8 5.5Z" />
+              </svg>
+              {copy.tour}
+            </Link>
+          ) : null}
           {props.status ? (
             <span className={`pill absolute end-4 top-4 ${props.status.toneClass}`}>{props.status.label}</span>
           ) : null}
@@ -456,17 +453,6 @@ function ChevronBack() {
   return (
     <svg viewBox="0 0 24 24" aria-hidden="true" className="size-6 ltr:-scale-x-100" fill="none" stroke="currentColor" strokeWidth="2">
       <path d="m9 6 6 6-6 6" strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
-  );
-}
-
-function ShareIcon() {
-  return (
-    <svg viewBox="0 0 24 24" aria-hidden="true" className="size-5" fill="none" stroke="currentColor" strokeWidth="1.8">
-      <circle cx="18" cy="5" r="3" />
-      <circle cx="6" cy="12" r="3" />
-      <circle cx="18" cy="19" r="3" />
-      <path d="M8.6 10.6 15.4 6.4M8.6 13.4l6.8 4.2" strokeLinecap="round" />
     </svg>
   );
 }
