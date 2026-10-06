@@ -3,6 +3,10 @@
 -- The arithmetic matters more than usual here because the owner asked for FOUR figures to be shown to the
 -- client — before, percent, amount, after — and a client who subtracts the two he can see must not get a
 -- third. So «before − amount = after» is asserted on every shape, not just computed.
+-- The owner's live ladder would otherwise be chosen over the tiers this file creates, and every
+-- assertion below would be about his numbers rather than its own. Rolled back with the rest.
+delete from public.tree_promotions;
+
 do $$
 declare
   v_admin   uuid;

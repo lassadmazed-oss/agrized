@@ -41,6 +41,12 @@ update public.settings set value = to_jsonb(2)    where key = 'pricing.area_per_
 update public.settings set value = to_jsonb(2000) where key = 'pricing.area_per_tree_max_m2';
 update public.settings set value = to_jsonb(2)    where key = 'pricing.area_per_tree_decimals';
 
+-- A promotion scoped to «every offer» (0132) applies to the throwaway offers below too, so a live ladder in
+-- the owner's Back Office would move every figure this file asserts. Cleared here, inside the transaction the
+-- runner rolls back — the real ladder is untouched. A test that prices anything has to own the promotion
+-- state, exactly as it owns the rules and the classes it sets up.
+delete from public.tree_promotions;
+
 do $$
 declare
   v_fin uuid := gen_random_uuid();

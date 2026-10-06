@@ -3,6 +3,10 @@
 -- 080 proved the tier is chosen and the arithmetic adds up. This proves it survives the only function that
 -- matters — app.project_quote_payload, which every screen showing money reads — and that an offer with no
 -- tier is untouched by any of it.
+-- The owner's live ladder would otherwise be chosen over the tiers this file creates, and every
+-- assertion below would be about his numbers rather than its own. Rolled back with the rest.
+delete from public.tree_promotions;
+
 do $$
 declare
   v_admin   uuid;

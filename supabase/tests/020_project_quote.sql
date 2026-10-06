@@ -46,6 +46,12 @@ end $$;
 -- Fixtures (as the migration owner)
 -- ---------------------------------------------------------------------------
 
+-- A promotion scoped to «every offer» (0132) applies to the throwaway offers below too, so a live ladder in
+-- the owner's Back Office would move every figure this file asserts. Cleared here, inside the transaction the
+-- runner rolls back — the real ladder is untouched. A test that prices anything has to own the promotion
+-- state, exactly as it owns the rules and the classes it sets up.
+delete from public.tree_promotions;
+
 do $$
 declare
   v_fin uuid := gen_random_uuid();
