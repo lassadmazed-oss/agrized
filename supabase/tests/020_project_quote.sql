@@ -273,7 +273,12 @@ declare
     'installments', 'status', 'down_payment_percent',
     'down_payment_millimes', 'months', 'total_financed_millimes', 'remaining_millimes', 'monthly_millimes',
     'last_installment_millimes', 'installments_count', 'shortened', 'choices', 'spacing_classes', 'down_percents',
-    'durations', 'id', 'area_m2', 'percent'];
+    'durations', 'id', 'area_m2', 'percent',
+    -- 0132/0133: the quantity tier, and the price the basket cost before it. Both are null on an offer with
+    -- no tier, and the four figures inside `promotion` are what the client is shown — before, the percentage
+    -- or the special unit price, the amount off, and the name of the tier it came from.
+    'promotion', 'total_before_promotion_millimes',
+    'before_millimes', 'amount_millimes', 'percent_bp', 'unit_price_millimes', 'min_trees'];
   v_extra   text[];
 begin
   v := public.public_project_quote(pg_temp.pq_id('po'), null, 25, 'cash');

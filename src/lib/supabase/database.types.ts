@@ -4087,6 +4087,75 @@ export type Database = {
           },
         ]
       }
+      tree_promotions: {
+        Row: {
+          created_at: string
+          discount_percent_bp: number | null
+          ends_on: string | null
+          id: string
+          is_active: boolean
+          label_ar: string
+          max_trees: number | null
+          min_trees: number
+          note_ar: string | null
+          payment_mode: string | null
+          project_id: string | null
+          starts_on: string | null
+          unit_price_millimes: number | null
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          created_at?: string
+          discount_percent_bp?: number | null
+          ends_on?: string | null
+          id?: string
+          is_active?: boolean
+          label_ar: string
+          max_trees?: number | null
+          min_trees: number
+          note_ar?: string | null
+          payment_mode?: string | null
+          project_id?: string | null
+          starts_on?: string | null
+          unit_price_millimes?: number | null
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          created_at?: string
+          discount_percent_bp?: number | null
+          ends_on?: string | null
+          id?: string
+          is_active?: boolean
+          label_ar?: string
+          max_trees?: number | null
+          min_trees?: number
+          note_ar?: string | null
+          payment_mode?: string | null
+          project_id?: string | null
+          starts_on?: string | null
+          unit_price_millimes?: number | null
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tree_promotions_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tree_promotions_updated_by_fkey"
+            columns: ["updated_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       tree_spacing_classes: {
         Row: {
           area_m2: number | null
@@ -4261,6 +4330,97 @@ export type Database = {
           {
             foreignKeyName: "user_roles_user_id_fkey"
             columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      video_visit_requests: {
+        Row: {
+          client_note: string | null
+          consent_text: string
+          country_code: string | null
+          created_at: string
+          full_name: string
+          id: string
+          locale: string | null
+          person_id: string
+          preferred_at: string
+          project_id: string | null
+          request_no: string
+          scheduled_at: string | null
+          source: Json
+          staff_note: string | null
+          status: string
+          status_changed_at: string | null
+          status_changed_by: string | null
+          time_zone: string
+          updated_at: string
+          whatsapp_e164: string
+        }
+        Insert: {
+          client_note?: string | null
+          consent_text: string
+          country_code?: string | null
+          created_at?: string
+          full_name: string
+          id?: string
+          locale?: string | null
+          person_id: string
+          preferred_at: string
+          project_id?: string | null
+          request_no: string
+          scheduled_at?: string | null
+          source?: Json
+          staff_note?: string | null
+          status?: string
+          status_changed_at?: string | null
+          status_changed_by?: string | null
+          time_zone: string
+          updated_at?: string
+          whatsapp_e164: string
+        }
+        Update: {
+          client_note?: string | null
+          consent_text?: string
+          country_code?: string | null
+          created_at?: string
+          full_name?: string
+          id?: string
+          locale?: string | null
+          person_id?: string
+          preferred_at?: string
+          project_id?: string | null
+          request_no?: string
+          scheduled_at?: string | null
+          source?: Json
+          staff_note?: string | null
+          status?: string
+          status_changed_at?: string | null
+          status_changed_by?: string | null
+          time_zone?: string
+          updated_at?: string
+          whatsapp_e164?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "video_visit_requests_person_id_fkey"
+            columns: ["person_id"]
+            isOneToOne: false
+            referencedRelation: "persons"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "video_visit_requests_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "video_visit_requests_status_changed_by_fkey"
+            columns: ["status_changed_by"]
             isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["id"]
@@ -5176,6 +5336,10 @@ export type Database = {
         Args: { p_project: string; p_reason?: string }
         Returns: Json
       }
+      staff_delete_promotion: {
+        Args: { p_id: string; p_reason?: string }
+        Returns: Json
+      }
       staff_delete_spacing_class: {
         Args: { p_id: string; p_reason: string }
         Returns: undefined
@@ -5370,6 +5534,32 @@ export type Database = {
         Args: { p_class_ids: string[]; p_project: string; p_reason: string }
         Returns: undefined
       }
+      staff_save_promotion: {
+        Args: { p: Json }
+        Returns: {
+          created_at: string
+          discount_percent_bp: number | null
+          ends_on: string | null
+          id: string
+          is_active: boolean
+          label_ar: string
+          max_trees: number | null
+          min_trees: number
+          note_ar: string | null
+          payment_mode: string | null
+          project_id: string | null
+          starts_on: string | null
+          unit_price_millimes: number | null
+          updated_at: string
+          updated_by: string | null
+        }
+        SetofOptions: {
+          from: "*"
+          to: "tree_promotions"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       staff_save_spacing_class: {
         Args: { p: Json; p_reason: string }
         Returns: string
@@ -5436,6 +5626,37 @@ export type Database = {
         Args: { p_reason: string; p_state: string; p_tree_ids: string[] }
         Returns: Json
       }
+      staff_set_video_visit: {
+        Args: { p: Json; p_id: string }
+        Returns: {
+          client_note: string | null
+          consent_text: string
+          country_code: string | null
+          created_at: string
+          full_name: string
+          id: string
+          locale: string | null
+          person_id: string
+          preferred_at: string
+          project_id: string | null
+          request_no: string
+          scheduled_at: string | null
+          source: Json
+          staff_note: string | null
+          status: string
+          status_changed_at: string | null
+          status_changed_by: string | null
+          time_zone: string
+          updated_at: string
+          whatsapp_e164: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "video_visit_requests"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       staff_set_visit_status: {
         Args: { p?: Json; p_reason?: string; p_status: string; p_visit: string }
         Returns: Json
@@ -5500,6 +5721,7 @@ export type Database = {
       submit_interest_request: { Args: { p: Json }; Returns: Json }
       submit_land_offer: { Args: { p: Json }; Returns: Json }
       submit_offer_request: { Args: { p: Json }; Returns: Json }
+      submit_video_visit: { Args: { p: Json }; Returns: Json }
       submit_visit_request: { Args: { p: Json }; Returns: Json }
       track_request: {
         Args: { p_phone: string; p_request_no: string }
@@ -5509,6 +5731,7 @@ export type Database = {
         Args: { p_code: string; p_phone: string; p_purpose?: string }
         Returns: Json
       }
+      video_visit_taken: { Args: never; Returns: Json }
     }
     Enums: {
       app_role:
