@@ -52,6 +52,10 @@ export type OfferSummaryCopy = {
   areaPerTree: string;
   totalArea: string;
   totalPrice: string;
+  promoBefore: string;
+  promoDiscount: string;
+  /** Carries {percent}. */
+  promoBadge: string;
   annualFee: string;
   /** Contains `{amount}`: what one tree costs every year. */
   annualFeePerTree: string;
@@ -1016,6 +1020,38 @@ export function OfferInterestForm(props: OfferInterestFormProps) {
                         </span>
                       ))}
                     </div>
+                  ) : null}
+
+                  {/* THE DISCOUNT, SAID IN FULL (owner, 2026-10-06: «يظهر للحريف بوضوح: السعر قبل التخفيض،
+                      نسبة التخفيض، قيمة التخفيض، السعر النهائي»). The final price is the total row that was
+                      always here; these are the three lines that explain how it got there, and they appear on
+                      the one condition that a tier applied. Nothing is computed here — `before` and `amount`
+                      are the quote's own, and the database rounds the DISCOUNT rather than the final price so
+                      that a client who subtracts the two numbers in front of him gets the third. */}
+                  {quote.promotion ? (
+                    <dl className="divide-y divide-dashed divide-gold/40">
+                      <DataRow label={props.summary.promoBefore}>
+                        <span className="text-muted line-through">{formatMillimes(quote.promotion.before_millimes)}</span>
+                      </DataRow>
+                      <DataRow label={props.summary.promoDiscount}>
+                        <span className="font-bold text-success">
+                          −{formatMillimes(quote.promotion.amount_millimes)}
+                        </span>
+                        <span className="mt-1 flex flex-wrap items-center justify-end gap-1.5">
+                          {/* The percentage, only when the tier IS a percentage: a tier that sets a special
+                              price per tree has no «15%» to print, and inventing one from the amount would be
+                              a figure the owner never typed. */}
+                          {quote.promotion.percent_bp !== null ? (
+                            <span className="pill bg-success-soft text-success">
+                              {fill(props.summary.promoBadge, { percent: quote.promotion.percent_bp / 100 })}
+                            </span>
+                          ) : null}
+                          {quote.promotion.label_ar ? (
+                            <span className="text-[0.6875rem] font-normal text-muted">{quote.promotion.label_ar}</span>
+                          ) : null}
+                        </span>
+                      </DataRow>
+                    </dl>
                   ) : null}
 
                   <dl className="divide-y divide-line">

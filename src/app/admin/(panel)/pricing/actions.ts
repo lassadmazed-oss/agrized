@@ -343,3 +343,123 @@ export async function saveProjectSpacingClasses(projectId: string, _previous: Ac
   revalidatePath(PAGE);
   return { ok: true, message: ids.length === 0 ? "تم الحفظ: المشروع يقبل كل فئات المساحة النشطة." : "تم حفظ فئات المساحة المسموحة للمشروع." };
 }
+
+// ---------------------------------------------------------------------------
+// تخفيض حسب الكمية (0132)
+// ---------------------------------------------------------------------------
+//
+// Owner, 2026-10-06: «الإدارة هي اللي تزيد وتبدّل وتمسح الـPromotions… من غير ما نرجعوا للمطور كل مرة».
+// So this file holds no tier and no number: it reads the form, turns the two human units into the two the
+// database stores (a percentage into basis points, dinars into millimes), and hands the row to the RPC that
+// owns the rules. Which tier wins, and what it does to a total, are decided in SQL where the price is.
+
+export async function savePromotion(_previous: ActionResult, formData: FormData): Promise<ActionResult> {
+  await requireStaff(PRICE_ROLES);
+
+  const id = textValue(formData, "id", 40);
+  const label = textValue(formData, "label_ar", 120);
+  if (!label || label.length < 2) return fail("اكتب اسم للتخفيض باش تعرفو في القائمة، مثال: «من 25 زيتونة».");
+
+  const minTrees = wholeNumber(formData.get("min_trees"), 1_000_000);
+  if (minTrees === undefined || minTrees === null || minTrees < 1) {
+    return fail("اكتب أقلّ عدد زيتونات يبدا منّو التخفيض، بالأرقام، مثال: 25.");
+  }
+  const maxTrees = wholeNumber(formData.get("max_trees"), 1_000_000);
+  if (maxTrees === undefined) return fail("أكبر عدد زيتونات يتكتب بالأرقام، ولا يتخلّى فارغ كان ما فماش حدّ أعلى.");
+  if (maxTrees !== null && maxTrees < minTrees) {
+    return fail("أكبر عدد لازم يكون أكبر ولا يساوي أقلّ عدد. خلّيه فارغ كان ما فماش حدّ أعلى.");
+  }
+
+  // One kind per tier. The database refuses the other combinations too, but a form that says so first is a
+  // form somebody can use without reading an error.
+  const kind = textValue(formData, "kind", 10);
+  let percentBp: number | null = null;
+  let unitMillimes: number | null = null;
+  if (kind === "percent") {
+    const bp = percentToBp(formData.get("discount_percent"));
+    if (bp === undefined) return fail("نسبة التخفيض تتكتب بالأرقام، حتى رقمين بعد الفاصل، مثال: 12.5.");
+    if (bp === null || bp < 1) return fail("اكتب نسبة التخفيض، مثال: 10.");
+    if (bp > 10000) return fail("نسبة التخفيض ما تتعدّاش 100%.");
+    percentBp = bp;
+  } else if (kind === "unit") {
+    const price = dinarsToMillimes(formData.get("unit_price"));
+    if (price === undefined || price === null) return fail("اكتب سعر الزيتونة الخاصّ بالدينار، مثال: 4.500.");
+    unitMillimes = price;
+  } else {
+    return fail("اختر نوع التخفيض: نسبة مئوية، ولا سعر خاص للزيتونة.");
+  }
+
+  const mode = textValue(formData, "payment_mode", 20);
+  const projectId = textValue(formData, "project_id", 40);
+  const starts = textValue(formData, "starts_on", 10);
+  const ends = textValue(formData, "ends_on", 10);
+  if (starts && ends && ends < starts) return fail("تاريخ النهاية لازم يكون بعد تاريخ البداية.");
+
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("staff_save_promotion", {
+    p: {
+      ...(id ? { id } : {}),
+      label_ar: label,
+      project_id: projectId || null,
+      min_trees: String(minTrees),
+      max_trees: maxTrees === null ? "" : String(maxTrees),
+      discount_percent_bp: percentBp === null ? "" : String(percentBp),
+      unit_price_millimes: unitMillimes === null ? "" : String(unitMillimes),
+      payment_mode: mode || "",
+      starts_on: starts || "",
+      ends_on: ends || "",
+      is_active: formData.get("is_active") === "on" ? "true" : "false",
+      note_ar: textValue(formData, "note_ar", NOTE_MAX_LENGTH),
+      reason: readReason(formData),
+    },
+  });
+  if (error) return fail(promotionMessage(error.message));
+
+  updateTag(PUBLIC_CONFIG_TAG);
+  revalidatePath(PAGE);
+  revalidatePath("/", "layout");
+  return { ok: true, message: id ? "تبدّل التخفيض." : "تزاد التخفيض." };
+}
+
+export async function deletePromotion(id: string, _previous: ActionResult, formData: FormData): Promise<ActionResult> {
+  await requireStaff(PRICE_ROLES);
+  if (!isUuid(id)) return STALE;
+
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("staff_delete_promotion", { p_id: id, p_reason: readReason(formData) });
+  if (error) return fail(promotionMessage(error.message));
+
+  updateTag(PUBLIC_CONFIG_TAG);
+  revalidatePath(PAGE);
+  revalidatePath("/", "layout");
+  return { ok: true, message: "تفسخ التخفيض." };
+}
+
+/** Every refusal says what happened AND what to do about it. */
+function promotionMessage(code: string): string {
+  if (code.includes("promotion_needs_one_kind")) {
+    return "اختر نوع واحد: نسبة مئوية، ولا سعر خاص للزيتونة — موش الزوز.";
+  }
+  if (code.includes("tree_promotions_one_kind")) {
+    return "التخفيض لازم يكون نسبة مئوية ولا سعر خاص للزيتونة، واحد منهم برك.";
+  }
+  if (code.includes("tree_promotions_dates")) {
+    return "تاريخ النهاية لازم يكون بعد تاريخ البداية.";
+  }
+  if (code.includes("tree_promotions_max_trees_check") || code.includes("max_trees")) {
+    return "أكبر عدد لازم يكون أكبر ولا يساوي أقلّ عدد.";
+  }
+  if (code.includes("tree_promotions_label_ar_check")) {
+    return "اسم التخفيض قصير برشا. اكتب حاجة تعرفها في القائمة.";
+  }
+  if (code.includes("not_found")) {
+    return "هذا التخفيض ما عادش موجود. حدّث الصفحة.";
+  }
+  if (code.includes("forbidden") || code.includes("42501")) {
+    return "ما عندكش الصلاحية باش تبدّل التخفيضات.";
+  }
+  if (code.includes("PGRST202") || code.includes("42883")) {
+    return "ميزة التخفيضات مازالت ما تركّبتش في قاعدة البيانات (supabase/migrations/0132_promotions.sql).";
+  }
+  return "تعذّرت العملية. حدّث الصفحة وأعد المحاولة.";
+}

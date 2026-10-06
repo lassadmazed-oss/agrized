@@ -294,6 +294,25 @@ export type ProjectQuotePricing = "closed" | "not_offered" | "legacy" | "unavail
 type QuoteChoice = { id: string; label_ar: string; label_fr: string | null };
 
 /** public_project_quote (migration 0034): the /start quote on one project's rules and classes. */
+/**
+ * The quantity tier a basket fell in, and what it took off (0132/0133). Null when no tier applied, which is
+ * the one condition a page needs: `promotion` present means the three figures below are worth printing.
+ *
+ * `before_millimes − amount_millimes` is the total the quote carries. The database rounds the DISCOUNT and
+ * not the final price precisely so that holds — a client who subtracts the two numbers printed to him must
+ * not get a third.
+ */
+export type QuotePromotion = {
+  id: string;
+  label_ar: string;
+  min_trees: number;
+  /** Basis points: 1000 = 10%. Null when the tier is a special price per tree instead. */
+  percent_bp: number | null;
+  unit_price_millimes: number | null;
+  before_millimes: number;
+  amount_millimes: number;
+};
+
 export type ProjectQuote = Omit<TreeQuote, "pricing"> & {
   project_id: string;
   project_code: string;
@@ -301,6 +320,9 @@ export type ProjectQuote = Omit<TreeQuote, "pricing"> & {
   spacing_status: "ok" | "required" | "not_allowed" | null;
   trees_max: number | null;
   pricing: ProjectQuotePricing;
+  /** The tier the CASH total carries. The instalment plan may have been built on a different one. */
+  promotion: QuotePromotion | null;
+  total_before_promotion_millimes: number | null;
   choices: {
     spacing_classes: (QuoteChoice & { area_m2: number; price_per_tree_millimes: number | null })[];
     down_percents: (QuoteChoice & { percent: number })[];
@@ -343,6 +365,8 @@ export function toProjectQuote(data: unknown): ProjectQuote | null {
     // toTreeQuote already drops the figures unless its own reading of pricing is "ok".
     price_per_tree_millimes: pricing === "ok" ? base.price_per_tree_millimes : null,
     total_price_millimes: pricing === "ok" ? base.total_price_millimes : null,
+    promotion: pricing === "ok" ? toPromotion(row.promotion) : null,
+    total_before_promotion_millimes: pricing === "ok" ? numOrNull(row.total_before_promotion_millimes) : null,
     choices: {
       spacing_classes: list(choices.spacing_classes).map((choice) => ({
         ...choice,
@@ -352,6 +376,24 @@ export function toProjectQuote(data: unknown): ProjectQuote | null {
       down_percents: list(choices.down_percents).map((choice) => ({ ...choice, percent: num(choice.percent) })),
       durations: list(choices.durations).map((choice) => ({ ...choice, months: num(choice.months) })),
     },
+  };
+}
+
+/** A tier as the quote publishes it, or null — including when the database predates 0132. */
+function toPromotion(raw: unknown): QuotePromotion | null {
+  if (!raw || typeof raw !== "object") return null;
+  const row = raw as Record<string, unknown>;
+  const before = numOrNull(row.before_millimes);
+  const amount = numOrNull(row.amount_millimes);
+  if (before === null || amount === null) return null;
+  return {
+    id: String(row.id ?? ""),
+    label_ar: String(row.label_ar ?? ""),
+    min_trees: num(row.min_trees),
+    percent_bp: numOrNull(row.percent_bp),
+    unit_price_millimes: numOrNull(row.unit_price_millimes),
+    before_millimes: before,
+    amount_millimes: amount,
   };
 }
 

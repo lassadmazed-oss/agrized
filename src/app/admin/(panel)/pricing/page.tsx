@@ -8,6 +8,7 @@ import { createClient } from "@/lib/supabase/server";
 import { CostItemsList } from "./cost-items";
 import { Section } from "./fields";
 import { MarkupsForm } from "./markups-form";
+import { PromotionsSection, type PromotionRow } from "./promotions-section";
 import { RatesSection } from "./rates-section";
 import { RuleForm } from "./rule-form";
 import { readSimulation, SimulatorSection } from "./simulator-section";
@@ -54,6 +55,7 @@ export default async function PricingPage({ searchParams }: PageProps<"/admin/pr
     projectsResult,
     settingsResult,
     profilesResult,
+    promotionsResult,
   ] = await Promise.all([
     getPublicConfig(),
     supabase
@@ -71,8 +73,14 @@ export default async function PricingPage({ searchParams }: PageProps<"/admin/pr
     supabase.from("projects").select("id, code, name").order("code"),
     supabase.from("settings").select("key, value").in("key", ["audit.reason_min_length", "pricing.max_months"]),
     supabase.from("profiles").select("id, full_name"),
+    // The quantity ladder (0132). Ordered the way it is READ — the floors climbing — so the list on screen
+    // is the same shape as the rule that picks between them.
+    supabase
+      .from("tree_promotions")
+      .select("id, label_ar, project_id, min_trees, max_trees, discount_percent_bp, unit_price_millimes, payment_mode, starts_on, ends_on, is_active, note_ar")
+      .order("min_trees"),
   ]);
-  for (const result of [classesResult, rulesResult, itemsResult, markupsResult, projectsResult, settingsResult]) {
+  for (const result of [classesResult, rulesResult, itemsResult, markupsResult, projectsResult, settingsResult, promotionsResult]) {
     if (result.error) throw new Error(`Pricing page failed: ${result.error.message}`);
   }
 
@@ -172,6 +180,14 @@ export default async function PricingPage({ searchParams }: PageProps<"/admin/pr
       </Section>
 
       <RatesSection percents={percents} durations={durationItems} maxMonths={maxMonths} />
+
+      {/* تخفيض حسب الكمية (0132). It sits after the rates because it is the last thing applied: the offer
+          works out a price, the rates say how it may be spread, and a tier takes something off the total. */}
+      <PromotionsSection
+        rows={(promotionsResult.data ?? []) as PromotionRow[]}
+        projects={projects}
+        reasonMin={reasonMin}
+      />
 
       <Section
         id="markups"

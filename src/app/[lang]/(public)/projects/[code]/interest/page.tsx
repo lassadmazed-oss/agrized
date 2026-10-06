@@ -147,6 +147,11 @@ export default async function OfferInterestPage({ params }: PageProps<"/[lang]/p
             areaPerTree: perTreeLabel,
             totalArea: areaLabel,
             totalPrice: t(config, "start.row_total_price"),
+            // The two lines above the final price when a quantity tier applied (0132/0134). The tier's own
+            // name comes from the quote: it is the owner's sentence, typed once in the Back Office.
+            promoBefore: t(config, "ui.promo.before"),
+            promoDiscount: t(config, "ui.promo.discount"),
+            promoBadge: t(config, "ui.promo.badge"),
             annualFee: t(config, "start.row_annual_fee"),
             annualFeePerTree: t(config, "start.annual_fee_per_tree"),
             down: t(config, "start.row_down"),
