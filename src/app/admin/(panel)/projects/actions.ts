@@ -210,6 +210,12 @@ export async function saveProject(projectId: string | null, _previous: ActionRes
   if (minTrees === undefined && formData.has("min_trees_per_order")) {
     return { ok: false, message: "أقلّ عدد زيتونات في الطلب يتكتب بالأرقام، مثال: 5. خلّيه فارغ باش ياخذ العدد الافتراضي من الإعدادات." };
   }
+  // Cash only, or cash and instalments (0061 §1, and its own step 4 — built 2026-10-06). Guarded by
+  // formData.has() like the two beside it, so the short «عرض جديد» form never changes how an offer is paid for.
+  const paymentChoice = formData.has("allows_installments") ? String(formData.get("allows_installments")) : undefined;
+  if (paymentChoice !== undefined && paymentChoice !== "cash" && paymentChoice !== "both") {
+    return { ok: false, message: "اختر طريقة الخلاص من القائمة: بالحاضر فقط، ولا بالحاضر وبالتقسيط." };
+  }
   const codePattern = formData.has("tree_code_pattern") ? text(formData, "tree_code_pattern", 60) : undefined;
   if (codePattern !== undefined && codePattern !== "" && !codePattern.includes("{seq}")) {
     return {
@@ -237,6 +243,7 @@ export async function saveProject(projectId: string | null, _previous: ActionRes
     // form carried the pricing fields, so a card save never resets a stored formula to «inherit».
     ...(pricing?.ok ? { pricing: pricing.value ?? {} } : {}),
     ...(minTrees === undefined ? {} : { min_trees_per_order: minTrees === null ? null : Math.round(minTrees) }),
+    ...(paymentChoice === undefined ? {} : { allows_installments: paymentChoice === "both" }),
     ...(codePattern === undefined ? {} : { tree_code_pattern: codePattern || null }),
     status: status.data,
     ...(page?.ok ? page.value : {}),

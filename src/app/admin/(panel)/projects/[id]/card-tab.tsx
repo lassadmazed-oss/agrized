@@ -121,6 +121,29 @@ export function CardTab({
               className="field field-sm text-left"
             />
           </FormField>
+          {/* HOW THIS OFFER IS PAID FOR (owner, 2026-10-06: «not every offer has instalments — when the Back
+              Office makes or edits an offer it must choose: cash only, or cash + instalments»).
+              The column has existed since 0061 and the database has honoured it since: app.project_quote_payload
+              publishes no percentages and no durations for a cash-only offer, the public form then asks no plan
+              question at all, and submit_offer_request refuses a plan the offer does not allow. What was never
+              built is this control — 0061's own header lists it as step 4 and says that until it exists every
+              offer keeps today's behaviour, because the column defaults to true. It exists now.
+              A select and not a switch: «cash only» and «cash + instalments» are two states a person reads, and
+              a checkbox labelled «allows instalments» is a third thing to translate in your head. */}
+          <FormField
+            size="sm"
+            label="طريقة الخلاص"
+            hint="«بالحاضر فقط» يخفي أسئلة التقسيط كلّها على الحريف: ما يشوفش نسبة التسبقة ولا المدّة ولا القسط الشهري."
+          >
+            <select
+              name="allows_installments"
+              defaultValue={project.allows_installments === false ? "cash" : "both"}
+              className="field field-sm"
+            >
+              <option value="both">بالحاضر وبالتقسيط</option>
+              <option value="cash">بالحاضر فقط</option>
+            </select>
+          </FormField>
           {/* Owner, 2026-09-19: «I don't like this, it should be simpler». It was a text box asking for a
               template — «لازم فيها {seq}، مثال: {offer}-{seq}» — which is a small programming language to learn
               before you can name a tree. The shapes anyone actually wants are two, so they are offered as two
