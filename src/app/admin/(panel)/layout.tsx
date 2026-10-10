@@ -102,6 +102,8 @@ const ROW_RULES: Record<WorkspaceRow, RowRule> = {
   "/admin/contracts": { icon: "contracts", roles: CRM_READ_ROLES, flag: "contracts" },
   "/admin/pricing": { icon: "pricing", roles: PRICE_ROLES, flag: "pricing" },
   "/admin/subscriptions": { icon: "services", roles: CRM_READ_ROLES, flag: "subscriptions" },
+  // 0136: commissions are money, read and paid by Finance and Admin (app.can_record_money).
+  "/admin/referrals": { icon: "payments", roles: PRICE_ROLES, flag: "referrals" },
   "/admin/desk/legal": { icon: "contracts", roles: LEGAL_DESK_ROLES },
   "/admin/desk/legal/partners": { icon: "users", roles: LEGAL_DESK_ROLES },
   "/admin/desk/legal/checklist": { icon: "lists", roles: LEGAL_DESK_ROLES },

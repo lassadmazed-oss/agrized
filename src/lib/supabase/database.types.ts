@@ -275,6 +275,235 @@ export type Database = {
           },
         ]
       }
+      commission_payouts: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          id: string
+          method_label: string | null
+          note: string | null
+          paid_on: string
+          person_id: string
+          reference: string | null
+          reference_no: string
+          total_millimes: number
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          method_label?: string | null
+          note?: string | null
+          paid_on: string
+          person_id: string
+          reference?: string | null
+          reference_no: string
+          total_millimes: number
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          method_label?: string | null
+          note?: string | null
+          paid_on?: string
+          person_id?: string
+          reference?: string | null
+          reference_no?: string
+          total_millimes?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "commission_payouts_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "commission_payouts_person_id_fkey"
+            columns: ["person_id"]
+            isOneToOne: false
+            referencedRelation: "persons"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      commission_rules: {
+        Row: {
+          amounts_millimes: number[]
+          basis: string
+          cap_millimes: number
+          created_at: string
+          created_by: string | null
+          id: string
+          min_margin_bp: number
+          note: string | null
+          version: number
+        }
+        Insert: {
+          amounts_millimes: number[]
+          basis: string
+          cap_millimes: number
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          min_margin_bp: number
+          note?: string | null
+          version?: never
+        }
+        Update: {
+          amounts_millimes?: number[]
+          basis?: string
+          cap_millimes?: number
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          min_margin_bp?: number
+          note?: string | null
+          version?: never
+        }
+        Relationships: [
+          {
+            foreignKeyName: "commission_rules_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      commission_transactions: {
+        Row: {
+          amount_millimes: number
+          basis: string
+          beneficiary_person_id: string
+          buyer_person_id: string
+          cancel_reason: string | null
+          cancelled_at: string | null
+          contract_id: string
+          cost_per_tree_millimes: number | null
+          created_at: string
+          generation: number
+          id: string
+          paid_at: string | null
+          payout_id: string | null
+          price_per_tree_millimes: number
+          project_id: string
+          reversed_at: string | null
+          rule_id: string
+          rule_unit_millimes: number
+          status: Database["public"]["Enums"]["commission_status"]
+          unit_millimes: number
+          units: number
+          updated_at: string
+          updated_by: string | null
+          validated_at: string | null
+        }
+        Insert: {
+          amount_millimes: number
+          basis: string
+          beneficiary_person_id: string
+          buyer_person_id: string
+          cancel_reason?: string | null
+          cancelled_at?: string | null
+          contract_id: string
+          cost_per_tree_millimes?: number | null
+          created_at?: string
+          generation: number
+          id?: string
+          paid_at?: string | null
+          payout_id?: string | null
+          price_per_tree_millimes: number
+          project_id: string
+          reversed_at?: string | null
+          rule_id: string
+          rule_unit_millimes: number
+          status?: Database["public"]["Enums"]["commission_status"]
+          unit_millimes: number
+          units: number
+          updated_at?: string
+          updated_by?: string | null
+          validated_at?: string | null
+        }
+        Update: {
+          amount_millimes?: number
+          basis?: string
+          beneficiary_person_id?: string
+          buyer_person_id?: string
+          cancel_reason?: string | null
+          cancelled_at?: string | null
+          contract_id?: string
+          cost_per_tree_millimes?: number | null
+          created_at?: string
+          generation?: number
+          id?: string
+          paid_at?: string | null
+          payout_id?: string | null
+          price_per_tree_millimes?: number
+          project_id?: string
+          reversed_at?: string | null
+          rule_id?: string
+          rule_unit_millimes?: number
+          status?: Database["public"]["Enums"]["commission_status"]
+          unit_millimes?: number
+          units?: number
+          updated_at?: string
+          updated_by?: string | null
+          validated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "commission_transactions_beneficiary_person_id_fkey"
+            columns: ["beneficiary_person_id"]
+            isOneToOne: false
+            referencedRelation: "persons"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "commission_transactions_buyer_person_id_fkey"
+            columns: ["buyer_person_id"]
+            isOneToOne: false
+            referencedRelation: "persons"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "commission_transactions_contract_id_fkey"
+            columns: ["contract_id"]
+            isOneToOne: false
+            referencedRelation: "contracts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "commission_transactions_payout_id_fkey"
+            columns: ["payout_id"]
+            isOneToOne: false
+            referencedRelation: "commission_payouts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "commission_transactions_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "commission_transactions_rule_id_fkey"
+            columns: ["rule_id"]
+            isOneToOne: false
+            referencedRelation: "commission_rules"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "commission_transactions_updated_by_fkey"
+            columns: ["updated_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       contact_attempts: {
         Row: {
           channel: string
@@ -2853,6 +3082,10 @@ export type Database = {
           phone_e164: string
           preferred_locale: string | null
           profile_id: string | null
+          referral_code: string | null
+          referral_meta: Json | null
+          referred_at: string | null
+          referred_by: string | null
           status_id: string
           updated_at: string
           whatsapp_e164: string | null
@@ -2878,6 +3111,10 @@ export type Database = {
           phone_e164: string
           preferred_locale?: string | null
           profile_id?: string | null
+          referral_code?: string | null
+          referral_meta?: Json | null
+          referred_at?: string | null
+          referred_by?: string | null
           status_id: string
           updated_at?: string
           whatsapp_e164?: string | null
@@ -2903,6 +3140,10 @@ export type Database = {
           phone_e164?: string
           preferred_locale?: string | null
           profile_id?: string | null
+          referral_code?: string | null
+          referral_meta?: Json | null
+          referred_at?: string | null
+          referred_by?: string | null
           status_id?: string
           updated_at?: string
           whatsapp_e164?: string | null
@@ -2941,6 +3182,13 @@ export type Database = {
             columns: ["profile_id"]
             isOneToOne: true
             referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "persons_referred_by_fkey"
+            columns: ["referred_by"]
+            isOneToOne: false
+            referencedRelation: "persons"
             referencedColumns: ["id"]
           },
           {
@@ -3346,6 +3594,7 @@ export type Database = {
           pricing: Json
           production_status: string | null
           project_type_id: string | null
+          referral_enabled: boolean
           reservation_conditions_ar: string | null
           reservation_deposit_millimes: number | null
           reservation_valid_days: number | null
@@ -3392,6 +3641,7 @@ export type Database = {
           pricing?: Json
           production_status?: string | null
           project_type_id?: string | null
+          referral_enabled?: boolean
           reservation_conditions_ar?: string | null
           reservation_deposit_millimes?: number | null
           reservation_valid_days?: number | null
@@ -3438,6 +3688,7 @@ export type Database = {
           pricing?: Json
           production_status?: string | null
           project_type_id?: string | null
+          referral_enabled?: boolean
           reservation_conditions_ar?: string | null
           reservation_deposit_millimes?: number | null
           reservation_valid_days?: number | null
@@ -5043,6 +5294,7 @@ export type Database = {
         }[]
       }
       million_progress: { Args: never; Returns: Json }
+      my_referral: { Args: never; Returns: Json }
       my_zitounti_file: { Args: never; Returns: Json }
       public_coverage: {
         Args: never
@@ -5160,6 +5412,7 @@ export type Database = {
         }
         Returns: Json
       }
+      referral_code_exists: { Args: { p_code: string }; Returns: boolean }
       release_stuck_notifications: { Args: never; Returns: number }
       request_client_login_code: {
         Args: { p_phone: string; p_purpose?: string }
@@ -5217,6 +5470,10 @@ export type Database = {
       staff_book_closing: { Args: { p: Json; p_reason: string }; Returns: Json }
       staff_book_visit: { Args: { p: Json; p_reason?: string }; Returns: Json }
       staff_callbacks: { Args: { p?: Json }; Returns: Json }
+      staff_cancel_commission: {
+        Args: { p_id: string; p_reason: string }
+        Returns: undefined
+      }
       staff_cancel_contract: {
         Args: { p_contract: string; p_reason: string; p_release: boolean }
         Returns: Json
@@ -5422,6 +5679,17 @@ export type Database = {
         }
         Returns: Json
       }
+      staff_pay_commissions: {
+        Args: {
+          p_ids: string[]
+          p_method: string
+          p_paid_on: string
+          p_person: string
+          p_reason: string
+          p_reference: string
+        }
+        Returns: Json
+      }
       staff_person_contracts: { Args: { p_person: string }; Returns: Json }
       staff_person_reservations: { Args: { p_person: string }; Returns: Json }
       staff_person_stage: { Args: { p_person_ids: string[] }; Returns: Json }
@@ -5470,6 +5738,23 @@ export type Database = {
         }
         Returns: Json
       }
+      staff_referral_alerts: { Args: never; Returns: Json }
+      staff_referral_commissions: {
+        Args: {
+          p_limit?: number
+          p_offset?: number
+          p_person?: string
+          p_status?: string
+        }
+        Returns: Json
+      }
+      staff_referral_find: { Args: { p_query: string }; Returns: Json }
+      staff_referral_overview: { Args: never; Returns: Json }
+      staff_referral_payouts: {
+        Args: { p_limit?: number; p_offset?: number }
+        Returns: Json
+      }
+      staff_referral_tree: { Args: { p_person: string }; Returns: Json }
       staff_request_journey: { Args: { p_request: string }; Returns: Json }
       staff_request_stage: { Args: { p_request_ids: string[] }; Returns: Json }
       staff_request_subscription_service: {
@@ -5489,6 +5774,26 @@ export type Database = {
       staff_save_checklist_item: {
         Args: { p: Json; p_reason: string }
         Returns: Json
+      }
+      staff_save_commission_rule: {
+        Args: { p: Json }
+        Returns: {
+          amounts_millimes: number[]
+          basis: string
+          cap_millimes: number
+          created_at: string
+          created_by: string | null
+          id: string
+          min_margin_bp: number
+          note: string | null
+          version: number
+        }
+        SetofOptions: {
+          from: "*"
+          to: "commission_rules"
+          isOneToOne: true
+          isSetofReturn: false
+        }
       }
       staff_save_cost_item: {
         Args: { p: Json; p_reason: string }
@@ -5609,9 +5914,17 @@ export type Database = {
         Args: { p_in_cover: boolean; p_slot: string }
         Returns: Json
       }
+      staff_set_offer_referral: {
+        Args: { p_enabled: boolean; p_project: string; p_reason: string }
+        Returns: undefined
+      }
       staff_set_person_locale: {
         Args: { p_locale: string; p_person: string }
         Returns: Json
+      }
+      staff_set_referrer: {
+        Args: { p_person: string; p_reason: string; p_referrer: string }
+        Returns: undefined
       }
       staff_set_subscription_status: {
         Args: {
@@ -5742,6 +6055,12 @@ export type Database = {
         | "legal"
         | "admin"
         | "super_admin"
+      commission_status:
+        | "pending"
+        | "validated"
+        | "paid"
+        | "cancelled"
+        | "reversed"
       contact_capacity: "owner" | "agent" | "broker"
       contact_channel: "phone" | "whatsapp" | "both"
       contact_outcome:
@@ -5948,6 +6267,13 @@ export const Constants = {
         "legal",
         "admin",
         "super_admin",
+      ],
+      commission_status: [
+        "pending",
+        "validated",
+        "paid",
+        "cancelled",
+        "reversed",
       ],
       contact_capacity: ["owner", "agent", "broker"],
       contact_channel: ["phone", "whatsapp", "both"],

@@ -121,6 +121,19 @@ Arabic.
   international WhatsApp number; sets `persons.lives_abroad`), moved by `staff_set_video_visit`, shown on
   /admin/visits. Hours (Tunisian time), weekdays, window, notice and capacity are `abroad.*` settings.
 
+## Parrainage (0136)
+
+Module `referrals`, seeded **disabled**: the owner's spec asks for a legal review in Tunisia before it opens.
+
+- **The link** — `/ref/<code>` keeps the code in the `agrized.ref` cookie for `referral.cookie_days`; the intake
+  forms send it as `source.referral`, and `app.attach_referral` sets `persons.referred_by` only for a person that
+  request created. Nobody else can move it (`app.persons_referral_guard`); an admin corrects it with a reason.
+- **The commissions** — a contract is the sale. Its trigger computes one row per generation from the newest
+  `commission_rules` row (amounts per generation, per tree or per order, cap, minimum margin on cost), validates
+  them when the contract is settled, cancels them with it (a paid one becomes `reversed`).
+- **Screens** — the client's `/zitounti/referral` (counts, never names); `/admin/referrals` (to pay, every
+  commission, payouts, alerts, the rule, the offers, CSV export) and `/admin/referrals/tree`.
+
 ## Not done yet
 
 - SMS sending: messages are queued in `notification_outbox`; no provider is connected (decision D-05).

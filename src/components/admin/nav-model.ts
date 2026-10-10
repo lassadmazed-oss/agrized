@@ -138,6 +138,9 @@ export const ADMIN_LABELS = {
   "/admin/contracts": "العقود ووعد البيع",
   "/admin/installments": "الأقساط والخلاص",
   "/admin/subscriptions": "الاشتراكات",
+  // 0136, 2026-10-10: the parrainage — the rule, the commissions to pay, the tree, the alerts.
+  "/admin/referrals": "التوصية والكوميسيونات",
+  "/admin/referrals/tree": "شجرة التوصية",
   "/admin/settings": "الإعدادات",
   "/admin/settings/modules": "الموديولات",
   "/admin/settings/lists": "القوائم",

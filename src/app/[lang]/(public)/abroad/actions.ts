@@ -7,6 +7,7 @@ import { z } from "zod";
 import { getPublicConfig, t } from "@/lib/config";
 import { intakeErrorMessage, isKnownIntakeError } from "@/lib/errors";
 import { normalizePhone } from "@/lib/phone";
+import { withReferral } from "@/lib/referral";
 import { auditHeaders, clientIp, hashIp } from "@/lib/request-context";
 import { createAdminClient } from "@/lib/supabase/admin";
 
@@ -93,6 +94,7 @@ export async function requestVideoVisit(_previous: VideoVisitState, formData: Fo
   }
 
   const requestHeaders = await headers();
+  const ipHash = hashIp(clientIp(requestHeaders));
   // An intake call: auditHeaders carries the page's language, which the database records on the person and on
   // the request — the team writes to them in it.
   const supabase = createAdminClient(auditHeaders(requestHeaders));
@@ -108,8 +110,9 @@ export async function requestVideoVisit(_previous: VideoVisitState, formData: Fo
       note: data.note,
       // The sentence the visitor ticked, in the language they read it in.
       consent_text: t(config, "legal.consent_text"),
-      ip_hash: hashIp(clientIp(requestHeaders)),
-      source,
+      ip_hash: ipHash,
+      // 0136: the code of the referral link that brought this visitor, if any.
+      source: await withReferral(config, source, ipHash),
     },
   });
 

@@ -1139,9 +1139,11 @@ begin
       -- item on the legal checklist is unconfirmed. 0091 argues the point in its own header — a disabled
       -- button is not a rule, a trigger is — and putting the gate anywhere else would let a direct RPC call
       -- walk past it. Anything that appears here and is not named stays a failure.
-      and t.tgname not in ('contracts_stamp', 'contracts_audit', 'contracts_legal_gate',
+      -- `contracts_referral` joined on 2026-10-10 with 0136_referrals, for the same reason: it runs on the
+      -- write that creates, settles or cancels a sale (the referral commissions follow it), never on a clock.
+      and t.tgname not in ('contracts_stamp', 'contracts_audit', 'contracts_legal_gate', 'contracts_referral',
                            'contract_installments_stamp', 'contract_installments_audit')),
-    'the only triggers on these two tables are the stamp, the audit and the legal gate';
+    'the only triggers on these two tables are the stamp, the audit, the legal gate and the referral follower';
 end $$;
 
 select set_config('request.jwt.claims',

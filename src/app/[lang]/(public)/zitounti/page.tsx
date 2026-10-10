@@ -274,6 +274,12 @@ export default async function ZitountiPage() {
       <PhoneLanguage className="mx-auto max-w-md px-4 pt-6" />
 
       <div className="mx-auto max-w-md space-y-3 px-4 pb-section pt-6">
+        {/* 0136: the client's referral page, once the owner has opened the module to the public. */}
+        {flagState(config, "referrals") === "public" ? (
+          <Link href="/zitounti/referral" className="btn btn-primary w-full">
+            {t(config, "ui.referral.entry")}
+          </Link>
+        ) : null}
         {/* The keys to the account — password, number, other devices — live on their own page; this is the one
             door to it (2026-09-28 spec: SMS only for reset, phone change and sensitive actions). */}
         <Link href="/zitounti/security" className="btn btn-secondary w-full border-line">

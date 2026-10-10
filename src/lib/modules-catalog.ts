@@ -48,6 +48,10 @@ export const IMPLEMENTED_MODULES = [
   // date and the database refuses to guess.
   "contracts",
   "installments",
+  // 2026-10-10 — التوصية (Parrainage), 0136_referrals.sql. Seeded 'disabled'. «داخلي فقط» lets Finance and
+  // Admin set the rule and watch commissions being computed on real sales; «منشور للعموم» opens the /ref links
+  // and the clients' page. The owner's own spec asks for a legal review in Tunisia before that second step.
+  "referrals",
 ] as const;
 
 export const FLAG_STATE_LABELS = {

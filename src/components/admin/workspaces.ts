@@ -92,7 +92,14 @@ export const WORKSPACES = [
     label: "المالية",
     holders: ["finance", "admin", "super_admin"],
     landing: "/admin/installments",
-    rows: ["/admin/installments", "/admin/contracts", "/admin/reservations", "/admin/pricing", "/admin/subscriptions"],
+    rows: [
+      "/admin/installments",
+      "/admin/contracts",
+      "/admin/reservations",
+      "/admin/pricing",
+      "/admin/subscriptions",
+      "/admin/referrals",
+    ],
   },
   {
     key: "legal",

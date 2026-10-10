@@ -7,6 +7,7 @@ import { flagState, getPublicConfig, optionsFor, settingBool, t } from "@/lib/co
 import { intakeErrorMessage, isKnownIntakeError } from "@/lib/errors";
 import { getStaffSession } from "@/lib/auth";
 import { normalizePhone } from "@/lib/phone";
+import { withReferral } from "@/lib/referral";
 import { auditHeaders, clientIp, hashIp } from "@/lib/request-context";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { dispatchAfterResponse } from "@/lib/sms";
@@ -135,6 +136,7 @@ export async function submitInterest(input: InterestInput): Promise<SubmitIntere
   }
 
   const requestHeaders = await headers();
+  const ipHash = hashIp(clientIp(requestHeaders));
   // An intake call: auditHeaders already carries the visitor's language, which the database records on the
   // person (their SMS go out in it). No displayHeaders — the request's labels are snapshotted for the staff.
   const supabase = createAdminClient(auditHeaders(requestHeaders));
@@ -167,8 +169,9 @@ export async function submitInterest(input: InterestInput): Promise<SubmitIntere
       contact_time_option_id: data.contactTimeOptionId,
       // The sentence the visitor ticked, in the language they read it in (the review step shows this same key).
       consent_text: t(config, "legal.consent_text"),
-      ip_hash: hashIp(clientIp(requestHeaders)),
-      source: data.source,
+      ip_hash: ipHash,
+      // 0136: the code of the referral link that brought this visitor, if any.
+      source: await withReferral(config, data.source, ipHash),
     },
   });
 

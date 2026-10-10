@@ -8,6 +8,7 @@ import { intakeErrorMessage, isKnownIntakeError } from "@/lib/errors";
 import { moduleAccess } from "@/lib/modules";
 import { normalizePhone } from "@/lib/phone";
 import { toProjectQuote, type ProjectQuote } from "@/lib/public-projects";
+import { withReferral } from "@/lib/referral";
 import { auditHeaders, clientIp, hashIp } from "@/lib/request-context";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { dispatchAfterResponse } from "@/lib/sms";
@@ -146,6 +147,7 @@ export async function submitOfferInterest(input: OfferInterestInput): Promise<Su
   }
 
   const requestHeaders = await headers();
+  const ipHash = hashIp(clientIp(requestHeaders));
   const supabase = createAdminClient(auditHeaders(requestHeaders));
 
   const { data: result, error } = await supabase.rpc("submit_offer_request", {
@@ -174,8 +176,9 @@ export async function submitOfferInterest(input: OfferInterestInput): Promise<Su
       wants_visit: data.wantsVisit,
       // The words the visitor ticked, in the language they read them in.
       consent_text: t(config, "legal.consent_text"),
-      ip_hash: hashIp(clientIp(requestHeaders)),
-      source: data.source,
+      ip_hash: ipHash,
+      // 0136: the code of the referral link that brought this visitor, if any.
+      source: await withReferral(config, data.source, ipHash),
     },
   });
 
