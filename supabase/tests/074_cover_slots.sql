@@ -34,11 +34,24 @@ begin
   assert v_in_cover @> v_expected,
     '0123 must seed the five slots HERO_SLOTS names in code, got ' || coalesce(v_in_cover::text, '{}');
 
-  -- The order the slider rotates in is sort_order, and it must be the one the Back Office lists by. The
-  -- owner's own pictures sort after the seeded ones (0128 starts them at 1000), so the five keep their
-  -- order among themselves whatever he adds.
+  -- The order the slider rotates in is sort_order, and it must be the one the Back Office lists by. The five
+  -- keep their order AMONG THEMSELVES whatever else joins them, and that is what is asserted: the filter is
+  -- the five slot keys, not `not is_custom`.
+  --
+  -- It read `not is_custom` until 2026-10-11, which was wrong for the same reason the assert above reads
+  -- CONTAINS instead of EQUALS. `is_custom` marks the slots the owner CREATED (0128, numbered from 1000); it
+  -- does not mark the slots he CHOSE. A slot seeded by a migration for another page is neither custom nor one
+  -- of these five, and the moment he adds one to the slider — he added `abroad.hero` on 2026-10-07, from
+  -- الإعدادات ← صور الموقع, which is what that screen is for — the old filter picked it up and the equality failed on a
+  -- state the Back Office is designed to produce. A test that fails when the owner uses a feature is testing
+  -- the data, not the rule.
+  --
+  -- What a regression still looks like here: one of the five dropping out of the cover, or the five arriving
+  -- in a different order than HERO_SLOTS names them. Nothing can reorder them quietly — no RPC writes
+  -- sort_order, so those five values (10, 20, 40, 50, 60) are the migrations' to change and no one else's.
   assert (select array_agg(m.slot order by m.sort_order) from public.site_media m
-           where m.in_cover and not m.is_custom)
+           where m.in_cover
+             and m.slot in ('home.hero', 'home.journey', 'home.coverage', 'home.land', 'home.closing'))
          = array['home.hero', 'home.journey', 'home.coverage', 'home.land', 'home.closing'],
     'the cover must rotate in sort_order, which is the order الإعدادات ← صور الموقع shows';
 end $$;
@@ -106,10 +119,13 @@ begin
 
   -- ... and the slider cannot be emptied. The «one left» state is forced directly in section 4, so what
   -- matters here is only that the five seeded pictures are still in it — not the total, which the owner
-  -- changes from the Back Office every time he adds one of his own (0128).
+  -- changes from the Back Office every time he adds one (0128), and not «everything he did not create»,
+  -- which is what `not is_custom` counted: `abroad.hero` is seeded by 0130 for another page, and him putting
+  -- it in the slider on 2026-10-07 made this read 6.
   select count(*)::integer into v_count
     from public.site_media m
-   where m.in_cover and m.url is not null and not m.is_custom;
+   where m.in_cover and m.url is not null
+     and m.slot in ('home.hero', 'home.journey', 'home.coverage', 'home.land', 'home.closing');
   assert v_count = 5, 'expected the five seeded pictures still in the cover, got ' || v_count;
 end $$;
 
