@@ -1,5 +1,6 @@
 import { timingSafeEqual } from "node:crypto";
 
+import { dispatchPush } from "@/lib/push";
 import { dispatchNotifications } from "@/lib/sms";
 
 /**
@@ -45,6 +46,18 @@ export async function POST(request: Request) {
 
   const outcome = await dispatchNotifications(limit);
 
+  /*
+   * The push side of the same queue, drained in the same run.
+   *
+   * Sequential rather than parallel, and that is deliberate: both dispatchers call
+   * release_stuck_notifications first, and two of those racing would each hand the other's in-flight rows
+   * back to the queue. The two claims then take different channels (0139), so nothing is claimed twice.
+   *
+   * A push failure must never make an SMS run look failed. They are reported side by side and the status
+   * follows the SMS outcome, which is the one that can be blocked by a missing provider key.
+   */
+  const push = await dispatchPush(limit);
+
   // A blocked run is a configuration problem the operator must see, not a server fault.
-  return Response.json(outcome, { status: outcome.blocked ? 409 : 200 });
+  return Response.json({ ...outcome, push }, { status: outcome.blocked ? 409 : 200 });
 }
