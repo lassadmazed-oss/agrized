@@ -41,6 +41,13 @@
           "backgroundColor": "#FFFFFA"
         }
       ]
-    ]
+    ],
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "aec2b821-ba86-4791-92cf-ddc57057a615"
+      }
+    },
+    "owner": "saifelleuchi"
   }
 }
