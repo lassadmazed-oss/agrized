@@ -18,6 +18,13 @@ const eslintConfig = defineConfig([
     // worktree under .claude, in code no one here wrote and no one can fix.
     "**/.next/**",
     ".claude/**",
+    // mobile/ is the Expo app, and this config is eslint-config-next: Next's web rules, pointed at React
+    // Native. tsconfig.json already excludes mobile for exactly this reason, so the two tools disagreed about
+    // what the project is. Eight of nine errors came from that gap, and three of them flagged the pattern
+    // React Native's own documentation shows — `useRef(new Animated.Value(0)).current`, read during render.
+    // The app has its own typecheck (`npm run typecheck` in mobile/); eslint-config-expo is the linter for it
+    // if we ever want one, and it belongs in mobile/, not here.
+    "mobile/**",
   ]),
 ]);
 

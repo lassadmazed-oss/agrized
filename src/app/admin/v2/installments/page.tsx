@@ -135,6 +135,11 @@ export default async function InstallmentsPage({ searchParams }: PageProps<"/adm
   /** Due within the reminder window the database keeps, and not late yet. */
   const soon = (plan: ClientPlan) => {
     if (plan.late || !plan.nextDue) return false;
+    // react-hooks/purity reads Date.now() in a render as a hazard, which it is in a client component: two
+    // renders would disagree and the second would be the one the reader keeps. This file has no "use client".
+    // It renders on the server, once per request, and «قرّبت» means «close to now» — now being the moment the
+    // staff member asked. A frozen date passed in from above would be a different, wrong answer.
+    // eslint-disable-next-line react-hooks/purity
     const days = Math.ceil((Date.parse(plan.nextDue.dueOn) - Date.now()) / 86_400_000);
     return days >= 0 && days <= list.reminderDays;
   };
