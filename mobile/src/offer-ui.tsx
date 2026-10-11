@@ -323,11 +323,20 @@ export function OfferImage({
 }
 
 /**
- * A grove in the brand's own greens, as a blurhash: four bytes of olive and sky that fill the frame while the
- * real photograph arrives. It is the one the app already carried, kept because it is honestly the right
- * colour for every picture in this catalogue.
+ * A grove in the brand's own greens, as a blurhash: what fills the frame while the real photograph arrives.
+ *
+ * THE ONE BEFORE THIS WAS WINE RED, and the comment here said it was «olive and sky». Decoding its DC term —
+ * the first four base83 characters after the header, which carry the average colour — gives rgb(126, 36, 48),
+ * #7e2430. So every photograph in the catalogue bloomed dark red for the length of its fade, on a page of
+ * greens and cream, and the note beside it told the next reader not to look. Checked rather than believed,
+ * on 2026-10-11, after the owner said the pictures looked ugly while they loaded.
+ *
+ * This one is generated rather than found: a 32x32 vertical gradient through what an olive grove actually is
+ * from top to bottom — pale sage sky, olive canopy, shaded leaves, warm earth — encoded at 4x3 components,
+ * with a slight horizontal drift so it reads as a photograph and not as a printed band. Its average is
+ * rgb(142, 163, 110), #8ea36e. Same length as the one it replaces; nothing else about the component changed.
  */
-const BLURHASH = "L6Ec00~qRj00_3WBofay00WB%MRj";
+const BLURHASH = "LYGS^[t6nlt6?]kBjbkB^+j[jaj[";
 
 const styles = StyleSheet.create({
   placeholder: { overflow: "hidden", backgroundColor: colour.leafSoft },

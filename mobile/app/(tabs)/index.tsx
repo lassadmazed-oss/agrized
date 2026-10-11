@@ -3,7 +3,8 @@ import { useCallback, useMemo, useState } from "react";
 import { RefreshControl, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import { Button, StatBar, Waiting } from "../../src/components";
+import { Button, StatBar } from "../../src/components";
+import { HomeSkeleton } from "../../src/skeleton";
 import { moduleOpen, t } from "../../src/config";
 import {
   BrandLockup,
@@ -177,9 +178,11 @@ export default function HomeScreen() {
    */
   if (!homeReady) {
     return (
-      <View style={[styles.page, frameStyle]}>
-        <BrandLockup />
-        <Waiting style={styles.waiting} />
+      <View style={[styles.ground, styles.waitingPage]}>
+        <View style={[styles.page, frameStyle]}>
+          <BrandLockup />
+        </View>
+        <HomeSkeleton />
       </View>
     );
   }
@@ -294,5 +297,6 @@ const styles = StyleSheet.create({
   failure: { flex: 1 },
   failureBody: { flex: 1, justifyContent: "center", gap: space.cozy },
   centre: { textAlign: "center" },
-  waiting: { flex: 0, paddingVertical: space.section * 2 },
+  // The skeleton carries its own frame, so this only has to give it the page's height and ground.
+  waitingPage: { flex: 1 },
 });

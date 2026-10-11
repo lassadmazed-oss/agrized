@@ -20,7 +20,8 @@ import { useCallback, useEffect, useRef } from "react";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 
 import { colour, FONT } from "../src/theme";
-import { ConfigProvider } from "../src/use-config";
+import { ConfigGate } from "../src/skeleton";
+import { ConfigProvider, useConfig } from "../src/use-config";
 
 /**
  * The root. One stack, so a screen that is not a tab — an offer — slides in over the tabs and can be
@@ -109,34 +110,51 @@ export default function RootLayout() {
       */}
       <StatusBar style="dark" />
       <ConfigProvider onReady={onConfigReady}>
-        <Stack
-          screenOptions={{
-            headerStyle: { backgroundColor: colour.paper },
-            headerTintColor: colour.forest,
-            headerTitleStyle: { fontWeight: "700" },
-            headerShadowVisible: false,
-            contentStyle: { backgroundColor: colour.paper },
-          }}
-        >
-          <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-          {/*
-            NO NATIVE HEADER ANYWHERE, offer screen included. This line used to say the opposite — it set
-            `title: "العرض"` and a `headerBackTitle`, and a comment beside it said the header was the only way
-            out of that screen «until app/offer/[code].tsx draws its own controls». It does draw them: a 36px
-            back and a 36px share over the photograph, exactly as offer-phone.tsx does, and it renders
-            `<Stack.Screen options={{ headerShown: false }} />` in all four of its branches, which wins over
-            whatever this navigator says. So the header was already gone, this line was dead, and its two
-            Arabic words were dead copy the owner could not edit — the drift this run was sent to find, left
-            behind by two sessions each assuming the other had not landed yet.
-
-            It is spelled out rather than deleted because `name` is also what fixes the route's place in the
-            stack, and because the next reader deserves the answer to «why has the offer screen no header?»
-            here, where they will look for it: globals.css hides .site-header below 48rem, so no phone screen
-            on the website has one either.
-          */}
-          <Stack.Screen name="offer/[code]" options={{ headerShown: false }} />
-        </Stack>
+        <Shell />
       </ConfigProvider>
     </SafeAreaProvider>
+  );
+}
+
+/**
+ * Everything under the provider, so it can ask whether the owner's words have arrived.
+ *
+ * `ConfigGate` is a no-op on native — the splash in RootLayout above is already holding the first frame, and
+ * a second gate behind it would hold nothing. On web, where there is no splash to hold, it stands in with the
+ * home screen's own shape until the settings land. Without it the web build mounts the shell instantly and
+ * spends the next second or two printing key names where the owner's sentences go.
+ */
+function Shell() {
+  const { ready } = useConfig();
+  return (
+    <ConfigGate ready={ready}>
+      <Stack
+        screenOptions={{
+          headerStyle: { backgroundColor: colour.paper },
+          headerTintColor: colour.forest,
+          headerTitleStyle: { fontWeight: "700" },
+          headerShadowVisible: false,
+          contentStyle: { backgroundColor: colour.paper },
+        }}
+      >
+        <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+        {/*
+          NO NATIVE HEADER ANYWHERE, offer screen included. This line used to say the opposite — it set
+          `title: "العرض"` and a `headerBackTitle`, and a comment beside it said the header was the only way
+          out of that screen «until app/offer/[code].tsx draws its own controls». It does draw them: a 36px
+          back and a 36px share over the photograph, exactly as offer-phone.tsx does, and it renders
+          `<Stack.Screen options={{ headerShown: false }} />` in all four of its branches, which wins over
+          whatever this navigator says. So the header was already gone, this line was dead, and its two
+          Arabic words were dead copy the owner could not edit — the drift this run was sent to find, left
+          behind by two sessions each assuming the other had not landed yet.
+
+          It is spelled out rather than deleted because `name` is also what fixes the route's place in the
+          stack, and because the next reader deserves the answer to «why has the offer screen no header?»
+          here, where they will look for it: globals.css hides .site-header below 48rem, so no phone screen
+          on the website has one either.
+        */}
+        <Stack.Screen name="offer/[code]" options={{ headerShown: false }} />
+      </Stack>
+    </ConfigGate>
   );
 }
