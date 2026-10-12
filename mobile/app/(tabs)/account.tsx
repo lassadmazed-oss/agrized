@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useRouter } from "expo-router";
 import { Linking, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
@@ -7,7 +8,7 @@ import { settingText, t } from "../../src/config";
 import { siteFormat } from "../../src/format";
 import { Shimmer } from "../../src/skeleton";
 import { card, colour, frame, space, type } from "../../src/theme";
-import { Btn, ErrorText, Field, Hairline, Label } from "../../src/ui";
+import { Btn, ErrorText, Field, Hairline, Hint, Label } from "../../src/ui";
 import { buildRows, failureKey as fileFailureKey, fetchMyFile, type Failure, type Row, type ZitountiFile } from "../../src/zitounti";
 import { useConfig } from "../../src/use-config";
 
@@ -66,6 +67,7 @@ type Step = "password" | "code";
 
 function SignInPanel() {
   const { config } = useConfig();
+  const router = useRouter();
   const { requestCode, signInWithCode, signInWithPassword } = useAuth();
 
   const [step, setStep] = useState<Step>("password");
@@ -121,8 +123,15 @@ function SignInPanel() {
   return (
     <>
       <Text style={[type.pageTitle, { color: colour.forest700 }]}>{t(config, "zitounti.title")}</Text>
+
+      {/*
+        WHAT THIS SPACE IS, BEFORE WHAT IT WANTS FROM YOU.
+        The screen used to open on «ادخل بنمرة التلفون وكلمة السرّ متاعك» — an instruction to somebody who has
+        no idea what they would be entering, or why. The owner's own one-line description of زيتونتي exists
+        and was only ever used as a page description nobody reads. It goes first now.
+      */}
       <Text style={[type.label, styles.note]}>
-        {t(config, step === "code" ? "ui.login.code_sent_note" : "zitounti.password_login_note")}
+        {t(config, step === "code" ? "ui.login.code_sent_note" : "ui.zitounti.meta_description")}
       </Text>
 
       <View style={styles.card}>
@@ -131,7 +140,12 @@ function SignInPanel() {
           <Field
             value={phone}
             onChangeText={setPhone}
-            placeholder={t(config, "ui.login.phone_hint")}
+            /*
+             * NO PLACEHOLDER. It used to repeat ui.login.phone_hint, which now sits under the field as a
+             * hint — so the same sentence was printed twice, once in grey inside the box and once below it.
+             * A placeholder that duplicates the hint is noise; a placeholder that contradicts it is worse;
+             * and an empty phone field is unambiguous on its own, because the label above says what it is.
+             */
             keyboardType="phone-pad"
             autoComplete="tel"
             maxLength={20}
@@ -141,6 +155,12 @@ function SignInPanel() {
             // The number is fixed once the code is out: changing it would check the code against someone else.
             style={step === "code" ? styles.locked : undefined}
           />
+          {/*
+            «نفس النمرة اللي سجّلت بيها عند AgriZed» was the field's PLACEHOLDER — grey, inside the box, and
+            gone the moment anybody typed. It is the one sentence that tells a first-time reader this door
+            needs a number AgriZed already knows, so it is a hint under the field where it stays readable.
+          */}
+          {step === "password" ? <Hint>{t(config, "ui.login.phone_hint")}</Hint> : null}
         </View>
 
         {step === "password" ? (
@@ -230,6 +250,27 @@ function SignInPanel() {
 
         <HelpLine />
       </View>
+
+      {/*
+        THE DOOR FOR SOMEBODY WHO HAS NEVER BEEN HERE, which is what this screen was missing entirely.
+        فضاء «زيتونتي» holds a file, and a file exists only after a person has been in touch with AgriZed —
+        so a visitor who downloaded the app five minutes ago has no account, cannot make one here, and had no
+        way of learning either: the SMS door answers them with silence, by design, because saying «this number
+        is not registered» would tell any stranger who else is. The owner already had the sentence for exactly
+        this — it is what the file read returns for a number with no file — and it is said here BEFORE they
+        waste a code finding out.
+      */}
+      {step === "password" ? (
+        <View style={styles.card}>
+          <Text style={[type.body, styles.newcomer]}>{t(config, "ui.zitounti.failure_no_file")}</Text>
+          <Btn
+            label={t(config, "site.app_hero_cta")}
+            onPress={() => router.push("/offers")}
+            tone="secondary"
+            style={styles.wide}
+          />
+        </View>
+      ) : null}
     </>
   );
 }
@@ -380,6 +421,7 @@ const styles = StyleSheet.create({
   group: { gap: space.tight },
   wide: { width: "100%" },
   locked: { opacity: 0.6 },
+  newcomer: { color: colour.muted, lineHeight: 26 },
   totals: { ...card, marginTop: space.roomy, padding: space.card, flexDirection: "row", gap: space.cozy },
   total: { flex: 1, alignItems: "center", gap: space.hair },
   totalLabel: { color: colour.muted, textAlign: "center" },
