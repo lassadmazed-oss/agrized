@@ -1,6 +1,7 @@
 import { z } from "zod";
 
 import { requestLoginCode } from "@/lib/client-auth";
+import { dispatchNotifications } from "@/lib/sms";
 
 import { fail, phoneOf } from "../_shared";
 
@@ -29,6 +30,28 @@ export async function POST(request: Request) {
 
   const result = await requestLoginCode(phone.e164, parsed.data.purpose ?? "login");
   if (!result.ok) return fail(result.reason, {}, result.reason === "not_applied" ? 503 : 400);
+
+  /*
+   * SOMETHING HAS TO DRAIN THE QUEUE, and this route did not — the same fault zitounti/actions.ts records
+   * learning on 2026-09-25 under the words «sms did not get it». request_client_login_code writes the
+   * message to public.notification_outbox and nothing else happens: the row sits at pending with attempts
+   * = 0 and no error, nobody having tried, until the code expires five minutes later. Which is exactly what
+   * the owner saw today.
+   *
+   * AWAITED, not left to after(). A login code is the one message whose failure the person holding the
+   * phone must hear about — they are standing there waiting for it, and «the code is on its way» followed
+   * by silence is the worst answer available. The three public forms that queue a confirmation can afford
+   * after(); this cannot.
+   *
+   * `blocked` is a provider or configuration state, identical for every caller, so returning it tells
+   * nobody whether a given number belongs to a client. That is why it is said out loud while «this number
+   * is not registered» is still never said.
+   */
+  const outcome = await dispatchNotifications(3);
+  if (outcome.blocked) {
+    console.warn(`[mobile auth] login code queued but not sent: ${outcome.blocked}`);
+    return fail("sms_blocked", {}, 503);
+  }
 
   return Response.json({ ok: true, ttlSeconds: result.ttlSeconds });
 }

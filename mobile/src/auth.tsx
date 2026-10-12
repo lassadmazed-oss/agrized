@@ -51,6 +51,7 @@ export type AuthFailure =
   | "expired"
   | "no_code"
   | "too_many_attempts"
+  | "sms_blocked"
   | "not_applied"
   | "offline"
   | "error";
@@ -257,6 +258,10 @@ export function failureKey(reason: AuthFailure): string {
       return "ui.login.error_invalid_code";
     case "too_many_attempts":
       return "ui.login.error_too_many_attempts";
+    // The provider or its configuration, not this reader's number — the website says this out loud for the
+    // same reason: it is identical for every caller, so it reveals nothing about who has an account.
+    case "sms_blocked":
+      return "ui.login.error_sms_blocked";
     case "not_applied":
       return "ui.login.error_not_applied";
     case "offline":

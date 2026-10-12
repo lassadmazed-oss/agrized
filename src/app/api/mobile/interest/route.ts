@@ -6,6 +6,7 @@ import { intakeErrorMessage, isKnownIntakeError } from "@/lib/errors";
 import { normalizePhone } from "@/lib/phone";
 import { getPublicProjects } from "@/lib/public-projects";
 import { auditHeaders, clientIp, hashIp } from "@/lib/request-context";
+import { dispatchAfterResponse } from "@/lib/sms";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 /**
@@ -176,6 +177,20 @@ export async function POST(request: Request) {
     console.error(`${payload.fn} returned no request number (mobile)`, data);
     return fail(intakeErrorMessage(config, null), 502);
   }
+
+  /*
+   * The confirmation SMS the RPC just queued, sent once this response has gone out.
+   *
+   * The same hole as the login code route, found the same hour: public.notification_outbox drains only
+   * when somebody asks it to, and this route never asked — so every demand sent from the app queued a
+   * «مطلبك تسجّل» that nobody ever sent. The three public forms on the website (register, land, offer) all
+   * call this; the app's own intake did not.
+   *
+   * after() rather than awaited, which is the difference from the login code: nobody is standing there
+   * waiting to read this one, and the reference number is already in the response. Slowing the submit to
+   * watch a text message leave would cost the visitor and buy nothing.
+   */
+  dispatchAfterResponse();
 
   return Response.json({ ok: true, reference });
 }
