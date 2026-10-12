@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "expo-router";
-import { Linking, ScrollView, StyleSheet, Text, View } from "react-native";
+import { Linking, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { failureKey, useAuth, type AuthFailure } from "../../src/auth";
@@ -8,7 +8,7 @@ import { settingText, t } from "../../src/config";
 import { siteFormat } from "../../src/format";
 import { Shimmer } from "../../src/skeleton";
 import { card, colour, frame, space, type } from "../../src/theme";
-import { Btn, ErrorText, Field, Hairline, Hint, Label } from "../../src/ui";
+import { Btn, Chevron, ErrorText, Field, Hairline, Hint, Label } from "../../src/ui";
 import { buildRows, failureKey as fileFailureKey, fetchMyFile, type Failure, type Row, type ZitountiFile } from "../../src/zitounti";
 import { useConfig } from "../../src/use-config";
 
@@ -288,6 +288,7 @@ function SignInPanel() {
  */
 function SignedIn({ name, onSignOut }: { name: string | null; onSignOut: () => void }) {
   const { config } = useConfig();
+  const router = useRouter();
   const fmt = useMemo(() => siteFormat(config), [config]);
 
   const [file, setFile] = useState<ZitountiFile | null>(null);
@@ -377,10 +378,21 @@ function SignedIn({ name, onSignOut }: { name: string | null; onSignOut: () => v
             {rows.map((row, index) => (
               <View key={row.key}>
                 {index > 0 ? <Hairline /> : null}
-                <View style={styles.row}>
+                {/*
+                  A ROW OPENS ONLY WHEN THERE IS SOMETHING BEHIND IT. `open` is true when the section holds
+                  rows; an empty one, a closed module and a part not built yet all stay flat, so nothing
+                  promises a tap it cannot answer — which is what these rows did until this screen existed.
+                */}
+                <Pressable
+                  onPress={row.open ? () => router.push(`/zitounti/${row.key}`) : undefined}
+                  disabled={!row.open}
+                  accessibilityRole={row.open ? "button" : undefined}
+                  style={styles.row}
+                >
                   <Text style={[type.heading, styles.rowLabel]}>{row.label}</Text>
                   <Text style={[type.caption, { color: row.open ? colour.forest : colour.muted }]}>{row.note}</Text>
-                </View>
+                  {row.open ? <Chevron size={18} color={colour.lineStrong} /> : null}
+                </Pressable>
               </View>
             ))}
           </View>

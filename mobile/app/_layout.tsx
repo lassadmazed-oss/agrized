@@ -228,6 +228,8 @@ function Shell({ fontsReady, markReady }: { fontsReady: boolean; markReady: bool
           on the website has one either.
         */}
         <Stack.Screen name="offer/[code]" options={{ headerShown: false }} />
+        {/* One route for the ten sections of فضاء «زيتونتي»; it draws its own bar, like the offer screen. */}
+        <Stack.Screen name="zitounti/[section]" options={{ headerShown: false }} />
       </Stack>
     </>
   );
