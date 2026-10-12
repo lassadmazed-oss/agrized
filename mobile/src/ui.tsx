@@ -95,6 +95,7 @@ export function Field({
   ltr,
   multiline,
   centre,
+  secure,
   style,
   onSubmitEditing,
 }: {
@@ -103,12 +104,14 @@ export function Field({
   placeholder?: string;
   invalid?: boolean;
   keyboardType?: "default" | "number-pad" | "phone-pad" | "email-address";
-  autoComplete?: "name" | "tel" | "email" | "off";
+  autoComplete?: "name" | "tel" | "email" | "off" | "current-password" | "one-time-code";
   maxLength?: number;
   accessibilityLabel?: string;
   ltr?: boolean;
   multiline?: boolean;
   centre?: boolean;
+  /** A password. Hides what is typed and keeps the keyboard's own suggestions out of it. */
+  secure?: boolean;
   style?: StyleProp<TextStyle>;
   onSubmitEditing?: () => void;
 }) {
@@ -128,6 +131,10 @@ export function Field({
       keyboardType={keyboardType}
       autoComplete={autoComplete}
       autoCorrect={false}
+      secureTextEntry={secure}
+      // A password field that autocapitalises its first letter is a password field that refuses the right
+      // password, and the platforms differ on whether secureTextEntry implies this. Said once, here.
+      autoCapitalize={secure ? "none" : undefined}
       maxLength={maxLength}
       multiline={multiline}
       accessibilityLabel={accessibilityLabel}

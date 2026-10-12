@@ -20,6 +20,7 @@ import { useCallback, useEffect, useRef } from "react";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 
 import { colour, FONT } from "../src/theme";
+import { AuthProvider } from "../src/auth";
 import { ConfigGate } from "../src/skeleton";
 import { ConfigProvider, useConfig } from "../src/use-config";
 
@@ -110,7 +111,14 @@ export default function RootLayout() {
       */}
       <StatusBar style="dark" />
       <ConfigProvider onReady={onConfigReady}>
-        <Shell />
+        {/*
+          The buyer's session sits INSIDE the configuration and not outside it: restoring a session is a read
+          from the Keychain and a refresh against Supabase, and neither is worth starting before the owner's
+          words have arrived — the screen that would show the result cannot draw a label until they have.
+        */}
+        <AuthProvider>
+          <Shell />
+        </AuthProvider>
       </ConfigProvider>
     </SafeAreaProvider>
   );

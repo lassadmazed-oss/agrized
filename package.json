@@ -3,9 +3,9 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev",
-    "build": "next build",
-    "start": "next start",
+    "dev": "node --network-family-autoselection-attempt-timeout=3000 node_modules/next/dist/bin/next dev",
+    "build": "node --network-family-autoselection-attempt-timeout=3000 node_modules/next/dist/bin/next build",
+    "start": "node --network-family-autoselection-attempt-timeout=3000 node_modules/next/dist/bin/next start",
     "lint": "eslint",
     "typecheck": "next typegen && tsc --noEmit",
     "admin:create": "node --network-family-autoselection-attempt-timeout=3000 --env-file=.env scripts/create-super-admin.mjs",
