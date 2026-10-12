@@ -621,3 +621,119 @@ export async function signOutOtherDevices(): Promise<{ ok: boolean }> {
   const { error } = await supabase.auth.signOut({ scope: "others" });
   return { ok: !error };
 }
+
+// ---------------------------------------------------------------------------
+// The same two doors, for a caller that cannot hold a cookie
+// ---------------------------------------------------------------------------
+
+/**
+ * SIGNING IN FROM THE APP.
+ *
+ * Everything above hands the session to the browser as cookies, which is right for the website and useless
+ * to a native app: there is no cookie jar, and `createSessionClient` would write into the Route Handler's
+ * response that the app then throws away. So these two are the same doors with the last step changed — the
+ * session is RETURNED as its two tokens, and the app sets them on its own Supabase client with
+ * `auth.setSession`.
+ *
+ * NOTHING ABOUT THE SECURITY MOVES. The rate-limit gate, the code check, its lifetime and its attempt
+ * ceiling, the phone-to-person lookup and the profile link are the same calls in the same order, against the
+ * same service-role-only functions. This file is still the only place that knows how to turn a proven
+ * identity into a session; the app learns nothing it could abuse, because the two steps it may not do —
+ * `client_password_attempt` and reading `public.persons` — stay on this side of the wire.
+ *
+ * WHY THE APP GETS TOKENS AT ALL. mobile/app/(tabs)/account.tsx was opening /zitounti in the phone's browser
+ * and said why in its own comment: with no route to do those two steps, a native form would have collected a
+ * real password and had nowhere to send it. These are that route's other half.
+ */
+export type AppSession = { accessToken: string; refreshToken: string; expiresAt: number | null };
+
+export type AppSignInResult =
+  | { ok: true; session: AppSession; personId: string; fullName: string | null; passwordSet: boolean }
+  | {
+      ok: false;
+      reason: ClientLoginFailure | ClientPasswordFailure;
+      attemptsLeft?: number;
+      retryAfterSeconds?: number;
+    };
+
+/** Signs in and hands back the tokens rather than writing cookies. Anon key: it is only proving a password. */
+function tokenClient() {
+  return createBareClient<Database>(publicEnv.supabaseUrl, publicEnv.supabaseAnonKey, {
+    auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false },
+  });
+}
+
+function sessionOf(session: { access_token: string; refresh_token: string; expires_at?: number }): AppSession {
+  return {
+    accessToken: session.access_token,
+    refreshToken: session.refresh_token,
+    expiresAt: session.expires_at ?? null,
+  };
+}
+
+/** Phone + password, the everyday door. The same gate and the same lookup as signInWithPassword. */
+export async function appSignInWithPassword(phone: string, password: string): Promise<AppSignInResult> {
+  const admin = await createAuthAdminClient();
+
+  const attempt = await admin.rpc("client_password_attempt" as never, { p_phone: phone } as never);
+  if (attempt.error) {
+    // The client is told «error» and nothing else, on purpose. The log is the only place the difference
+    // between «the gate is broken» and «this number has no account» can be seen, and without it an operator
+    // reading a failed sign-in has no way to tell which.
+    console.error("[mobile auth] client_password_attempt failed:", attempt.error);
+    return { ok: false, reason: isMissingFunction(attempt.error) ? "not_applied" : "error" };
+  }
+  const gate = (attempt.data ?? {}) as { ok?: boolean; retry_after_seconds?: number };
+  if (!gate.ok) return { ok: false, reason: "too_many", retryAfterSeconds: gate.retry_after_seconds };
+
+  const { row: person, error } = await personByPhone(phone);
+  if (error) {
+    console.error("[mobile auth] persons lookup failed:", error);
+    return { ok: false, reason: isMissingColumn(error) ? "not_applied" : "error" };
+  }
+  // Blunt on purpose, exactly as the website is: an unknown number, a number with no password yet and a
+  // wrong password all answer the same, so this cannot be used to find out who has an account.
+  if (!person || !person.profile_id || !person.password_set_at) return { ok: false, reason: "bad_credentials" };
+
+  const signedIn = await tokenClient().auth.signInWithPassword({ email: clientEmail(person.id), password });
+  const session = signedIn.data.session;
+  if (signedIn.error || !session) return { ok: false, reason: "bad_credentials" };
+
+  return { ok: true, session: sessionOf(session), personId: person.id, fullName: person.full_name, passwordSet: true };
+}
+
+/** The SMS code, which is how a buyer gets in the first time and after a forgotten password. */
+export async function appSignInWithCode(phone: string, code: string): Promise<AppSignInResult> {
+  const admin = await createAuthAdminClient();
+
+  const verified = await verifyCode(phone, code, "login");
+  if (!verified.ok) return verified;
+
+  const { personId, fullName } = verified;
+  const person = await personById(personId);
+  const userId = await ensureAuthUser(personId, fullName, person?.profile_id ?? null);
+  if (!userId) return { ok: false, reason: "error" };
+
+  // The link is generated only to take its token; it is redeemed here and never sent anywhere.
+  const link = await admin.auth.admin.generateLink({ type: "magiclink", email: clientEmail(personId) });
+  const tokenHash = link.data?.properties?.hashed_token;
+  if (link.error || !tokenHash) return { ok: false, reason: "error" };
+
+  const redeemed = await tokenClient().auth.verifyOtp({ token_hash: tokenHash, type: "email" });
+  const session = redeemed.data.session;
+  if (redeemed.error || !session) return { ok: false, reason: "error" };
+
+  const { error: linkError } = await admin.rpc(
+    "link_client_profile" as never,
+    { p_person: personId, p_user: userId } as never,
+  );
+  if (linkError) return { ok: false, reason: "error" };
+
+  return {
+    ok: true,
+    session: sessionOf(session),
+    personId,
+    fullName,
+    passwordSet: person?.password_set_at != null,
+  };
+}
