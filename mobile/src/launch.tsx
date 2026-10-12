@@ -38,7 +38,7 @@ const NATIVE = Platform.OS !== "web";
  */
 export const LAUNCH_MIN_MS = 1800;
 
-export function LaunchScreen() {
+export function LaunchScreen({ fontsReady = true }: { fontsReady?: boolean }) {
   const still = useReduceMotion();
 
   const enter = useRef(new Animated.Value(still ? 1 : 0)).current;
@@ -131,18 +131,37 @@ export function LaunchScreen() {
               <Animated.View style={[styles.ring, ringStyle(ring3)]} />
             </>
           )}
-          <Animated.View style={[styles.markWrap, { opacity: enter, transform: [{ scale: markScale }] }]}>
+          {/*
+            NO CARD UNDER THE MARK. It used to sit on a white rounded tile, and while the asset was still
+            decoding that tile was a conspicuous empty white box in the middle of the screen — the worst
+            possible failure mode, because it looks like something broke rather than like something loading.
+            On paper, a mark that has not arrived yet is simply not there, and the rings carry the moment.
+            The home lockup already draws this emblem straight onto the same cream.
+          */}
+          <Animated.View style={{ opacity: enter, transform: [{ scale: markScale }] }}>
             <Image source={EMBLEM} alt="" accessible={false} contentFit="contain" style={styles.emblem} />
           </Animated.View>
         </View>
 
-        {/* The one word on this screen, and it is a name rather than copy — so it needs no settings row. */}
-        <Animated.Text
-          style={[styles.word, { opacity: wordFade, transform: [{ translateY: wordRise }] }]}
-          accessibilityRole="header"
-        >
-          AgriZed
-        </Animated.Text>
+        {/*
+          THE WORD IS ABSOLUTE, so it does not push the mark off centre.
+          Laid out in the flow it added its own height to the group, and `justifyContent: center` then centred
+          MARK + WORD together — which puts the mark above the middle of the screen and the word below it, and
+          reads as «not centred» because nothing is. Hanging it under a centred stage leaves the mark exactly
+          in the middle, where the eye expects it.
+
+          IT ALSO WAITS FOR ITS FONT. «AgriZed» is set in Markazi, which arrives with the other five faces;
+          before it does, the system face stands in and the word visibly changes shape the moment it lands —
+          the «weird effect on text» he saw. Nothing is drawn until the font can draw it properly.
+        */}
+        {fontsReady ? (
+          <Animated.Text
+            style={[styles.word, { opacity: wordFade, transform: [{ translateY: wordRise }] }]}
+            accessibilityRole="header"
+          >
+            AgriZed
+          </Animated.Text>
+        ) : null}
       </View>
     </View>
   );
@@ -171,7 +190,7 @@ export function LaunchFailure({ text, retryLabel, onRetry }: { text: string; ret
 
 const styles = StyleSheet.create({
   page: { flex: 1, backgroundColor: colour.paper, alignItems: "center", justifyContent: "center" },
-  centre: { alignItems: "center", justifyContent: "center", paddingHorizontal: space.section },
+  centre: { flex: 1, width: "100%", alignItems: "center", justifyContent: "center", paddingHorizontal: space.section },
   // A fixed stage so the rings have something to be centred in and the layout cannot shift as they grow.
   stage: { width: 240, height: 240, alignItems: "center", justifyContent: "center" },
   ring: {
@@ -182,23 +201,18 @@ const styles = StyleSheet.create({
     borderWidth: 1.5,
     borderColor: colour.leaf,
   },
-  // White under the mark, lifted off the page: the emblem is drawn for a light card, not for bare paper.
-  markWrap: {
-    width: 136,
-    height: 136,
-    borderRadius: radius.hero,
-    backgroundColor: colour.surface,
-    alignItems: "center",
-    justifyContent: "center",
-    shadowColor: colour.ink,
-    shadowOpacity: 0.1,
-    shadowRadius: 24,
-    shadowOffset: { width: 0, height: 10 },
-    elevation: 4,
-  },
-  emblem: { width: 96, height: 96 },
+  emblem: { width: 116, height: 116 },
   emblemQuiet: { width: 72, height: 72, opacity: 0.85 },
-  word: { ...display(700), fontSize: 32, color: colour.forest, marginTop: space.tight, letterSpacing: 0.4 },
+  // Hung under the centred stage rather than laid out after it — see the note at the call site.
+  word: {
+    ...display(700),
+    position: "absolute",
+    top: "50%",
+    marginTop: 128,
+    fontSize: 32,
+    color: colour.forest,
+    letterSpacing: 0.4,
+  },
   failure: {
     marginTop: space.roomy,
     fontSize: 15,

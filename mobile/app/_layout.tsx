@@ -12,6 +12,7 @@ import { IBMPlexSansArabic_600SemiBold } from "@expo-google-fonts/ibm-plex-sans-
 import { IBMPlexSansArabic_700Bold } from "@expo-google-fonts/ibm-plex-sans-arabic/700Bold";
 import { MarkaziText_400Regular } from "@expo-google-fonts/markazi-text/400Regular";
 import { MarkaziText_700Bold } from "@expo-google-fonts/markazi-text/700Bold";
+import { useAssets } from "expo-asset";
 import { useFonts } from "expo-font";
 import { Stack } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
@@ -76,6 +77,20 @@ export default function RootLayout() {
     [FONT.display[700]]: MarkaziText_700Bold,
   });
 
+  /*
+   * THE LAUNCH SCREEN'S OWN ARTWORK, waited for like the fonts.
+   *
+   * The emblem is the only thing that screen draws, and it was being asked for at the moment nothing is
+   * cached — so for the first part of the animation the middle of the screen was empty and the rings opened
+   * around nothing. Measured in the running app: the <img> was present with the right source and opacity 1,
+   * `complete: false`, naturalWidth 0, 700ms in.
+   *
+   * `useAssets` returns an error rather than throwing, and an error counts as settled: a launch screen that
+   * waits forever for a picture is worse than one that opens without it.
+   */
+  const [markAssets, markError] = useAssets([require("../assets/agrized-emblem.webp")]);
+  const markSettled = Boolean(markAssets) || Boolean(markError);
+
   const configReady = useRef(false);
   const fontsSettled = fontsReady || fontError !== null;
 
@@ -85,9 +100,9 @@ export default function RootLayout() {
    * behind a splash nobody can see.
    */
   const hideWhenBothSettled = useCallback(() => {
-    if (!configReady.current || !fontsSettled) return;
+    if (!configReady.current || !fontsSettled || !markSettled) return;
     void SplashScreen.hideAsync().catch(() => {});
-  }, [fontsSettled]);
+  }, [fontsSettled, markSettled]);
 
   const onConfigReady = useCallback(() => {
     configReady.current = true;
@@ -118,7 +133,7 @@ export default function RootLayout() {
           words have arrived — the screen that would show the result cannot draw a label until they have.
         */}
         <AuthProvider>
-          <Shell />
+          <Shell fontsReady={fontsSettled} markReady={markSettled} />
         </AuthProvider>
       </ConfigProvider>
     </SafeAreaProvider>
@@ -139,7 +154,7 @@ export default function RootLayout() {
  * intent — the provider's own comment says the caller «shows the owner's network sentence instead of a shell
  * full of printed key names» — and no caller was doing it.
  */
-function Shell() {
+function Shell({ fontsReady, markReady }: { fontsReady: boolean; markReady: boolean }) {
   const { config, ready, failed, reload } = useConfig();
 
   /*
@@ -159,7 +174,15 @@ function Shell() {
     return () => clearTimeout(timer);
   }, []);
 
-  if (!ready || !played) return <LaunchScreen />;
+  /*
+   * THE FONTS ARE PART OF «READY», which they were not before.
+   *
+   * The splash above waits for them, and in Expo Go the splash does not hold — so the app drew its screens in
+   * the system face and every word changed shape the moment the five bundled faces landed. That flicker is
+   * «this weird effect on text when entering the app»: nothing was moving, the letters were being redrawn.
+   * Holding here until they have settled means the first words a reader sees are the right ones.
+   */
+  if (!ready || !played || !fontsReady || !markReady) return <LaunchScreen fontsReady={fontsReady} />;
 
   if (failed) {
     /*
