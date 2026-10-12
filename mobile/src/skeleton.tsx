@@ -1,8 +1,9 @@
-import { useEffect, useRef } from "react";
-import { Animated, Platform, StyleSheet, View, type StyleProp, type ViewStyle } from "react-native";
+import { LinearGradient } from "expo-linear-gradient";
+import { useEffect, useRef, useState } from "react";
+import { Animated, Easing, Platform, StyleSheet, View, type StyleProp, type ViewStyle } from "react-native";
 
 import { useReduceMotion } from "./components";
-import { colour, frame, radius, space } from "./theme";
+import { alpha, colour, fill, frame, isRTL, radius, space } from "./theme";
 
 /**
  * What a screen shows before it has anything, and how what it has arrives.
@@ -28,7 +29,72 @@ import { colour, frame, radius, space } from "./theme";
  * is on screen.
  */
 
-/** One breathing block. Width is a number or a percentage string, as a RN style takes either. */
+/**
+ * ONE CLOCK FOR THE WHOLE SCREEN.
+ *
+ * Every block reads this single value, so a page of them sweeps as one movement instead of eight blocks
+ * blinking on their own schedules. That difference is most of what separates a skeleton that looks designed
+ * from one that looks broken — and it is why this is a module-level value rather than one per component.
+ *
+ * It is reference-counted: the loop starts when the first block appears and stops when the last goes, so
+ * nothing is animating behind a screen nobody is looking at. `useNativeDriver` keeps the sweep on the UI
+ * thread, so a slow settings read cannot make it stutter — which was the other half of the ugliness, since
+ * the JS thread is busy with exactly that read while this is on screen.
+ */
+const sweep = new Animated.Value(0);
+let watchers = 0;
+let loop: Animated.CompositeAnimation | null = null;
+
+function startSweep() {
+  watchers += 1;
+  if (loop) return;
+  loop = Animated.loop(
+    Animated.sequence([
+      Animated.timing(sweep, {
+        toValue: 1,
+        duration: 1150,
+        // Ease in and out: a sweep at constant speed reads as a machine, and the pause at the end of each
+        // pass is what stops it feeling frantic.
+        easing: Easing.inOut(Easing.ease),
+        /*
+         * Native driver on a phone, JS driver on the web preview.
+         *
+         * react-native-web has no native animated module, so `true` there means the sweep silently does not
+         * run — which is harmless for the product and useless for whoever is designing it, because the
+         * preview then shows a still skeleton and says nothing is wrong. Measured: the transforms stayed at
+         * the identity matrix across 350ms. On iOS and Android the native driver is the whole point, since
+         * the JS thread is busy with the very settings read this is covering for.
+         */
+        useNativeDriver: Platform.OS !== "web",
+      }),
+      Animated.delay(320),
+    ]),
+  );
+  loop.start();
+}
+
+function stopSweep() {
+  watchers = Math.max(0, watchers - 1);
+  if (watchers > 0 || !loop) return;
+  loop.stop();
+  loop = null;
+  sweep.setValue(0);
+}
+
+/**
+ * One block, with a light passing over it.
+ *
+ * WHAT THIS REPLACES. The first version pulsed opacity between 0.45 and 1 — every block fading in and out
+ * where it stood. On one block that reads as «loading»; on eight it reads as a fault, and the owner called it
+ * ugly, which it was. A highlight travelling across a still block is the shape the eye already knows, and it
+ * says the same thing without anything blinking.
+ *
+ * IT SWEEPS IN THE READING DIRECTION. Right to left on an Arabic screen, because a highlight that enters
+ * from the wrong side feels like it is going backwards even when nobody can say why.
+ *
+ * The width is measured rather than assumed: these blocks are mostly `flex: 1` inside rows, so their width
+ * is not known until layout, and a gradient translated by a guessed distance either stops short or overshoots.
+ */
 export function Shimmer({
   width,
   height,
@@ -41,32 +107,44 @@ export function Shimmer({
   style?: StyleProp<ViewStyle>;
 }) {
   const still = useReduceMotion();
-  const breath = useRef(new Animated.Value(still ? 0.7 : 0.45)).current;
+  const [measured, setMeasured] = useState(0);
 
   useEffect(() => {
-    if (still) {
-      breath.setValue(0.7);
-      return;
-    }
-    const loop = Animated.loop(
-      Animated.sequence([
-        Animated.timing(breath, { toValue: 1, duration: 760, useNativeDriver: true }),
-        Animated.timing(breath, { toValue: 0.45, duration: 760, useNativeDriver: true }),
-      ]),
-    );
-    loop.start();
-    // Stopping on unmount matters: a looping animation left running on a screen that has gone keeps the JS
-    // thread awake, and on a list of skeletons that is one timer per block.
-    return () => loop.stop();
-  }, [breath, still]);
+    if (still) return;
+    startSweep();
+    return stopSweep;
+  }, [still]);
+
+  const travel = measured * 1.6;
+  const shift = sweep.interpolate({
+    inputRange: [0, 1],
+    outputRange: isRTL() ? [travel, -travel] : [-travel, travel],
+  });
 
   return (
-    <Animated.View
+    <View
       // Decorative by definition — it stands for content that does not exist yet, so there is nothing to read.
       accessible={false}
       importantForAccessibility="no-hide-descendants"
-      style={[{ width, height, borderRadius: corner, backgroundColor: colour.leafSoft, opacity: breath }, style]}
-    />
+      onLayout={(event) => setMeasured(event.nativeEvent.layout.width)}
+      style={[
+        { width, height, borderRadius: corner, backgroundColor: colour.leafSoft, overflow: "hidden" },
+        style,
+      ]}
+    >
+      {still || measured === 0 ? null : (
+        <Animated.View style={[fill, { transform: [{ translateX: shift }] }]}>
+          <LinearGradient
+            // Cream rather than white: the page is #f7f5ee, and a white highlight on a warm page reads as a
+            // cold rectangle sliding about.
+            colors={[alpha(colour.paper, 0), alpha(colour.paper, 0.85), alpha(colour.paper, 0)]}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 0 }}
+            style={StyleSheet.absoluteFill}
+          />
+        </Animated.View>
+      )}
+    </View>
   );
 }
 
