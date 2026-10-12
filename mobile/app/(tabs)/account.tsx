@@ -1,12 +1,14 @@
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Linking, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { failureKey, useAuth, type AuthFailure } from "../../src/auth";
 import { settingText, t } from "../../src/config";
+import { siteFormat } from "../../src/format";
 import { Shimmer } from "../../src/skeleton";
 import { card, colour, frame, space, type } from "../../src/theme";
 import { Btn, ErrorText, Field, Hairline, Label } from "../../src/ui";
+import { buildRows, failureKey as fileFailureKey, fetchMyFile, type Failure, type Row, type ZitountiFile } from "../../src/zitounti";
 import { useConfig } from "../../src/use-config";
 
 /**
@@ -245,9 +247,105 @@ function SignInPanel() {
  */
 function SignedIn({ name, onSignOut }: { name: string | null; onSignOut: () => void }) {
   const { config } = useConfig();
+  const fmt = useMemo(() => siteFormat(config), [config]);
+
+  const [file, setFile] = useState<ZitountiFile | null>(null);
+  const [failure, setFailure] = useState<Failure | null>(null);
+  const [loading, setLoading] = useState(true);
+  const gone = useRef(false);
+
+  const read = useCallback(async () => {
+    setLoading(true);
+    const result = await fetchMyFile();
+    if (gone.current) return;
+    if (result.ok) {
+      setFile(result.file);
+      setFailure(null);
+    } else {
+      setFile(null);
+      setFailure(result.reason);
+    }
+    setLoading(false);
+  }, []);
+
+  useEffect(() => {
+    gone.current = false;
+    void read();
+    return () => {
+      gone.current = true;
+    };
+  }, [read]);
+
+  /*
+   * The rows are drawn even when the file did not open, and that is the website's decision repeated here:
+   * «a reader who was promised a space is owed the shape of it». What changes is the note beside each one —
+   * the owner's «قريباً» when the module is genuinely closed, and nothing at all for any other failure,
+   * because a note there would be a guess about why.
+   */
+  const rows: Row[] = useMemo(
+    () => buildRows(file, (key) => t(config, key), (n) => fmt.count(n), failure === "closed" ? t(config, "zitounti.section_later") : null),
+    [config, failure, file, fmt],
+  );
+
+  const trees = file?.totals?.trees ?? 0;
+  const paid = file?.totals?.paid_millimes ?? null;
+
   return (
     <>
-      <Text style={[type.pageTitle, { color: colour.forest700 }]}>{name ?? t(config, "zitounti.title")}</Text>
+      <Text style={[type.pageTitle, { color: colour.forest700 }]}>
+        {name ? t(config, "ui.zitounti.greeting", { name }) : t(config, "ui.zitounti.greeting_anonymous")}
+      </Text>
+
+      {loading ? (
+        <View style={styles.waiting}>
+          <Shimmer height={88} corner={16} />
+          <Shimmer height={260} corner={16} />
+        </View>
+      ) : (
+        <>
+          {/* The figures a buyer owns, straight from the payload — nothing added up here. */}
+          {file && trees > 0 ? (
+            <View style={styles.totals}>
+              <View style={styles.total}>
+                <Text style={type.figure}>{fmt.count(trees)}</Text>
+                <Text style={[type.caption, styles.totalLabel]}>{t(config, "ui.zitounti.my_trees")}</Text>
+              </View>
+              {paid !== null ? (
+                <View style={styles.total}>
+                  <Text style={type.figure}>{fmt.money(paid)}</Text>
+                  <Text style={[type.caption, styles.totalLabel]}>{t(config, "ui.zitounti.amount")}</Text>
+                </View>
+              ) : null}
+            </View>
+          ) : null}
+
+          {/* Why the file did not open, in the owner's words — never a sentence invented here. */}
+          {failure ? (
+            <View style={styles.card}>
+              <Text style={[type.body, { color: colour.muted }]}>{t(config, fileFailureKey(failure))}</Text>
+              <Btn
+                label={t(config, "ui.pages.error_retry")}
+                onPress={() => void read()}
+                tone="secondary"
+                style={styles.wide}
+              />
+            </View>
+          ) : null}
+
+          <View style={styles.card}>
+            {rows.map((row, index) => (
+              <View key={row.key}>
+                {index > 0 ? <Hairline /> : null}
+                <View style={styles.row}>
+                  <Text style={[type.heading, styles.rowLabel]}>{row.label}</Text>
+                  <Text style={[type.caption, { color: row.open ? colour.forest : colour.muted }]}>{row.note}</Text>
+                </View>
+              </View>
+            ))}
+          </View>
+        </>
+      )}
+
       <View style={styles.card}>
         <Btn label={t(config, "ui.login.sign_out")} onPress={onSignOut} tone="secondary" style={styles.wide} />
         <HelpLine />
@@ -282,6 +380,11 @@ const styles = StyleSheet.create({
   group: { gap: space.tight },
   wide: { width: "100%" },
   locked: { opacity: 0.6 },
+  totals: { ...card, marginTop: space.roomy, padding: space.card, flexDirection: "row", gap: space.cozy },
+  total: { flex: 1, alignItems: "center", gap: space.hair },
+  totalLabel: { color: colour.muted, textAlign: "center" },
+  row: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingVertical: space.snug, gap: space.cozy },
+  rowLabel: { flex: 1 },
   quiet: { textAlign: "center", color: colour.muted, lineHeight: 24 },
   help: {
     ...type.caption,
