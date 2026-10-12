@@ -220,28 +220,6 @@ export function HomeSkeleton() {
   );
 }
 
-/**
- * The hold before the first screen — on the web build only, and that limit is the whole point.
- *
- * Native has a real splash screen: app/_layout.tsx holds it until the fonts and the owner's words have both
- * settled, so nothing half-loaded is ever on screen. The web build has no such thing. It mounts the shell
- * immediately, and for the second or two that `readSettings()` spends paging through a thousand-odd rows,
- * every label on it is `t()` printing a key's own name — «site.app_hero_line» across the hero, «site.tab_home»
- * under a tab. That is correct behaviour for a missing key and a terrible first impression for a pending one,
- * and it is exactly what the owner saw and called «text that looks like code».
- *
- * So on web the same wait is held here instead, showing the shape of the home screen. On native this renders
- * its children immediately and the splash does its job, unchanged.
- */
-export function ConfigGate({ ready, children }: { ready: boolean; children: React.ReactNode }) {
-  if (Platform.OS !== "web" || ready) return <>{children}</>;
-  return (
-    <View style={styles.gate}>
-      <HomeSkeleton />
-    </View>
-  );
-}
-
 const styles = StyleSheet.create({
   page: {
     width: "100%",

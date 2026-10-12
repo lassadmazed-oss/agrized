@@ -42,6 +42,16 @@ const ConfigContext = createContext<ConfigState>({
   ready: false,
 });
 
+/** One retry, after a breath. A second failure is a real failure and is reported as one. */
+async function withRetry<T>(read: () => Promise<T>): Promise<T> {
+  try {
+    return await read();
+  } catch {
+    await new Promise((resolve) => setTimeout(resolve, 600));
+    return read();
+  }
+}
+
 export function ConfigProvider({ children, onReady }: { children: ReactNode; onReady?: () => void }) {
   const [config, setConfig] = useState<AppConfig>(EMPTY_CONFIG);
   const [loading, setLoading] = useState(true);
@@ -53,9 +63,22 @@ export function ConfigProvider({ children, onReady }: { children: ReactNode; onR
     setLoading(true);
     setFailed(false);
     try {
-      setConfig(await loadConfig());
-    } catch {
-      // The owner's own sentence is shown by the screens; nothing is invented here.
+      /*
+       * TWO ATTEMPTS, AND THE SECOND IS THE POINT. The read is 1110 rows over two pages, about 89KB — small
+       * and fast from a desk. From a phone on a weak signal one leg of it can simply not arrive, and a single
+       * failure used to blank every word in the app: `t()` then prints each key's own name and every feature
+       * flag reads as closed, which is why the owner photographed a home screen captioned
+       * «site.app_hero_line» with two tabs instead of four.
+       */
+      setConfig(await withRetry(loadConfig));
+    } catch (cause) {
+      /*
+       * IT USED TO FAIL IN SILENCE. This catch was empty but for a comment, so a configuration that never
+       * arrived left no trace anywhere — not in Metro, not on the screen, nothing to read. Diagnosing it cost
+       * an afternoon of guessing. The reader still sees the owner's sentence; whoever is holding the laptop
+       * now also sees the reason.
+       */
+      console.error("[config] could not be read:", cause);
       setFailed(true);
     } finally {
       setLoading(false);

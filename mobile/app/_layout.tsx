@@ -19,9 +19,10 @@ import { StatusBar } from "expo-status-bar";
 import { useCallback, useEffect, useRef } from "react";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 
+import { settingText } from "../src/config";
 import { colour, FONT } from "../src/theme";
 import { AuthProvider } from "../src/auth";
-import { ConfigGate } from "../src/skeleton";
+import { LaunchFailure, LaunchScreen } from "../src/launch";
 import { ConfigProvider, useConfig } from "../src/use-config";
 
 /**
@@ -127,15 +128,40 @@ export default function RootLayout() {
 /**
  * Everything under the provider, so it can ask whether the owner's words have arrived.
  *
- * `ConfigGate` is a no-op on native — the splash in RootLayout above is already holding the first frame, and
- * a second gate behind it would hold nothing. On web, where there is no splash to hold, it stands in with the
- * home screen's own shape until the settings land. Without it the web build mounts the shell instantly and
- * spends the next second or two printing key names where the owner's sentences go.
+ * IT HOLDS ON EVERY PLATFORM NOW, which is the fix for what the owner photographed. The splash above is
+ * supposed to cover this wait and on a real build it does — but in Expo Go it does not, and the app dropped
+ * straight onto the home screen's skeleton with every label printing its own key name and two tabs instead of
+ * four, because an empty configuration means every feature flag reads as closed. A gate that only guards the
+ * platform where the problem does not happen guards nothing.
+ *
+ * A FAILED READ GETS A SCREEN RATHER THAN A SHELL. use-config.tsx retries once; if it still cannot read, the
+ * app says so and offers to try again instead of drawing a page of key names. That was always the stated
+ * intent — the provider's own comment says the caller «shows the owner's network sentence instead of a shell
+ * full of printed key names» — and no caller was doing it.
  */
 function Shell() {
-  const { ready } = useConfig();
+  const { config, ready, failed, reload } = useConfig();
+
+  if (!ready) return <LaunchScreen />;
+
+  if (failed) {
+    /*
+     * THE ONE SENTENCE IN THIS APP THAT CARRIES A FALLBACK IN CODE, and the exception proves the rule: it is
+     * shown only when the owner's rows could not be read, so reading his row for it is the one thing that
+     * cannot work. settingText returns the row when there is one — a retry may have landed the config since —
+     * and this short Arabic when there is not.
+     */
+    return (
+      <LaunchFailure
+        text={settingText(config, "ui.offer.form_error_network", "ما نجّمناش نحمّلو التطبيق. تثبّت من الاتصال بالإنترنت.")}
+        retryLabel={settingText(config, "ui.pages.error_retry", "عاود")}
+        onRetry={reload}
+      />
+    );
+  }
+
   return (
-    <ConfigGate ready={ready}>
+    <>
       <Stack
         screenOptions={{
           headerStyle: { backgroundColor: colour.paper },
@@ -163,6 +189,6 @@ function Shell() {
         */}
         <Stack.Screen name="offer/[code]" options={{ headerShown: false }} />
       </Stack>
-    </ConfigGate>
+    </>
   );
 }
