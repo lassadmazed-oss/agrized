@@ -269,6 +269,7 @@ export function OfferImage({
   corner,
   priority,
   recyclingKey,
+  fit = "cover",
   style,
 }: {
   url: string | null;
@@ -283,6 +284,12 @@ export function OfferImage({
   corner?: StyleProp<ImageStyle>;
   priority?: "low" | "normal" | "high";
   recyclingKey?: string;
+  /**
+   * «cover» everywhere a picture fills a frame the design chose — a card, a strip, a hero. «contain» only
+   * where the PICTURE is the subject and its shape is its own: the full-screen viewer, where cropping a
+   * photograph to a phone's aspect is cutting off the thing the reader opened it to see.
+   */
+  fit?: "cover" | "contain";
   style?: StyleProp<ImageStyle>;
 }) {
   const [fallback, setFallback] = useState(false);
@@ -307,7 +314,7 @@ export function OfferImage({
       source={sized}
       accessibilityLabel={alt ?? undefined}
       accessible={Boolean(alt)}
-      contentFit="cover"
+      contentFit={fit}
       // 180ms is what the list already used and it is right: long enough to read as a fade, short enough
       // that a row scrolled past does not arrive mid-animation.
       transition={180}
@@ -315,7 +322,7 @@ export function OfferImage({
       priority={priority}
       recyclingKey={recyclingKey}
       placeholder={{ blurhash: BLURHASH }}
-      placeholderContentFit="cover"
+      placeholderContentFit={fit}
       onError={() => (fallback ? setBroken(true) : setFallback(true))}
       style={[style, corner]}
     />

@@ -33,6 +33,7 @@ import {
 import { moduleOpen, settingText, t, type AppConfig } from "../../src/config";
 import { ArrowGo, ChevronBack, MapSketch, PinIcon, ShareIcon } from "../../src/icons";
 import { InterestForm } from "../../src/InterestForm";
+import { PhotoViewer, usePhotoViewer } from "../../src/gallery";
 import {
   chosenLabels,
   format,
@@ -100,6 +101,14 @@ export default function OfferScreen() {
 
   const offer = useMemo(() => catalogue.find((row) => row.code === code), [catalogue, code]);
   const stock = offer ? stocks.get(offer.id) : undefined;
+
+  /*
+   * WITH THE OTHER HOOKS, ABOVE EVERY EARLY RETURN. This screen returns early while the offer is loading,
+   * when it is missing and when the module is shut — four branches — so a hook placed further down (where
+   * `pictures` is finally known) is skipped on those renders. React calls that «Rendered more hooks than
+   * during the previous render» and refuses to draw anything at all, which is what it did.
+   */
+  const viewer = usePhotoViewer();
 
   const [page, setPage] = useState<OfferPage | null>(null);
   const [quote, setQuote] = useState<OfferQuote | null>(null);
@@ -187,6 +196,12 @@ export default function OfferScreen() {
   /** Every picture, the cover first — the order `public_project_page` already returns them in. */
   const pictures: OfferPicture[] = page?.media ?? [];
   const gallery = pictures.slice(1);
+
+  /*
+   * ONE VIEWER FOR THE WHOLE SCREEN, over the whole set: the hero shows every picture and the photos panel
+   * shows all but the cover, so a viewer per place would mean two of them disagreeing about what «the next
+   * picture» is. It is opened by INDEX INTO `pictures`, which is why the panel maps its tile back to it.
+   */
 
   const perTree = areaPerTree(offer);
   /** A single area, or the range between the offer's own two spacings (page.tsx:204). */
@@ -355,6 +370,7 @@ export default function OfferScreen() {
               fallbackAlt={offer.cover_alt_ar}
               seed={offer.id}
               width={sheetWidth}
+              onOpen={viewer.open}
             />
             {offer.status !== "published" ? (
               <Pill
@@ -474,6 +490,7 @@ export default function OfferScreen() {
                       videoUrl={page?.videoUrl ?? null}
                       videoTitle={t(config, "projects.video_title")}
                       videoLink={t(config, "ui.offer.video_link")}
+                      onOpen={(picture) => viewer.open(Math.max(0, pictures.findIndex((p) => p.id === picture.id)))}
                     />
                   ) : null}
                   {section.key === "documents" ? (
@@ -553,6 +570,9 @@ export default function OfferScreen() {
           </ScrollView>
         </View>
       </Modal>
+
+      {/* Over everything, the floating door included: a viewer under a button is not a viewer. */}
+      <PhotoViewer pictures={pictures} startAt={viewer.at} onClose={viewer.close} />
     </View>
   );
 }
@@ -587,12 +607,15 @@ function Hero({
   fallbackAlt,
   seed,
   width,
+  onOpen,
 }: {
   pictures: OfferPicture[];
   fallbackUrl: string | null;
   fallbackAlt: string | null;
   seed: string;
   width: number;
+  /** Tapping a photograph opens it full screen, at the one that was tapped. */
+  onOpen: (index: number) => void;
 }) {
   /** `aspect-[2/1]`, not the catalogue's 4:3: at 375px a 4:3 band is 281px of picture and pushed the price,
       the figures and the door past the fold, which is the one thing the drawing does not allow. */
@@ -640,7 +663,7 @@ function Hero({
 
   if (count < 2) {
     const only = pictures[0];
-    return (
+    const image = (
       <OfferImage
         url={only?.url ?? fallbackUrl}
         alt={only?.alt ?? fallbackAlt}
@@ -651,6 +674,8 @@ function Hero({
         style={{ width, height }}
       />
     );
+    // Only a real picture opens: the drawn grove that stands in for a missing one has nothing to enlarge.
+    return only ? <Pressable onPress={() => onOpen(0)}>{image}</Pressable> : image;
   }
 
   return (
@@ -671,7 +696,7 @@ function Hero({
         style={[{ width, height }, mirror]}
       >
         {pictures.map((picture, index) => (
-          <View key={picture.id} style={mirror}>
+          <Pressable key={picture.id} onPress={() => onOpen(index)} style={mirror}>
             <OfferImage
               url={picture.url}
               alt={picture.alt}
@@ -682,7 +707,7 @@ function Hero({
               priority={index === 0 ? "high" : "low"}
               style={{ width, height }}
             />
-          </View>
+          </Pressable>
         ))}
       </ScrollView>
 
@@ -820,19 +845,21 @@ function PhotosPanel({
   videoUrl,
   videoTitle,
   videoLink,
+  onOpen,
 }: {
   gallery: OfferPicture[];
   width: number;
   videoUrl: string | null;
   videoTitle: string;
   videoLink: string;
+  onOpen: (picture: OfferPicture) => void;
 }) {
   /** `aspect-4/3` on the gallery, as the site crops it. */
   const height = Math.round((width * 3) / 4);
   return (
     <View style={{ gap: space.cozy }}>
       {gallery.map((picture) => (
-        <View key={picture.id}>
+        <Pressable key={picture.id} onPress={() => onOpen(picture)}>
           <OfferImage
             url={picture.url}
             alt={picture.alt}
@@ -844,7 +871,7 @@ function PhotosPanel({
             corner={{ borderRadius: radius.card }}
           />
           {picture.caption ? <Text style={styles.caption}>{picture.caption}</Text> : null}
-        </View>
+        </Pressable>
       ))}
 
       {videoUrl ? (
