@@ -3,7 +3,7 @@ import { useEffect, useRef } from "react";
 import { Animated, Easing, Platform, StyleSheet, Text, View } from "react-native";
 
 import { useReduceMotion } from "./components";
-import { alpha, colour, display, radius, space } from "./theme";
+import { colour, display, radius, space } from "./theme";
 
 /**
  * The first screen, and the only one drawn before the owner's words have arrived.
@@ -28,70 +28,121 @@ const EMBLEM = require("../assets/agrized-emblem.webp");
 /** Native driver on a phone; the web preview has no native animated module and would simply not move. */
 const NATIVE = Platform.OS !== "web";
 
+/**
+ * How long the launch is held even when the configuration arrives sooner.
+ *
+ * Without it the screen is a FLASH on a fast connection — the emblem appears, and before it has finished
+ * settling the home screen replaces it. A thing that appears and vanishes inside half a second reads as a
+ * glitch, which is most of what «super ugly» was describing. 1800ms is the choreography below played once:
+ * the rings open, the mark settles, the name arrives, and then the app does.
+ */
+export const LAUNCH_MIN_MS = 1800;
+
 export function LaunchScreen() {
   const still = useReduceMotion();
 
-  // One value drives the entrance: the bloom, the emblem's scale and the fade all read from it, so they
-  // cannot drift apart the way three separate timings would.
   const enter = useRef(new Animated.Value(still ? 1 : 0)).current;
-  // A separate, slower loop for the line underneath — the only thing that keeps moving once the entrance
-  // has finished, because a screen that goes completely still reads as frozen rather than as waiting.
-  const pulse = useRef(new Animated.Value(0)).current;
+  const word = useRef(new Animated.Value(still ? 1 : 0)).current;
+  // Three rings, started one after another, so the ripple is continuous rather than a single pulse.
+  const ring1 = useRef(new Animated.Value(0)).current;
+  const ring2 = useRef(new Animated.Value(0)).current;
+  const ring3 = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
     if (still) {
       enter.setValue(1);
+      word.setValue(1);
       return;
     }
-    const entrance = Animated.timing(enter, {
+
+    /*
+     * THE CHOREOGRAPHY, and why it is staged rather than simultaneous.
+     *
+     * Everything arriving at once is a single event the eye reads in one blink; arriving in order is a
+     * sequence it watches. The mark settles first because it is the subject, the name follows because it
+     * names what has arrived, and the rings keep going because they are the only part that means «still
+     * working» — the other two have finished saying what they say.
+     */
+    const mark = Animated.timing(enter, {
       toValue: 1,
-      duration: 620,
-      // Slight overshoot: the emblem settles rather than stops, which is the difference between a logo that
-      // arrives and one that is simply switched on.
-      easing: Easing.out(Easing.back(1.4)),
+      duration: 820,
+      // Overshoot, gently: the mark settles rather than stopping dead.
+      easing: Easing.out(Easing.back(1.2)),
       useNativeDriver: NATIVE,
     });
-    const breathing = Animated.loop(
-      Animated.sequence([
-        Animated.timing(pulse, { toValue: 1, duration: 900, easing: Easing.inOut(Easing.ease), useNativeDriver: NATIVE }),
-        Animated.timing(pulse, { toValue: 0, duration: 900, easing: Easing.inOut(Easing.ease), useNativeDriver: NATIVE }),
-      ]),
-    );
-    entrance.start();
-    breathing.start();
-    return () => {
-      entrance.stop();
-      breathing.stop();
-    };
-  }, [enter, pulse, still]);
+    const name = Animated.sequence([
+      Animated.delay(520),
+      Animated.timing(word, { toValue: 1, duration: 560, easing: Easing.out(Easing.cubic), useNativeDriver: NATIVE }),
+    ]);
 
-  const emblemScale = enter.interpolate({ inputRange: [0, 1], outputRange: [0.86, 1] });
-  const bloomScale = enter.interpolate({ inputRange: [0, 1], outputRange: [0.5, 1] });
-  const bloomFade = enter.interpolate({ inputRange: [0, 0.6, 1], outputRange: [0, 0.9, 0.55] });
-  const wordFade = enter.interpolate({ inputRange: [0, 0.55, 1], outputRange: [0, 0, 1] });
-  const lineFade = pulse.interpolate({ inputRange: [0, 1], outputRange: [0.25, 0.8] });
+    /*
+     * Rings opening outward from behind the mark — growth rings, or water going into soil, which is the
+     * right gesture for this business and the reason this is not the flat disc it replaces. Each one takes
+     * 2.6s to travel and fade, and they are staggered by a third of that, so one is always on its way out
+     * while the next is leaving.
+     */
+    const ripple = (value: Animated.Value) =>
+      Animated.loop(
+        Animated.timing(value, {
+          toValue: 1,
+          duration: 2600,
+          easing: Easing.out(Easing.quad),
+          useNativeDriver: NATIVE,
+        }),
+      );
+    const r1 = ripple(ring1);
+    const r2 = ripple(ring2);
+    const r3 = ripple(ring3);
+
+    mark.start();
+    name.start();
+    r1.start();
+    const t2 = setTimeout(() => r2.start(), 870);
+    const t3 = setTimeout(() => r3.start(), 1740);
+
+    return () => {
+      mark.stop();
+      name.stop();
+      r1.stop();
+      r2.stop();
+      r3.stop();
+      clearTimeout(t2);
+      clearTimeout(t3);
+    };
+  }, [enter, ring1, ring2, ring3, still, word]);
+
+  const markScale = enter.interpolate({ inputRange: [0, 1], outputRange: [0.82, 1] });
+  const wordFade = word;
+  const wordRise = word.interpolate({ inputRange: [0, 1], outputRange: [10, 0] });
+
+  const ringStyle = (value: Animated.Value) => ({
+    opacity: value.interpolate({ inputRange: [0, 0.15, 1], outputRange: [0, 0.4, 0] }),
+    transform: [{ scale: value.interpolate({ inputRange: [0, 1], outputRange: [0.75, 2.2] }) }],
+  });
 
   return (
     <View style={styles.page}>
       <View style={styles.centre}>
-        {/* The bloom: a soft disc of the palette's quietest green, opening behind the mark. */}
-        <Animated.View
-          style={[styles.bloom, { opacity: bloomFade, transform: [{ scale: bloomScale }] }]}
-          accessible={false}
-          importantForAccessibility="no-hide-descendants"
-        />
-        <Animated.View style={{ opacity: enter, transform: [{ scale: emblemScale }] }}>
-          <Image source={EMBLEM} alt="" accessible={false} contentFit="contain" style={styles.emblem} />
-        </Animated.View>
+        <View style={styles.stage} accessible={false} importantForAccessibility="no-hide-descendants">
+          {still ? null : (
+            <>
+              <Animated.View style={[styles.ring, ringStyle(ring1)]} />
+              <Animated.View style={[styles.ring, ringStyle(ring2)]} />
+              <Animated.View style={[styles.ring, ringStyle(ring3)]} />
+            </>
+          )}
+          <Animated.View style={[styles.markWrap, { opacity: enter, transform: [{ scale: markScale }] }]}>
+            <Image source={EMBLEM} alt="" accessible={false} contentFit="contain" style={styles.emblem} />
+          </Animated.View>
+        </View>
 
         {/* The one word on this screen, and it is a name rather than copy — so it needs no settings row. */}
-        <Animated.Text style={[styles.word, { opacity: wordFade }]} accessibilityRole="header">
+        <Animated.Text
+          style={[styles.word, { opacity: wordFade, transform: [{ translateY: wordRise }] }]}
+          accessibilityRole="header"
+        >
           AgriZed
         </Animated.Text>
-
-        {/* Something is still happening. One line, breathing — no percentage, because we do not have one and
-            a made-up number is worse than none. */}
-        <Animated.View style={[styles.line, { opacity: lineFade }]} accessible={false} />
       </View>
     </View>
   );
@@ -121,23 +172,33 @@ export function LaunchFailure({ text, retryLabel, onRetry }: { text: string; ret
 const styles = StyleSheet.create({
   page: { flex: 1, backgroundColor: colour.paper, alignItems: "center", justifyContent: "center" },
   centre: { alignItems: "center", justifyContent: "center", paddingHorizontal: space.section },
-  bloom: {
+  // A fixed stage so the rings have something to be centred in and the layout cannot shift as they grow.
+  stage: { width: 240, height: 240, alignItems: "center", justifyContent: "center" },
+  ring: {
     position: "absolute",
-    width: 196,
-    height: 196,
-    borderRadius: 98,
-    backgroundColor: alpha(colour.leafSoft, 0.9),
+    width: 150,
+    height: 150,
+    borderRadius: 75,
+    borderWidth: 1.5,
+    borderColor: colour.leaf,
   },
-  emblem: { width: 104, height: 104 },
+  // White under the mark, lifted off the page: the emblem is drawn for a light card, not for bare paper.
+  markWrap: {
+    width: 136,
+    height: 136,
+    borderRadius: radius.hero,
+    backgroundColor: colour.surface,
+    alignItems: "center",
+    justifyContent: "center",
+    shadowColor: colour.ink,
+    shadowOpacity: 0.1,
+    shadowRadius: 24,
+    shadowOffset: { width: 0, height: 10 },
+    elevation: 4,
+  },
+  emblem: { width: 96, height: 96 },
   emblemQuiet: { width: 72, height: 72, opacity: 0.85 },
-  word: { ...display(700), fontSize: 30, color: colour.forest, marginTop: space.cozy, letterSpacing: 0.4 },
-  line: {
-    marginTop: space.roomy,
-    width: 56,
-    height: 3,
-    borderRadius: radius.pill,
-    backgroundColor: colour.leaf,
-  },
+  word: { ...display(700), fontSize: 32, color: colour.forest, marginTop: space.tight, letterSpacing: 0.4 },
   failure: {
     marginTop: space.roomy,
     fontSize: 15,

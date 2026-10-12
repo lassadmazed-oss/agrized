@@ -16,13 +16,13 @@ import { useFonts } from "expo-font";
 import { Stack } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import { StatusBar } from "expo-status-bar";
-import { useCallback, useEffect, useRef } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 
 import { settingText } from "../src/config";
 import { colour, FONT } from "../src/theme";
 import { AuthProvider } from "../src/auth";
-import { LaunchFailure, LaunchScreen } from "../src/launch";
+import { LAUNCH_MIN_MS, LaunchFailure, LaunchScreen } from "../src/launch";
 import { ConfigProvider, useConfig } from "../src/use-config";
 
 /**
@@ -142,7 +142,24 @@ export default function RootLayout() {
 function Shell() {
   const { config, ready, failed, reload } = useConfig();
 
-  if (!ready) return <LaunchScreen />;
+  /*
+   * THE LAUNCH IS HELD FOR ITS OWN LENGTH, even when the configuration beats it.
+   *
+   * On a good connection the read finishes in a few hundred milliseconds, and the screen then appeared and
+   * vanished before the mark had finished settling — a thing that flashes reads as a glitch, not as an
+   * entrance, which is most of what «super ugly» was describing. So the gate waits for the LATER of the two:
+   * the words arriving, and the animation having been allowed to play once.
+   *
+   * It is a floor and not a delay — a slow read is never made slower, and the hold is already over by the
+   * time a slow read lands.
+   */
+  const [played, setPlayed] = useState(false);
+  useEffect(() => {
+    const timer = setTimeout(() => setPlayed(true), LAUNCH_MIN_MS);
+    return () => clearTimeout(timer);
+  }, []);
+
+  if (!ready || !played) return <LaunchScreen />;
 
   if (failed) {
     /*
