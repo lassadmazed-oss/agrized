@@ -52,6 +52,13 @@ const KEYS: readonly SectionKey[] = [
   "documents",
 ];
 
+/**
+ * The sections an empty state can offer a way out of: everything a reader reaches by choosing an offer.
+ * The rest fill themselves as AgriZed works — a document, a farm operation, a harvest — and pointing at
+ * the catalogue from those would be a non sequitur.
+ */
+const ACTIONABLE = new Set<SectionKey>(["trees", "requests", "reservations", "visits", "contracts", "installments"]);
+
 type Fact = { label: string; value: string };
 type Card = { title: string; note?: string | null; pill?: string | null; facts: Fact[]; lines?: Line[] };
 type Line = { head: string; facts: Fact[]; late?: boolean };
@@ -131,8 +138,25 @@ export default function SectionScreen() {
             <Btn label={t(config, "ui.pages.error_retry")} onPress={() => void read()} tone="secondary" />
           </View>
         ) : cards.length === 0 ? (
-          <View style={styles.card}>
-            <Text style={styles.note}>{t(config, "zitounti.section_empty_note")}</Text>
+          /*
+           * EMPTY IS A PAGE, NOT A SHRUG. A reader who opened «حجوزاتي» and found one grey line has been
+           * told what is missing and nothing about what would fill it. So: the section's own name, the
+           * owner's sentence for an empty part, and the one door that could put something in it — the
+           * offers, when that module is open. The door is drawn only for the sections a visitor can
+           * actually act on; «الوثائق» fills itself when AgriZed files one, and sending somebody to the
+           * catalogue for that would be a non sequitur.
+           */
+          <View style={styles.empty}>
+            <Text style={[type.pageTitle, styles.emptyTitle]}>{title}</Text>
+            <Text style={[styles.note, styles.emptyNote]}>{t(config, "zitounti.section_empty_note")}</Text>
+            {ACTIONABLE.has(key as SectionKey) ? (
+              <Btn
+                label={t(config, "site.app_hero_cta")}
+                onPress={() => router.replace("/offers")}
+                tone="secondary"
+                style={styles.emptyBtn}
+              />
+            ) : null}
           </View>
         ) : (
           cards.map((item, index) => (
@@ -368,6 +392,10 @@ const styles = StyleSheet.create({
     alignSelf: "center",
   },
   waiting: { gap: space.cozy },
+  empty: { ...card, padding: space.card, gap: space.snug, alignItems: "center", marginTop: space.roomy },
+  emptyTitle: { color: colour.forest700, textAlign: "center" },
+  emptyNote: { textAlign: "center", lineHeight: 26 },
+  emptyBtn: { marginTop: space.tight, minWidth: 200 },
   card: { ...card, padding: space.card, gap: space.snug },
   cardHead: { ...readingRow(), alignItems: "center", gap: space.tight },
   cardTitle: { flex: 1 },

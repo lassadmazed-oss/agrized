@@ -19,7 +19,26 @@ import { readFile } from "node:fs/promises";
 
 import pg from "pg";
 
-const PHONE = "+21690000001";
+/*
+ * WHICH CLIENT TO WALK THROUGH THE SALE.
+ *
+ *   npm run demo:workflow                               → the default demo number
+ *   npm run demo:workflow -- --phone=+21658415520       → somebody else's file
+ *   npm run demo:workflow -- --phone=+21658415520 --remove
+ *
+ * It is an argument rather than a constant because the owner asked for data on a number he can actually
+ * sign in with and look at — and hand-written INSERTs for that would produce rows the application could
+ * never have produced, which is the one thing the note above this is about. Same script, same real
+ * functions, a different person.
+ *
+ * `--remove` deletes exactly what this made FOR THAT PHONE, so the two must always be given together.
+ */
+const phoneArg = process.argv.find((arg) => arg.startsWith("--phone="));
+const PHONE = phoneArg ? phoneArg.slice("--phone=".length).trim() : "+21690000001";
+if (!/^\+[1-9][0-9]{6,14}$/.test(PHONE)) {
+  console.error(`--phone must be E.164, for example +21658415520. Got: ${PHONE}`);
+  process.exit(1);
+}
 // The demo client's password for فضاء «زيتونتي» (chosen 2026-09-28 while walking the first-time flow in the
 // browser). Recorded HERE and not in a chat transcript, per the rule for test credentials. It is a test
 // value on a seeded person; the seed does not set it — it is stored by Supabase Auth on the linked user.
@@ -127,7 +146,7 @@ async function seed() {
 
   // 1 · The client fills the form. Public function, exactly as the site calls it.
   const payload = {
-    full_name: "عميل تجريبي — المسار الكامل",
+    full_name: PHONE === "+21690000001" ? "عميل تجريبي — المسار الكامل" : `عميل تجريبي ${PHONE.slice(-8)}`,
     phone_e164: PHONE,
     whatsapp_e164: PHONE,
     residence_governorate_id: govs[0]?.id ?? null,
@@ -173,10 +192,14 @@ async function seed() {
   // or at the counter — so the demo fills it the way a commercial would, before the sale is allowed.
   await client.query(
     `update public.persons
-        set cin = '99000001', cin_issued_on = date '2019-04-02', birth_date = date '1990-01-15',
+        -- The CIN is unique per person, so it cannot be a constant the moment this script can seed more
+        -- than one client: the second run collides on persons_cin_key. Derived from the phone's last seven
+        -- digits, which is unique for the same reason the phone is, and prefixed 99 so a seeded identity is
+        -- recognisable at a glance and cannot collide with a real card.
+        set cin = $2, cin_issued_on = date '2019-04-02', birth_date = date '1990-01-15',
             birth_place = 'تونس', address_line = 'نهج تجريبي، عدد 1، تونس'
       where id = $1`,
-    [personId],
+    [personId, `99${PHONE.replace(/\D/g, "").slice(-6)}`],
   );
 
   // 2 · From here on, the Back Office is doing the work.

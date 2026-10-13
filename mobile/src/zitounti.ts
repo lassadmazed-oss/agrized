@@ -176,8 +176,21 @@ export function buildRows(
     const status: SectionStatus =
       primary?.status === "ok" || extra?.status === "ok" ? "ok" : (primary?.status ?? "error" as SectionStatus);
 
+    /*
+     * AN «ok» SECTION OPENS WHETHER OR NOT IT HOLDS ANYTHING, and that changed on the owner's reading:
+     * «instead of just saying there is nothing, open the page and let the page say it».
+     *
+     * He is right, and the reason is that «ما فمّاش» on a row answers a different question from the one a
+     * reader is asking. On the row it reads as «this part of the product is not for you»; inside the
+     * section, under its own heading, it reads as «nothing here YET» — which is the truth, and it is the
+     * screen that can also say what would put something there.
+     *
+     * The two states that still do NOT open are the honest ones: `closed` is a module the owner switched
+     * off and `not_built` is a record the database does not keep yet. Opening those would promise a page
+     * that cannot exist, which is the fault this is fixing, pointed the other way.
+     */
     if (status === "ok") {
-      return [{ key: section.key, label, note: total > 0 ? count(total) : empty, open: total > 0 }];
+      return [{ key: section.key, label, note: total > 0 ? count(total) : empty, open: true }];
     }
     return [{ key: section.key, label, note: status === "not_built" ? notBuilt : later, open: false }];
   });
