@@ -522,7 +522,16 @@ begin
   perform set_config('test.min_down', (select min(min_millimes)::text from public.option_items where list_key = 'down_payment' and is_active and min_millimes is not null), true);
   perform set_config('test.first_down', (select id::text from public.option_items where list_key = 'down_payment' and is_active and min_millimes is not null order by min_millimes, sort_order limit 1), true);
   perform set_config('test.examples_max', app.setting_int('projects.installment_examples', 3)::text, true);
-  perform set_config('test.trees_100', (select id::text from public.option_items where list_key = 'tree_count' and code = 'trees_100'), true);
+  -- THIS FILE OWNS THE CARD IT EXPECTS (2026-10-13). It used to name trees_100 out of the owner's live
+  -- list, so the assertion below — «the suggestion is the option containing the parcel's own tree count» —
+  -- was really an assertion about his Back Office. He retired the 100, 250 and 500 cards, nothing contains
+  -- 100 any more, and public_parcel_offer correctly suggests nothing. The RULE is still worth proving, so
+  -- the card it needs is created here and rolled back with the rest.
+  insert into public.option_items (list_key, code, label_ar, label_fr, min_number, max_number, sort_order, is_active)
+  values ('tree_count', 'test_parcel_100', '100 زيتونة', '100 oliviers', 100, 100, 9003, true)
+  on conflict (list_key, code) do nothing;
+  perform set_config('test.trees_100', (select o.id::text from public.option_items o
+                                         where o.list_key = 'tree_count' and o.code = 'test_parcel_100'), true);
   perform set_config('test.big_productive', (select id::text from public.ownership_scenarios where code = 'big_productive'), true);
 end $$;
 

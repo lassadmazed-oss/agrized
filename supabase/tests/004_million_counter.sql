@@ -5,13 +5,24 @@
 update public.option_items set is_active = true where list_key in ('desired_area', 'down_payment', 'monthly_installment');
 
 create function pg_temp.payload(p_overrides jsonb) returns jsonb language sql as $$
+-- THE TWO COUNTS THIS FILE USES ARE ITS OWN (added 2026-10-13).
+-- It used to name trees_100 and trees_250 out of the owner's live list, and every assertion below — the
+-- label «100 زيتونة», the range 100..100, the +100 on the counter, the 50..250 CRM search — was really an
+-- assertion about his Back Office. He retired the 100, 250 and 500 cards on 2026-10-13 and the file went
+-- red, twice over: the intake refuses a retired choice (invalid_tree_choice), which is correct behaviour
+-- and not a bug to work around. A test that counts trees owns the counts it counts.
+insert into public.option_items (list_key, code, label_ar, label_fr, min_number, max_number, sort_order, is_active)
+values ('tree_count', 'test_trees_100', '100 زيتونة', '100 oliviers', 100, 100, 9001, true),
+       ('tree_count', 'test_trees_250', '250 زيتونة', '250 oliviers', 250, 250, 9002, true)
+on conflict (list_key, code) do nothing;
+
   select jsonb_build_object(
     'full_name', 'سامي الزيتوني',
     'phone_e164', '+21697111222',
     'residence_governorate_id', 34,
     'invest_governorate_ids', jsonb_build_array(34),
     'scenario_ids', jsonb_build_array((select id from public.ownership_scenarios where code = 'big_productive')),
-    'tree_count_option_id', (select id from public.option_items where list_key = 'tree_count' and code = 'trees_100'),
+    'tree_count_option_id', (select id from public.option_items where list_key = 'tree_count' and code = 'test_trees_100'),
     'desired_area_option_id', (select id from public.option_items where list_key = 'desired_area' and code = 'area_500'),
     'goal_option_id', (select id from public.option_items where list_key = 'goal' and code = 'both'),
     'down_payment_option_id', (select id from public.option_items where list_key = 'down_payment' and code = 'dp_1000'),
@@ -39,7 +50,7 @@ begin
   v_res := public.submit_interest_request(pg_temp.payload('{}'));
   select * into v_req from public.interest_requests where request_no = v_res->>'request_no';
 
-  assert v_req.tree_count_code = 'trees_100', 'the tree count code is kept, got ' || coalesce(v_req.tree_count_code, 'null');
+  assert v_req.tree_count_code = 'test_trees_100', 'the tree count code is kept, got ' || coalesce(v_req.tree_count_code, 'null');
   assert v_req.tree_count_label_ar = '100 زيتونة', 'the tree count label is kept as displayed';
   assert v_req.tree_count_min = 100 and v_req.tree_count_max = 100, 'the tree count range is kept';
 
@@ -56,7 +67,7 @@ begin
 
   -- 3 · A second request from the same phone is a duplicate and is not counted twice (LEAD-04)
   perform public.submit_interest_request(pg_temp.payload(jsonb_build_object(
-    'tree_count_option_id', (select id from public.option_items where list_key = 'tree_count' and code = 'trees_250')
+    'tree_count_option_id', (select id from public.option_items where list_key = 'tree_count' and code = 'test_trees_250')
   )));
   v_after := public.million_progress();
   assert (v_after->>'trees_requested')::bigint = v_trees0 + 100,
@@ -133,13 +144,13 @@ begin
   -- 100 trees is inside 50..250
   select count(*) into v_found
   from public.crm_search_requests(jsonb_build_object('trees_min', 50, 'trees_max', 250))
-  where tree_count_code = 'trees_100';
+  where tree_count_code = 'test_trees_100';
   assert v_found >= 1, 'the 100-tree request is found in the 50..250 range';
 
   -- ... and outside 10..40
   select count(*) into v_found
   from public.crm_search_requests(jsonb_build_object('trees_min', 10, 'trees_max', 40))
-  where tree_count_code = 'trees_100';
+  where tree_count_code = 'test_trees_100';
   assert v_found = 0, 'the 100-tree request is not returned for a 10..40 search';
 
   -- Requests with no stated number are only included when asked for
