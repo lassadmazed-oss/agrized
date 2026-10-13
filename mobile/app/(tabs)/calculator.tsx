@@ -30,6 +30,7 @@ import {
   ProgressRail,
   Tick,
 } from "../../src/ui";
+import { Shimmer } from "../../src/skeleton";
 import { useConfig } from "../../src/use-config";
 
 /**
@@ -914,8 +915,26 @@ function FiguresCard({
         </View>
       ) : null}
 
-      {/* Figures stay on screen while a newer quote loads, dimmed, so the card does not jump. */}
-      <View style={[styles.estimateBody, busy ? { opacity: 0.6 } : null]}>
+      {/*
+        WHILE A QUOTE IS IN FLIGHT THE FIGURES ARE NOT SHOWN AT ALL.
+        This used to keep the previous answer on screen at 60% opacity «so the card does not jump» — and the
+        owner read that for what it is: numbers that are wrong for the question now being asked, shown as
+        though they were the answer, and then silently replaced. Dimming does not make a wrong figure
+        provisional; it makes it quiet. Blocks in the shape of the figures say «computing» and cannot be
+        mistaken for a price.
+      */}
+      {busy ? (
+        <View style={styles.estimateBody}>
+          <View style={styles.lead}>
+            <Shimmer height={30} width="52%" corner={radius.mark} />
+            <Shimmer height={13} width="38%" corner={radius.mark} style={{ marginTop: space.hair }} />
+          </View>
+          <Shimmer height={14} width="84%" corner={radius.mark} style={{ marginTop: space.snug }} />
+          <Shimmer height={14} width="68%" corner={radius.mark} style={{ marginTop: space.hair }} />
+          <Shimmer height={14} width="76%" corner={radius.mark} style={{ marginTop: space.hair }} />
+        </View>
+      ) : (
+      <View style={styles.estimateBody}>
         {lead?.value ? (
           <View style={styles.lead}>
             <Text style={type.figure}>{lead.value}</Text>
@@ -958,6 +977,7 @@ function FiguresCard({
 
         {notice ? <Text style={styles.notice}>{notice}</Text> : null}
       </View>
+      )}
     </View>
   );
 }

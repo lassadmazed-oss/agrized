@@ -477,7 +477,8 @@ export function StartChooser({
     { id: "installments", label: copy.paymentInstallments, label_fr: copy.paymentInstallmentsFr || null },
   ];
 
-  // Figures stay on screen while a newer quote loads, dimmed, so the card does not jump.
+  // The figures leave the screen while a newer quote loads: the skeleton below stands in for them, because a
+  // dimmed old price is still an old price. They are only ever the quote for the spacing class that was asked.
   const shownQuote = spacingId ? quote : null;
   const busy = quoting && spacingId !== null;
   const summary = calculatorSummary({
@@ -943,7 +944,14 @@ export function StartChooser({
               {/* The card being worked out. It carries the same rows as the real one so the reveal changes
                   the content and not the shape, and it is `aria-hidden` with a spoken «…» beside it: a
                   screen reader should hear that figures are coming, not eleven empty rows. */}
-              {isSummary && !summaryFilled ? (
+              {/*
+                IT SHOWS WHILE ANY QUOTE IS IN FLIGHT, not only before the first one.
+                It used to appear only while the card had never been filled; every recalculation after that
+                left the PREVIOUS answer on screen at 60% opacity and swapped it when the new one landed.
+                The owner read that as mock figures turning into real ones, which is a fair description: a
+                dimmed number is still a number, and it was the wrong one for the question being asked.
+              */}
+              {(isSummary && !summaryFilled) || busy ? (
                 <div className="p-4 sm:p-5" aria-hidden>
                   <div className="border-b border-dashed border-gold/40 pb-4">
                     <span className="skeleton block h-9 w-2/5" />
@@ -963,11 +971,11 @@ export function StartChooser({
               {/* What the visitor picked, plus the areas and prices the database quoted for it (docs/tree-area-and-cost.md). */}
               <div
                 data-answers
-                hidden={isSummary && !summaryFilled}
+                // Hidden while a quote is in flight: the skeleton above is standing in for exactly these
+                // rows, and showing both would be the figures fading behind their own placeholder.
+                hidden={(isSummary && !summaryFilled) || busy}
                 aria-busy={busy || undefined}
-                className={`p-4 transition-opacity sm:p-5 ${busy ? "opacity-60" : ""} ${
-                  isSummary && summaryFilled ? "rise" : ""
-                }`}
+                className={`p-4 sm:p-5 ${isSummary && summaryFilled ? "rise" : ""}`}
               >
                 {leadRow?.value ? (
                   <div className="stat border-b border-dashed border-gold/40 pb-4">

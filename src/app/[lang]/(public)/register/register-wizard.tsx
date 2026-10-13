@@ -997,6 +997,9 @@ function Success({
 }) {
   const t = useT();
   const [copied, setCopied] = useState(false);
+  /** The confirmation is a popup over this page; closing it leaves the page standing. */
+  const [open, setOpen] = useState(true);
+  const dialogRef = useRef<HTMLDialogElement>(null);
   // The channel the request was sent with (submit() falls back to the phone, and step 5 requires one anyway).
   const channel: ContactChannel = form.contactChannel ?? "phone";
   const time = contactTimes.find((option) => option.id === form.contactTimeOptionId)?.label;
@@ -1004,120 +1007,206 @@ function Success({
   const [priceBefore, priceAfter] = t("ui.register.offer_price_per_tree", { price: PRICE_SLOT }).split(PRICE_SLOT);
   // The total price appears only when it was shown in the recap, i.e. while prices were open to this visitor.
   const recap = SUCCESS_ROWS.flatMap((key) => rows.filter((row) => row.key === key));
+  const contactLine = time
+    ? t("ui.register.success_contact_at_time", { channel, time })
+    : t("ui.register.success_contact", { channel });
+
+  /*
+   * OPEN IS STATE AND THE DIALOG FOLLOWS IT — admin/v2/popup.tsx's rule, for its reasons: nothing reads
+   * `ref.current` while rendering, and `onClose` keeps the boolean honest when the browser shuts the dialog
+   * itself, which Esc does.
+   *
+   * THE HEADING TAKES THE FOCUS IN THE SAME BREATH AS THE CLOSE, and it belongs here rather than in the
+   * button's handler. Everything behind a modal dialog is inert, so a focus() that runs before close() has
+   * is a no-op and the reader is dropped on <body> — which is exactly what the first version did, measured
+   * in the browser. One line after close() the page is live again and the heading can take it.
+   */
+  useEffect(() => {
+    const dialog = dialogRef.current;
+    if (!dialog) return;
+    if (open && !dialog.open) dialog.showModal();
+    if (!open && dialog.open) {
+      dialog.close();
+      headingRef.current?.focus();
+    }
+  }, [open, headingRef]);
+
+  const close = () => setOpen(false);
+
+  async function copyNumber() {
+    try {
+      await navigator.clipboard.writeText(requestNo);
+      setCopied(true);
+    } catch {
+      setCopied(false);
+    }
+  }
+
+  /** The same button in the popup and on the page, because the number must be copyable from either. */
+  const copyButton = (
+    <button type="button" className="btn btn-ghost min-h-10 shrink-0 text-sm" onClick={() => void copyNumber()}>
+      {t(copied ? "ui.register.number_copied" : "ui.register.copy_number")}
+    </button>
+  );
+
+  const tick = (
+    <svg viewBox="0 0 24 24" className="size-6 text-forest" fill="none" stroke="currentColor" strokeWidth={2.25} aria-hidden="true">
+      <path d="M5 12.5l4.5 4.5L19 7.5" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
 
   return (
-    <div className="mx-auto max-w-xl px-4 py-14 text-center sm:px-6">
-      <div className="mx-auto grid size-16 place-items-center rounded-full bg-leaf-soft">
-        <svg viewBox="0 0 24 24" className="size-8 text-forest" fill="none" stroke="currentColor" strokeWidth={2.25} aria-hidden="true">
-          <path d="M5 12.5l4.5 4.5L19 7.5" strokeLinecap="round" strokeLinejoin="round" />
-        </svg>
+    <>
+      {/*
+        WHAT IS LEFT WHEN THE POPUP GOES, and it is deliberately not the celebration.
+
+        The owner: «after submitting a form I don't like the page of ‹we got your thing›, make it a simple
+        popup with an X». The page under it is not a second confirmation — it is the request number, kept
+        where closing a dialog cannot lose it, his own words of welcome, and the offers he asked to appear
+        after the send (2026-09-18). The interruption is the popup; this is the record.
+      */}
+      <div className="mx-auto max-w-xl px-4 pb-14 pt-10 sm:px-6">
+        <div className="panel flex flex-wrap items-center gap-x-4 gap-y-2 px-4 py-3">
+          <div className="grid size-10 shrink-0 place-items-center rounded-full bg-leaf-soft">{tick}</div>
+          <div className="min-w-0 flex-1">
+            <h1 ref={headingRef} tabIndex={-1} className="font-display text-lg font-bold text-forest outline-none">
+              {t("ui.register.success_title")}
+            </h1>
+            <p className="mt-0.5 text-sm text-muted">
+              {t("ui.register.request_number_label")}{" "}
+              {/* AGZ-2026-000045 is Latin letters and digits: read left to right on an Arabic page too. */}
+              <span dir="ltr" className="font-semibold text-ink tabular-nums">
+                {requestNo}
+              </span>
+            </p>
+          </div>
+          {copyButton}
+        </div>
+
+        {welcomeText ? <p className="mt-6 leading-7 text-ink/80">{welcomeText}</p> : null}
+
+        {recap.length > 0 ? (
+          <dl className="panel mt-6 divide-y divide-line px-4">
+            {recap.map((row) => (
+              <div key={row.key} className="flex items-start justify-between gap-4 py-2.5">
+                <dt className="text-sm text-muted">{row.label}</dt>
+                <dd className="text-end font-semibold text-ink tabular-nums">{row.value}</dd>
+              </div>
+            ))}
+          </dl>
+        ) : null}
+
+        {motivation ? (
+          <p className="mt-6 rounded-2xl bg-leaf-soft/70 px-5 py-4 font-medium leading-7 text-forest">{motivation}</p>
+        ) : null}
+
+        <div className="mt-8 flex flex-wrap gap-3">
+          {progressLabel ? (
+            <Link href="/#million" className="btn btn-primary">
+              {progressLabel}
+            </Link>
+          ) : null}
+          <Link href="/" className="btn btn-secondary">
+            {t("ui.register.home_link")}
+          </Link>
+        </div>
+
+        {/* Owner 2026-09-18: «in the end show the current offers after the send». Each one opens its own page,
+            where it has its own form; this screen never mixes the two flows. */}
+        {offers.length > 0 && offersTitle ? (
+          <section className="mt-12">
+            <h2 className="text-center font-display text-2xl font-bold text-forest">{offersTitle}</h2>
+            {offersText ? <p className="mx-auto mt-2 max-w-md text-center leading-7 text-muted">{offersText}</p> : null}
+            <ul className="mt-6 grid gap-4 sm:grid-cols-2">
+              {offers.map((offer) => (
+                <li key={offer.code} className="card overflow-hidden">
+                  <Link href={offer.href} className="block h-full focus-visible:outline-offset-[-2px]">
+                    {offer.coverUrl ? (
+                      // eslint-disable-next-line @next/next/no-img-element -- remote cover, sized by its box
+                      <img src={offer.coverUrl} alt={offer.coverAlt ?? ""} className="aspect-3/2 w-full object-cover" />
+                    ) : null}
+                    <div className="p-4">
+                      <h3 className="font-semibold text-ink">{offer.name}</h3>
+                      <p className="mt-0.5 text-sm text-muted">{offer.place}</p>
+                      <dl className="mt-3 space-y-1.5 text-sm">
+                        {offer.trees ? (
+                          <div className="flex justify-between gap-3">
+                            <dt className="text-muted">{t("ui.register.offer_trees")}</dt>
+                            <dd className="font-semibold text-ink tabular-nums">{offer.trees}</dd>
+                          </div>
+                        ) : null}
+                        {offer.areaPerTree ? (
+                          <div className="flex justify-between gap-3">
+                            <dt className="text-muted">{t("ui.register.offer_area_per_tree")}</dt>
+                            <dd className="font-semibold text-ink tabular-nums">{offer.areaPerTree}</dd>
+                          </div>
+                        ) : null}
+                      </dl>
+                      {offer.pricePerTree ? (
+                        <p className="mt-3 border-t border-line pt-3 text-sm">
+                          {priceBefore ? <span className="text-muted">{priceBefore}</span> : null}
+                          <span className="font-display text-xl font-bold text-forest tabular-nums">{offer.pricePerTree}</span>
+                          {priceAfter ? <span className="text-muted">{priceAfter}</span> : null}
+                        </p>
+                      ) : null}
+                    </div>
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </section>
+        ) : null}
       </div>
 
-      <h1 ref={headingRef} tabIndex={-1} className="mt-6 font-display text-4xl font-bold text-forest outline-none">
-        {t("ui.register.success_title")}
-      </h1>
-      {welcomeTitle ? <p className="mt-3 font-display text-2xl font-bold text-gold">{welcomeTitle}</p> : null}
-      {welcomeText ? <p className="mx-auto mt-3 max-w-md leading-7 text-ink/80">{welcomeText}</p> : null}
-
-      <p className="mt-6 text-sm text-muted">{t("ui.register.request_number_label")}</p>
-      <p dir="ltr" className="mt-1 font-display text-4xl font-bold tracking-wide text-ink tabular-nums sm:text-5xl">
-        {requestNo}
-      </p>
-      <button
-        type="button"
-        className="btn btn-ghost mt-2 min-h-10 text-sm"
-        onClick={async () => {
-          try {
-            await navigator.clipboard.writeText(requestNo);
-            setCopied(true);
-          } catch {
-            setCopied(false);
-          }
+      {/*
+        THE CONFIRMATION, AS A NATIVE <dialog>. showModal() gives the top layer, a real backdrop, Esc, focus
+        trapping and inertness on everything behind — every one of which a div with a z-index has to
+        reimplement, and the version everyone writes forgets the last three. It holds only what a visitor
+        needs in the first ten seconds: that it arrived, the number, and who rings them. Everything longer
+        is on the page behind, which is still there when this closes.
+      */}
+      <dialog
+        ref={dialogRef}
+        className="popup"
+        aria-labelledby="register-success-title"
+        onClose={close}
+        onClick={(event) => {
+          // The panel is a child, so a press that landed on it is not a press on the backdrop.
+          if (event.target === dialogRef.current) close();
         }}
       >
-        {t(copied ? "ui.register.number_copied" : "ui.register.copy_number")}
-      </button>
-
-      {recap.length > 0 ? (
-        <dl className="panel mx-auto mt-8 max-w-md divide-y divide-line px-4 text-start">
-          {recap.map((row) => (
-            <div key={row.key} className="flex items-start justify-between gap-4 py-2.5">
-              <dt className="text-sm text-muted">{row.label}</dt>
-              <dd className="text-end font-semibold text-ink tabular-nums">{row.value}</dd>
+        <div className="popup-panel">
+          <div className="flex items-start gap-3 px-4 pt-4">
+            <div className="grid size-11 shrink-0 place-items-center rounded-full bg-leaf-soft">{tick}</div>
+            <div className="min-w-0 flex-1">
+              <h2 id="register-success-title" className="font-display text-xl font-bold text-forest">
+                {t("ui.register.success_title")}
+              </h2>
+              {welcomeTitle ? <p className="mt-0.5 font-semibold text-gold">{welcomeTitle}</p> : null}
             </div>
-          ))}
-        </dl>
-      ) : null}
+            <button
+              type="button"
+              onClick={close}
+              aria-label={t("ui.common.close")}
+              className="grid size-8 shrink-0 place-items-center rounded-lg text-muted transition-colors hover:bg-paper hover:text-forest"
+            >
+              ✕
+            </button>
+          </div>
 
-      <p className="mx-auto mt-6 max-w-md leading-7 text-muted">
-        {time
-          ? t("ui.register.success_contact_at_time", { channel, time })
-          : t("ui.register.success_contact", { channel })}
-      </p>
-      {note ? <p className="mt-3 text-sm font-medium text-leaf">{note}</p> : null}
-
-      {motivation ? (
-        <p className="mx-auto mt-8 max-w-md rounded-2xl bg-leaf-soft/70 px-5 py-4 font-medium leading-7 text-forest">
-          {motivation}
-        </p>
-      ) : null}
-
-      <div className="mt-8 flex flex-wrap justify-center gap-3">
-        {progressLabel ? (
-          <Link href="/#million" className="btn btn-primary">
-            {progressLabel}
-          </Link>
-        ) : null}
-        <Link href="/" className="btn btn-secondary">
-          {t("ui.register.home_link")}
-        </Link>
-      </div>
-
-      {/* Owner 2026-09-18: «in the end show the current offers after the send». Each one opens its own page,
-          where it has its own form; this screen never mixes the two flows. */}
-      {offers.length > 0 && offersTitle ? (
-        <section className="mt-12 text-start">
-          <h2 className="text-center font-display text-2xl font-bold text-forest">{offersTitle}</h2>
-          {offersText ? <p className="mx-auto mt-2 max-w-md text-center leading-7 text-muted">{offersText}</p> : null}
-          <ul className="mt-6 grid gap-4 sm:grid-cols-2">
-            {offers.map((offer) => (
-              <li key={offer.code} className="card overflow-hidden">
-                <Link href={offer.href} className="block h-full focus-visible:outline-offset-[-2px]">
-                  {offer.coverUrl ? (
-                    // eslint-disable-next-line @next/next/no-img-element -- remote cover, sized by its box
-                    <img src={offer.coverUrl} alt={offer.coverAlt ?? ""} className="aspect-3/2 w-full object-cover" />
-                  ) : null}
-                  <div className="p-4">
-                    <h3 className="font-semibold text-ink">{offer.name}</h3>
-                    <p className="mt-0.5 text-sm text-muted">{offer.place}</p>
-                    <dl className="mt-3 space-y-1.5 text-sm">
-                      {offer.trees ? (
-                        <div className="flex justify-between gap-3">
-                          <dt className="text-muted">{t("ui.register.offer_trees")}</dt>
-                          <dd className="font-semibold text-ink tabular-nums">{offer.trees}</dd>
-                        </div>
-                      ) : null}
-                      {offer.areaPerTree ? (
-                        <div className="flex justify-between gap-3">
-                          <dt className="text-muted">{t("ui.register.offer_area_per_tree")}</dt>
-                          <dd className="font-semibold text-ink tabular-nums">{offer.areaPerTree}</dd>
-                        </div>
-                      ) : null}
-                    </dl>
-                    {offer.pricePerTree ? (
-                      <p className="mt-3 border-t border-line pt-3 text-sm">
-                        {priceBefore ? <span className="text-muted">{priceBefore}</span> : null}
-                        <span className="font-display text-xl font-bold text-forest tabular-nums">{offer.pricePerTree}</span>
-                        {priceAfter ? <span className="text-muted">{priceAfter}</span> : null}
-                      </p>
-                    ) : null}
-                  </div>
-                </Link>
-              </li>
-            ))}
-          </ul>
-        </section>
-      ) : null}
-    </div>
+          <div className="px-4 pb-5 pt-4">
+            <p className="text-sm text-muted">{t("ui.register.request_number_label")}</p>
+            <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1">
+              <p dir="ltr" className="font-display text-3xl font-bold tracking-wide text-ink tabular-nums">
+                {requestNo}
+              </p>
+              {copyButton}
+            </div>
+            <p className="mt-3 leading-7 text-muted">{contactLine}</p>
+            {note ? <p className="mt-2 text-sm font-medium text-leaf">{note}</p> : null}
+          </div>
+        </div>
+      </dialog>
+    </>
   );
 }

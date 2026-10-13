@@ -1,5 +1,5 @@
-import { useMemo, useState } from "react";
-import { KeyboardAvoidingView, Platform, StyleSheet, Text, View } from "react-native";
+import { useCallback, useMemo, useState } from "react";
+import { KeyboardAvoidingView, Modal, Platform, Pressable, StyleSheet, Text, View } from "react-native";
 
 import { submitInterest, type InterestInput } from "./api";
 import { formatMessage, optionsFor, settingBool, t } from "./config";
@@ -105,6 +105,18 @@ export function InterestForm({
   const [reference, setReference] = useState<string | null>(null);
   const [done, setDone] = useState(false);
 
+  /** Closes the confirmation and empties the form: the demand is sent, so the answers must not linger. */
+  const dismiss = useCallback(() => {
+    setDone(false);
+    setReference(null);
+    setName("");
+    setPhone("");
+    setPlaceId(null);
+    setGoal(null);
+    setConsent(false);
+    setError(null);
+  }, []);
+
   const places = config.governorates;
 
   /**
@@ -172,28 +184,54 @@ export function InterestForm({
      */
     const title = offerCode ? "offers.success_title" : "register.success_welcome_title";
     const text = offerCode ? "offers.success_text" : "register.success_welcome_text";
+    /*
+     * IT IS A POPUP NOW, NOT A PAGE.
+     *
+     * The owner: «after submitting a form I don't like the page of ‹we got your thing›, make it a simple
+     * popup with an X». He is right about what it was doing: replacing the whole form with a page of
+     * confirmation left the reader on a screen with nothing to do and no way out but the back gesture, and
+     * on the offer screen that meant a sheet inside a sheet. A confirmation is an interruption; it should
+     * be dismissible, and what is underneath should still be there when it goes.
+     *
+     * The X resets the form rather than only hiding the card: the demand has been sent, so leaving the
+     * answers in the fields invites somebody to send it twice.
+     */
     return (
-      <View style={[styles.box, styles.boxDone]}>
-        <Text style={[type.cardTitle, { color: colour.forest }]}>{t(config, title)}</Text>
-        <Text style={[type.body, { marginTop: space.tight }]}>{t(config, text)}</Text>
+      <Modal visible transparent animationType="fade" onRequestClose={dismiss}>
+        <Pressable style={styles.backdrop} onPress={dismiss} accessibilityRole="button">
+          {/* The card itself swallows the press, or tapping inside it would close the thing being read. */}
+          <Pressable style={styles.popup} onPress={() => {}}>
+            <Pressable
+              onPress={dismiss}
+              hitSlop={12}
+              style={styles.close}
+              accessibilityRole="button"
+              accessibilityLabel={t(config, "ui.common.close")}
+            >
+              <Text style={styles.closeMark}>✕</Text>
+            </Pressable>
+            <Text style={[type.cardTitle, { color: colour.forest }]}>{t(config, title)}</Text>
+            <Text style={[type.body, { marginTop: space.tight }]}>{t(config, text)}</Text>
 
-        {/* «رقم مطلبك» — the number the website prints and the one /track is keyed on. The app used to throw
-            it away, so a visitor who submitted from the phone had nothing to quote back. */}
-        {reference ? (
-          <View style={{ marginTop: space.cozy, gap: space.hair }}>
-            <Hint>{t(config, "ui.offer.form_request_no_label")}</Hint>
-            <Text style={styles.reference}>{reference}</Text>
-          </View>
-        ) : null}
+            {/* «رقم مطلبك» — the number the website prints and the one /track is keyed on. The app used to throw
+                it away, so a visitor who submitted from the phone had nothing to quote back. */}
+            {reference ? (
+              <View style={{ marginTop: space.cozy, gap: space.hair }}>
+                <Hint>{t(config, "ui.offer.form_request_no_label")}</Hint>
+                <Text style={styles.reference}>{reference}</Text>
+              </View>
+            ) : null}
 
-        {offerName && trees ? (
-          <Text style={[type.caption, { marginTop: space.snug }]}>
-            {formatMessage(t(config, "ui.offer.form_success_summary"), { name: offerName, count: trees })}
-          </Text>
-        ) : null}
+            {offerName && trees ? (
+              <Text style={[type.caption, { marginTop: space.snug }]}>
+                {formatMessage(t(config, "ui.offer.form_success_summary"), { name: offerName, count: trees })}
+              </Text>
+            ) : null}
 
-        <Hint style={{ marginTop: space.snug }}>{t(config, "register.success_note")}</Hint>
-      </View>
+            <Hint style={{ marginTop: space.snug }}>{t(config, "register.success_note")}</Hint>
+          </Pressable>
+        </Pressable>
+      </Modal>
     );
   }
 
@@ -311,6 +349,16 @@ const styles = StyleSheet.create({
   // `flex flex-wrap gap-tight` — 8 apart, as the site's chip rows are.
   wrap: { flexDirection: "row-reverse", flexWrap: "wrap", gap: space.tight },
   // The site prints the request number in the display face, large, tabular and left to right.
+  backdrop: {
+    flex: 1,
+    backgroundColor: "rgba(13,17,14,0.55)",
+    alignItems: "center",
+    justifyContent: "center",
+    padding: space.card,
+  },
+  popup: { ...card, width: "100%", maxWidth: 420, padding: space.card, gap: space.hair },
+  close: { position: "absolute", top: space.snug, end: space.snug, width: 32, height: 32, alignItems: "center", justifyContent: "center" },
+  closeMark: { fontSize: 17, lineHeight: 20, color: colour.muted },
   reference: {
     ...type.barFigure,
     fontSize: 28,

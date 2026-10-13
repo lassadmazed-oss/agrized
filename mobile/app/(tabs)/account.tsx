@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useRouter } from "expo-router";
+import { useFocusEffect, useRouter } from "expo-router";
 import { Linking, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
@@ -322,13 +322,27 @@ function SignedIn({ name, onSignOut }: { name: string | null; onSignOut: () => v
     setLoading(false);
   }, []);
 
-  useEffect(() => {
-    gone.current = false;
-    void read();
-    return () => {
-      gone.current = true;
-    };
-  }, [read]);
+  /*
+   * READ ON EVERY VISIT, NOT ONLY ON MOUNT.
+   *
+   * The owner: «I did send the thing but on the profile page I still get nothing is there, and I enter the
+   * page and I find it». Exactly right, and this was the cause: the tabs keep their screens mounted, so an
+   * effect with [] runs once — the file was read when the app opened and never again. Send a demand, come
+   * back, and the counts are the counts from before you sent it; open the section and ITS screen mounts
+   * fresh, fetches, and shows the thing that was «not there».
+   *
+   * useFocusEffect runs each time this tab comes forward, which is the moment the answer could have
+   * changed. It is cheap — one round trip to a function that returns the whole file.
+   */
+  useFocusEffect(
+    useCallback(() => {
+      gone.current = false;
+      void read();
+      return () => {
+        gone.current = true;
+      };
+    }, [read]),
+  );
 
   /*
    * The rows are drawn even when the file did not open, and that is the website's decision repeated here:
