@@ -269,6 +269,18 @@ function SignInPanel() {
             tone="secondary"
             style={styles.wide}
           />
+          {/*
+            AND THE OTHER DOOR FOR THE SAME READER. Somebody who HAS sent a demand has a reference number and
+            still no account — the room is not theirs yet, but «where has my demand got to» is. The website
+            puts this in its footer; the app has no footer, so it rides here, beside the sentence that says
+            this number has no file.
+          */}
+          <Btn
+            label={t(config, "track.title")}
+            onPress={() => router.push("/track")}
+            tone="ghost"
+            style={styles.wide}
+          />
         </View>
       ) : null}
     </>

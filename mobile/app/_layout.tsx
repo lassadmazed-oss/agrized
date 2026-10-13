@@ -230,6 +230,8 @@ function Shell({ fontsReady, markReady }: { fontsReady: boolean; markReady: bool
         <Stack.Screen name="offer/[code]" options={{ headerShown: false }} />
         {/* One route for the ten sections of فضاء «زيتونتي»; it draws its own bar, like the offer screen. */}
         <Stack.Screen name="zitounti/[section]" options={{ headerShown: false }} />
+        {/* «وين وصل مطلبي؟» — no session, no account; it draws its own bar like the others. */}
+        <Stack.Screen name="track" options={{ headerShown: false }} />
       </Stack>
     </>
   );
