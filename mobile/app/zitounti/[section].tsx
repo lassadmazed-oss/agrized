@@ -7,7 +7,7 @@ import { useAuth } from "../../src/auth";
 import { t } from "../../src/config";
 import { siteFormat } from "../../src/format";
 import { Shimmer } from "../../src/skeleton";
-import { card, colour, frame, radius, space, type } from "../../src/theme";
+import { card, colour, frame, radius, readingRow, space, type } from "../../src/theme";
 import { BackArrow, Btn, Hairline } from "../../src/ui";
 import { useConfig } from "../../src/use-config";
 import {
@@ -350,7 +350,7 @@ function build(key: SectionKey, file: ZitountiFile, config: Config, fmt: Fmt): C
 const styles = StyleSheet.create({
   page: { flex: 1, backgroundColor: colour.paper },
   bar: {
-    flexDirection: "row",
+    ...readingRow(),
     alignItems: "center",
     paddingHorizontal: frame.gutter,
     paddingBottom: space.snug,
@@ -369,7 +369,7 @@ const styles = StyleSheet.create({
   },
   waiting: { gap: space.cozy },
   card: { ...card, padding: space.card, gap: space.snug },
-  cardHead: { flexDirection: "row", alignItems: "center", gap: space.tight },
+  cardHead: { ...readingRow(), alignItems: "center", gap: space.tight },
   cardTitle: { flex: 1 },
   badge: {
     paddingHorizontal: space.tight,
@@ -380,12 +380,12 @@ const styles = StyleSheet.create({
   badgeText: { ...type.caption, color: colour.forest700 },
   note: { ...type.note, color: colour.muted },
   facts: { gap: space.hair },
-  fact: { flexDirection: "row", alignItems: "baseline", justifyContent: "space-between", gap: space.cozy },
+  fact: { ...readingRow(), alignItems: "baseline", justifyContent: "space-between", gap: space.cozy },
   factLabel: { ...type.caption, color: colour.muted, flexShrink: 1 },
   factValue: { ...type.body, fontWeight: "600" },
   line: { paddingVertical: space.tight, gap: 2 },
   lineHead: { ...type.body, fontWeight: "600" },
   lateText: { color: colour.danger },
-  lineFacts: { flexDirection: "row", flexWrap: "wrap", gap: space.snug },
+  lineFacts: { ...readingRow(), flexWrap: "wrap", gap: space.snug },
   lineFact: { ...type.caption, color: colour.muted },
 });

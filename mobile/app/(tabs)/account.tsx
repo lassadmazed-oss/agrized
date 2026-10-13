@@ -7,7 +7,7 @@ import { failureKey, useAuth, type AuthFailure } from "../../src/auth";
 import { settingText, t } from "../../src/config";
 import { siteFormat } from "../../src/format";
 import { Shimmer } from "../../src/skeleton";
-import { card, colour, frame, space, type } from "../../src/theme";
+import { card, colour, frame, ltr, readingRow, space, type } from "../../src/theme";
 import { Btn, Chevron, ErrorText, Field, Hairline, Hint, Label } from "../../src/ui";
 import { buildRows, failureKey as fileFailureKey, fetchMyFile, type Failure, type Row, type ZitountiFile } from "../../src/zitounti";
 import { useConfig } from "../../src/use-config";
@@ -357,6 +357,50 @@ function SignedIn({ name, onSignOut }: { name: string | null; onSignOut: () => v
         </View>
       ) : (
         <>
+          {/*
+            WHICH ACCOUNT AM I IN. The screen greeted the reader by name and said nothing else about them —
+            and on a phone that remembers a session for weeks, «whose file is this» is a fair question with
+            no answer on screen. Everything here is already in the payload; none of it is fetched again.
+
+            The number is the identity in this product: it is what signs in, what an SMS reaches, and what a
+            demand is matched on. It is shown in full rather than masked, because this screen is only ever
+            drawn to the person who just proved they hold it.
+          */}
+          {file?.person ? (
+            <View style={styles.card}>
+              <View style={styles.idRow}>
+                <Text style={styles.idLabel}>{t(config, "ui.register.full_name_label")}</Text>
+                <Text style={styles.idValue}>{file.person.full_name}</Text>
+              </View>
+              <View style={styles.idRow}>
+                <Text style={styles.idLabel}>{t(config, "ui.login.phone_label")}</Text>
+                {/* A number is Latin digits read left to right, on an Arabic screen as on any other. */}
+                <Text style={[styles.idValue, ltr]}>{file.person.phone_e164}</Text>
+              </View>
+              {file.person.email ? (
+                <View style={styles.idRow}>
+                  <Text style={styles.idLabel}>{t(config, "ui.register.review_email")}</Text>
+                  <Text style={[styles.idValue, ltr]} numberOfLines={1}>
+                    {file.person.email}
+                  </Text>
+                </View>
+              ) : null}
+              {file.person.governorate ? (
+                <View style={styles.idRow}>
+                  <Text style={styles.idLabel}>{t(config, "ui.land.governorate_label")}</Text>
+                  <Text style={styles.idValue}>
+                    {[file.person.governorate, file.person.delegation].filter(Boolean).join(" · ")}
+                  </Text>
+                </View>
+              ) : null}
+              {file.person.created_at ? (
+                <Text style={styles.since}>
+                  {t(config, "ui.zitounti.member_since", { date: fmt.date(file.person.created_at) })}
+                </Text>
+              ) : null}
+            </View>
+          ) : null}
+
           {/* The figures a buyer owns, straight from the payload — nothing added up here. */}
           {file && trees > 0 ? (
             <View style={styles.totals}>
@@ -449,8 +493,13 @@ const styles = StyleSheet.create({
   totals: { ...card, marginTop: space.roomy, padding: space.card, flexDirection: "row", gap: space.cozy },
   total: { flex: 1, alignItems: "center", gap: space.hair },
   totalLabel: { color: colour.muted, textAlign: "center" },
-  row: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingVertical: space.snug, gap: space.cozy },
+  row: { ...readingRow(), alignItems: "center", justifyContent: "space-between", paddingVertical: space.snug, gap: space.cozy },
   rowLabel: { flex: 1 },
+  // readingRow, not a bare row: on an Arabic screen the label belongs where the eye starts.
+  idRow: { ...readingRow(), alignItems: "baseline", justifyContent: "space-between", gap: space.cozy },
+  idLabel: { ...type.caption, color: colour.muted, flexShrink: 0 },
+  idValue: { ...type.body, fontWeight: "600", flexShrink: 1 },
+  since: { ...type.caption, color: colour.muted, marginTop: space.hair },
   quiet: { textAlign: "center", color: colour.muted, lineHeight: 24 },
   help: {
     ...type.caption,

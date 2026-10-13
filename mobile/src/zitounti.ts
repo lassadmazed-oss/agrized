@@ -50,7 +50,10 @@ export type Person = {
   id: string;
   full_name: string;
   phone_e164: string;
+  whatsapp_e164: string | null;
+  email: string | null;
   governorate: string | null;
+  delegation: string | null;
   created_at: string;
 };
 
