@@ -1,20 +1,19 @@
 import { Stack, useLocalSearchParams, useRouter } from "expo-router";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { useCallback, useMemo, useState } from "react";
+import { Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { useAuth } from "../../src/auth";
 import { t } from "../../src/config";
 import { siteFormat } from "../../src/format";
 import { Shimmer } from "../../src/skeleton";
-import { card, colour, frame, radius, readingRow, space, type } from "../../src/theme";
+import { card, colour, frame, pull, radius, readingRow, space, type } from "../../src/theme";
 import { BackArrow, Btn, Hairline } from "../../src/ui";
 import { useConfig } from "../../src/use-config";
+import { useMyFile } from "../../src/useMyFile";
 import {
   failureKey,
-  fetchMyFile,
   SECTION_SETTING,
-  type Failure,
   type SectionKey,
   type ZitountiFile,
 } from "../../src/zitounti";
@@ -67,37 +66,33 @@ export default function SectionScreen() {
   const { section } = useLocalSearchParams<{ section: string }>();
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const { config } = useConfig();
+  const { config, reload: reloadConfig } = useConfig();
   const { person, ready } = useAuth();
   const fmt = useMemo(() => siteFormat(config), [config]);
 
-  const [file, setFile] = useState<ZitountiFile | null>(null);
-  const [failure, setFailure] = useState<Failure | null>(null);
-  const [loading, setLoading] = useState(true);
-  const gone = useRef(false);
+  /*
+   * The same reader حسابي uses (src/useMyFile.ts). It used to be a second copy of these twenty lines, and
+   * the two had already drifted: only one of them re-read when the screen came back into view.
+   */
+  const { file, failure, loading, reload } = useMyFile(ready ? Boolean(person) : null);
 
-  const read = useCallback(async () => {
-    setLoading(true);
-    const result = await fetchMyFile();
-    if (gone.current) return;
-    if (result.ok) {
-      setFile(result.file);
-      setFailure(null);
-    } else {
-      setFile(null);
-      setFailure(result.reason);
+  const [refreshing, setRefreshing] = useState(false);
+
+  /*
+   * Pull down to ask again. A section is the screen somebody stares at while waiting for a thing to
+   * change — an instalment to clear, a visit to be booked — so it is exactly where the habit of pulling a
+   * page down belongs. The read is quiet: the cards stay under the spinner rather than collapsing into a
+   * skeleton, because they are not wrong, only possibly a minute old.
+   */
+  const refresh = useCallback(async () => {
+    setRefreshing(true);
+    try {
+      reloadConfig();
+      await reload(true);
+    } finally {
+      setRefreshing(false);
     }
-    setLoading(false);
-  }, []);
-
-  useEffect(() => {
-    gone.current = false;
-    if (ready && person) void read();
-    else if (ready) setLoading(false);
-    return () => {
-      gone.current = true;
-    };
-  }, [person, read, ready]);
+  }, [reload, reloadConfig]);
 
   const key = KEYS.find((candidate) => candidate === section) ?? null;
   const title = key ? t(config, SECTION_SETTING[key]) : "";
@@ -120,6 +115,7 @@ export default function SectionScreen() {
       <ScrollView
         contentContainerStyle={[styles.body, { paddingBottom: space.section + insets.bottom }]}
         showsVerticalScrollIndicator={false}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => void refresh()} {...pull} />}
       >
         {loading ? (
           <View style={styles.waiting}>
@@ -135,7 +131,7 @@ export default function SectionScreen() {
         ) : failure ? (
           <View style={styles.card}>
             <Text style={styles.note}>{t(config, failureKey(failure))}</Text>
-            <Btn label={t(config, "ui.pages.error_retry")} onPress={() => void read()} tone="secondary" />
+            <Btn label={t(config, "ui.pages.error_retry")} onPress={() => void reload()} tone="secondary" />
           </View>
         ) : cards.length === 0 ? (
           /*

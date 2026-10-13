@@ -1,16 +1,17 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useFocusEffect, useRouter } from "expo-router";
-import { Linking, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { useCallback, useMemo, useState } from "react";
+import { useRouter } from "expo-router";
+import { Linking, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { failureKey, useAuth, type AuthFailure } from "../../src/auth";
 import { settingText, t } from "../../src/config";
 import { siteFormat } from "../../src/format";
 import { Shimmer } from "../../src/skeleton";
-import { card, colour, frame, ltr, readingRow, space, type } from "../../src/theme";
+import { card, colour, frame, ltr, pull, readingRow, space, type } from "../../src/theme";
 import { Btn, Chevron, ErrorText, Field, Hairline, Hint, Label } from "../../src/ui";
-import { buildRows, failureKey as fileFailureKey, fetchMyFile, type Failure, type Row, type ZitountiFile } from "../../src/zitounti";
+import { buildRows, failureKey as fileFailureKey, type Failure, type Row, type ZitountiFile } from "../../src/zitounti";
 import { useConfig } from "../../src/use-config";
+import { useMyFile } from "../../src/useMyFile";
 
 /**
  * حسابي — the buyer's door, and since 2026-10-12 it is a door rather than a signpost.
@@ -32,8 +33,39 @@ import { useConfig } from "../../src/use-config";
  */
 export default function AccountScreen() {
   const insets = useSafeAreaInsets();
-  const { config } = useConfig();
+  const { reload: reloadConfig } = useConfig();
   const { person, ready, signOut } = useAuth();
+
+  /*
+   * THE FILE IS READ HERE, NOT INSIDE <SignedIn>, and the reason is this screen's one scroll view.
+   *
+   * A pull-to-refresh belongs to whatever scrolls, and what scrolls is out here; what knows how to re-read
+   * is in there. One of the two had to move, and moving the reader up is the move that also lets the
+   * section screens share it (src/useMyFile.ts) instead of keeping a second copy.
+   */
+  const { file, failure, loading, reload } = useMyFile(ready ? Boolean(person) : null);
+
+  const [refreshing, setRefreshing] = useState(false);
+
+  /*
+   * PULL DOWN TO ASK AGAIN — the gesture every phone app answers to, and the one this screen needed most:
+   * it is where «did my demand arrive» is asked, and until now the only way to ask again was to kill the
+   * app. It re-reads the words and the flags as well as the file, because somebody who pulls a screen down
+   * is saying «this looks old», not «re-run one query».
+   *
+   * The read is QUIET: the file stays on screen under the spinner instead of collapsing into a skeleton.
+   * That is what every other app does, and it is also the honest picture — the rows are not wrong, they
+   * are merely a minute old, and the spinner is already saying so.
+   */
+  const refresh = useCallback(async () => {
+    setRefreshing(true);
+    try {
+      reloadConfig();
+      await reload(true);
+    } finally {
+      setRefreshing(false);
+    }
+  }, [reload, reloadConfig]);
 
   return (
     <ScrollView
@@ -41,6 +73,7 @@ export default function AccountScreen() {
       contentContainerStyle={[styles.page, { paddingTop: space.section + insets.top }]}
       showsVerticalScrollIndicator={false}
       keyboardShouldPersistTaps="handled"
+      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => void refresh()} {...pull} />}
     >
       <View style={styles.column}>
         {!ready ? (
@@ -52,7 +85,14 @@ export default function AccountScreen() {
             <Shimmer height={132} corner={16} />
           </View>
         ) : person ? (
-          <SignedIn name={person.fullName} onSignOut={() => void signOut()} />
+          <SignedIn
+            name={person.fullName}
+            onSignOut={() => void signOut()}
+            file={file}
+            failure={failure}
+            loading={loading}
+            onRetry={() => void reload()}
+          />
         ) : (
           <SignInPanel />
         )}
@@ -298,51 +338,24 @@ function SignInPanel() {
  * subscription, harvest, documents and the totals. Rendering them is a screen of its own and belongs with
  * the website's `sections.tsx` beside it, not bolted onto the door.
  */
-function SignedIn({ name, onSignOut }: { name: string | null; onSignOut: () => void }) {
+function SignedIn({
+  name,
+  onSignOut,
+  file,
+  failure,
+  loading,
+  onRetry,
+}: {
+  name: string | null;
+  onSignOut: () => void;
+  file: ZitountiFile | null;
+  failure: Failure | null;
+  loading: boolean;
+  onRetry: () => void;
+}) {
   const { config } = useConfig();
   const router = useRouter();
   const fmt = useMemo(() => siteFormat(config), [config]);
-
-  const [file, setFile] = useState<ZitountiFile | null>(null);
-  const [failure, setFailure] = useState<Failure | null>(null);
-  const [loading, setLoading] = useState(true);
-  const gone = useRef(false);
-
-  const read = useCallback(async () => {
-    setLoading(true);
-    const result = await fetchMyFile();
-    if (gone.current) return;
-    if (result.ok) {
-      setFile(result.file);
-      setFailure(null);
-    } else {
-      setFile(null);
-      setFailure(result.reason);
-    }
-    setLoading(false);
-  }, []);
-
-  /*
-   * READ ON EVERY VISIT, NOT ONLY ON MOUNT.
-   *
-   * The owner: «I did send the thing but on the profile page I still get nothing is there, and I enter the
-   * page and I find it». Exactly right, and this was the cause: the tabs keep their screens mounted, so an
-   * effect with [] runs once — the file was read when the app opened and never again. Send a demand, come
-   * back, and the counts are the counts from before you sent it; open the section and ITS screen mounts
-   * fresh, fetches, and shows the thing that was «not there».
-   *
-   * useFocusEffect runs each time this tab comes forward, which is the moment the answer could have
-   * changed. It is cheap — one round trip to a function that returns the whole file.
-   */
-  useFocusEffect(
-    useCallback(() => {
-      gone.current = false;
-      void read();
-      return () => {
-        gone.current = true;
-      };
-    }, [read]),
-  );
 
   /*
    * The rows are drawn even when the file did not open, and that is the website's decision repeated here:
@@ -437,7 +450,7 @@ function SignedIn({ name, onSignOut }: { name: string | null; onSignOut: () => v
               <Text style={[type.body, { color: colour.muted }]}>{t(config, fileFailureKey(failure))}</Text>
               <Btn
                 label={t(config, "ui.pages.error_retry")}
-                onPress={() => void read()}
+                onPress={onRetry}
                 tone="secondary"
                 style={styles.wide}
               />

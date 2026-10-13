@@ -21,7 +21,7 @@ import {
   homeStats,
   useHomeData,
 } from "../../src/home-sections";
-import { colour, frame, space, type } from "../../src/theme";
+import { colour, frame, pull, space, type } from "../../src/theme";
 import { useConfig } from "../../src/use-config";
 import { useOffers } from "../../src/useOffers";
 
@@ -215,12 +215,7 @@ export default function HomeScreen() {
       contentContainerStyle={[styles.page, frameStyle]}
       showsVerticalScrollIndicator={false}
       refreshControl={
-        <RefreshControl
-          refreshing={refreshing}
-          onRefresh={() => void refresh()}
-          tintColor={colour.forest}
-          colors={[colour.forest]}
-        />
+        <RefreshControl refreshing={refreshing} onRefresh={() => void refresh()} {...pull} />
       }
     >
       {/* 0 · The brand, which the phone has nowhere else: the tab bar carries the navigation and the

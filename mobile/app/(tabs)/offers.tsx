@@ -30,7 +30,7 @@ import {
   ROW_PAD,
   type Tone,
 } from "../../src/offer-ui";
-import { card, colour, frame, isRTL, radius, readingRow, space, type } from "../../src/theme";
+import { card, colour, frame, isRTL, pull, radius, readingRow, space, type } from "../../src/theme";
 import { useOffers } from "../../src/useOffers";
 
 /**
@@ -183,7 +183,7 @@ export default function OffersScreen() {
           // Stock moves when somebody buys, and the habit of pulling a list down to ask again is older than
           // this app. It is also the only retry this screen needs: no drawn button, no invented sentence.
           refreshControl={
-            <RefreshControl refreshing={loading} onRefresh={reload} tintColor={colour.forest} colors={[colour.forest]} />
+            <RefreshControl refreshing={loading} onRefresh={reload} {...pull} />
           }
           // A list of photographs is the heaviest thing this app does, so the window is deliberately small:
           // ten rows of 88px is about four screens, which is enough to flick through without a blank gap and

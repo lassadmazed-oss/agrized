@@ -1,6 +1,6 @@
 import { useRouter } from "expo-router";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Keyboard, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import { Keyboard, Pressable, RefreshControl, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Svg, { Circle, Ellipse, Path } from "react-native-svg";
 
@@ -15,7 +15,7 @@ import {
   type SummaryRow,
   type TreeQuote,
 } from "../../src/quote";
-import { colour, estimate, frame, panel, radius, sans, shadow, space, type } from "../../src/theme";
+import { colour, estimate, frame, panel, pull, radius, sans, shadow, space, type } from "../../src/theme";
 import {
   BackArrow,
   Btn,
@@ -100,7 +100,7 @@ type StepKey = "trees" | "spacing" | "type" | "payment" | "down" | "duration" | 
 export default function CalculatorScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const { config, ready, failed, reload } = useConfig();
+  const { config, ready, failed, loading: configLoading, reload } = useConfig();
   const scroll = useRef<ScrollView | null>(null);
 
   const fmt = useMemo(() => siteFormat(config), [config]);
@@ -242,6 +242,17 @@ export default function CalculatorScreen() {
   const [quoting, setQuoting] = useState(false);
   const sequence = useRef(0);
 
+  /**
+   * Bumped by the pull-to-refresh, and that is the whole reason it exists.
+   *
+   * The quote re-runs when an ANSWER changes, which is right — and leaves no way to ask the same question
+   * again. A price the owner edited this morning would stay the price this screen quoted this morning
+   * until the reader changed something, and «I updated the price and the app still says the old one» is a
+   * bug report nobody would think to file against a calculator. One number in the dependency list gives
+   * the gesture a way in, without a second copy of the call.
+   */
+  const [again, setAgain] = useState(0);
+
   const trees = chosenTree ? chosenTree.min_number : customSelected ? customNumber : null;
 
   useEffect(() => {
@@ -266,7 +277,7 @@ export default function CalculatorScreen() {
       .finally(() => {
         if (mine === sequence.current) setQuoting(false);
       });
-  }, [spacingId, trees, paymentMode, downId, durationId, installments]);
+  }, [spacingId, trees, paymentMode, downId, durationId, installments, again]);
 
   const summary = useMemo(
     () =>
@@ -360,6 +371,25 @@ export default function CalculatorScreen() {
         ]}
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
+        /*
+         * Pull down to ask the prices again. Everything on this screen is the owner's — the tiers, the
+         * spacing classes, the words, and the figures the database quotes — so the gesture re-reads the
+         * settings AND asks for a fresh quote with the answers already given.
+         *
+         * The spinner turns for as long as the settings read does: that is the slow leg, 1110 rows against
+         * one RPC, and tying it to `loading` rather than to a stopwatch means it stops when the thing it
+         * is waiting for actually arrives.
+         */
+        refreshControl={
+          <RefreshControl
+            refreshing={configLoading}
+            onRefresh={() => {
+              setAgain((n) => n + 1);
+              reload();
+            }}
+            {...pull}
+          />
+        }
       >
         <View style={styles.column}>
           {/*

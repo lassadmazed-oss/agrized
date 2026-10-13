@@ -6,6 +6,7 @@ import {
   Linking,
   Modal,
   Pressable,
+  RefreshControl,
   ScrollView,
   Share,
   StyleSheet,
@@ -54,6 +55,7 @@ import {
   edges,
   frame,
   isRTL,
+  pull,
   radius,
   readingRow,
   space,
@@ -101,6 +103,23 @@ export default function OfferScreen() {
 
   const offer = useMemo(() => catalogue.find((row) => row.code === code), [catalogue, code]);
   const stock = offer ? stocks.get(offer.id) : undefined;
+
+  const [refreshing, setRefreshing] = useState(false);
+
+  /*
+   * Pull down to ask again. This is the screen where the one number that moves is read — how many trees
+   * are left — and the reader deciding whether to send a demand is exactly the person who wants to know
+   * it is still true. `useOffers().reload` re-reads the offers, their stock and the owner's words, so the
+   * whole page answers rather than one counter.
+   */
+  const refresh = useCallback(async () => {
+    setRefreshing(true);
+    try {
+      await reload();
+    } finally {
+      setRefreshing(false);
+    }
+  }, [reload]);
 
   /*
    * WITH THE OTHER HOOKS, ABOVE EVERY EARLY RETURN. This screen returns early while the offer is loading,
@@ -333,6 +352,7 @@ export default function OfferScreen() {
       <ScrollView
         contentContainerStyle={[styles.scroll, { paddingBottom: doorHeight }]}
         showsVerticalScrollIndicator={false}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => void refresh()} {...pull} />}
       >
         <View style={styles.sheet}>
           {/* 1 · The bar over the picture. The way back is the START edge and the chevron points the way the

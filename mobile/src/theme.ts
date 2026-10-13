@@ -296,6 +296,29 @@ export const frame = {
   bottom: 24, // pb-6  (the catalogue uses pb-8 = 32)
 } as const;
 
+/**
+ * Pull down to ask again — how it looks, on every screen that offers it.
+ *
+ * IT IS A PROPS OBJECT RATHER THAN A COMPONENT, and that is forced rather than chosen. On Android,
+ * ScrollView renders a refresh control by `cloneElement(refreshControl, {style}, <NativeScrollView/>)`: it
+ * hands the element its own style AND the entire scroll view as children. A `<Refresher>` wrapper would
+ * swallow both and the screen would draw nothing at all — on Android only, which is the worst kind of
+ * breakage to ship from a Mac. So what is shared here is the look, spread onto a real <RefreshControl>.
+ *
+ * `tintColor` is the spinner on iOS, `colors` the ring on Android, `progressBackgroundColor` the disc it
+ * turns on. The site has no equivalent of this gesture, so these are not a stylesheet's colours being
+ * repeated: they are the brand's, chosen here once so the gesture does not drift screen to screen.
+ */
+export const pull: {
+  tintColor: string;
+  colors: string[];
+  progressBackgroundColor: string;
+} = {
+  tintColor: colour.forest,
+  colors: [colour.forest],
+  progressBackgroundColor: colour.surface,
+};
+
 // ---------------------------------------------------------------------------------------------------
 // Elevation
 // ---------------------------------------------------------------------------------------------------
