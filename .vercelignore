@@ -7,3 +7,6 @@
 # the quote strip and the app stats. Excluding those made the whole public layout fail to resolve, and the
 # deploy died on «Can't resolve '@/components/site/mobile/tab-bar'». `/mobile` is the Expo app and nothing else.
 /mobile
+
+# The Instagram feed (marketing/): posts and their pictures, not part of the website.
+/marketing

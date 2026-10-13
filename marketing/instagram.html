@@ -1,0 +1,367 @@
+<title>AgriZed Feed</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&family=Markazi+Text:wght@600;700&display=swap">
+<style>
+  /* Layout: a phone standing on a studio ground, the grid behind it on wide screens.
+     The posters inside are AgriZed's own system — cream ground, forest ink, gold accent —
+     so what the phone shows is exactly what would be exported. */
+  :root {
+    --ground: #e9e6dc;
+    --panel: #ffffff;
+    --ink: #1b2a1f;
+    --muted: #5a685c;
+    --line: #dbd7ca;
+    --forest: #1f4a2c;
+    --forest-700: #163821;
+    --leaf: #6e8e3a;
+    --leaf-soft: #e8eed9;
+    --gold: #a87c22;
+    --gold-bright: #d6b04a;
+    --gold-soft: #f4e8c9;
+    --paper: #f7f5ee;
+    --display: "Markazi Text", "IBM Plex Sans Arabic", serif;
+    --body: "IBM Plex Sans Arabic", system-ui, sans-serif;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --ground: #15190f; --panel: #1d231a; --ink: #e9ecdf; --muted: #9aa893; --line: #2d352a;
+      color-scheme: dark;
+    }
+  }
+  :root[data-theme="dark"] {
+    --ground: #15190f; --panel: #1d231a; --ink: #e9ecdf; --muted: #9aa893; --line: #2d352a;
+    color-scheme: dark;
+  }
+
+  body { background: var(--ground); color: var(--ink); font-family: var(--body); direction: rtl; }
+  * { box-sizing: border-box; }
+
+  .wrap { max-width: 78rem; margin: 0 auto; padding-inline: 16px; padding-block: 28px 56px; }
+
+  header.top { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 18px; margin-bottom: 22px; }
+  header.top img { width: 44px; height: 44px; border-radius: 12px; }
+  .title { font-family: var(--display); font-size: 2rem; font-weight: 700; color: var(--forest); line-height: 1.1; }
+  @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .title { color: var(--leaf-soft); } }
+  :root[data-theme="dark"] .title { color: var(--leaf-soft); }
+  .sub { font-size: .875rem; color: var(--muted); line-height: 1.7; max-width: 46ch; }
+
+  .filters { display: flex; flex-wrap: wrap; gap: 6px; margin: 0 0 20px; }
+  .chip {
+    font: inherit; font-size: .75rem; font-weight: 600; cursor: pointer;
+    border: 1px solid var(--line); background: var(--panel); color: var(--muted);
+    border-radius: 999px; padding: 6px 12px;
+  }
+  .chip[aria-pressed="true"] { background: var(--forest); border-color: var(--forest); color: #fff; }
+
+  .stage { display: grid; gap: 28px; align-items: start; grid-template-columns: 1fr; }
+  @media (min-width: 60rem) { .stage { grid-template-columns: 22rem 1fr; } }
+
+  /* ---- the phone ---- */
+  .phone { position: sticky; top: calc(env(safe-area-inset-top, 0px) + 12px); justify-self: center; width: 20rem; max-width: 100%; }
+  .device {
+    border: 9px solid #11140d; border-radius: 2.6rem; background: #11140d;
+    box-shadow: 0 30px 60px -24px rgb(0 0 0 / .55);
+  }
+  .screen { background: #fff; border-radius: 2rem; overflow: hidden; }
+
+  .igbar { display: flex; align-items: center; gap: 8px; padding: 10px 12px; border-bottom: 1px solid #efefef; }
+  .igbar img { width: 30px; height: 30px; border-radius: 50%; }
+  .igname { font-size: .8125rem; font-weight: 700; color: #111; }
+  .igsub { font-size: .625rem; color: #8e8e8e; }
+
+  .frame { position: relative; aspect-ratio: 4/5; background: #000; overflow: hidden; }
+  .track { display: flex; height: 100%; transition: transform .32s cubic-bezier(.65,0,.35,1); }
+  @media (prefers-reduced-motion: reduce) { .track { transition: none; } }
+  .slide { flex: 0 0 100%; height: 100%; position: relative; }
+
+  .dots { position: absolute; inset-inline: 0; bottom: 8px; display: flex; justify-content: center; gap: 4px; z-index: 3; }
+  .dot { width: 5px; height: 5px; border-radius: 50%; background: #fff; opacity: .45; }
+  .dot[data-on="1"] { opacity: 1; }
+
+  .nav { position: absolute; top: 0; bottom: 0; width: 38%; z-index: 4; border: 0; background: transparent; cursor: pointer; }
+  .nav:focus-visible { outline: 2px solid var(--gold-bright); outline-offset: -4px; }
+  .nav.prev { inset-inline-start: 0; } .nav.next { inset-inline-end: 0; }
+
+  .igfoot { padding: 8px 12px 12px; }
+  .igicons { display: flex; gap: 12px; color: #111; font-size: 1.05rem; }
+  .igcap { margin-top: 6px; font-size: .75rem; line-height: 1.6; color: #111; }
+  .igcap b { font-weight: 700; }
+  .igtags { margin-top: 4px; font-size: .6875rem; color: #385898; line-height: 1.6; }
+
+  .stepper { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-top: 12px; }
+  .stepper button {
+    font: inherit; font-size: .8125rem; font-weight: 600; cursor: pointer; color: var(--ink);
+    background: var(--panel); border: 1px solid var(--line); border-radius: 999px; padding: 8px 16px;
+  }
+  .stepper span { font-size: .75rem; color: var(--muted); font-variant-numeric: tabular-nums; }
+
+  /* ---- the poster itself ---- */
+  .poster { position: absolute; inset: 0; display: flex; flex-direction: column; background: var(--paper); }
+  .poster .bg { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+  .poster .veil { position: absolute; inset: 0; }
+  .poster .inner { position: relative; display: flex; flex-direction: column; height: 100%; padding: 18px; }
+
+  .mark { display: flex; align-items: center; gap: 6px; }
+  .mark img { width: 22px; height: 22px; border-radius: 6px; }
+  .mark span { font-family: var(--display); font-size: 1.05rem; font-weight: 700; color: var(--forest); letter-spacing: .01em; }
+  .mark.on-dark span { color: #fff; }
+
+  .hook {
+    font-family: var(--display); font-weight: 700; color: var(--forest);
+    font-size: clamp(1.9rem, 7.2cqw, 2.5rem); line-height: 1.08; text-wrap: balance; white-space: pre-line;
+    margin-top: auto;
+  }
+  .hook.on-dark { color: #fff; text-shadow: 0 2px 18px rgb(0 0 0 / .4); }
+  .kicker { font-size: .625rem; font-weight: 700; letter-spacing: .08em; color: var(--gold); margin-bottom: 6px; }
+
+  .body-t { font-family: var(--display); font-size: 1.45rem; font-weight: 700; color: var(--forest); line-height: 1.15; }
+  .body-b { margin-top: 6px; font-size: .8125rem; line-height: 1.65; color: var(--muted); }
+
+  .card {
+    background: #fff; border: 1px solid var(--line); border-radius: 16px; padding: 14px;
+    box-shadow: 0 10px 26px -18px rgb(27 42 31 / .45);
+  }
+  .facts { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 10px; }
+  .fact { text-align: center; }
+  .fact b { display: block; font-family: var(--display); font-size: 1.15rem; color: var(--forest); font-variant-numeric: tabular-nums; }
+  .fact span { font-size: .5625rem; color: var(--muted); }
+
+  .pill {
+    display: inline-flex; align-items: center; gap: 5px; align-self: flex-start;
+    background: var(--gold-soft); color: var(--forest); border-radius: 999px;
+    padding: 4px 10px; font-size: .625rem; font-weight: 700;
+  }
+  .pill.leaf { background: var(--leaf-soft); }
+
+  .cta {
+    margin-top: 10px; display: flex; align-items: center; justify-content: center; gap: 6px;
+    background: var(--forest); color: #fff; border-radius: 999px; padding: 11px 16px;
+    font-size: .8125rem; font-weight: 700;
+  }
+  .ladder { display: grid; gap: 7px; margin-top: 10px; }
+  .rung { display: flex; align-items: center; justify-content: space-between; gap: 10px; background: #fff; border: 1px solid var(--line); border-radius: 12px; padding: 9px 12px; }
+  .rung b { font-family: var(--display); font-size: 1.3rem; color: var(--gold); }
+  .rung span { font-size: .75rem; color: var(--ink); font-weight: 600; }
+
+  /* ---- the grid ---- */
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(8.5rem, 1fr)); gap: 4px; }
+  .cell { position: relative; aspect-ratio: 4/5; border: 0; padding: 0; cursor: pointer; background: #000; overflow: hidden; border-radius: 4px; }
+  .cell img { width: 100%; height: 100%; object-fit: cover; }
+  .cell .n { position: absolute; inset-block-start: 5px; inset-inline-end: 6px; background: rgb(0 0 0 / .55); color: #fff; font-size: .5625rem; font-weight: 700; border-radius: 5px; padding: 2px 5px; }
+  .cell .h { position: absolute; inset-inline: 0; inset-block-end: 0; padding: 20px 7px 7px; background: linear-gradient(to top, rgb(0 0 0 / .78), transparent); color: #fff; font-family: var(--display); font-size: .8125rem; font-weight: 700; line-height: 1.15; text-align: start; white-space: pre-line; }
+  .cell[aria-current="true"] { outline: 3px solid var(--gold-bright); outline-offset: -3px; }
+  .cell:focus-visible { outline: 3px solid var(--gold-bright); outline-offset: -3px; }
+</style>
+
+<div class="wrap">
+  <header class="top">
+    <img src="img/logo.webp" alt="">
+    <div>
+      <div class="title">خمسين بوست لـAgriZed</div>
+      <p class="sub">كل بوست كاروسيل من أربع شرائح. الأرقام والعروض الحقيقية متاع الموقع. انقر على أي بوست باش تشوفو في التلفون.</p>
+    </div>
+  </header>
+
+  <div class="filters" id="filters" role="group" aria-label="الأقسام"></div>
+
+  <div class="stage">
+    <div class="phone">
+      <div class="device">
+        <div class="screen">
+          <div class="igbar">
+            <img src="img/logo.webp" alt="">
+            <div>
+              <div class="igname">agrized</div>
+              <div class="igsub">تونس · agrized.site</div>
+            </div>
+          </div>
+          <div class="frame" id="frame">
+            <div class="track" id="track"></div>
+            <button class="nav prev" id="prev" aria-label="الشريحة السابقة"></button>
+            <button class="nav next" id="next" aria-label="الشريحة اللي بعدها"></button>
+            <div class="dots" id="dots"></div>
+          </div>
+          <div class="igfoot">
+            <div class="igicons" aria-hidden="true">♡ &nbsp; ◻ &nbsp; ↗</div>
+            <p class="igcap" id="cap"></p>
+            <p class="igtags" id="tags"></p>
+          </div>
+        </div>
+      </div>
+      <div class="stepper">
+        <button id="back" type="button">السابق</button>
+        <span id="counter"></span>
+        <button id="fwd" type="button">اللي بعدو</button>
+      </div>
+    </div>
+
+    <div class="grid" id="grid"></div>
+  </div>
+</div>
+
+<script>
+(function () {
+  const TAGS = "#AgriZed #زيتون #تونس #زيتونتك_مشروعك #استثمار_فلاحي #زيت_زيتون #Tunisie #Olivier";
+  let POSTS = [], current = 0, slide = 0, filter = "الكل";
+
+  const img = (key) => key.startsWith("real:")
+    ? "img/" + key.split(":")[1] + "-" + key.split(":")[2] + ".webp"
+    : "img/" + key + ".webp";
+
+  const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+
+  function hookSlide(p) {
+    return `<div class="poster">
+      <img class="bg" src="${img(p.scene)}" alt="">
+      <div class="veil" style="background:linear-gradient(to top,rgba(22,56,33,.88) 12%,rgba(22,56,33,.35) 55%,rgba(22,56,33,.12))"></div>
+      <div class="inner">
+        <div class="mark on-dark"><img src="img/logo.webp" alt=""><span>AgriZed</span></div>
+        <div class="hook on-dark">${esc(p.hook)}</div>
+      </div>
+    </div>`;
+  }
+
+  function bodySlide(p, s, i) {
+    return `<div class="poster">
+      <img class="bg" src="${img(p.scene)}" alt="" style="opacity:.16">
+      <div class="veil" style="background:linear-gradient(to bottom,rgba(247,245,238,.97),rgba(247,245,238,.93))"></div>
+      <div class="inner">
+        <div class="mark"><img src="img/logo.webp" alt=""><span>AgriZed</span></div>
+        <div style="margin-top:auto">
+          <div class="kicker">0${i + 2}</div>
+          <div class="body-t">${esc(s.t)}</div>
+          <div class="body-b">${esc(s.b)}</div>
+        </div>
+      </div>
+    </div>`;
+  }
+
+  function offerSlide(p) {
+    const o = (window.__DATA.offers || []).find((x) => x.code === p.offer);
+    if (!o) return "";
+    return `<div class="poster">
+      <img class="bg" src="${img(p.scene)}" alt="">
+      <div class="veil" style="background:linear-gradient(to top,rgba(22,56,33,.9) 30%,rgba(22,56,33,.2))"></div>
+      <div class="inner">
+        <div class="mark on-dark"><img src="img/logo.webp" alt=""><span>AgriZed</span></div>
+        <div style="margin-top:auto">
+          <div class="card">
+            <div style="font-family:var(--display);font-size:1.25rem;font-weight:700;color:var(--forest)">${esc(o.name)} — ${esc(o.gov)}</div>
+            <div class="facts">
+              <div class="fact"><b>${esc(String(o.trees))}</b><span>زيتونة</span></div>
+              <div class="fact"><b>${esc(o.m2)} م²</b><span>لكل زيتونة</span></div>
+              <div class="fact"><b>${esc(o.price)} د</b><span>سعر الزيتونة</span></div>
+            </div>
+            <div class="cta">اكتشف العرض ←</div>
+          </div>
+        </div>
+      </div>
+    </div>`;
+  }
+
+  function ladderSlide() {
+    const rungs = (window.__DATA.ladder || []).map((r) =>
+      `<div class="rung"><span>من ${r.from} زيتونة</span><b>−${r.off}%</b></div>`).join("");
+    return `<div class="poster">
+      <img class="bg" src="img/aerial.webp" alt="" style="opacity:.14">
+      <div class="veil" style="background:linear-gradient(to bottom,rgba(247,245,238,.97),rgba(247,245,238,.94))"></div>
+      <div class="inner">
+        <div class="mark"><img src="img/logo.webp" alt=""><span>AgriZed</span></div>
+        <div style="margin-top:auto">
+          <span class="pill leaf">التخفيض يتطبّق وحدو</span>
+          <div class="ladder">${rungs}</div>
+        </div>
+      </div>
+    </div>`;
+  }
+
+  function ctaSlide(p) {
+    return `<div class="poster">
+      <img class="bg" src="${img(p.scene)}" alt="">
+      <div class="veil" style="background:linear-gradient(to top,rgba(22,56,33,.93) 25%,rgba(22,56,33,.45))"></div>
+      <div class="inner" style="align-items:center;text-align:center">
+        <div class="mark on-dark"><img src="img/logo.webp" alt=""><span>AgriZed</span></div>
+        <div style="margin-top:auto;width:100%">
+          <div style="font-family:var(--display);font-size:1.5rem;font-weight:700;color:#fff;line-height:1.2">${esc(p.cta.split(" · ")[0])}</div>
+          <div style="margin-top:6px;font-size:.75rem;color:rgba(255,255,255,.8)">agrized.site · ${esc(window.__DATA.brand.phone)}</div>
+          <div class="cta" style="margin-top:14px;background:var(--gold-bright);color:var(--forest-700)">ابدا رحلتك</div>
+        </div>
+      </div>
+    </div>`;
+  }
+
+  function slidesFor(p) {
+    const out = [hookSlide(p)];
+    if (p.offer) out.push(offerSlide(p));
+    if (p.theme === "التخفيض" && p.id === 21) out.push(ladderSlide());
+    p.slides.forEach((s, i) => out.push(bodySlide(p, s, i)));
+    out.push(ctaSlide(p));
+    return out;
+  }
+
+  function render() {
+    const p = POSTS[current];
+    const html = slidesFor(p);
+    slide = Math.min(slide, html.length - 1);
+    const track = document.getElementById("track");
+    track.innerHTML = html.map((h) => `<div class="slide">${h}</div>`).join("");
+    track.style.transform = `translateX(${slide * 100}%)`;
+    document.getElementById("dots").innerHTML =
+      html.map((_, i) => `<span class="dot" data-on="${i === slide ? 1 : 0}"></span>`).join("");
+    document.getElementById("cap").innerHTML = `<b>agrized</b> ${esc(p.caption)}`;
+    document.getElementById("tags").textContent = TAGS;
+    document.getElementById("counter").textContent = `بوست ${p.id} من ${POSTS.length} · شريحة ${slide + 1}/${html.length}`;
+    document.querySelectorAll(".cell").forEach((c) =>
+      c.setAttribute("aria-current", String(Number(c.dataset.i) === current)));
+  }
+
+  function go(d) { slide = Math.max(0, Math.min(slidesFor(POSTS[current]).length - 1, slide + d)); render(); }
+  function open(i) { current = i; slide = 0; render(); }
+
+  function buildGrid() {
+    const all = window.__DATA.posts;
+    POSTS = filter === "الكل" ? all : all.filter((p) => p.theme === filter);
+    if (POSTS.length === 0) POSTS = all;
+    current = 0; slide = 0;
+    document.getElementById("grid").innerHTML = POSTS.map((p, i) =>
+      `<button class="cell" data-i="${i}" type="button">
+         <img src="${img(p.scene)}" alt="">
+         <span class="n">${p.id}</span>
+         <span class="h">${esc(p.hook)}</span>
+       </button>`).join("");
+    document.querySelectorAll(".cell").forEach((c) =>
+      c.addEventListener("click", () => { open(Number(c.dataset.i)); document.getElementById("frame").scrollIntoView({ block: "center", behavior: "smooth" }); }));
+    render();
+  }
+
+  function buildFilters() {
+    const themes = ["الكل", ...new Set(window.__DATA.posts.map((p) => p.theme))];
+    document.getElementById("filters").innerHTML = themes.map((t) =>
+      `<button class="chip" type="button" aria-pressed="${t === filter}">${esc(t)}</button>`).join("");
+    document.querySelectorAll(".chip").forEach((b) =>
+      b.addEventListener("click", () => { filter = b.textContent; buildFilters(); buildGrid(); }));
+  }
+
+  document.getElementById("next").addEventListener("click", () => go(1));
+  document.getElementById("prev").addEventListener("click", () => go(-1));
+  document.getElementById("fwd").addEventListener("click", () => { open(Math.min(POSTS.length - 1, current + 1)); });
+  document.getElementById("back").addEventListener("click", () => { open(Math.max(0, current - 1)); });
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "ArrowLeft") go(1);
+    if (e.key === "ArrowRight") go(-1);
+  });
+
+  let x0 = null;
+  const frame = document.getElementById("frame");
+  frame.addEventListener("touchstart", (e) => { x0 = e.touches[0].clientX; }, { passive: true });
+  frame.addEventListener("touchend", (e) => {
+    if (x0 === null) return;
+    const dx = e.changedTouches[0].clientX - x0; x0 = null;
+    if (Math.abs(dx) > 42) go(dx > 0 ? 1 : -1);
+  }, { passive: true });
+
+  fetch("posts.json").then((r) => r.json()).then((d) => {
+    window.__DATA = d;
+    buildFilters(); buildGrid();
+  });
+})();
+</script>

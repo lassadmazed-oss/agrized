@@ -1,0 +1,386 @@
+<title>مكالمة التجاري</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&family=Markazi+Text:wght@600;700&display=swap">
+<style>
+  /* Layout: a one-screen call companion. A sticky rail of steps on the left, the open step on the right,
+     and the figures always within reach — because this is read while somebody is on the line. */
+  :root {
+    --bg: #f4f2ea;
+    --panel: #ffffff;
+    --ink: #1b2a1f;
+    --muted: #5f6d60;
+    --line: #ded9cb;
+    --forest: #1f4a2c;
+    --leaf: #6e8e3a;
+    --leaf-soft: #e8eed9;
+    --gold: #a87c22;
+    --gold-soft: #f6ecd2;
+    --danger: #a33b2c;
+    --danger-soft: #f8e5e1;
+    --display: "Markazi Text", "IBM Plex Sans Arabic", serif;
+    --body: "IBM Plex Sans Arabic", system-ui, sans-serif;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #141810; --panel: #1c211a; --ink: #e8ecdf; --muted: #9bab96; --line: #2c3429;
+      --leaf-soft: #22301d; --gold-soft: #2e2817; --danger-soft: #33201c;
+      color-scheme: dark;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #141810; --panel: #1c211a; --ink: #e8ecdf; --muted: #9bab96; --line: #2c3429;
+    --leaf-soft: #22301d; --gold-soft: #2e2817; --danger-soft: #33201c;
+    color-scheme: dark;
+  }
+
+  * { box-sizing: border-box; }
+  body { background: var(--bg); color: var(--ink); font-family: var(--body); direction: rtl; line-height: 1.75; }
+  .wrap { max-width: 72rem; margin: 0 auto; padding-inline: 16px; padding-block: 24px 64px; }
+
+  h1 { font-family: var(--display); font-size: clamp(1.9rem, 5vw, 2.6rem); font-weight: 700; color: var(--forest); line-height: 1.1; margin: 0; text-wrap: balance; }
+  @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) h1 { color: var(--leaf-soft); } }
+  :root[data-theme="dark"] h1 { color: var(--leaf-soft); }
+  .lede { color: var(--muted); max-width: 60ch; margin: 8px 0 0; font-size: .9375rem; }
+
+  .layout { display: grid; gap: 20px; margin-top: 24px; grid-template-columns: 1fr; }
+  @media (min-width: 58rem) { .layout { grid-template-columns: 14rem 1fr; align-items: start; } }
+
+  nav.rail { display: flex; flex-wrap: wrap; gap: 6px; }
+  @media (min-width: 58rem) {
+    nav.rail { position: sticky; top: calc(env(safe-area-inset-top, 0px) + 12px); flex-direction: column; flex-wrap: nowrap; }
+  }
+  .step {
+    font: inherit; font-size: .875rem; font-weight: 600; text-align: start; cursor: pointer;
+    display: flex; align-items: center; gap: 8px; width: 100%; min-width: 0;
+    background: var(--panel); color: var(--muted); border: 1px solid var(--line);
+    border-radius: 12px; padding: 9px 12px;
+  }
+  .step b { font-family: var(--display); font-size: 1.1rem; color: var(--gold); font-variant-numeric: tabular-nums; }
+  .step[aria-current="true"] { background: var(--forest); border-color: var(--forest); color: #fff; }
+  .step[aria-current="true"] b { color: #e8c877; }
+
+  section.pane { background: var(--panel); border: 1px solid var(--line); border-radius: 18px; padding: 20px; min-width: 0; }
+  @media (min-width: 40rem) { section.pane { padding: 26px; } }
+  section.pane > h2 { font-family: var(--display); font-size: 1.85rem; font-weight: 700; color: var(--forest); margin: 0 0 4px; line-height: 1.15; }
+  @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) section.pane > h2 { color: var(--leaf-soft); } }
+  :root[data-theme="dark"] section.pane > h2 { color: var(--leaf-soft); }
+  .goal { font-size: .8125rem; color: var(--muted); margin: 0 0 18px; }
+
+  h3 { font-size: 1rem; font-weight: 700; color: var(--ink); margin: 22px 0 8px; }
+  h3:first-of-type { margin-top: 14px; }
+  p { margin: 0 0 10px; }
+
+  /* What the salesperson actually says, set apart from what they should know. */
+  .say {
+    background: var(--leaf-soft); border-inline-start: 4px solid var(--leaf);
+    border-radius: 0 12px 12px 0; padding: 12px 14px; margin: 0 0 12px;
+    font-size: 1.0625rem; line-height: 1.85;
+  }
+  .say + .say { margin-top: -2px; }
+  .note { font-size: .8125rem; color: var(--muted); margin: -4px 0 14px; }
+  .warn {
+    background: var(--danger-soft); border-inline-start: 4px solid var(--danger);
+    border-radius: 0 12px 12px 0; padding: 12px 14px; margin: 0 0 12px; font-size: .9375rem;
+  }
+  .warn b { color: var(--danger); }
+
+  ul, ol { margin: 0 0 12px; padding-inline-start: 1.2rem; }
+  li { margin-bottom: 6px; }
+
+  table { width: 100%; border-collapse: collapse; font-size: .875rem; }
+  .scroller { overflow-x: auto; margin-bottom: 14px; }
+  th, td { text-align: start; padding: 9px 10px; border-bottom: 1px solid var(--line); white-space: nowrap; }
+  th { font-size: .75rem; color: var(--muted); font-weight: 600; }
+  td b { font-variant-numeric: tabular-nums; }
+
+  .obj { border: 1px solid var(--line); border-radius: 14px; padding: 0; margin-bottom: 8px; overflow: hidden; background: var(--panel); }
+  .obj summary { cursor: pointer; padding: 12px 14px; font-weight: 700; font-size: .9375rem; list-style: none; }
+  .obj summary::-webkit-details-marker { display: none; }
+  .obj summary::before { content: "؟ "; color: var(--gold); font-weight: 700; }
+  .obj[open] summary { background: var(--gold-soft); }
+  .obj .in { padding: 4px 14px 14px; }
+
+  .search { width: 100%; font: inherit; font-size: .9375rem; padding: 10px 14px; border-radius: 12px; border: 1px solid var(--line); background: var(--bg); color: var(--ink); margin-bottom: 14px; }
+  .search:focus { outline: 2px solid var(--leaf); outline-offset: 1px; }
+
+  .chips { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 14px; }
+  .chip { background: var(--gold-soft); color: var(--forest); border-radius: 999px; padding: 4px 11px; font-size: .75rem; font-weight: 600; }
+  @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .chip { color: var(--leaf-soft); } }
+  :root[data-theme="dark"] .chip { color: var(--leaf-soft); }
+</style>
+
+<div class="wrap">
+  <h1>مكالمة التجاري</h1>
+  <p class="lede">
+    نصّ المكالمة الأولى مع واحد عمّر الاستمارة. <strong>هدف المكالمة ماهوش البيع — هدفها الزيارة.</strong>
+    المراحل تحت هي نفس مراحل الـBack Office: جديد ← قيد الاتصال ← مؤهَّل ← تم اقتراح مشروع ← <strong>زيارة مبرمجة</strong>.
+  </p>
+
+  <div class="layout">
+    <nav class="rail" id="rail" aria-label="مراحل المكالمة"></nav>
+    <div id="panes"></div>
+  </div>
+</div>
+
+<script>
+(function () {
+  const STEPS = [
+    {
+      n: "0", k: "قبل ما تكلّم", goal: "ثلاثين ثانية في الملف قبل ما تحلّ التلفون.",
+      html: `
+        <h3>اقرا هاذي الأربعة قبل ما تنقر</h3>
+        <ul>
+          <li><b>شنوّة طلب</b> — عدد الزيتونات، وإذا اختار عرض معيّن ولا مازال يلوّج.</li>
+          <li><b>شنوّة يحبّ منها</b> — استهلاك عائلي، ولا ملكية زيتون وأرض، ولا الاثنين. هذا يبدّل الكلام كامل.</li>
+          <li><b>وين ساكن</b> — ولايتو، وإذا أشّر «من المواطنين بالخارج».</li>
+          <li><b>كيفاش وإمتى يحبّ تكلّمو</b> — تلفون ولا واتساب، وصباح ولا عشية. احترمهم.</li>
+        </ul>
+        <div class="warn">
+          <b>كان أشّر «بالخارج»:</b> ما تسألوش «وين في تونس؟» — اسألو على بلاد الإقامة والفارق في الوقت،
+          وقولّو من الأوّل إنّو ينجّم يشوف الأرض بالفيديو ويمضي من بلادو.
+        </div>
+        <h3>وحضّر</h3>
+        <p>ورقة وقلم، وتقويم مفتوح. كان قال «نجي نشوف»، لازم تعطيه نهار في نفس المكالمة — ماشي «نعاودو نتصلو».</p>`
+    },
+    {
+      n: "1", k: "الافتتاح", goal: "أقلّ من عشرين ثانية. يعرف شكون إنت وعلاش تكلّمو.",
+      html: `
+        <h3>كي يردّ</h3>
+        <div class="say">السلام عليكم، السيد [الاسم]؟ معاك [اسمك] من AgriZed.<br>
+        سجّلت عندنا اهتمام على الموقع — نجّم ناخذ منّك دقيقتين برك؟</div>
+        <p class="note">استنّى الجواب. كان قال «توّا ما نجّمش»، اسألو على وقت ويكفي: «وقتاش يناسبك نعاودلك؟»</p>
+
+        <h3>كان سجّل على عرض بالذات</h3>
+        <div class="say">سجّلت على عرض [اسم العرض] في [الولاية]، صحّ؟ حبّيت نشرحلك شنوّة فيه بالضبط،
+        وكان عجبك نرتّبولك زيارة للأرض.</div>
+
+        <h3>كان سجّل من الحاسبة برك</h3>
+        <div class="say">شفت إنّك حسبت مشروع بـ[العدد] زيتونة. نحبّ نفهم شنوّة تحبّ بالضبط باش نقترحلك اللي يناسبك.</div>
+
+        <div class="warn">
+          <b>ما تبداش بالسعر.</b> اللي يبدا بالسعر يخلّي الحريف يقارن أرقام قبل ما يفهم أشنوّة يشري.
+          السعر يجي في المرحلة 4، بعد ما يفهم أنّ الزيتونة باسمو وفي أرض ينجّم يزورها.
+        </div>`
+    },
+    {
+      n: "2", k: "التأهيل", goal: "أربع أسئلة. تسمع أكثر ما تحكي.",
+      html: `
+        <h3>الأسئلة الأربعة، بالترتيب</h3>
+        <div class="say">1 · شنوّة اللي جابك لـAgriZed؟ تحبّ زيت لعائلتك، ولا تحبّ تملك أرض وزيتون؟</div>
+        <p class="note">هذا أهمّ سؤال. «استهلاك عائلي» ← ركّز على الزيت والموسم. «ملكية» ← ركّز على العقد والأرقام والأرض.</p>
+
+        <div class="say">2 · عندك فكرة على قدّاش من زيتونة تحبّ تبدا بيهم؟</div>
+        <p class="note">كان قال رقم صغير، ما تحاولش تكبّرو توّا. كان قال «ما نعرفش»، قولّو: «تنجّم تبدا بوحدة. أغلب الناس يبداو بين 10 و25.»</p>
+
+        <div class="say">3 · تفضّل منطقة معيّنة؟ عندنا توّا صفاقس، سليانة وزغوان.</div>
+
+        <div class="say">4 · وتنجّم تمشي تشوف الأرض؟ ولا تفضّل في البداية نوريوك بالفيديو؟</div>
+        <p class="note">هذا السؤال يحضّر الإغلاق. كان قال إيه — إنت وصلت.</p>
+
+        <h3>اسمع هاذي</h3>
+        <ul>
+          <li>«باش نعطي لولدي» ← الزيتونة اللي تتورّث، والرقم اللي يبقى.</li>
+          <li>«قدّاش تربح؟» ← انتبه. شوف المرحلة 6.</li>
+          <li>«ما عنديش فلوس برشا» ← التقسيط والبداية بزيتونة وحدة.</li>
+          <li>«ما نثقش في هالحكايات» ← الزيارة. ما تدافعش، اعرض عليه يشوف.</li>
+        </ul>`
+    },
+    {
+      n: "3", k: "الشرح", goal: "جملتين. ماشي محاضرة.",
+      html: `
+        <h3>الجملة اللي تقولها دايماً</h3>
+        <div class="say">AgriZed تبيعلك زيتونة — ماشي حصّة ولا ورقة.<br>
+        زيتونة قائمة في أرض معروفة، عندها رقم خاصّ بيها مكتوب في عقدك، ومعاها مساحتها من الأرض.</div>
+
+        <h3>وزيد وحدة حسب اللي قالك</h3>
+        <p><b>قال «ملكية»:</b></p>
+        <div class="say">العقد يسمّي أرقام زيتوناتك والمساحة. ونسخة تبقى عندك. تنجّم تمشي للأرض وتلقاها.</div>
+
+        <p><b>قال «زيت للعائلة»:</b></p>
+        <div class="say">في آخر الموسم، الزيتون متاعك يتجنى ويمشي للمعصرة، وتاخذ زيت من زيتونك إنت —
+        ماشي زيت من السوق ما تعرفش منين جا.</div>
+
+        <p><b>قال «ما نعرفش» ولا «الاثنين»:</b></p>
+        <div class="say">الزيتونة تعطيك الزوز: ملكية مكتوبة، وزيت كل موسم. وإحنا نتلهاو بالتقليم والحرث والمتابعة.</div>
+
+        <h3>وبعدها اسكت</h3>
+        <p class="note">خلّيه يسأل. السؤال اللي يسألو هو اللي يقولّك شنوّة يهمّو.</p>`
+    },
+    {
+      n: "4", k: "الأرقام", goal: "الأرقام الحقيقية، بلا تقريب وبلا وعد.",
+      html: `
+        <h3>العروض الموجودة اليوم</h3>
+        <div class="scroller">
+          <table>
+            <thead><tr><th>العرض</th><th>الولاية</th><th>الزيتونات</th><th>لكل زيتونة</th><th>السعر</th></tr></thead>
+            <tbody>
+              <tr><td>قصر الريح</td><td>صفاقس</td><td><b>108</b> · شملالي · 50 عام</td><td><b>576 م²</b></td><td><b>4,451 د</b></td></tr>
+              <tr><td>بوعرادة</td><td>سليانة</td><td><b>1,000</b> · ساحلي</td><td><b>150 م²</b></td><td><b>1,172 د</b></td></tr>
+              <tr><td>الوادي الأخضر</td><td>زغوان</td><td><b>130</b></td><td><b>184.6 م²</b></td><td><b>1,439 د</b></td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p class="note">الفرق في السعر = الفرق في المساحة اللي تجي مع الزيتونة. كان سأل علاش صفاقس أغلى: «خاطر كل زيتونة فيها تجي بـ576 متر مربّع، يعني أكثر من ثلاث مرّات بوعرادة.»</p>
+
+        <h3>التخفيض حسب الكمية</h3>
+        <div class="chips"><span class="chip">من 10 → 10%</span><span class="chip">من 25 → 15%</span><span class="chip">من 100 → 20%</span></div>
+        <div class="say">كل ما تاخذ أكثر، تخلّص أقلّ في الزيتونة. من 10 زيتونات التخفيض يبدا وحدو — ما يلزمك تطلبو.</div>
+        <p class="note">مثال جاهز: 25 زيتونة في بوعرادة = 29,300 د، التخفيض 15% يعني 4,395 د أقلّ، تخلّص <b>24,905 د</b>.</p>
+
+        <h3>الصيانة</h3>
+        <div class="say">15 دينار في العام للزيتونة الواحدة — التقليم والحرث والمتابعة. مكتوبة قبل ما تمضي، وما فماش غيرها.</div>
+
+        <h3>الخلاص</h3>
+        <div class="say">تنجّم تخلّص بالحاضر ولا بالتقسيط — كل عرض عندو شروطو. والتخفيض ينطبّق في الزوز.</div>
+        <p class="note">ما توعدش بتقسيط قبل ما تتثبّت من العرض: فما عروض بالحاضر فقط. شوف بطاقة العرض في الـBack Office.</p>`
+    },
+    {
+      n: "5", k: "الإغلاق", goal: "نهار وساعة. هذا هو النجاح.",
+      html: `
+        <h3>الجملة اللي تغلق بيها</h3>
+        <div class="say">اسمع، أنا ما نحبّكش تقرّر توّا في التلفون.<br>
+        الأحسن تمشي تشوف الأرض بعينيك — الزيارة مجانية وما تلزمك بشيء. وقتاش يناسبك، آخر الأسبوع ولا في الأسبوع؟</div>
+        <p class="note">عطيه اختيار بين حاجتين، ماشي سؤال مفتوح. «السبت ولا الأحد؟» خير من «وقتاش تحبّ؟»</p>
+
+        <h3>كي يقبل</h3>
+        <ul>
+          <li>ثبّت النهار والساعة، وأعد عليه بصوت عالي.</li>
+          <li>قولّو شكون باش يستنّاه ووين بالضبط.</li>
+          <li>ابعثلو تثبيت على واتساب في نفس اليوم.</li>
+          <li>وبدّل المرحلة في الـBack Office لـ<b>زيارة مبرمجة</b>.</li>
+        </ul>
+
+        <h3>كي يتردّد</h3>
+        <div class="say">ما فماش مشكل. نبعثلك الموقع وصور الأرض، شوفهم على راحتك، ونعاودلك نهار [يوم محدّد] — يمشيلك؟</div>
+        <p class="note">دايماً اخرج من المكالمة بنهار. «نعاودلك» بلا نهار تعني ما عادش.</p>
+
+        <h3>كي يقول لا</h3>
+        <div class="say">مفهوم، شكراً على وقتك. كان تبدّل رأيك ولا تحبّ تسأل على حاجة، نمرتي هاذي ونبقى في الخدمة.</div>
+        <p class="note">سجّلها «غير مهتم حالياً» — ماشي «مغلق». الناس تبدّل رأيها، خاصّة في موسم الجني.</p>`
+    },
+    {
+      n: "6", k: "ما تقولوش", goal: "هاذي تضرّ أكثر ما تنفع. اقراها مرّة كل أسبوع.",
+      html: `
+        <div class="warn">
+          <b>ما توعدش بمردود.</b> ما تقولش «تربح»، ولا «المردودية»، ولا «استرجاع رأس المال في كذا عام»،
+          ولا «الزيتونة تعطي كذا كيلو». الإنتاج يتبدّل حسب الموسم والمطر والأرض — ووعد ما يتحقّقش يولّي مشكل،
+          وكان كتبتو ولا قلتو يبقى عليك.
+        </div>
+        <div class="warn">
+          <b>ما تقولش «استثمار مضمون»</b> ولا «بلا مخاطر». إحنا نبيعو أصل فلاحي حقيقي، ماشي منتوج مالي.
+        </div>
+        <div class="warn">
+          <b>ما تخترعش أرقام.</b> كل رقم تقولو لازم يكون في الموقع ولا في بطاقة العرض. كان ما تعرفوش،
+          قول «نتثبّت ونعاودلك» — وعاودلو فعلاً.
+        </div>
+        <div class="warn">
+          <b>ما تضغطش بالوقت.</b> «آخر فرصة» و«العرض يسكّر اليوم» يخلّيو الواحد يشكّ. اللي عندنا محدود فعلاً
+          هو عدد الزيتونات، وهذا تنجّم تقولو كيما هو: «باقي [العدد] زيتونة في هذا العرض.»
+        </div>
+
+        <h3>وبدل هاكا</h3>
+        <ul>
+          <li>بدل «تربح» ← «تملك أصل حيّ، وتاخذ زيت كل موسم».</li>
+          <li>بدل «مضمون» ← «مكتوب في عقد، وتنجّم تشوف الأرض قبل».</li>
+          <li>بدل «آخر فرصة» ← «باقي كذا زيتونة في هذا العرض».</li>
+        </ul>`
+    },
+    {
+      n: "7", k: "الاعتراضات", goal: "لوّج على اللي قالك، واقرا الجواب كيما هو.",
+      objections: true
+    },
+    {
+      n: "8", k: "بعد المكالمة", goal: "دقيقتين، وإلّا المكالمة ضاعت.",
+      html: `
+        <h3>سجّل في الـBack Office</h3>
+        <ul>
+          <li><b>نتيجة المكالمة</b> — تم الرد · طلب إعادة الاتصال · لم يرد · رقم خاطئ · غير مهتم حالياً.</li>
+          <li><b>المرحلة</b> — حرّكها: قيد الاتصال ← مؤهَّل ← تم اقتراح مشروع ← زيارة مبرمجة.</li>
+          <li><b>ملاحظة</b> — بجملة: شنوّة يحبّ، وشنوّة منعو، وشنوّة وعدتو بيه.</li>
+          <li><b>الموعد الجاي</b> — نهار الزيارة ولا نهار المعاودة. بلا نهار، الملف يضيع.</li>
+        </ul>
+
+        <h3>وابعث</h3>
+        <div class="say">تشرّفنا السيد [الاسم]. هاذي صفحة العرض اللي حكينا عليه: agrized.site<br>
+        موعدنا [النهار] على [الساعة] في [المكان]. وكان طرا طارئ، كلّمني.</div>
+
+        <h3>القاعدة الوحيدة</h3>
+        <p>اللي ما يتكتبش في الـBack Office ما صارش. زميلك اللي باش ياخذ الملف منّك ما يسمعش مكالمتك.</p>`
+    }
+  ];
+
+  const OBJ = [
+    { q: "«كيفاش نتأكّد أنّها حقيقية؟»",
+      a: `<div class="say">سؤال في محلّو، وأنا نحبّك تسألو. علاش ما تمشيش تشوف الأرض بعينيك قبل ما تخلّص فلس؟
+          الزيارة مجانية. وكي تجي، تشوف الأرض والزيتون والوثائق.</div>
+          <p class="note">ما تدافعش بالكلام. الزيارة هي الجواب.</p>` },
+    { q: "«قدّاش نربح؟» / «شنوّة المردودية؟»",
+      a: `<div class="say">ما نعطيش أرقام مردودية، وهذا مقصود — الإنتاج يتبدّل حسب الموسم والمطر.
+          اللي نضمنولك هو: زيتونة مرقّمة باسمك في عقد، أرض تنجّم تزورها، وزيت من زيتونك في آخر الموسم.</div>
+          <div class="warn"><b>ما تزيدش كلمة.</b> أي رقم تقولو هنا يولّى وعد.</div>` },
+    { q: "«غالية»",
+      a: `<div class="say">نفهمك. أمّا خلّينا نشوفو شنوّة فيها: السعر فيه الزيتونة <b>ومساحتها من الأرض</b>.
+          في بوعرادة، 1,172 دينار فيهم 150 متر مربّع أرض. ونجّم تبدا بزيتونة وحدة، ولا بالتقسيط.</div>
+          <p class="note">وكان حابّ عدد أكبر، فكّرو بالتخفيض: من 10 زيتونات 10%، ومن 25 يولّي 15%.</p>` },
+    { q: "«ما عنديش فلوس توّا»",
+      a: `<div class="say">ما يلزمكش مبلغ كبير. تبدا بزيتونة وحدة، ولا بالتقسيط الشهري كان العرض يسمح.
+          والتسجيل مجاني وما يلزمك بشيء — نبعثلك المعلومات وتقرّر كي تكون جاهز.</div>` },
+    { q: "«نخمّم ونعاودلك»",
+      a: `<div class="say">طبيعي، وما نحبّكش تستعجل. خلّينا نعملو حاجة: نحجزلك زيارة للأرض —
+          مجانية وما تلزمك بشيء — وبعد ما تشوف تقرّر على راحتك. السبت ولا الأحد يمشيلك؟</div>
+          <p class="note">كان رفض الزيارة زادة، اطلب نهار للمعاودة. ما تخرجش بلا نهار.</p>` },
+    { q: "«وين الأرض بالضبط؟»",
+      a: `<div class="say">[العرض] في [الولاية]، معتمدية [...]. نبعثلك الموقع والصور على واتساب في التوّ،
+          وكان حبّيت نمشيو نشوفوها مع بعضنا.</div>` },
+    { q: "«وشكون يتلهّى بالزيتون؟»",
+      a: `<div class="say">إحنا. التقليم والحرث والمتابعة الفلاحية — بـ15 دينار في العام للزيتونة.
+          وكل أشغال تصير، تلقاها مكتوبة في حسابك مع الصور.</div>` },
+    { q: "«ونجّم نبيعها بعد؟»",
+      a: `<div class="say">الزيتونة ملكك بعقد. كان حبّيت تبيعها في المستقبل، نتفاهمو ساعتها —
+          أمّا هذا سؤال يتجاوب عليه في العقد ماشي في التلفون. نحبّ نعطيك الجواب الدقيق مكتوب.</div>
+          <div class="warn"><b>ما تخترعش شروط.</b> ارجع للمسؤول وعاودلو بجواب مكتوب.</div>` },
+    { q: "«أنا برّا تونس»",
+      a: `<div class="say">ما فماش مشكل، عندنا برشا حرفاء بالخارج. نوريوك الأرض بالفيديو،
+          ونرتّبو الإمضاء من بلاد إقامتك. وكي ترجع للبلاد، تلقى أرضك تستنّاك.</div>` },
+    { q: "«ما نثقش في هالحكايات»",
+      a: `<div class="say">عندك الحقّ تحذر، وأنا ما نحبّكش تثق فيّا بالكلام.<br>
+          تعال شوف الأرض، واقرا الوثائق، وبعدها قرّر. وكان ما عجبكش، ما خسرت شيء.</div>
+          <p class="note">ما تتصادمش معاه. اعرض الدليل بدل ما تدافع.</p>` },
+    { q: "«ابعثلي معلومات برك»",
+      a: `<div class="say">نبعثلك في التوّ. وباش ما نبعثلكش حاجة ما تنفعكش — تحبّ معلومات على عرض معيّن
+          ولا على الثلاثة الكلّ؟</div>
+          <p class="note">خذ منّو معلومة قبل ما تسكّر، واتّفق على نهار معاودة.</p>` },
+    { q: "«كلّمني مرّة أخرى»",
+      a: `<div class="say">بالطبيعة. وقتاش يناسبك — نهار [اقترح نهار] على [اقترح ساعة]؟</div>
+          <p class="note">نهار محدّد، وسجّلو. «نعاودلك» بلا نهار تعني ما عادش.</p>` }
+  ];
+
+  let open = 0;
+
+  function objHtml() {
+    return `<input class="search" id="objq" type="search" placeholder="لوّج على اعتراض… مثال: غالية، نخمّم، مردودية" aria-label="بحث في الاعتراضات">
+      <div id="objlist">${OBJ.map((o) =>
+        `<details class="obj"><summary>${o.q}</summary><div class="in">${o.a}</div></details>`).join("")}</div>`;
+  }
+
+  function render() {
+    document.getElementById("rail").innerHTML = STEPS.map((s, i) =>
+      `<button class="step" type="button" aria-current="${i === open}"><b>${s.n}</b><span>${s.k}</span></button>`).join("");
+    const s = STEPS[open];
+    document.getElementById("panes").innerHTML =
+      `<section class="pane"><h2>${s.k}</h2><p class="goal">${s.goal}</p>${s.objections ? objHtml() : s.html}</section>`;
+
+    document.querySelectorAll(".step").forEach((b, i) =>
+      b.addEventListener("click", () => { open = i; render(); window.scrollTo({ top: 0, behavior: "smooth" }); }));
+
+    const q = document.getElementById("objq");
+    if (q) q.addEventListener("input", () => {
+      const t = q.value.trim();
+      document.querySelectorAll("#objlist .obj").forEach((d) => {
+        d.hidden = t !== "" && !d.textContent.includes(t);
+      });
+    });
+  }
+
+  render();
+})();
+</script>
