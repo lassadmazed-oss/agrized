@@ -49,3 +49,8 @@ Thumbs.db
 .vercel
 .env*
 winsms-test-link.txt
+
+# Business paperwork that lands in the working directory — bons de sortie, invoices. It is not code, and a
+# document naming a client or a price is not something to put into a history that cannot be rewritten. It
+# stays on disk, out of every commit. Remove this line if one of them ever genuinely belongs to the project.
+/documents/
