@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "expo-router";
 import { Linking, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -12,6 +12,7 @@ import { Btn, Chevron, ErrorText, Field, Hairline, Hint, Label } from "../../src
 import { buildRows, failureKey as fileFailureKey, type Failure, type Row, type ZitountiFile } from "../../src/zitounti";
 import { useConfig } from "../../src/use-config";
 import { useMyFile } from "../../src/useMyFile";
+import { enablePush, pushAlreadyOn } from "../../src/push";
 
 /**
  * حسابي — the buyer's door, and since 2026-10-12 it is a door rather than a signpost.
@@ -96,6 +97,14 @@ export default function AccountScreen() {
         ) : (
           <SignInPanel />
         )}
+
+        {/*
+          Shown in both states. A person who has registered interest but has no account is exactly who a
+          «your visit is confirmed» notification is for, and making the offer only to signed-in people would
+          hide it from most of the people it serves. When there is a session the device is linked to that
+          phone number; without one it registers unattached, and 0138 links it the moment the number is known.
+        */}
+        {ready ? <PushRow phone={person?.phone ?? null} /> : null}
       </View>
     </ScrollView>
   );
@@ -487,6 +496,93 @@ function SignedIn({
         <HelpLine />
       </View>
     </>
+  );
+}
+
+type PushState = "unknown" | "off" | "on" | "denied" | "failed" | "working";
+
+/**
+ * الإشعارات — the one screen in the app that asks for a system permission, and it asks twice on purpose.
+ *
+ * iOS allows ONE permission prompt per install. Tapped «Don't Allow», an app can never ask again from its
+ * own code — only point at Settings, which nearly nobody opens. So the owner's sentence is shown first and
+ * Apple's dialog only to someone who has read it and tapped «فعّل». The second prompt is the one whose
+ * refusal rate matters, and this ordering is the only thing that moves it.
+ *
+ * A REFUSAL IS NOT AN ERROR. It is drawn in the quiet colour with the sentence that says where to change it,
+ * and the button does not come back to ask again on every visit. `ui.push.failed` — network, server — is the
+ * only state that invites another try.
+ *
+ * The row hides itself where there can be no notifications: a simulator, Expo Go, or a token that cannot be
+ * had. Offering a switch that cannot work is worse than offering nothing.
+ */
+function PushRow({ phone }: { phone: string | null }) {
+  const { config } = useConfig();
+  const [state, setState] = useState<PushState>("unknown");
+  const [hidden, setHidden] = useState(false);
+
+  useEffect(() => {
+    let alive = true;
+    pushAlreadyOn()
+      .then((on) => {
+        if (alive) setState(on ? "on" : "off");
+      })
+      .catch(() => {
+        if (alive) setState("off");
+      });
+    return () => {
+      alive = false;
+    };
+  }, []);
+
+  /*
+   * ALREADY ON, AND THE NUMBER HAS JUST BECOME KNOWN. Signing in is the moment an unattached device can be
+   * attached to a person, and it costs one POST that the stored stamp makes idempotent — enablePush does
+   * nothing when the token and the phone are the pair the server already holds. Without this the first
+   * notification after signing in would go nowhere, because the row that addresses a person by phone would
+   * find no device on that number.
+   */
+  useEffect(() => {
+    if (state !== "on" || !phone) return;
+    void enablePush(phone);
+  }, [state, phone]);
+
+  const turnOn = useCallback(async () => {
+    setState("working");
+    const outcome = await enablePush(phone);
+    if (outcome.ok) {
+      setState("on");
+      return;
+    }
+    if (outcome.reason === "denied") setState("denied");
+    else if (outcome.reason === "unsupported") setHidden(true);
+    else setState("failed");
+  }, [phone]);
+
+  if (hidden || state === "unknown") return null;
+
+  return (
+    <View style={styles.card}>
+      <Label>{t(config, "ui.push.title")}</Label>
+      <Hint>{t(config, "ui.push.text")}</Hint>
+
+      {state === "on" ? (
+        <Text style={[type.caption, { color: colour.forest }]}>{t(config, "ui.push.on")}</Text>
+      ) : state === "denied" ? (
+        <Text style={[type.caption, { color: colour.muted }]}>{t(config, "ui.push.denied")}</Text>
+      ) : (
+        <>
+          {state === "failed" ? <ErrorText>{t(config, "ui.push.failed")}</ErrorText> : null}
+          <Btn
+            label={t(config, "ui.push.enable")}
+            onPress={() => void turnOn()}
+            tone="secondary"
+            disabled={state === "working"}
+            style={styles.wide}
+          />
+        </>
+      )}
+    </View>
   );
 }
 

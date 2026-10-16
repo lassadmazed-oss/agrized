@@ -32,6 +32,7 @@ import {
   type OfferQuote,
 } from "../../src/api";
 import { moduleOpen, settingText, t, type AppConfig } from "../../src/config";
+import { distanceToKm, formatKm } from "../../src/nearby";
 import { ArrowGo, ChevronBack, MapSketch, PinIcon, ShareIcon } from "../../src/icons";
 import { InterestForm } from "../../src/InterestForm";
 import { PhotoViewer, usePhotoViewer } from "../../src/gallery";
@@ -489,6 +490,12 @@ export default function OfferScreen() {
                       accessNote={accessNote}
                       accessTitle={t(config, "ui.offer.fact_access")}
                       mapHref={mapHref}
+                      coords={
+                        page && page.latitude !== null && page.longitude !== null
+                          ? { latitude: page.latitude, longitude: page.longitude }
+                          : null
+                      }
+                      config={config}
                       mapCta={t(config, "projects.location_cta")}
                       width={sheetWidth - frame.gutter * 2}
                     />
@@ -755,6 +762,8 @@ function LocationPanel({
   mapHref,
   mapCta,
   width,
+  coords,
+  config,
 }: {
   place: string;
   note: string;
@@ -763,6 +772,9 @@ function LocationPanel({
   mapHref: string | null;
   mapCta: string;
   width: number;
+  /** Null unless the team ticked «إظهار الموقع»; the RPC withholds them otherwise. */
+  coords: { latitude: number; longitude: number } | null;
+  config: AppConfig;
 }) {
   const { flip } = edges();
   return (
@@ -789,6 +801,7 @@ function LocationPanel({
 
       {place ? <Text style={styles.panelHead}>{place}</Text> : null}
       {note ? <Text style={styles.prose}>{note}</Text> : null}
+      {coords ? <DistanceLine coords={coords} config={config} /> : null}
       {accessNote ? (
         <View>
           <Text style={styles.subHead}>{accessTitle}</Text>
@@ -915,6 +928,66 @@ function PhotosPanel({
           </Pressable>
         </View>
       ) : null}
+    </View>
+  );
+}
+
+/**
+ * «قدّاش يبعد عليّ؟» — one tap, one number, and nothing leaves the phone.
+ *
+ * The offer's coordinates are already on this screen; the system is asked where the person is; the two are
+ * subtracted here. No position is sent to the database, written to the device, or put in a request — which
+ * is also the honest answer to the App Store question «what do you do with location data».
+ *
+ * IT IS A BUTTON AND NOT AN EFFECT. Asking for location the moment this panel scrolls into view would spend
+ * the one permission prompt iOS allows on somebody who never asked, and a refusal there cannot be undone
+ * from inside the app. So the question is asked only by someone who tapped it.
+ *
+ * A REFUSAL IS FINAL AND IS DRAWN AS SUCH: the quiet sentence replaces the button rather than sitting beside
+ * it, because a button that can only fail is worse than no button.
+ */
+function DistanceLine({
+  coords,
+  config,
+}: {
+  coords: { latitude: number; longitude: number };
+  config: AppConfig;
+}) {
+  const [state, setState] = useState<"idle" | "working" | "done" | "denied" | "failed">("idle");
+  const [km, setKm] = useState<string>("");
+
+  const ask = useCallback(async () => {
+    setState("working");
+    const outcome = await distanceToKm(coords);
+    if (outcome.ok) {
+      setKm(formatKm(outcome.km));
+      setState("done");
+      return;
+    }
+    setState(outcome.reason === "denied" ? "denied" : "failed");
+  }, [coords]);
+
+  if (state === "done") {
+    return <Text style={styles.prose}>{t(config, "ui.nearby.result", { km })}</Text>;
+  }
+  if (state === "denied") {
+    return <Text style={[styles.prose, { color: colour.muted }]}>{t(config, "ui.nearby.denied")}</Text>;
+  }
+
+  return (
+    <View style={{ gap: space.hair }}>
+      {state === "failed" ? (
+        <Text style={[styles.prose, { color: colour.muted }]}>{t(config, "ui.nearby.failed")}</Text>
+      ) : null}
+      <Pressable
+        onPress={() => void ask()}
+        disabled={state === "working"}
+        accessibilityRole="button"
+        style={({ pressed }) => [styles.secondary, pressed && { transform: [{ scale: 0.99 }] }]}
+        android_ripple={null}
+      >
+        <Text style={styles.secondaryLabel}>{t(config, "ui.nearby.ask")}</Text>
+      </Pressable>
     </View>
   );
 }

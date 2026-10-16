@@ -14,7 +14,8 @@ import { MarkaziText_400Regular } from "@expo-google-fonts/markazi-text/400Regul
 import { MarkaziText_700Bold } from "@expo-google-fonts/markazi-text/700Bold";
 import { useAssets } from "expo-asset";
 import { useFonts } from "expo-font";
-import { Stack } from "expo-router";
+import * as Notifications from "expo-notifications";
+import { Stack, useRouter } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import { StatusBar } from "expo-status-bar";
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -25,6 +26,7 @@ import { colour, FONT } from "../src/theme";
 import { AuthProvider } from "../src/auth";
 import { LAUNCH_MIN_MS, LaunchFailure, LaunchScreen } from "../src/launch";
 import { ConfigProvider, useConfig } from "../src/use-config";
+import { configureNotifications, routeForNotification } from "../src/push";
 
 /**
  * The root. One stack, so a screen that is not a tab — an offer — slides in over the tabs and can be
@@ -154,6 +156,61 @@ export default function RootLayout() {
  * intent — the provider's own comment says the caller «shows the owner's network sentence instead of a shell
  * full of printed key names» — and no caller was doing it.
  */
+/*
+ * Set once, at module scope, before anything renders.
+ *
+ * The handler decides what happens to a notification that arrives while the app is open and in front. There
+ * is no default: without this, such a notification is delivered to the code and shown to nobody, which reads
+ * as «the push did not arrive» to everyone including whoever is testing it.
+ */
+configureNotifications();
+
+/**
+ * Opens the screen a tapped notification is about.
+ *
+ * TWO ROADS IN, because a notification is tapped in two quite different situations. A running app gets an
+ * event — that is the listener. An app that was NOT running is launched by the tap, and by the time this
+ * component mounts the event has already been and gone; `getLastNotificationResponseAsync` is the only way
+ * to learn that is why the app is open at all. Handling just the first is the classic bug: notifications
+ * work perfectly while you are testing, and do nothing from a cold start, which is how a real person taps.
+ *
+ * It renders nothing. It is mounted beside the navigator rather than inside the gate above, so the router
+ * exists by the time it can be asked to go anywhere.
+ */
+function PushTaps() {
+  const router = useRouter();
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const go = (data: unknown) => {
+      if (cancelled) return;
+      // `replace: false` — the tab the person was on stays underneath, so the back gesture behaves.
+      router.push(routeForNotification(data) as never);
+    };
+
+    // The cold start: the tap that opened the app.
+    Notifications.getLastNotificationResponseAsync()
+      .then((response) => {
+        if (response) go(response.notification.request.content.data);
+      })
+      .catch(() => {
+        // Nothing to route to is not a failure worth a screen; the app opens where it normally would.
+      });
+
+    const subscription = Notifications.addNotificationResponseReceivedListener((response) => {
+      go(response.notification.request.content.data);
+    });
+
+    return () => {
+      cancelled = true;
+      subscription.remove();
+    };
+  }, [router]);
+
+  return null;
+}
+
 function Shell({ fontsReady, markReady }: { fontsReady: boolean; markReady: boolean }) {
   const { config, ready, failed, reload } = useConfig();
 
@@ -202,6 +259,7 @@ function Shell({ fontsReady, markReady }: { fontsReady: boolean; markReady: bool
 
   return (
     <>
+      <PushTaps />
       <Stack
         screenOptions={{
           headerStyle: { backgroundColor: colour.paper },

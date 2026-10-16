@@ -15,7 +15,8 @@
       "infoPlist": {
         "CFBundleDisplayName": "AgriZed",
         "CFBundleAllowMixedLocalizations": true,
-        "ITSAppUsesNonExemptEncryption": false
+        "ITSAppUsesNonExemptEncryption": false,
+        "NSLocationWhenInUseUsageDescription": "باش نوريّك العروض القريبة منّك ونحسبلك البعد. تنجّم ترفض وتختار الولاية بيدك."
       }
     },
     "android": {
@@ -39,6 +40,22 @@
           "imageWidth": 180,
           "resizeMode": "contain",
           "backgroundColor": "#FFFFFA"
+        }
+      ],
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/notification-icon.png",
+          "color": "#1f4a2c",
+          "defaultChannel": "default"
+        }
+      ],
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "باش نوريّك العروض القريبة منّك ونحسبلك البعد. تنجّم ترفض وتختار الولاية بيدك.",
+          "isAndroidBackgroundLocationEnabled": false,
+          "isIosBackgroundLocationEnabled": false
         }
       ]
     ],

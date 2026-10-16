@@ -11,7 +11,22 @@ import { readdir, readFile } from "node:fs/promises";
 import path from "node:path";
 import pg from "pg";
 
-const root = path.join(import.meta.dirname, "..", "src");
+const repo = path.join(import.meta.dirname, "..");
+
+/*
+ * TWO TREES ARE SCANNED, NOT ONE, and the second one is the reason this comment exists.
+ *
+ * The phone app (mobile/) reads the very same `ui.*` rows through its own `t(config, key)` — src/config.ts
+ * there is a second reader of the one table. Scanning only the website's src/ meant every key the app reads
+ * and the site does not was reported under «ui.* rows nothing reads — safe to delete once confirmed». Acting
+ * on that advice would have deleted the words off the app's screens, and the app does not fail when a row is
+ * missing: it prints the key's own name to the customer. Found 2026-10-16, the day push and the distance
+ * line added the first six such keys.
+ *
+ * mobile/ has no src/app/admin, so the public/admin split below simply never matches there — which is right:
+ * every word in the app is a word a client reads.
+ */
+const roots = [path.join(repo, "src"), path.join(repo, "mobile", "src"), path.join(repo, "mobile", "app")];
 
 async function walk(dir) {
   const out = [];
@@ -40,7 +55,7 @@ const PATTERNS = [
 const used = new Map();
 const requiredKeys = new Set();
 const dynamicPrefixes = new Set();
-for (const file of await walk(root)) {
+for (const file of (await Promise.all(roots.map((dir) => walk(dir)))).flat()) {
   // The Back Office reads settings with its own Arabic fallbacks and through createClient; the rule is about
   // what a visitor reads, which is everything outside src/app/admin and src/components/admin.
   // Comments quote keys as examples («t("ui.login.title")»); only code counts.
@@ -55,7 +70,7 @@ for (const file of await walk(root)) {
       const key = match[1];
       if (key.endsWith(".") || key.endsWith("_")) continue; // a prefix handed to <Texts prefixes>
       if (!used.has(key)) used.set(key, new Set());
-      used.get(key).add(path.relative(path.join(root, ".."), file).replaceAll("\\", "/"));
+      used.get(key).add(path.relative(repo, file).replaceAll("\\", "/"));
       if (required) requiredKeys.add(key);
     }
   }

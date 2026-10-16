@@ -45,6 +45,46 @@ async function square(source, size, coverage) {
     .toBuffer();
 }
 
+/**
+ * The Android status-bar notification icon: a WHITE SILHOUETTE on transparency.
+ *
+ * Android ignores an icon's colours entirely and draws its alpha channel in white. Hand it the ordinary
+ * emblem — which is opaque, corner to corner, on #FFFFFA — and every pixel is opaque, so the phone shows a
+ * solid white square where the mark should be. That is the single most common way this icon is got wrong.
+ *
+ * The artwork carries no transparency to work from, so the shape is taken from its LUMINANCE instead: the
+ * dark green ink becomes opaque, the near-white ground becomes clear. `negate` on a greyscale copy turns
+ * «dark» into «opaque», and that becomes the alpha of a plain white image. The emblem is then held well
+ * inside the square (coverage 0.7) because Android crops this icon to a circle on some versions.
+ */
+async function silhouette(source, size, coverage) {
+  const inner = Math.round(size * coverage);
+
+  // Flattened onto the artwork's own ground first: without it, `greyscale` reads the unused alpha channel
+  // and the threshold lands in the wrong place.
+  const mask = await sharp(source)
+    .flatten({ background: PAPER })
+    .resize(inner, inner, { fit: "contain", background: PAPER })
+    .greyscale()
+    // Ink is dark, so inverted it is bright — and bright is what `joinChannel` wants for «opaque».
+    .negate()
+    // The emblem's ground is #FFFFFA rather than pure white, so a plain inversion leaves the whole square
+    // faintly opaque — a dim white haze around the mark. This drops everything below mid-grey to nothing.
+    .linear(1.6, -90)
+    .toColourspace("b-w")
+    .toBuffer();
+
+  const white = await sharp({ create: { width: inner, height: inner, channels: 3, background: "#ffffff" } })
+    .joinChannel(mask)
+    .png()
+    .toBuffer();
+
+  return sharp({ create: { width: size, height: size, channels: 4, background: { r: 0, g: 0, b: 0, alpha: 0 } } })
+    .composite([{ input: white, gravity: "center" }])
+    .png({ compressionLevel: 9 })
+    .toBuffer();
+}
+
 /** The full lockup on the card every share and every link preview shows. */
 async function card(width, height) {
   const art = await sharp(LOCKUP)
@@ -105,6 +145,10 @@ await write("public/icons/maskable-512.png", await square(EMBLEM, 512, 0.6));
 // picked up from the segment that holds the root LAYOUT, and that layout is [lang]/layout.tsx. Put at the root
 // it is silently ignored: the page renders, nothing errors, and og:image is simply absent.
 await write("src/app/[lang]/opengraph-image.png", await card(1200, 630));
+
+// The phone app's notification icon (mobile/app.json points at this one). 96px is Android's xxhdpi size for
+// a status-bar icon; the system scales it down for smaller densities.
+await write("mobile/assets/notification-icon.png", await silhouette(EMBLEM, 96, 0.7));
 
 const sizes = [16, 32, 48];
 await write(

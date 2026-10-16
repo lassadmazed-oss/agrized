@@ -32,7 +32,21 @@ import { siteUrl, supabase } from "./api";
 
 const STORE_KEY = "agrized.client.session";
 
-export type ClientPerson = { id: string; fullName: string | null };
+/*
+ * `phone` joined this on 2026-10-16, for push.
+ *
+ * A push token is addressed BY PHONE NUMBER (0138): public.push_tokens keeps `phone_e164` as the address and
+ * `person_id` only as a convenience, and the dispatcher fans an outbox row to the devices registered against
+ * that number. So a device registered with no phone receives nothing, ever — and the number the person signed
+ * in with is the one number this app is certain of.
+ *
+ * It is written to the Keychain with the session tokens, which is where it belongs, and goes with them on
+ * sign-out. It is kept as typed rather than normalised: /api/mobile/push/register puts it through the same
+ * `normalizePhone` the public forms use, so one number is one row however it was spelled.
+ *
+ * Optional because a session stored by a build from before this change has no such field.
+ */
+export type ClientPerson = { id: string; fullName: string | null; phone?: string | null };
 
 type StoredSession = {
   accessToken: string;
@@ -150,7 +164,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const adopt = useCallback(
-    async (json: Record<string, unknown>): Promise<AuthAnswer> => {
+    async (json: Record<string, unknown>, phone: string): Promise<AuthAnswer> => {
       const session = json.session as { accessToken?: string; refreshToken?: string; expiresAt?: number } | undefined;
       const who = json.person as { id?: string; fullName?: string | null } | undefined;
       if (!session?.accessToken || !session.refreshToken || !who?.id) return { ok: false, reason: "error" };
@@ -165,7 +179,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         accessToken: session.accessToken,
         refreshToken: session.refreshToken,
         expiresAt: session.expiresAt ?? null,
-        person: { id: who.id, fullName: who.fullName ?? null },
+        person: { id: who.id, fullName: who.fullName ?? null, phone },
       });
       return { ok: true };
     },
@@ -190,7 +204,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           attemptsLeft: typeof answer.json.attemptsLeft === "number" ? answer.json.attemptsLeft : undefined,
         };
       }
-      return adopt(answer.json);
+      return adopt(answer.json, phone);
     },
     [adopt],
   );
@@ -207,7 +221,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             typeof answer.json.retryAfterSeconds === "number" ? answer.json.retryAfterSeconds : undefined,
         };
       }
-      return adopt(answer.json);
+      return adopt(answer.json, phone);
     },
     [adopt],
   );
