@@ -187,6 +187,56 @@ Avoid an empty state, a skeleton, or a screen mid-load. A screenshot of a spinne
 
 ---
 
+## 6b · The declarations on the «Set up your app» dashboard
+
+Play asks a dozen yes/no questions before it will let you release. Most are obvious. Two are not, and both
+can cost you a rejection or a licensing demand if answered carelessly.
+
+### Financial features — the one to get right
+
+Play asks whether the app provides loans, debt management, insurance, **investments and trading**, crypto,
+or other financial products. Declare investments and some regions demand a regulatory licence before the app
+can ship.
+
+**The honest answer for AgriZed today is «My app doesn't provide any financial features».** The app:
+
+- moves no money — there is no payment, no wallet, no balance, no checkout
+- executes no transaction — `submitInterest` writes a name, a phone and a governorate
+- gives no advice — the assistant is forbidden from saying «invest» or «don't» (migration 0080)
+- states plainly that nothing is guaranteed (`legal.no_guarantee_notice`)
+
+The purchase itself happens offline, in a contract, outside the app. That is a catalogue and a contact form,
+not a financial service.
+
+**This changes the day the app takes a payment or shows a balance.** If `contracts` or `installments` are
+ever surfaced to buyers with real figures inside the app, revisit this answer before that release — not
+after.
+
+### App access — reviewers must be able to see زيتونتي
+
+Anything behind a sign-in is invisible to the reviewer, and Play rejects apps whose content it cannot reach.
+The فضاء «زيتونتي» section needs a phone number and a password, so you must declare it and supply working
+credentials:
+
+> **App access → All or some functionality is restricted** → add an instruction for زيتونتي with a phone
+> number and password a reviewer can actually sign in with.
+
+Create a real client account for this and leave it alone. Note the password goes into Play Console, so use
+an account that holds nothing sensitive — not your own file.
+
+### The rest
+
+| Question | Answer |
+|---|---|
+| Ads | **No** — the app shows none |
+| Target audience | **18+** — it is about buying agricultural land |
+| News app | No |
+| Government app | No |
+| COVID-19 contact tracing | No |
+| Data safety | section 3 above |
+| Content rating | section 4 above |
+| Privacy policy | `https://www.agrized.site/privacy` |
+
 ## 7 · Order of operations on Play
 
 Production is disabled until the testing requirement is met, so the sequence is fixed:
