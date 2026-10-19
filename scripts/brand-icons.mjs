@@ -27,6 +27,9 @@ const LOCKUP = path.join(ROOT, "public", "brand", "agrized-logo-full.webp");
 
 /** The artwork's own background, sampled from its corners: the icons extend it to the edge of the square. */
 const PAPER = { r: 255, g: 255, b: 250, alpha: 1 };
+/** The same cream and the brand green, for the store banner that pairs them. */
+const PAPER_HEX = "#fffffa";
+const FOREST = { r: 31, g: 74, b: 44, alpha: 1 };
 
 /**
  * The emblem centred on an opaque square.
@@ -118,6 +121,49 @@ function ico(images) {
   return Buffer.concat([directory, ...images.map((image) => image.data)]);
 }
 
+/**
+ * The Play Store feature graphic: 1024x500, the banner above the listing.
+ *
+ * WHY THE LOCKUP IS KNOCKED OUT RATHER THAN PLACED. The artwork is opaque corner to corner on #FFFFFA, so
+ * dropping it onto the brand green frames it in a cream box — the same fault the notification icon has, for
+ * the same reason. Its shape is taken from luminance instead and painted in paper on forest, which is the
+ * pairing the app's own header uses.
+ *
+ * NOTHING IMPORTANT NEAR THE EDGE. Play crops and overlays this image differently across its surfaces — a
+ * play button lands on it where a video exists, and the sides are trimmed on some layouts. The lockup is
+ * held to 62% of the width, centred, so no crop can reach it. No extra text: it is rendered at a fraction
+ * of this size in most places, and a sentence that cannot be read is clutter with a cost.
+ */
+async function featureGraphic(width, height) {
+  // Bounded on BOTH axes. Constraining width alone let the lockup's own proportions carry it past 500px
+  // tall, and sharp refuses to composite something larger than its canvas.
+  const innerW = Math.round(width * 0.62);
+  const innerH = Math.round(height * 0.62);
+
+  const mask = await sharp(LOCKUP)
+    .flatten({ background: PAPER })
+    .resize(innerW, innerH, { fit: "inside" })
+    .greyscale()
+    .negate()
+    // The ground is #FFFFFA rather than pure white, so a plain inversion leaves a faint haze over the whole
+    // rectangle. This drops everything below mid-grey to nothing, exactly as the notification icon does.
+    .linear(1.6, -90)
+    .toColourspace("b-w")
+    .toBuffer();
+
+  const { width: w, height: h } = await sharp(mask).metadata();
+
+  const art = await sharp({ create: { width: w, height: h, channels: 3, background: PAPER_HEX } })
+    .joinChannel(mask)
+    .png()
+    .toBuffer();
+
+  return sharp({ create: { width, height, channels: 4, background: FOREST } })
+    .composite([{ input: art, gravity: "center" }])
+    .png({ compressionLevel: 9 })
+    .toBuffer();
+}
+
 const write = async (relative, data) => {
   const file = path.join(ROOT, relative);
   await mkdir(path.dirname(file), { recursive: true });
@@ -149,6 +195,10 @@ await write("src/app/[lang]/opengraph-image.png", await card(1200, 630));
 // The phone app's notification icon (mobile/app.json points at this one). 96px is Android's xxhdpi size for
 // a status-bar icon; the system scales it down for smaller densities.
 await write("mobile/assets/notification-icon.png", await silhouette(EMBLEM, 96, 0.7));
+
+// The two assets the Play listing asks for, beside the screenshots you take on the phone.
+await write("store/play-feature-graphic.png", await featureGraphic(1024, 500));
+await write("store/play-icon-512.png", await square(EMBLEM, 512, 0.86));
 
 const sizes = [16, 32, 48];
 await write(

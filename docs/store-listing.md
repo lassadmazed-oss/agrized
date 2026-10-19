@@ -145,7 +145,24 @@ Expected result: **PEGI 3 / Everyone**, with a *Finance* qualifier if you chose 
 
 ---
 
-## 5 · Screenshots
+## 5 · Graphics
+
+Generated from the one brand source by `npm run brand:icons`, committed, and ready to upload:
+
+| File | Size | Where it goes |
+|---|---|---|
+| `store/play-icon-512.png` | 512 × 512 | Play listing icon |
+| `store/play-feature-graphic.png` | 1024 × 500 | Play feature graphic — **required** |
+
+Both are fully opaque, which both slots require. The feature graphic knocks the lockup out of the artwork
+by luminance and paints it cream on brand green — the artwork itself is opaque corner to corner, so placing
+it directly would have framed the logo in a cream box. The lockup is held to 62% of the width because Play
+crops and overlays this image differently across its surfaces, and anything near an edge can be lost.
+
+Re-run `npm run brand:icons` after replacing the artwork; the outputs are committed, so a deploy never
+depends on the script having run.
+
+## 6 · Screenshots
 
 Play requires **2–8 phone screenshots**, 16:9 or 9:16, each side between 320 px and 3840 px.
 1080 × 1920 is the safe size. Apple wants 6.7" (1290 × 2796) and, because `supportsTablet: true`,
@@ -170,7 +187,7 @@ Avoid an empty state, a skeleton, or a screen mid-load. A screenshot of a spinne
 
 ---
 
-## 6 · Order of operations on Play
+## 7 · Order of operations on Play
 
 Production is disabled until the testing requirement is met, so the sequence is fixed:
 
@@ -184,3 +201,92 @@ Production is disabled until the testing requirement is met, so the sequence is 
 7. Google reviews, then you release
 
 Steps 1–3 are one afternoon. Step 5 is the floor nothing shortens.
+
+
+---
+
+## 8 · Closed testing: recruiting the 12
+
+This is the slowest part of the whole launch and the only one that cannot be bought or rushed. **12 testers
+opted in continuously for 14 days.** If the count drops below 12 on any day, the clock restarts.
+
+So recruit **15–20**. The extras are not optimism, they are the margin for the two or three people who
+change phone, clear their Google account, or lose interest in week two.
+
+### Use a Google Group, not an email list
+
+Play lets you add testers either as a pasted list of addresses or as a Google Group. Use the **Group**:
+
+- people join themselves, so you are not collecting addresses by hand
+- you can see at a glance how many are actually in, which is the number Play counts
+- adding someone in week two does not mean editing the track
+
+Create a group (e.g. `agrized-testers@googlegroups.com`), then in Play Console:
+**Test and release → Testing → Closed testing → Create track → Testers → Google Groups**.
+
+### What a tester must do
+
+They need a **Google account on an Android phone**, and they must:
+
+1. Open the opt-in link you send
+2. Tap **Become a tester**
+3. Install AgriZed from the Play link that then appears
+4. **Leave it installed for two weeks**
+
+Point 4 is the one to say out loud. People help by installing, then tidy their phone a week later and
+silently reset your clock.
+
+### The message to send
+
+Arabic, ready to forward on WhatsApp — replace the link before sending:
+
+```
+عسلامة 👋
+
+عملت تطبيق AgriZed — تطبيق تونسي للاستثمار في الزيتون. قبل ما نحطّوه في Google Play،
+لازمني 12 شخص يجرّبوه مدّة أسبوعين (شرط من Google، موش منّي 😅).
+
+شنوّة لازمك تعمل:
+1. تحلّ الرابط هذا من تلفونك الأندرويد: [الرابط]
+2. تنقر «Become a tester»
+3. تنزّل التطبيق وتشوفو
+4. ⚠️ تخلّيه مركّب أسبوعين — كان تشيلو، العدّاد يرجع من الأول
+
+ما فمّا حتّى خلاص وما فمّا حتّى التزام. كان تلقى حاجة ما تخدمش، قلّي.
+برشا يعيشك ❤️
+```
+
+French, for anyone who prefers it:
+
+```
+Salut 👋
+
+J'ai développé AgriZed, une application tunisienne pour investir dans l'olivier. Avant de la publier
+sur Google Play, il me faut 12 personnes qui la testent pendant deux semaines (une exigence de Google).
+
+Ce qu'il faut faire :
+1. Ouvrir ce lien depuis ton téléphone Android : [lien]
+2. Appuyer sur « Become a tester »
+3. Installer l'application et y jeter un œil
+4. ⚠️ La garder installée deux semaines — si tu la désinstalles, le compteur repart à zéro
+
+Rien à payer, aucun engagement. Si quelque chose ne marche pas, dis-le moi.
+Merci beaucoup ❤️
+```
+
+### Keep a list
+
+Play shows you a count, not who left. Keep your own so you can chase the right person:
+
+| # | Name | Opted in | Still in? |
+|---|---|---|---|
+| 1 | | | |
+| 2 | | | |
+
+Check it twice a week. The day the count touches 11, the fourteen days start again from that day — and
+nothing in the console will warn you.
+
+### Before you start the clock
+
+Do not open the closed track until the listing, the Data Safety form and the content rating are all
+submitted. You want the 14 days running in the background while you finish everything else, not after.
