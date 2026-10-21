@@ -6,10 +6,11 @@
 // app can never drift apart. Re-run this after replacing the artwork; the files it writes are committed, so a
 // deploy never depends on this script having run.
 //
-// THE ARTWORK HAS AN ALPHA CHANNEL BUT NOTHING TRANSPARENT IN IT — the corners read #FFFFFA at full opacity.
-// So the icons cannot be composited onto the brand green: that would frame the emblem in a white box. They are
-// drawn on that same off-white instead, which makes the square look like part of the drawing. An app icon has
-// to be opaque anyway: iOS fills transparency with black, and a logo on a black square is not this brand.
+// THE EMBLEM IS TRANSPARENT AROUND THE TREE since the 2026-10-21 artwork — the drawing's own ground was keyed
+// out so the header mark sits on the site's paper without a pale rectangle behind it. Every function here
+// therefore has to SAY what goes behind the tree, and they all say the same off-white: an app icon must be
+// opaque (iOS fills transparency with black, and a logo on a black square is not this brand), and #FFFFFA is
+// what src/app/manifest.ts already gives the installed app as its `background_color`.
 //
 // WHY A SEPARATE MASKABLE ICON. Android crops an installed app's icon to whatever shape the launcher uses —
 // circle, squircle, teardrop — and a `purpose: "any"` icon drawn edge to edge loses its corners to that crop.
@@ -34,8 +35,8 @@ const FOREST = { r: 31, g: 74, b: 44, alpha: 1 };
 /**
  * The emblem centred on an opaque square.
  *
- * `fit: "contain"` with the same background keeps the drawing's proportions — the emblem is 256×241, and
- * stretching it to a square would thicken the «A» — and `coverage` leaves the margin around it.
+ * `fit: "contain"` with the same background keeps the drawing's proportions — the emblem is 512×500, and
+ * stretching it to a square would bend the tree — and `coverage` leaves the margin around it.
  */
 async function square(source, size, coverage) {
   const inner = Math.round(size * coverage);
@@ -51,20 +52,21 @@ async function square(source, size, coverage) {
 /**
  * The Android status-bar notification icon: a WHITE SILHOUETTE on transparency.
  *
- * Android ignores an icon's colours entirely and draws its alpha channel in white. Hand it the ordinary
- * emblem — which is opaque, corner to corner, on #FFFFFA — and every pixel is opaque, so the phone shows a
- * solid white square where the mark should be. That is the single most common way this icon is got wrong.
+ * Android ignores an icon's colours entirely and draws its alpha channel in white. The emblem's own
+ * transparency is not usable for this: it is keyed to the OUTLINE of the tree, so Android would paint the
+ * whole tree — leaves, trunk and the gaps between branches — as one solid white blob.
  *
- * The artwork carries no transparency to work from, so the shape is taken from its LUMINANCE instead: the
- * dark green ink becomes opaque, the near-white ground becomes clear. `negate` on a greyscale copy turns
- * «dark» into «opaque», and that becomes the alpha of a plain white image. The emblem is then held well
- * inside the square (coverage 0.7) because Android crops this icon to a circle on some versions.
+ * The shape is taken from LUMINANCE instead, which keeps the drawing's internal detail: the dark green ink
+ * becomes opaque, the pale ground becomes clear. `negate` on a greyscale copy turns «dark» into «opaque», and
+ * that becomes the alpha of a plain white image. The emblem is flattened onto its paper first so the keyed
+ * ground reads as light rather than as whatever lies under it, and is held well inside the square
+ * (coverage 0.7) because Android crops this icon to a circle on some versions.
  */
 async function silhouette(source, size, coverage) {
   const inner = Math.round(size * coverage);
 
-  // Flattened onto the artwork's own ground first: without it, `greyscale` reads the unused alpha channel
-  // and the threshold lands in the wrong place.
+  // Flattened onto the artwork's own ground first: without it, `greyscale` reads straight through the keyed
+  // ground and the threshold lands in the wrong place.
   const mask = await sharp(source)
     .flatten({ background: PAPER })
     .resize(inner, inner, { fit: "contain", background: PAPER })
@@ -88,10 +90,17 @@ async function silhouette(source, size, coverage) {
     .toBuffer();
 }
 
-/** The full lockup on the card every share and every link preview shows. */
+/**
+ * The full lockup on the card every share and every link preview shows.
+ *
+ * Bounded on BOTH axes with `fit: "inside"`, because the lockup is wide (1200×338 since 2026-10-21) and
+ * fitting it into a square the height of the card would leave it filling a third of the width — a stamp in
+ * the middle of a 1200×630 picture. 0.72 of each axis lets a wide lockup take the width and a tall one the
+ * height, and keeps a margin either way.
+ */
 async function card(width, height) {
   const art = await sharp(LOCKUP)
-    .resize(Math.round(height * 0.9), Math.round(height * 0.9), { fit: "contain", background: PAPER })
+    .resize(Math.round(width * 0.72), Math.round(height * 0.72), { fit: "inside", background: PAPER })
     .toBuffer();
   return sharp({ create: { width, height, channels: 4, background: PAPER } })
     .composite([{ input: art, gravity: "center" }])
@@ -124,10 +133,9 @@ function ico(images) {
 /**
  * The Play Store feature graphic: 1024x500, the banner above the listing.
  *
- * WHY THE LOCKUP IS KNOCKED OUT RATHER THAN PLACED. The artwork is opaque corner to corner on #FFFFFA, so
- * dropping it onto the brand green frames it in a cream box — the same fault the notification icon has, for
- * the same reason. Its shape is taken from luminance instead and painted in paper on forest, which is the
- * pairing the app's own header uses.
+ * WHY THE LOCKUP IS KNOCKED OUT RATHER THAN PLACED. Dropped onto the brand green as it is, the lockup keeps
+ * its own dark green ink — the name would be forest on forest and the tree nearly so. Its shape is taken from
+ * luminance instead and painted in paper on forest, which is the pairing the app's own header uses.
  *
  * NOTHING IMPORTANT NEAR THE EDGE. Play crops and overlays this image differently across its surfaces — a
  * play button lands on it where a video exists, and the sides are trimmed on some layouts. The lockup is

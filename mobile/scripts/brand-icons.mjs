@@ -13,14 +13,14 @@
 //     It is duplicated into mobile/ rather than read across the tree because a native bundle cannot reach out
 //     of its own project directory, and because this app must build when only mobile/ is checked out.
 //
-//   · THE ARTWORK HAS AN ALPHA CHANNEL AND NOTHING TRANSPARENT IN IT — its corners read #FFFFFA at full
-//     opacity. So the emblem cannot be composited onto the brand green: that would frame it in a white box.
-//     It is drawn on that same off-white instead, which makes the square read as part of the drawing. An app
-//     icon has to be opaque in any case — iOS fills transparency with black, and this brand is not a logo on
-//     a black square.
+//   · THE EMBLEM IS TRANSPARENT AROUND THE TREE since the 2026-10-21 artwork — the drawing's own ground was
+//     keyed out so the website's header mark sits on its paper without a pale rectangle behind it. So this
+//     file has to SAY what goes behind the tree, and it says the same off-white the website says: an app icon
+//     must be opaque (iOS fills transparency with black, and this brand is not a logo on a black square), and
+//     #FFFFFA is what the installed web app already uses as its background.
 //
-//   · `fit: "contain"` keeps the drawing's proportions. The emblem is 256×241; stretched to a square the «A»
-//     would thicken. `coverage` is the share of the square the art occupies, and the rest is margin.
+//   · `fit: "contain"` keeps the drawing's proportions. The emblem is 512×500; stretched to a square the tree
+//     would bend. `coverage` is the share of the square the art occupies, and the rest is margin.
 //
 // THE THREE COVERAGES, each one a different mask doing the cropping:
 //
