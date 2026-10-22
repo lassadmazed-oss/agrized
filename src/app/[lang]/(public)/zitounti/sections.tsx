@@ -1091,14 +1091,26 @@ export async function ClientLoginPanel({
   config,
   title,
   mode = "login",
+  phone,
 }: {
   config: PublicConfig;
   title: string;
   mode?: "login" | "set_password";
+  /**
+   * A number carried in the link, from «افتح حسابي» on the screen that just took a request (0149). It is
+   * only ever a PREFILL: the action normalises whatever is in the field and nothing about this number is
+   * trusted — it reaches no query until the reader submits the form himself, and proving it still means
+   * receiving the SMS code that goes to it.
+   */
+  phone?: string;
 }) {
   const help = settingText(config, "site.contact_phone");
+  const invited = mode === "login" && Boolean(phone?.trim());
 
   let initialState: LoginState | undefined;
+  if (invited) {
+    initialState = { ...LOGIN_INITIAL, phone: (phone ?? "").trim() };
+  }
   if (mode === "set_password") {
     const policy = await passwordPolicy();
     initialState = {
@@ -1115,7 +1127,16 @@ export async function ClientLoginPanel({
     };
   }
 
-  const note = t(config, mode === "set_password" ? "zitounti.set_password_note" : "zitounti.password_login_note");
+  // A reader who arrived from «افتح حسابي» has no password yet, so the ordinary «phone + password» sentence
+  // would be the wrong instruction on his first screen: he is sent to the SMS door instead.
+  const note = t(
+    config,
+    mode === "set_password"
+      ? "zitounti.set_password_note"
+      : invited
+        ? "zitounti.invite_login_note"
+        : "zitounti.password_login_note",
+  );
 
   return (
     <div className="mx-auto w-full max-w-md px-4 py-section">

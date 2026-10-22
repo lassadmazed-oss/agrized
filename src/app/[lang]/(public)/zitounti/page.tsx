@@ -135,7 +135,11 @@ function holdingsFrom(config: PublicConfig, file: ZitountiFile, action: AccountH
   };
 }
 
-export default async function ZitountiPage() {
+export default async function ZitountiPage({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
   const config = await getPublicConfig();
   const access = await moduleAccess(config, "zitounti");
   const fmt = formatFor(config);
@@ -143,7 +147,10 @@ export default async function ZitountiPage() {
 
   const client = await currentClient();
   if (!client) {
-    return <ClientLoginPanel config={config} title={title} />;
+    // ?phone= comes from «افتح حسابي» on a request's success screen (0149). Only a string is taken, and only
+    // to fill the field: the form's own action normalises and checks it like anything a reader types.
+    const asked = (await searchParams).phone;
+    return <ClientLoginPanel config={config} title={title} phone={typeof asked === "string" ? asked : undefined} />;
   }
 
   // 2026-09-28: the SMS code is sent once, to prove the number; after that a buyer signs in with a password of

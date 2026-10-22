@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState, useTransition, type ReactNode } from "react";
 
+import { AccountInvite } from "@/components/site/account-invite";
 import { PrefillNote, SignInHint } from "@/components/site/prefill-note";
 import type { IntakePrefill } from "@/lib/intake-prefill";
 
@@ -440,6 +441,8 @@ export function RegisterWizard(props: RegisterWizardProps) {
     return (
       <Success
         requestNo={requestNo}
+        // The account is offered only to someone who does not already have one (0149, the owner's answer «2»).
+        invite={!props.prefill}
         form={form}
         contactTimes={props.contactTimes}
         rows={recap.rows}
@@ -1019,6 +1022,7 @@ function YesNoGroup({
 
 function Success({
   requestNo,
+  invite,
   form,
   contactTimes,
   rows,
@@ -1033,6 +1037,8 @@ function Success({
   headingRef,
 }: {
   requestNo: string;
+  /** Offer the reader an account: true only when nobody is signed in. */
+  invite: boolean;
   form: FormState;
   contactTimes: Option[];
   rows: RecapRow[];
@@ -1150,6 +1156,9 @@ function Success({
         {motivation ? (
           <p className="mt-6 rounded-2xl bg-leaf-soft/70 px-5 py-4 font-medium leading-7 text-forest">{motivation}</p>
         ) : null}
+
+        {/* After the request is in, never before it: the offer must not stand between the reader and sending. */}
+        {invite ? <AccountInvite phone={form.phone} /> : null}
 
         <div className="mt-8 flex flex-wrap gap-3">
           {progressLabel ? (

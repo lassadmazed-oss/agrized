@@ -14,6 +14,7 @@ import type { PaymentMode } from "@/lib/tree-pricing";
 import { quoteOffer, submitOfferInterest } from "./offer-actions";
 
 type Option = { id: string; code: string | null; label: string };
+import { AccountInvite } from "@/components/site/account-invite";
 import { PrefillNote, SignInHint } from "@/components/site/prefill-note";
 import type { IntakePrefill } from "@/lib/intake-prefill";
 
@@ -808,6 +809,13 @@ export function OfferInterestForm(props: OfferInterestFormProps) {
           {t("ui.offer.form_success_summary", { name: props.projectName, count: trees })}
           {form.wantsVisit ? ` ${t("ui.offer.form_success_visit")}` : null}
         </p>
+        {/* After the request is in, never before it (0149, the owner's answer «2»), and only to someone who
+            does not already have an account — anyone signed in saw «عمّرنا معلوماتك» one screen earlier. */}
+        {props.prefill ? null : (
+          <div className="mx-auto mt-6 max-w-md">
+            <AccountInvite phone={form.phone} />
+          </div>
+        )}
       </section>
     );
   }

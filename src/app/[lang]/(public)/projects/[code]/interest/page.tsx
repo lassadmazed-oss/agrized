@@ -118,7 +118,7 @@ export default async function OfferInterestPage({ params }: PageProps<"/[lang]/p
       <p className="mb-3 text-caption text-muted">{project.name}</p>
 
       {/* The form's own sentences (ui.offer.form_*) travel with it; every other word arrives in its props. */}
-      <Texts prefixes={["ui.offer.form_", "ui.prefill."]}>
+      <Texts prefixes={["ui.offer.form_", "ui.prefill.", "ui.account_invite."]}>
         <OfferInterestForm
           prefill={prefill}
           projectId={project.id}

@@ -29,6 +29,8 @@ const WIZARD_TEXTS = [
   "ui.errors.consent_required",
   // «عمّرنا معلوماتك» and the invitation under it (0147), both drawn in the browser.
   "ui.prefill.",
+  // «افتح حسابك», on the screen that says «تمّ» (0149).
+  "ui.account_invite.",
 ] as const;
 
 export async function generateMetadata(): Promise<Metadata> {
