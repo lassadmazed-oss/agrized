@@ -34,6 +34,9 @@ export function siteFormat(locale: Locale, units: FormatUnits) {
    *
    * Only the grouping changes. The decimal point stays «.», which is what the millimes fraction has always
    * used, and no other language is touched: a comma in «4,450» is unambiguous to a reader of English.
+   *
+   * EVERY FIGURE AND NOT ONLY MONEY. «1 439 د.ت» beside «24,000 م²» on one offer page reads as a bug in
+   * one of them, and the reader cannot tell which — so counts, areas and spacings group the same way.
    */
   // Written as a code point, not pasted: U+202F is invisible in a source file and a maintainer would be
   // editing a character he cannot see.
@@ -78,16 +81,16 @@ export function siteFormat(locale: Locale, units: FormatUnits) {
       }).format(new Date(value));
     },
     formatCount(value: number): string {
-      return new Intl.NumberFormat(numberTag).format(value);
+      return group(new Intl.NumberFormat(numberTag).format(value));
     },
     /** Square metres with at most two decimals, e.g. "35 م²" or "6.5 m²". */
     formatArea(m2: number, unit = units.m2): string {
-      return `${new Intl.NumberFormat(numberTag, { maximumFractionDigits: 2 }).format(m2)} ${unit}`;
+      return `${group(new Intl.NumberFormat(numberTag, { maximumFractionDigits: 2 }).format(m2))} ${unit}`;
     },
     /** Planting spacing as it is written in the field, e.g. "7 × 5 م". */
     formatSpacing(rowMetres: number, treeMetres: number, unit = units.m): string {
       const n = new Intl.NumberFormat(numberTag, { maximumFractionDigits: 2 });
-      return `${n.format(rowMetres)} × ${n.format(treeMetres)} ${unit}`;
+      return `${group(n.format(rowMetres))} × ${group(n.format(treeMetres))} ${unit}`;
     },
     /**
      * A month and its year, for a date whose day says nothing — «سبتمبر 2024» under a client's name. Month
