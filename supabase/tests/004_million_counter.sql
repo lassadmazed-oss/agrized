@@ -11,10 +11,19 @@ create function pg_temp.payload(p_overrides jsonb) returns jsonb language sql as
 -- assertion about his Back Office. He retired the 100, 250 and 500 cards on 2026-10-13 and the file went
 -- red, twice over: the intake refuses a retired choice (invalid_tree_choice), which is correct behaviour
 -- and not a bug to work around. A test that counts trees owns the counts it counts.
+--
+-- THE OPEN END, THE OPEN CHOICE AND THE RETIRED ONE ARE ITS OWN TOO (2026-10-22), for the same reason and
+-- after the same lesson: the file still reached for trees_500p, trees_any and trees_250p, and when 0145
+-- moved the open-ended card from «أكثر من 500» down to «أكثر من 50» the fifth block went red. None of the
+-- three was a fact about this code — each was a fact about which cards the owner happened to be offering.
 insert into public.option_items (list_key, code, label_ar, label_fr, min_number, max_number, sort_order, is_active)
-values ('tree_count', 'test_trees_100', '100 زيتونة', '100 oliviers', 100, 100, 9001, true),
-       ('tree_count', 'test_trees_250', '250 زيتونة', '250 oliviers', 250, 250, 9002, true)
-on conflict (list_key, code) do nothing;
+values ('tree_count', 'test_trees_100',  '100 زيتونة',   '100 oliviers', 100,  100,  9001, true),
+       ('tree_count', 'test_trees_250',  '250 زيتونة',   '250 oliviers', 250,  250,  9002, true),
+       ('tree_count', 'test_trees_open', 'أكثر من 500',  'Plus de 500',  500,  null, 9003, true),
+       ('tree_count', 'test_trees_any',  'اقترحولي',     'Proposez-moi', null, null, 9004, true),
+       ('tree_count', 'test_trees_gone', 'بطّلناها',     'Retirée',      250,  250,  9005, false)
+on conflict (list_key, code) do update set
+  min_number = excluded.min_number, max_number = excluded.max_number, is_active = excluded.is_active;
 
   select jsonb_build_object(
     'full_name', 'سامي الزيتوني',
@@ -77,7 +86,7 @@ begin
   -- 4 · "اقترحولي" states no number, so it adds nothing rather than a guess (MIL-01)
   perform public.submit_interest_request(pg_temp.payload(jsonb_build_object(
     'phone_e164', '+21697111333',
-    'tree_count_option_id', (select id from public.option_items where list_key = 'tree_count' and code = 'trees_any')
+    'tree_count_option_id', (select id from public.option_items where list_key = 'tree_count' and code = 'test_trees_any')
   )));
   v_after := public.million_progress();
   assert (v_after->>'trees_requested')::bigint = v_trees0 + 100,
@@ -87,7 +96,7 @@ begin
   -- 5 · "أكثر من 500" counts its lower bound only, never more than was said
   perform public.submit_interest_request(pg_temp.payload(jsonb_build_object(
     'phone_e164', '+21697111444',
-    'tree_count_option_id', (select id from public.option_items where list_key = 'tree_count' and code = 'trees_500p')
+    'tree_count_option_id', (select id from public.option_items where list_key = 'tree_count' and code = 'test_trees_open')
   )));
   v_after := public.million_progress();
   assert (v_after->>'trees_requested')::bigint = v_trees0 + 600,
@@ -97,7 +106,7 @@ begin
   begin
     perform public.submit_interest_request(pg_temp.payload(jsonb_build_object(
       'phone_e164', '+21697111777',
-      'tree_count_option_id', (select id from public.option_items where list_key = 'tree_count' and code = 'trees_250p')
+      'tree_count_option_id', (select id from public.option_items where list_key = 'tree_count' and code = 'test_trees_gone')
     )));
     raise exception 'expected a retired option to be refused but the call succeeded';
   exception when others then
@@ -156,7 +165,7 @@ begin
   -- Requests with no stated number are only included when asked for
   select count(*) into v_found
   from public.crm_search_requests(jsonb_build_object('trees_min', 10, 'trees_max', 40, 'include_trees_any', true))
-  where tree_count_code = 'trees_any';
+  where tree_count_code = 'test_trees_any';
   assert v_found >= 1, 'open choices appear when include_trees_any is set';
 
   reset role;
