@@ -18,7 +18,7 @@ import { ProjectVideo } from "@/components/site/project-video";
 import { ShareButton, ShareMark } from "@/components/site/share-button";
 import { RemotePhoto } from "@/components/site/site-photo";
 import { DataList, DataRow, StatusPill } from "@/components/ui";
-import { flagState, formatFor, getPublicConfig, optionsFor, settingText, t, type PublicConfig } from "@/lib/config";
+import { flagState, formatFor, getPublicConfig, optionsFor, settingBool, settingText, t, type PublicConfig } from "@/lib/config";
 import type { SiteFormat } from "@/lib/format";
 import { moduleAccess } from "@/lib/modules";
 import { projectStatusTone, publicStatusKey } from "@/lib/projects";
@@ -186,11 +186,16 @@ export default async function ProjectPage({ params }: PageProps<"/[lang]/project
   // visitor), stock and area are facts. So the price cell disappears on its own and the offer's area
   // takes its place in the hero — no land price, no planting cost, no margin, no formula, ever.
   const areaLabel = t(config, "start.row_total_area");
-  const priceFigure = offerPrice(project, fmt, {
-    prefix: fromPrefix,
-    perTree: t(config, "start.row_price_per_tree"),
-    cash: t(config, "ui.offer.cash_price_label"),
-  });
+  const priceFigure = offerPrice(
+    project,
+    fmt,
+    {
+      prefix: fromPrefix,
+      perTree: t(config, "start.row_price_per_tree"),
+      cash: t(config, "ui.offer.cash_price_label"),
+    },
+    settingBool(config, "money.show_words"),
+  );
   const areaFigure = project.total_area_m2 ? { value: formatArea(project.total_area_m2), label: areaLabel } : null;
   const leadFigure = priceFigure ?? areaFigure;
   /** The total area is stated once: in the hero when it leads, in the land group otherwise. */
@@ -469,7 +474,13 @@ export default async function ProjectPage({ params }: PageProps<"/[lang]/project
             <div className="panel mt-5 p-5 sm:max-w-md sm:p-6">
               <div className="flex flex-wrap items-end gap-x-8 gap-y-5">
                 {heroFigures.map((figure) => (
-                  <Figure key={figure.label} value={figure.value} label={figure.label} prefix={figure.prefix} />
+                  <Figure
+                    key={figure.label}
+                    value={figure.value}
+                    label={figure.label}
+                    prefix={figure.prefix}
+                    spelled={"spelled" in figure && typeof figure.spelled === "string" ? figure.spelled : undefined}
+                  />
                 ))}
               </div>
 
@@ -732,14 +743,29 @@ function offerPrice(
   project: { offered: boolean; min_price_per_tree_millimes: number | null; min_cash_price_millimes: number | null },
   fmt: SiteFormat,
   words: { prefix: string; perTree: string; cash: string },
-): { value: string; label: string; prefix: string } | null {
+  spelled: boolean,
+): { value: string; label: string; prefix: string; spelled: string } | null {
   if (!project.offered) return null;
   const { prefix } = words;
+  // Written out beside the figure, for the reason 0150 gives: «4 450» has three readings in Tunisian and
+  // «أربعة آلاف وأربعمائة وخمسون ديناراً» has one. Empty outside Arabic, and empty when the owner has
+  // switched it off.
+  const inWords = (millimes: number) => (spelled ? fmt.formatMillimesInWords(millimes) : "");
   if (project.min_price_per_tree_millimes) {
-    return { value: fmt.formatMillimes(project.min_price_per_tree_millimes), label: words.perTree, prefix };
+    return {
+      value: fmt.formatMillimes(project.min_price_per_tree_millimes),
+      label: words.perTree,
+      prefix,
+      spelled: inWords(project.min_price_per_tree_millimes),
+    };
   }
   if (project.min_cash_price_millimes) {
-    return { value: fmt.formatMillimes(project.min_cash_price_millimes), label: words.cash, prefix };
+    return {
+      value: fmt.formatMillimes(project.min_cash_price_millimes),
+      label: words.cash,
+      prefix,
+      spelled: inWords(project.min_cash_price_millimes),
+    };
   }
   return null;
 }
@@ -750,12 +776,24 @@ function offerPrice(
  * cell and broke «4,491 د.ت» in two. The cells are bottom-aligned, so a figure with a prefix and one
  * without still sit on the same line.
  */
-function Figure({ value, label, prefix }: { value: string; label: string; prefix?: string }) {
+function Figure({
+  value,
+  label,
+  prefix,
+  spelled,
+}: {
+  value: string;
+  label: string;
+  prefix?: string;
+  /** The same amount in words, under the label. Empty on every language but Arabic, and when switched off. */
+  spelled?: string;
+}) {
   return (
     <div className="stat">
       {prefix ? <p className="stat-label">{prefix}</p> : null}
       <p className="stat-figure">{value}</p>
       <p className="stat-label">{label}</p>
+      {spelled ? <p className="mt-1 text-caption leading-6 text-muted">{spelled}</p> : null}
     </div>
   );
 }

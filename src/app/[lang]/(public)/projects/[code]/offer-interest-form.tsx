@@ -83,6 +83,8 @@ export type OfferSummaryCopy = {
 };
 
 export type OfferInterestFormProps = {
+  /** money.show_words: whether the deciding figure carries the amount in words under it (0150). */
+  showMoneyWords: boolean;
   /**
    * The buyer's own details when he is signed in, null otherwise — which is most readers (0147). It fills
    * the three «who to call back» screens in and nothing else: every field stays editable, and a visitor
@@ -318,7 +320,11 @@ function PickTile({
 export function OfferInterestForm(props: OfferInterestFormProps) {
   const t = useT();
   const locale = useLocale();
-  const { formatArea, formatCount, formatMillimes } = useFormat();
+  const { formatArea, formatCount, formatMillimes, formatMillimesInWords } = useFormat();
+  // The figure a buyer decides on, also written out — «4 450» has three readings in Tunisian and «أربعة
+  // آلاف وأربعمائة وخمسون ديناراً» has one (0150). Empty outside Arabic, and empty when the owner has
+  // switched it off in the Back Office.
+  const spell = (millimes: number) => (props.showMoneyWords ? formatMillimesInWords(millimes) : "");
   /** A settings sentence handed down by the page (its blanks still open), filled in the visitor's language. */
   const fill = (template: string, vars: MessageVars) => formatMessage(locale, template, vars);
   // The offer's smallest basket, not the literal 1: a form that opens on a count the offer refuses greets the
@@ -550,13 +556,20 @@ export function OfferInterestForm(props: OfferInterestFormProps) {
    * figure the decision turns on is now the one that leads: the order total in cash, the monthly instalment
    * once this offer has priced the plan. Presentation only; every amount is the quote's own.
    */
-  const leadFigure: { key: "monthly" | "total" | "perTree"; value: string; label: string; notes: string[] } | null =
+  const leadFigure: {
+    key: "monthly" | "total" | "perTree";
+    value: string;
+    spelled: string;
+    label: string;
+    notes: string[];
+  } | null =
     !priced || !quote
       ? null
       : plan && plan.monthly_millimes !== null
         ? {
             key: "monthly",
             value: formatMillimes(plan.monthly_millimes),
+            spelled: spell(plan.monthly_millimes),
             label: props.summary.monthly,
             notes: [
               // Q-11: rounding the monthly up can shorten the plan and leave a smaller last instalment.
@@ -571,11 +584,18 @@ export function OfferInterestForm(props: OfferInterestFormProps) {
             ].filter(Boolean),
           }
         : quote.total_price_millimes !== null
-          ? { key: "total", value: formatMillimes(quote.total_price_millimes), label: props.summary.totalPrice, notes: [] }
+          ? {
+              key: "total",
+              value: formatMillimes(quote.total_price_millimes),
+              spelled: spell(quote.total_price_millimes),
+              label: props.summary.totalPrice,
+              notes: [],
+            }
           : quote.price_per_tree_millimes !== null
             ? {
                 key: "perTree",
                 value: formatMillimes(quote.price_per_tree_millimes),
+                spelled: spell(quote.price_per_tree_millimes),
                 label: props.summary.pricePerTree,
                 notes: [],
               }
@@ -1041,6 +1061,9 @@ export function OfferInterestForm(props: OfferInterestFormProps) {
                     <div className="stat border-b border-dashed border-gold/40 pb-4">
                       <span className="stat-figure">{leadFigure.value}</span>
                       <span className="stat-label">{leadFigure.label}</span>
+                      {leadFigure.spelled ? (
+                        <span className="text-caption leading-6 text-muted">{leadFigure.spelled}</span>
+                      ) : null}
                       {leadFigure.notes.map((note) => (
                         <span key={note} className="text-xs leading-5 text-muted">
                           {note}

@@ -7,6 +7,7 @@
 // owner's units (ui.format.* settings: «د.ت» / «DT», «م²» / «m²»). Digits stay Western in every language.
 
 import { INTL_DATE, INTL_NAMES, INTL_NUMBER, type Locale } from "@/lib/i18n/locales";
+import { moneyWordsAr } from "@/lib/money-words";
 
 const TIME_ZONE = "Africa/Tunis";
 
@@ -21,6 +22,24 @@ export type SiteFormat = ReturnType<typeof siteFormat>;
 export function siteFormat(locale: Locale, units: FormatUnits) {
   const numberTag = INTL_NUMBER[locale];
   const dateTag = INTL_DATE[locale];
+
+  /**
+   * THE ARABIC SITE GROUPS WITH A THIN SPACE, NOT A COMMA (owner, 2026-10-22).
+   *
+   * INTL_NUMBER.ar is "en-US", so every figure came out «4,450» — and a comma is exactly where his
+   * complaint starts: «تعملها فيرجول، تقولش عليها المليون، يولي تقولش عليها الألف دينار». app.money_ar has
+   * printed money with a space since the SMS work, so the site was also disagreeing with its own messages
+   * about what a thousand looks like. U+202F is the narrow NO-BREAK space — the one French uses — so a
+   * figure can never be split across two lines in the middle.
+   *
+   * Only the grouping changes. The decimal point stays «.», which is what the millimes fraction has always
+   * used, and no other language is touched: a comma in «4,450» is unambiguous to a reader of English.
+   */
+  // Written as a code point, not pasted: U+202F is invisible in a source file and a maintainer would be
+  // editing a character he cannot see.
+  const NARROW_NO_BREAK_SPACE = String.fromCharCode(0x202f);
+  const group = (value: string) => (locale === "ar" ? value.replace(/,/g, NARROW_NO_BREAK_SPACE) : value);
+
   return {
     locale,
     formatMillimes(millimes: number, { withMillimes = false } = {}): string {
@@ -29,7 +48,15 @@ export function siteFormat(locale: Locale, units: FormatUnits) {
         minimumFractionDigits: digits,
         maximumFractionDigits: digits,
       }).format(millimes / 1000);
-      return `${amount} ${units.currency}`;
+      return `${group(amount)} ${units.currency}`;
+    },
+    /**
+     * The same amount written out, for the few prices a reader decides on: «أربعة آلاف وأربعمائة وخمسون
+     * ديناراً». Empty outside Arabic — src/lib/money-words.ts says at length why the question only exists
+     * there — and a screen prints nothing when it is empty rather than an empty line.
+     */
+    formatMillimesInWords(millimes: number): string {
+      return locale === "ar" ? moneyWordsAr(millimes) : "";
     },
     formatDate(value: string | Date): string {
       return new Intl.DateTimeFormat(dateTag, {

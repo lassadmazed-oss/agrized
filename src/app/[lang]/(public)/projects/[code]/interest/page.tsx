@@ -5,7 +5,7 @@ import Link from "@/components/site/link";
 import { ComingSoon } from "@/components/site/module-gate";
 import { getOfferStock, minTreesHint, offersTitle, stockCounted } from "@/components/site/offers";
 import { Texts } from "@/components/site/texts";
-import { flagState, getPublicConfig, optionsFor, settingText, t, type PublicConfig } from "@/lib/config";
+import { flagState, getPublicConfig, optionsFor, settingBool, settingText, t, type PublicConfig } from "@/lib/config";
 import { readIntakePrefill } from "@/lib/intake-prefill";
 import { moduleAccess } from "@/lib/modules";
 import { findProject, getProjectQuote, getPublicProjects, publicMode } from "@/lib/public-projects";
@@ -120,6 +120,7 @@ export default async function OfferInterestPage({ params }: PageProps<"/[lang]/p
       {/* The form's own sentences (ui.offer.form_*) travel with it; every other word arrives in its props. */}
       <Texts prefixes={["ui.offer.form_", "ui.prefill.", "ui.account_invite."]}>
         <OfferInterestForm
+          showMoneyWords={settingBool(config, "money.show_words")}
           prefill={prefill}
           projectId={project.id}
           projectName={project.name}
