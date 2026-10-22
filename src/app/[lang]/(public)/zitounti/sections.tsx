@@ -332,7 +332,18 @@ function TreesSection({ items, config, fmt }: { items: ZitountiTreeGroup[]; conf
 function RequestsSection({ items, config, fmt }: { items: ZitountiRequestRow[]; config: PublicConfig; fmt: SiteFormat }) {
   return (
     <CardStack>
-      {items.map((request) => (
+      {items.map((request) => {
+        // Every row below is printed only when the request carries it, and a plain «سجّل اهتمامك» carries
+        // none of them — so this card can legitimately be empty. The owner read one on 2026-10-22: a number,
+        // a date, and a sentence explaining prices that were not there. The note has to follow the figures.
+        const priced =
+          request.trees !== null ||
+          request.price_per_tree_millimes !== null ||
+          request.total_price_millimes !== null ||
+          request.annual_fee_per_tree_millimes !== null ||
+          request.annual_fee_total_millimes !== null;
+
+        return (
         <RecordCard
           key={request.id}
           title={request.project_name ?? request.project_code ?? t(config, "ui.zitounti.request_fallback_title")}
@@ -367,12 +378,16 @@ function RequestsSection({ items, config, fmt }: { items: ZitountiRequestRow[]; 
             ) : null}
           </DataList>
 
-          {/* The figures above are the quotation as it stood the day the request was sent, snapshotted on the
-              request itself. The annual fee has already changed more than once under live requests, and a
-              client is owed the number they were shown — so this sentence is not decoration. */}
-          <p className="mt-snug text-caption leading-6 text-muted">{t(config, "ui.zitounti.request_prices_note")}</p>
+          {/* With figures: they are the quotation as it stood the day the request was sent, snapshotted on
+              the request itself. The annual fee has already changed more than once under live requests, and
+              a client is owed the number he was shown — so that sentence is not decoration. Without them:
+              there is nothing to date, and what is true is that we have his interest and will call. */}
+          <p className="mt-snug text-caption leading-6 text-muted">
+            {t(config, priced ? "ui.zitounti.request_prices_note" : "ui.zitounti.request_no_prices")}
+          </p>
         </RecordCard>
-      ))}
+        );
+      })}
     </CardStack>
   );
 }

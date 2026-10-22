@@ -328,7 +328,7 @@ export function OfferInterestForm(props: OfferInterestFormProps) {
   // account holds a genuinely different second number: the question is «same number for WhatsApp?», and
   // answering it «no» on a buyer's behalf only makes him correct us.
   const known = props.prefill;
-  const apartWhatsapp = Boolean(known?.whatsapp && known.whatsapp !== known.phone);
+  const apartWhatsapp = known?.whatsappApart ?? false;
   const [form, setForm] = useState<FormState>({
     trees: String(openingTrees),
     fullName: known?.fullName ?? "",

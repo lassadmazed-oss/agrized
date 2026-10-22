@@ -1,5 +1,6 @@
 import "server-only";
 
+import { formatPhone } from "@/lib/phone";
 import { createClient } from "@/lib/supabase/server";
 
 /*
@@ -22,8 +23,17 @@ import { createClient } from "@/lib/supabase/server";
 export type IntakePrefill = {
   personId: string;
   fullName: string | null;
+  /**
+   * AS THE FIELD WANTS IT TYPED, not as the database stores it. persons.phone_e164 holds «+21690000001»,
+   * and a form whose own hint says «8 أرقام» would show the reader a shape it did not ask for — and then
+   * refuse it, because lead.allow_international_phone is off on the live site and «+216…» reads as an
+   * international number. formatPhone turns a Tunisian number into «90 000 001», which normalizePhone
+   * parses straight back to the same E.164, and leaves a foreign one in its international form.
+   */
   phone: string | null;
   whatsapp: string | null;
+  /** Whether the account holds a genuinely different WhatsApp number — decided here so both forms agree. */
+  whatsappApart: boolean;
   email: string | null;
   governorateId: number | null;
   delegationId: number | null;
@@ -68,11 +78,17 @@ export async function readIntakePrefill(): Promise<IntakePrefill | null> {
     const personId = text(row, "person_id");
     if (!personId) return null;
 
+    // Compared as stored, shown as typed: the two numbers are the same number when their E.164 is the same.
+    const phone = text(row, "phone_e164");
+    const whatsapp = text(row, "whatsapp_e164");
+    const apart = Boolean(whatsapp && whatsapp !== phone);
+
     return {
       personId,
       fullName: text(row, "full_name"),
-      phone: text(row, "phone_e164"),
-      whatsapp: text(row, "whatsapp_e164"),
+      phone: phone ? formatPhone(phone) : null,
+      whatsapp: apart && whatsapp ? formatPhone(whatsapp) : null,
+      whatsappApart: apart,
       email: text(row, "email"),
       governorateId: number(row, "governorate_id"),
       delegationId: number(row, "delegation_id"),

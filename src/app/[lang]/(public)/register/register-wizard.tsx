@@ -164,7 +164,7 @@ const OLD_DRAFT_KEYS = ["agrized:register-draft", PREVIOUS_DRAFT_KEY];
  */
 function emptyForm(props: RegisterWizardProps): FormState {
   const known = props.prefill;
-  const apart = Boolean(known?.whatsapp && known.whatsapp !== known.phone);
+  const apart = known?.whatsappApart ?? false;
   return {
     fullName: known?.fullName ?? "",
     phone: known?.phone ?? "",
