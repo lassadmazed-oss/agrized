@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 import { ComingSoon, PreviewBanner } from "@/components/site/module-gate";
 import { Texts } from "@/components/site/texts";
 import { getPublicConfig, optionsFor, settingBool, settingInt, t } from "@/lib/config";
+import { readIntakePrefill } from "@/lib/intake-prefill";
 import { moduleAccess } from "@/lib/modules";
 
 import { LandOfferForm } from "./land-offer-form";
@@ -26,11 +27,15 @@ export default async function LandOfferPage() {
     return <ComingSoon title={t(config, "ui.land.meta_title")} />;
   }
 
+  // The reader's own details if he is signed in, null otherwise — which is most readers, and is fine (0147).
+  const prefill = await readIntakePrefill();
+
   return (
     <>
       {access === "preview" ? <PreviewBanner /> : null}
-      <Texts prefixes={["ui.land."]}>
+      <Texts prefixes={["ui.land.", "ui.prefill."]}>
         <LandOfferForm
+          prefill={prefill}
           governorates={config.governorates}
           delegations={config.delegations}
           propertyTypes={optionsFor(config, "property_type")}

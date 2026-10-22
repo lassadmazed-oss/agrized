@@ -14,8 +14,16 @@ import { getStorageUploadClient, LAND_OFFER_BUCKET } from "@/lib/supabase/storag
 import { finalizeLandOfferFiles, submitLandOffer } from "./actions";
 
 type Option = { id: string; code: string | null; label: string };
+import { PrefillNote, SignInHint } from "@/components/site/prefill-note";
+import type { IntakePrefill } from "@/lib/intake-prefill";
 
 type LandOfferFormProps = {
+  /**
+   * The reader's own details when he is signed in, null otherwise (0147). A landowner offering a field is
+   * not usually the same person as a buyer — but he may be, and when he is there is no reason to make him
+   * type his name and number again. It fills the two contact fields in and nothing else.
+   */
+  prefill: IntakePrefill | null;
   governorates: { id: number; name: string }[];
   delegations: { id: number; governorate_id: number; name: string }[];
   propertyTypes: Option[];
@@ -63,8 +71,8 @@ export function LandOfferForm(props: LandOfferFormProps) {
   const [negotiable, setNegotiable] = useState(false);
   const [documentIds, setDocumentIds] = useState<string[]>([]);
   const [files, setFiles] = useState<File[]>([]);
-  const [contactName, setContactName] = useState("");
-  const [contactPhone, setContactPhone] = useState("");
+  const [contactName, setContactName] = useState(props.prefill?.fullName ?? "");
+  const [contactPhone, setContactPhone] = useState(props.prefill?.phone ?? "");
   const [capacity, setCapacity] = useState<Capacity | null>(null);
   const [consent, setConsent] = useState(false);
   const [honeypot, setHoneypot] = useState("");
@@ -542,6 +550,15 @@ export function LandOfferForm(props: LandOfferFormProps) {
         </Section>
 
         <Section title={t("ui.land.section_contact")}>
+          {/* Said once, in the section that asks who to call — not at the top of a long form. */}
+          <div className="mb-5">
+            {props.prefill ? (
+              <PrefillNote name={props.prefill.fullName} returning={props.prefill.requests > 0} />
+            ) : (
+              <SignInHint />
+            )}
+          </div>
+
           <div className="grid gap-5 sm:grid-cols-2">
             <FormField id="contactName" label={t("ui.land.contact_name_label")} error={errors.contactName}>
               <input
