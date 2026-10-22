@@ -2,6 +2,9 @@
 
 import { useEffect, useRef, useState, useTransition, type ReactNode } from "react";
 
+import { PrefillNote, SignInHint } from "@/components/site/prefill-note";
+import type { IntakePrefill } from "@/lib/intake-prefill";
+
 import Link from "@/components/site/link";
 import { readVisitSource } from "@/components/site/source-capture";
 import { FormField } from "@/components/ui";
@@ -36,6 +39,12 @@ export type CalculatorRecap = {
 };
 
 export type RegisterWizardProps = {
+  /**
+   * The buyer's own details when he is signed in, null otherwise — which is most readers (0147). It only
+   * ever fills fields in: every question is still asked, still editable, and still answerable by someone
+   * with no account at all.
+   */
+  prefill: IntakePrefill | null;
   governorates: { id: number; name: string }[];
   goals: Option[];
   contactTimes: Option[];
@@ -136,28 +145,48 @@ const SUCCESS_ROWS: SummaryRowKey[] = ["trees", "area_per_tree", "total_area", "
 const PRICE_SLOT = "\u0001";
 
 // The calculator answers moved to the URL (P2-6); an older draft still gives back the identity and contact answers.
+/** A saved draft: the answers, plus whose they are — see the restore below for why that second part. */
+type Draft = Partial<FormState> & { personId?: string | null };
+
 const DRAFT_KEY = "agrized:register-draft-v4";
 const PREVIOUS_DRAFT_KEY = "agrized:register-draft-v3";
 const OLD_DRAFT_KEYS = ["agrized:register-draft", PREVIOUS_DRAFT_KEY];
 
+/**
+ * The form a reader starts from — blank, or carrying what his account already told us (0147).
+ *
+ * Seeding HERE and not at the call site is what makes the prefill safe: everything this returns goes
+ * through sanitize(), which drops any id that is no longer in the Back Office lists. A governorate the
+ * owner has since removed is cleared by the same code that clears it out of a stale draft.
+ *
+ * whatsappSame stays true unless the account actually holds a DIFFERENT second number: the question is
+ * «same number for WhatsApp?», and answering it «no» on a buyer's behalf would make him correct us.
+ */
 function emptyForm(props: RegisterWizardProps): FormState {
+  const known = props.prefill;
+  const apart = Boolean(known?.whatsapp && known.whatsapp !== known.phone);
   return {
-    fullName: "",
-    phone: "",
-    whatsappSame: true,
-    whatsapp: "",
-    email: "",
-    governorateId: null,
-    livesAbroad: false,
+    fullName: known?.fullName ?? "",
+    phone: known?.phone ?? "",
+    whatsappSame: !apart,
+    whatsapp: apart ? (known?.whatsapp ?? "") : "",
+    email: known?.email ?? "",
+    governorateId: known?.governorateId ?? null,
+    livesAbroad: known?.livesAbroad ?? false,
     investAnywhere: false,
     investGovernorateIds: [],
     goalOptionId: null,
     wantsVisit: props.initialWantsVisit ? true : null,
     wantsBankFinancing: null,
-    contactChannel: null,
-    contactTimeOptionId: null,
+    contactChannel: channelOf(known?.contactChannel),
+    contactTimeOptionId: known?.contactTimeOptionId ?? null,
     consent: false,
   };
+}
+
+/** The stored channel, only if it is still one of the three this form offers. */
+function channelOf(value: string | null | undefined): ContactChannel | null {
+  return value === "phone" || value === "whatsapp" || value === "both" ? value : null;
 }
 
 /**
@@ -251,11 +280,22 @@ export function RegisterWizard(props: RegisterWizardProps) {
       const raw = localStorage.getItem(DRAFT_KEY) ?? localStorage.getItem(PREVIOUS_DRAFT_KEY);
       for (const key of OLD_DRAFT_KEYS) localStorage.removeItem(key);
       if (raw) {
-        const draft = JSON.parse(raw) as Partial<FormState>;
-        // `visit=1` in the link wins over an older draft.
-        const fromLink: Partial<FormState> = props.initialWantsVisit ? { wantsVisit: true } : {};
-        // eslint-disable-next-line react-hooks/set-state-in-effect -- restoring browser-only state after hydration
-        setForm((current) => sanitize({ ...current, ...draft, ...fromLink }, props));
+        const draft = JSON.parse(raw) as Draft;
+        // A DRAFT LEFT BY SOMEBODY ELSE IS DROPPED, NOT MERGED (0147). This is one browser on one phone,
+        // and families share phones: restoring an abandoned draft over a signed-in buyer's own details
+        // would put another person's name and number on his request. The draft carries whose it is, and a
+        // draft from before this was recorded has no owner at all — which, once someone is signed in, is
+        // exactly the case that cannot be trusted. Only the person's own draft, or any draft at all when
+        // nobody is signed in, survives.
+        const mine = props.prefill ? draft.personId === props.prefill.personId : true;
+        if (mine) {
+          // `visit=1` in the link wins over an older draft.
+          const fromLink: Partial<FormState> = props.initialWantsVisit ? { wantsVisit: true } : {};
+          // eslint-disable-next-line react-hooks/set-state-in-effect -- restoring browser-only state after hydration
+          setForm((current) => sanitize({ ...current, ...draft, ...fromLink }, props));
+        } else {
+          localStorage.removeItem(DRAFT_KEY);
+        }
       }
     } catch {
       // Ignore unreadable drafts.
@@ -267,13 +307,13 @@ export function RegisterWizard(props: RegisterWizardProps) {
   useEffect(() => {
     if (!draftLoaded.current || requestNo) return;
     try {
-      const draft: Partial<FormState> = { ...form };
+      const draft: Draft = { ...form, personId: props.prefill?.personId ?? null };
       delete draft.consent;
       localStorage.setItem(DRAFT_KEY, JSON.stringify(draft));
     } catch {
       // Storage full or blocked: the form still works.
     }
-  }, [form, requestNo]);
+  }, [form, requestNo, props.prefill]);
 
   useEffect(() => {
     if (firstRender.current) {
@@ -470,6 +510,17 @@ export function RegisterWizard(props: RegisterWizardProps) {
                 </Link>
               </>
             ) : null}
+          </div>
+        ) : null}
+
+        {/* Said once, on the step that asks who the reader is — not on every step, and never in the way. */}
+        {step === 1 ? (
+          <div className="mt-4">
+            {props.prefill ? (
+              <PrefillNote name={props.prefill.fullName} returning={props.prefill.requests > 0} />
+            ) : (
+              <SignInHint />
+            )}
           </div>
         ) : null}
 

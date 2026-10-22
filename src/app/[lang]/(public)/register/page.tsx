@@ -5,6 +5,7 @@ import { ComingSoon, PreviewBanner } from "@/components/site/module-gate";
 import { Texts } from "@/components/site/texts";
 import { formatFor, getPublicConfig, optionsFor, settingBool, t } from "@/lib/config";
 import { intakeErrorMessage } from "@/lib/errors";
+import { readIntakePrefill } from "@/lib/intake-prefill";
 import { localePath } from "@/lib/i18n/locales";
 import { moduleAccess } from "@/lib/modules";
 import { projectHref } from "@/lib/public-hrefs";
@@ -26,6 +27,8 @@ const WIZARD_TEXTS = [
   "ui.errors.invalid_email",
   "ui.errors.invest_location_required",
   "ui.errors.consent_required",
+  // «عمّرنا معلوماتك» and the invitation under it (0147), both drawn in the browser.
+  "ui.prefill.",
 ] as const;
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -94,11 +97,16 @@ export default async function RegisterPage({ searchParams }: PageProps<"/[lang]/
     row.value ? [{ key: row.key, label: row.label.ar, value: row.value.ar, notes: row.notes.map((note) => note.ar) }] : [],
   );
 
+  // The buyer's own details if he is signed in, null otherwise — which is most readers, and is fine
+  // (0147). Nothing below branches on it except the fields it fills in.
+  const prefill = await readIntakePrefill();
+
   return (
     <>
       {access === "preview" ? <PreviewBanner /> : null}
       <Texts prefixes={WIZARD_TEXTS}>
         <RegisterWizard
+          prefill={prefill}
           governorates={config.governorates}
           goals={optionsFor(config, "goal")}
           contactTimes={optionsFor(config, "contact_time")}

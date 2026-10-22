@@ -14,7 +14,15 @@ import type { PaymentMode } from "@/lib/tree-pricing";
 import { quoteOffer, submitOfferInterest } from "./offer-actions";
 
 type Option = { id: string; code: string | null; label: string };
+import { PrefillNote, SignInHint } from "@/components/site/prefill-note";
+import type { IntakePrefill } from "@/lib/intake-prefill";
+
 type ContactChannel = "phone" | "whatsapp" | "both";
+
+/** The stored channel, only if it is still one of the three this form offers. */
+function channelOf(value: string | null | undefined): ContactChannel | null {
+  return value === "phone" || value === "whatsapp" || value === "both" ? value : null;
+}
 
 /** The three ways to be called back, in the order they are offered; their words are ui.offer.form_channel_*. */
 const CHANNELS: readonly ContactChannel[] = ["phone", "whatsapp", "both"];
@@ -74,6 +82,12 @@ export type OfferSummaryCopy = {
 };
 
 export type OfferInterestFormProps = {
+  /**
+   * The buyer's own details when he is signed in, null otherwise — which is most readers (0147). It fills
+   * the three «who to call back» screens in and nothing else: every field stays editable, and a visitor
+   * with no account sends exactly the request he sent before.
+   */
+  prefill: IntakePrefill | null;
   projectId: string;
   projectName: string;
   /** The offer's own trees: the visitor may ask for the smallest basket, for all of them, or anything between. */
@@ -310,17 +324,22 @@ export function OfferInterestForm(props: OfferInterestFormProps) {
   // visitor with an error they did not make. It is also what the page quoted on the server, so the figures the
   // visitor first reads belong to the basket the picker first shows.
   const openingTrees = Math.max(1, Math.min(props.minTrees, props.maxTrees));
+  // What the account already told us, if anyone is signed in (0147). whatsappSame stays true unless the
+  // account holds a genuinely different second number: the question is «same number for WhatsApp?», and
+  // answering it «no» on a buyer's behalf only makes him correct us.
+  const known = props.prefill;
+  const apartWhatsapp = Boolean(known?.whatsapp && known.whatsapp !== known.phone);
   const [form, setForm] = useState<FormState>({
     trees: String(openingTrees),
-    fullName: "",
-    phone: "",
-    whatsappSame: true,
-    whatsapp: "",
-    email: "",
-    governorateId: "",
-    livesAbroad: false,
-    contactChannel: null,
-    contactTimeOptionId: null,
+    fullName: known?.fullName ?? "",
+    phone: known?.phone ?? "",
+    whatsappSame: !apartWhatsapp,
+    whatsapp: apartWhatsapp ? (known?.whatsapp ?? "") : "",
+    email: known?.email ?? "",
+    governorateId: known?.governorateId ? String(known.governorateId) : "",
+    livesAbroad: known?.livesAbroad ?? false,
+    contactChannel: channelOf(known?.contactChannel),
+    contactTimeOptionId: known?.contactTimeOptionId ?? null,
     wantsVisit: false,
     consent: false,
   });
@@ -1122,6 +1141,15 @@ export function OfferInterestForm(props: OfferInterestFormProps) {
           {/* Who to call back — three screens now, not one column. The rule that drew a line under the
               offer's own questions went with the column: every screen is its own card already. */}
           <div className="space-y-5">
+            {/* Said once, on the screen that asks who the reader is — not on every screen, never in the way. */}
+            <div hidden={activeStep !== "who"} className="mb-1">
+              {props.prefill ? (
+                <PrefillNote name={props.prefill.fullName} returning={props.prefill.requests > 0} />
+              ) : (
+                <SignInHint />
+              )}
+            </div>
+
             <div hidden={activeStep !== "who"} className="grid gap-4 sm:grid-cols-2">
               <FormField id="offer-name" label={t("ui.offer.form_name_label")} error={errors.fullName}>
                 <input
