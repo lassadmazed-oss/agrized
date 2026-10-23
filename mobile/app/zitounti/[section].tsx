@@ -59,7 +59,15 @@ const KEYS: readonly SectionKey[] = [
 const ACTIONABLE = new Set<SectionKey>(["trees", "requests", "reservations", "visits", "contracts", "installments"]);
 
 type Fact = { label: string; value: string };
-type Card = { title: string; note?: string | null; pill?: string | null; facts: Fact[]; lines?: Line[] };
+type Card = {
+  title: string;
+  note?: string | null;
+  pill?: string | null;
+  facts: Fact[];
+  /** A sentence under the figures, for a card whose figures need explaining — or whose absence does. */
+  footnote?: string | null;
+  lines?: Line[];
+};
 type Line = { head: string; facts: Fact[]; late?: boolean };
 
 export default function SectionScreen() {
@@ -183,6 +191,8 @@ export default function SectionScreen() {
                 </View>
               ) : null}
 
+              {item.footnote ? <Text style={styles.footnote}>{item.footnote}</Text> : null}
+
               {/* The instalment schedule is the one section that earns a layout of its own: a client reading
                   it is looking for which line is late, and that cannot be a fact among facts. */}
               {item.lines?.map((line, lineIndex) => (
@@ -241,16 +251,37 @@ function build(key: SectionKey, file: ZitountiFile, config: Config, fmt: Fmt): C
       }));
 
     case "requests":
-      return items.map((row) => ({
-        title: text(row.request_no) || label("request_fallback_title"),
-        note: text(row.project_name) || null,
-        facts: facts(
-          { label: label("date"), value: date(row.created_at) },
-          { label: label("trees_count_label"), value: count(row.trees) },
-          { label: label("price_per_tree"), value: money(row.price_per_tree_millimes) },
-          { label: label("total_price"), value: money(row.total_price_millimes) },
-        ),
-      }));
+      return items.map((row) => {
+        /*
+         * Every figure below is printed only when the request carries it, and a plain «سجّل اهتمامك» carries
+         * none — so this card can legitimately be empty. The owner read one on 2026-10-22: a number, a date,
+         * and a sentence explaining prices that were not there. The note has to follow the figures. With them
+         * it is the sentence that has always been there, and it is not decoration: the annual fee has changed
+         * more than once under live requests, and a client is owed the number he was shown. Without them the
+         * card says the true thing — we have his interest and we will call.
+         */
+        const priced = [
+          row.trees,
+          row.price_per_tree_millimes,
+          row.total_price_millimes,
+          row.annual_fee_per_tree_millimes,
+          row.annual_fee_total_millimes,
+        ].some((value) => value !== null && value !== undefined);
+
+        return {
+          title: text(row.request_no) || label("request_fallback_title"),
+          note: text(row.project_name) || null,
+          facts: facts(
+            { label: label("date"), value: date(row.created_at) },
+            { label: label("trees_count_label"), value: count(row.trees) },
+            { label: label("price_per_tree"), value: money(row.price_per_tree_millimes) },
+            { label: label("total_price"), value: money(row.total_price_millimes) },
+            { label: label("annual_fee_per_tree"), value: money(row.annual_fee_per_tree_millimes) },
+            { label: label("annual_fee_total"), value: money(row.annual_fee_total_millimes) },
+          ),
+          footnote: label(priced ? "request_prices_note" : "request_no_prices"),
+        };
+      });
 
     case "reservations":
       return items.map((row) => ({
@@ -403,6 +434,8 @@ const styles = StyleSheet.create({
   },
   badgeText: { ...type.caption, color: colour.forest700 },
   note: { ...type.note, color: colour.muted },
+  /** `mt-snug text-caption leading-6 text-muted`. */
+  footnote: { ...type.caption, color: colour.muted, marginTop: space.snug },
   facts: { gap: space.hair },
   fact: { ...readingRow(), alignItems: "baseline", justifyContent: "space-between", gap: space.cozy },
   factLabel: { ...type.caption, color: colour.muted, flexShrink: 1 },

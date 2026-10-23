@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { useRouter } from "expo-router";
+import { useLocalSearchParams, useRouter } from "expo-router";
 import { Linking, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
@@ -36,6 +36,9 @@ export default function AccountScreen() {
   const insets = useSafeAreaInsets();
   const { reload: reloadConfig } = useConfig();
   const { person, ready, signOut } = useAuth();
+  // ?phone= comes from «افتح حسابي» on a request's confirmation (0149). Only a string is taken, and only to
+  // fill the field: nothing about this number is trusted until the reader submits the form himself.
+  const { phone: asked } = useLocalSearchParams<{ phone?: string }>();
 
   /*
    * THE FILE IS READ HERE, NOT INSIDE <SignedIn>, and the reason is this screen's one scroll view.
@@ -95,7 +98,7 @@ export default function AccountScreen() {
             onRetry={() => void reload()}
           />
         ) : (
-          <SignInPanel />
+          <SignInPanel invitedPhone={typeof asked === "string" ? asked : undefined} />
         )}
 
         {/*
@@ -114,13 +117,22 @@ export default function AccountScreen() {
 
 type Step = "password" | "code";
 
-function SignInPanel() {
+function SignInPanel({ invitedPhone }: { invitedPhone?: string }) {
   const { config } = useConfig();
   const router = useRouter();
   const { requestCode, signInWithCode, signInWithPassword } = useAuth();
 
+  // A reader who arrived from «افتح حسابي» has no password yet, so the ordinary sentence would be the wrong
+  // instruction on his first screen: he is pointed at the SMS door instead.
+  const invited = Boolean(invitedPhone?.trim());
+
   const [step, setStep] = useState<Step>("password");
-  const [phone, setPhone] = useState("");
+  const [phone, setPhone] = useState(invitedPhone?.trim() ?? "");
+  // The tabs keep this screen mounted, so a second «افتح حسابي» arrives as a changed param, not a new mount.
+  useEffect(() => {
+    const typed = invitedPhone?.trim();
+    if (typed) setPhone(typed);
+  }, [invitedPhone]);
   const [password, setPassword] = useState("");
   const [code, setCode] = useState("");
   const [busy, setBusy] = useState(false);
@@ -180,7 +192,14 @@ function SignInPanel() {
         and was only ever used as a page description nobody reads. It goes first now.
       */}
       <Text style={[type.label, styles.note]}>
-        {t(config, step === "code" ? "ui.login.code_sent_note" : "ui.zitounti.meta_description")}
+        {t(
+          config,
+          step === "code"
+            ? "ui.login.code_sent_note"
+            : invited
+              ? "zitounti.invite_login_note"
+              : "ui.zitounti.meta_description",
+        )}
       </Text>
 
       <View style={styles.card}>

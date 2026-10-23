@@ -1,8 +1,11 @@
-import { useCallback, useMemo, useState } from "react";
+import { useRouter } from "expo-router";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { KeyboardAvoidingView, Modal, Platform, Pressable, StyleSheet, Text, View } from "react-native";
 
 import { submitInterest, type InterestInput } from "./api";
+import { useAuth } from "./auth";
 import { formatMessage, optionsFor, settingBool, t } from "./config";
+import { fetchIntakePrefill, type IntakePrefill } from "./prefill";
 import { card, colour, radius, space, type } from "./theme";
 import { Btn, CheckRow, Chip, ErrorText, Field, Hint, Label } from "./ui";
 import { useConfig } from "./use-config";
@@ -94,6 +97,8 @@ export function InterestForm({
   onDone?: () => void;
 }) {
   const { config } = useConfig();
+  const router = useRouter();
+  const { person, ready: authReady, signOut } = useAuth();
 
   const [fullName, setName] = useState("");
   const [phone, setPhone] = useState("");
@@ -104,20 +109,89 @@ export function InterestForm({
   const [error, setError] = useState<string | null>(null);
   const [reference, setReference] = useState<string | null>(null);
   const [done, setDone] = useState(false);
+  /** The buyer's own details, when somebody is signed in and the database knew them. Null asks as usual. */
+  const [prefill, setPrefill] = useState<IntakePrefill | null>(null);
+  /** The number as it was typed, kept for «افتح حسابي» — `dismiss` empties the field before the link is used. */
+  const [sentPhone, setSentPhone] = useState("");
 
-  /** Closes the confirmation and empties the form: the demand is sent, so the answers must not linger. */
-  const dismiss = useCallback(() => {
-    setDone(false);
-    setReference(null);
+  const places = config.governorates;
+  const signedIn = Boolean(person);
+
+  /*
+   * ما يقعدش كل مرّة يعمّر. A buyer who has an account sends from it and is not asked for his name and number
+   * again — the owner's own sentence, 2026-10-22, and the mirror of what the site's two request forms do.
+   *
+   * IT FILLS ONLY WHAT IS STILL EMPTY, AND ONLY ONCE PER PERSON: a field the visitor has already typed in is
+   * theirs, and a prefill that landed late must not overwrite it. A governorate is applied only while it is
+   * still on the active list — the intake refuses an inactive one, and a pre-filled form that gets refused is
+   * worse than an empty one. A failed read is not a failure on screen: the form simply stays as it was.
+   */
+  const personId = person?.id ?? null;
+  useEffect(() => {
+    if (!authReady) return;
+    if (!personId) {
+      setPrefill(null);
+      return;
+    }
+    let current = true;
+    void fetchIntakePrefill().then((found) => {
+      if (!current || !found) return;
+      setPrefill(found);
+      setName((typed) => (typed === "" ? (found.fullName ?? "") : typed));
+      setPhone((typed) => (typed === "" ? (found.phone ?? "") : typed));
+      setPlaceId((chosen) =>
+        chosen === null && found.governorateId !== null && places.some((place) => place.id === found.governorateId)
+          ? found.governorateId
+          : chosen,
+      );
+    });
+    return () => {
+      current = false;
+    };
+    // `places` is read, not depended on: a governorate list arriving later must not re-run the read.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [authReady, personId]);
+
+  /** «موش إنت؟ اخرج» — the form is somebody else's, so it is emptied along with the session. */
+  const notYou = useCallback(async () => {
+    await signOut();
+    setPrefill(null);
     setName("");
     setPhone("");
     setPlaceId(null);
+  }, [signOut]);
+
+  /**
+   * Closes the confirmation and empties the form: the demand is sent, so the answers must not linger.
+   *
+   * «EMPTIES» MEANS BACK TO WHAT IT WAS WHEN IT OPENED. For a signed-in buyer that is his own details, not
+   * blank fields — the prefill ran once, and nothing will run it again.
+   */
+  const dismiss = useCallback(() => {
+    setDone(false);
+    setReference(null);
+    setName(prefill?.fullName ?? "");
+    setPhone(prefill?.phone ?? "");
+    setPlaceId(
+      prefill && prefill.governorateId !== null && places.some((place) => place.id === prefill.governorateId)
+        ? prefill.governorateId
+        : null,
+    );
     setGoal(null);
     setConsent(false);
     setError(null);
-  }, []);
+  }, [places, prefill]);
 
-  const places = config.governorates;
+  /**
+   * «افتح حسابي» on the confirmation. The number goes with the buyer to the sign-in screen as a PREFILL and
+   * nothing else: no SMS is queued by this, and nothing is created — the code goes out only when he presses
+   * «أوّل مرّة؟ ادخل برمز SMS» there, which is 0096's own door and not a second sign-up path.
+   */
+  const openAccount = useCallback(() => {
+    const typed = sentPhone;
+    dismiss();
+    router.push(typed ? { pathname: "/account", params: { phone: typed } } : "/account");
+  }, [dismiss, router, sentPhone]);
 
   /**
    * The reasons somebody wants olive trees, from `option_items`.
@@ -171,6 +245,7 @@ export function InterestForm({
 
     if (!result.ok) return setError(result.message);
     setReference(result.reference);
+    setSentPhone(phone.trim());
     setDone(true);
     onDone?.();
   };
@@ -229,6 +304,26 @@ export function InterestForm({
             ) : null}
 
             <Hint style={{ marginTop: space.snug }}>{t(config, "register.success_note")}</Hint>
+
+            {/*
+              «افتح حسابك» — offered to a reader who has no account, on the screen that already says «تمّ». The
+              owner chose offering over making the account for him (2026-10-22): an account made automatically
+              is an SMS to everyone who fills a form, out of the budget he is trying to cut, to people who did not
+              ask. NOTHING IS SENT FROM HERE — it is a card and a button, and it is not drawn for somebody who
+              is already signed in, who has the account and saw «عمّرنا معلوماتك» one screen earlier.
+            */}
+            {!signedIn ? (
+              <View style={styles.invite}>
+                <Text style={[type.cardTitle, { color: colour.forest }]}>{t(config, "ui.account_invite.title")}</Text>
+                <Hint style={{ marginTop: space.hair }}>{t(config, "ui.account_invite.text")}</Hint>
+                <Btn
+                  label={t(config, "ui.account_invite.cta")}
+                  onPress={openAccount}
+                  tone="secondary"
+                  style={{ marginTop: space.snug, width: "100%" }}
+                />
+              </View>
+            ) : null}
           </Pressable>
         </Pressable>
       </Modal>
@@ -256,6 +351,33 @@ export function InterestForm({
       <Hint style={{ marginTop: 2 }}>
         {offerName ?? t(config, offerCode ? "offers.form_intro" : "register.success_note")}
       </Hint>
+
+      {/*
+        TWO LINES ABOUT THE ACCOUNT BEHIND THE FORM, and neither blocks anything: a box for a reader we
+        recognise, one quiet sentence and a link for a reader we do not. A form that stops to ask a buyer to
+        sign in is a form that loses the buyers who will not — a request still goes out with no account at all.
+      */}
+      {prefill ? (
+        <View style={[styles.prefill, { marginTop: space.cozy }]}>
+          <View style={styles.prefillHead}>
+            <Text style={[type.label, { color: colour.forest }]}>{t(config, "ui.prefill.title")}</Text>
+            <Pressable onPress={() => void notYou()} hitSlop={10} accessibilityRole="button">
+              <Text style={styles.link}>{t(config, "ui.prefill.not_you")}</Text>
+            </Pressable>
+          </View>
+          {prefill.fullName ? <Text style={[type.label, { marginTop: space.hair }]}>{prefill.fullName}</Text> : null}
+          <Hint style={{ marginTop: space.hair }}>{t(config, "ui.prefill.text")}</Hint>
+          {/* Only once there is something to be «alongside»: a first request has no earlier ones. */}
+          {prefill.requests > 0 ? <Hint style={{ marginTop: space.hair }}>{t(config, "ui.prefill.offer")}</Hint> : null}
+        </View>
+      ) : authReady && !signedIn ? (
+        <Text style={[type.caption, { marginTop: space.cozy }]}>
+          {t(config, "ui.prefill.sign_in")}{" "}
+          <Text style={styles.link} onPress={() => router.push("/account")} accessibilityRole="link">
+            {t(config, "ui.prefill.sign_in_cta")}
+          </Text>
+        </Text>
+      ) : null}
 
       <View style={{ marginTop: space.cozy }}>
         <Label>{t(config, "ui.offer.form_name_label")}</Label>
@@ -346,6 +468,24 @@ export function InterestForm({
 const styles = StyleSheet.create({
   box: { ...card, padding: space.card },
   boxDone: { backgroundColor: colour.leafSoft, borderColor: colour.leaf, borderRadius: radius.card },
+  // `rounded-2xl border border-forest/15 bg-forest/5 p-4` — the site's PrefillNote and AccountInvite boxes.
+  prefill: {
+    backgroundColor: colour.leafSoft,
+    borderColor: colour.line,
+    borderWidth: 1,
+    borderRadius: radius.card,
+    padding: space.snug,
+  },
+  prefillHead: { flexDirection: "row-reverse", alignItems: "baseline", justifyContent: "space-between", gap: space.tight },
+  invite: {
+    marginTop: space.cozy,
+    backgroundColor: colour.leafSoft,
+    borderColor: colour.line,
+    borderWidth: 1,
+    borderRadius: radius.card,
+    padding: space.snug,
+  },
+  link: { fontSize: 12.8, lineHeight: 20, color: colour.forest, textDecorationLine: "underline", fontWeight: "600" },
   // `flex flex-wrap gap-tight` — 8 apart, as the site's chip rows are.
   wrap: { flexDirection: "row-reverse", flexWrap: "wrap", gap: space.tight },
   // The site prints the request number in the display face, large, tabular and left to right.

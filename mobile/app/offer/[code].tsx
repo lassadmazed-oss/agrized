@@ -31,7 +31,7 @@ import {
   type OfferPicture,
   type OfferQuote,
 } from "../../src/api";
-import { moduleOpen, settingText, t, type AppConfig } from "../../src/config";
+import { moduleOpen, settingBool, settingText, t, type AppConfig } from "../../src/config";
 import { distanceToKm, formatKm } from "../../src/nearby";
 import { ArrowGo, ChevronBack, MapSketch, PinIcon, ShareIcon } from "../../src/icons";
 import { InterestForm } from "../../src/InterestForm";
@@ -255,6 +255,13 @@ export default function OfferScreen() {
     quote?.pricing === "ok" ? quote.pricePerTreeMillimes : treePrice(offer, moduleOpen(config, "pricing"));
   const priced = perTreeMillimes !== null;
   /**
+   * The same figure written out, under it — «أربعة آلاف وأربعمائة وخمسون ديناراً» — for the reason 0150 gives:
+   * «4 450» has three readings in Tunisian and the words have one. Empty outside Arabic, and empty when the
+   * owner has switched `money.show_words` off, in which case the figure stands alone as it always did.
+   */
+  const priceInWords =
+    perTreeMillimes !== null && settingBool(config, "money.show_words") ? fmt.moneyInWords(perTreeMillimes) : "";
+  /**
    * PRN-01, where the amount is actually read. `projects.price_note` is the owner's wording for this spot and
    * he has not written it yet, so the calculator's own note stands in — which is what the website does
    * (page.tsx:226). Same promise, same voice, and no sentence invented in the code.
@@ -468,6 +475,7 @@ export default function OfferScreen() {
               ) : (
                 <Text style={styles.pricePending}>{t(config, "projects.price_pending")}</Text>
               )}
+              {priceInWords ? <Text style={styles.priceWords}>{priceInWords}</Text> : null}
               {priced && priceNote ? <Text style={styles.priceNote}>{priceNote}</Text> : null}
             </View>
           </View>
@@ -1142,6 +1150,15 @@ const styles = StyleSheet.create({
   priceSuffix: { fontSize: 12.8, lineHeight: 19.2, color: colour.muted, writingDirection: "rtl" },
   /** `text-sm leading-6 text-muted`. */
   pricePending: { fontSize: 14, lineHeight: 24, color: colour.muted, writingDirection: "rtl", textAlign: "right" },
+  /** `mt-1 text-caption leading-6 text-muted` — the site's `spelled` line under the headline figure. */
+  priceWords: {
+    marginTop: 4,
+    fontSize: 13.6,
+    lineHeight: 24,
+    color: colour.muted,
+    writingDirection: "rtl",
+    textAlign: "right",
+  },
   /** `mt-3 text-caption leading-6 text-muted`. */
   priceNote: {
     marginTop: space.snug,

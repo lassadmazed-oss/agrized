@@ -17,14 +17,17 @@
  * home; duplicating either is how the two drift.
  */
 
+import { moneyWordsAr } from "./money-words";
+
 /* ------------------------------------------------------------------ languages */
 
 /**
  * src/lib/i18n/locales.ts. The set is fixed in code on both sides (and in 0109's check constraint), because a
  * language is a text direction and a number format before it is a row.
  *
- * Arabic keeps `en-US` digits and grouping — «12,500» — because that is what every figure on the Arabic site
- * has printed since launch, and a figure should not change its look because the code under it did.
+ * Arabic keeps `en-US` digits, but NOT its comma: since 2026-10-22 the Arabic site groups thousands with a thin
+ * no-break space — «12 500» — because «12,500» reads in Tunisian as a decimal and as a «فيرجول» at once. See
+ * `group` in `siteFormat`, which is where the comma is replaced, and src/lib/format.ts, which it mirrors.
  */
 export const LOCALES = ["ar", "fr", "de", "it", "en"] as const;
 export type Locale = (typeof LOCALES)[number];
@@ -75,6 +78,11 @@ function dates(tag: string, options: Intl.DateTimeFormatOptions): Intl.DateTimeF
   }
   return found;
 }
+
+// Written as a code point, not pasted: U+202F (the narrow NO-BREAK space, the one French uses) is invisible in a
+// source file, and a maintainer would be editing a character he cannot see. No-break so a figure is never split
+// across two lines in the middle.
+const NARROW_NO_BREAK_SPACE = String.fromCharCode(0x202f);
 
 const TIME_ZONE = "Africa/Tunis";
 
@@ -177,6 +185,14 @@ export function siteFormat(source: UnitSource, locale: Locale = DEFAULT_LOCALE) 
   const dateTag = INTL_DATE[locale];
 
   /**
+   * THE ARABIC SITE GROUPS WITH A THIN SPACE, NOT A COMMA (owner, 2026-10-22) — the mirror of `group` in
+   * src/lib/format.ts, applied to EVERY figure and not only money: «1 439 د.ت» beside «24,000 م²» on one offer
+   * reads as a bug in one of the two, and the reader cannot tell which. Only the grouping changes; the decimal
+   * point stays «.», and no other language is touched.
+   */
+  const group = (value: string) => (locale === "ar" ? value.replace(/,/g, NARROW_NO_BREAK_SPACE) : value);
+
+  /**
    * THE ONE PLACE millimes become dinars.
    *
    * WHOLE DINARS BY DEFAULT, which is the one thing this file used to get wrong. It printed two decimals for
@@ -191,13 +207,23 @@ export function siteFormat(source: UnitSource, locale: Locale = DEFAULT_LOCALE) 
       minimumFractionDigits: places,
       maximumFractionDigits: places,
     }).format(Number(millimes) / 1000);
-    return `${amount} ${units.currency}`;
+    return `${group(amount)} ${units.currency}`;
   };
 
-  /** «1,694» — grouped so four figures stay readable. NOT rounded: the site's `formatCount` is not. */
+  /**
+   * The same amount written out, for the few prices a reader decides on: «أربعة آلاف وأربعمائة وخمسون
+   * ديناراً». Empty outside Arabic — src/money-words.ts says why the question only exists there — and a screen
+   * prints nothing when it is empty rather than an empty line.
+   */
+  const formatMillimesInWords = (millimes: number | null | undefined): string => {
+    if (missing(millimes) || locale !== "ar") return "";
+    return moneyWordsAr(Number(millimes));
+  };
+
+  /** «1 694» — grouped so four figures stay readable. NOT rounded: the site's `formatCount` is not. */
   const formatCount = (value: number | null | undefined): string => {
     if (missing(value)) return "";
-    return numbers(numberTag).format(Number(value));
+    return group(numbers(numberTag).format(Number(value)));
   };
 
   /**
@@ -209,7 +235,7 @@ export function siteFormat(source: UnitSource, locale: Locale = DEFAULT_LOCALE) 
    */
   const formatArea = (m2: number | null | undefined, unit = units.m2): string => {
     if (missing(m2)) return "";
-    return `${numbers(numberTag, { maximumFractionDigits: 2 }).format(Number(m2))} ${unit}`;
+    return `${group(numbers(numberTag, { maximumFractionDigits: 2 }).format(Number(m2)))} ${unit}`;
   };
 
   /** Planting spacing as it is written in the field: «7 × 5 م». */
@@ -220,7 +246,7 @@ export function siteFormat(source: UnitSource, locale: Locale = DEFAULT_LOCALE) 
   ): string => {
     if (missing(rowMetres) || missing(treeMetres)) return "";
     const n = numbers(numberTag, { maximumFractionDigits: 2 });
-    return `${n.format(Number(rowMetres))} × ${n.format(Number(treeMetres))} ${unit}`;
+    return `${group(n.format(Number(rowMetres)))} × ${group(n.format(Number(treeMetres)))} ${unit}`;
   };
 
   const formatDate = (value: string | Date | null | undefined): string => {
@@ -275,6 +301,7 @@ export function siteFormat(source: UnitSource, locale: Locale = DEFAULT_LOCALE) 
 
     // The site's names, so the two files can be read side by side.
     formatMillimes,
+    formatMillimesInWords,
     formatCount,
     formatArea,
     formatSpacing,
@@ -285,6 +312,7 @@ export function siteFormat(source: UnitSource, locale: Locale = DEFAULT_LOCALE) 
     // The app's shorthand for the same four. A screen reads better as `fmt.money(…)`, and these are the names
     // ./quote already calls; they are aliases, not second implementations.
     money: formatMillimes,
+    moneyInWords: formatMillimesInWords,
     count: formatCount,
     area: formatArea,
     spacing: formatSpacing,
