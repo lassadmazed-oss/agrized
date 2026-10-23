@@ -72,7 +72,7 @@ import { readFunnel } from "@/components/admin/funnel-read";
 import { HomeTiles } from "@/components/admin/home-tiles";
 import { heldWorkspaces } from "@/components/admin/workspaces";
 import { EmptyState, SectionHeader, StatTile, StatusPill } from "@/components/ui";
-import { ADMIN_ROLES, CRM_READ_ROLES, hasRole, LAND_OFFER_ROLES, requireStaff, type StaffRole } from "@/lib/auth";
+import { ADMIN_ROLES, CRM_READ_ROLES, hasRole, LAND_OFFER_ROLES, PRICE_ROLES, requireStaff, type StaffRole } from "@/lib/auth";
 import { getPublicConfig } from "@/lib/config";
 import { formatCount, formatDate, formatMillimes } from "@/lib/format";
 import { moduleAccess } from "@/lib/modules";
@@ -83,6 +83,7 @@ import { workspaceRows } from "./panel-rows";
 
 import { daysAgo, tunisToday, type DemandStats } from "@/lib/backoffice/leads/dates";
 import { offerStocks } from "@/lib/backoffice/offers/stock";
+import { readInstallments } from "@/lib/backoffice/installments/rpc";
 import { readReservations } from "@/lib/backoffice/reservations/read";
 import { daysLeftLabel, FILTER_LABELS } from "@/lib/backoffice/reservations/model";
 import { readVisitBoard } from "./visits/visit-data";
@@ -346,6 +347,30 @@ export default async function DashboardPage({ searchParams }: PageProps<"/admin"
   const upcomingVisits: Visit[] = (visitBoard?.days ?? [])
     .flatMap((day) => day.visits)
     .filter((visit) => visit.status === "requested" || visit.status === "confirmed");
+
+  /*
+   * THE NUMBER ON EACH SQUARE (owner, 2026-10-23: «زيد العدد على كل كارّو»).
+   *
+   * Every figure here is one this screen has ALREADY counted for the queues below it — the same number, read
+   * twice on one page, never counted twice. The one exception is الأقساط, which this screen never had: it
+   * comes from readInstallments, the single reader both installment screens use, so «متأخر» still means what
+   * Finance means by it and not something a dashboard decided for itself.
+   *
+   * WHAT IS WAITING, NOT WHAT EXISTS. مطالب الاستثمار carries the demands on real stock that nobody has served
+   * — the only thing on this page that can lose a sale today — and not every file in the CRM. الحجوزات carries
+   * the holds still waiting for their عربون. A section with no honest answer to «what is waiting on you here»
+   * gets no badge at all rather than a total nobody can act on.
+   */
+  const lateInstallments = hasRole(session, PRICE_ROLES) ? await readInstallments(supabase, "overdue", { limit: 1 }) : null;
+  const waiting: Partial<Record<string, number>> = {
+    "/admin/leads": openDemands.length,
+    "/admin/reservations": holds?.counts.awaiting ?? 0,
+    "/admin/visits": upcomingVisits.filter((visit) => visit.status === "requested").length,
+    "/admin/desk/calls": dueByPerson.size,
+    "/admin/desk/field": upcomingVisits.length,
+    "/admin/land-offers": landUnderStudy?.count ?? 0,
+    "/admin/installments": lateInstallments?.counts.overdue ?? 0,
+  };
   const toConfirm = upcomingVisits.filter((visit) => visit.status === "requested").length;
   // The holds staff_reservations chose for the «awaiting» filter, in the order it put them (overdue first).
   const awaitingDeposit = holds?.rows ?? [];
@@ -377,7 +402,7 @@ export default async function DashboardPage({ searchParams }: PageProps<"/admin"
           behind an icon on a phone — with a switcher above them deciding which third of them a reader was
           even shown. They are all on the screen now, in the middle, as squares. What waits on you is still
           underneath; this only makes getting anywhere one look instead of two. */}
-      <HomeTiles groups={rowGroups} />
+      <HomeTiles groups={rowGroups} waiting={waiting} />
 
       {tiles.length > 0 ? (
         <section aria-labelledby="attention" className="space-y-3">
