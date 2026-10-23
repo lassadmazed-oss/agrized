@@ -116,17 +116,37 @@ export default async function ConfirmPage({ searchParams }: PageProps<"/admin/v2
                   ) : null}
                 </span>
 
+                {/* THE SALE'S OWN MONEY, which this screen could not say before 0151: what the trees are
+                    worth, and what is still owed on them. The عربون is a line under it and not the headline
+                    — «عربون 50 د باقي» beside a sale of 4 500 د answered a smaller question than the one
+                    the reader is asking. «تقديري» marks a price quoted from the offer today rather than
+                    frozen on a request the client agreed to; see ReservationMoney. */}
                 <span className="text-[0.6875rem] leading-tight tabular-nums">
+                  {row.money?.totalMillimes !== null && row.money !== null ? (
+                    <>
+                      <span className="block font-semibold text-ink">
+                        {formatMillimes(row.money.totalMillimes!)}
+                        {row.money.priceSource === "offer" ? (
+                          <span className="ms-1 font-normal text-muted">تقديري</span>
+                        ) : null}
+                      </span>
+                      {row.money.leftMillimes !== null && row.money.leftMillimes > 0 ? (
+                        <span className="block text-gold">باقي {formatMillimes(row.money.leftMillimes)}</span>
+                      ) : (
+                        <span className="block text-muted">تخلّص بالكامل</span>
+                      )}
+                    </>
+                  ) : null}
                   {row.depositDueMillimes > 0 ? (
                     owes ? (
-                      <span className="text-gold">
+                      <span className="block text-muted">
                         عربون {formatMillimes(row.depositLeftMillimes)} باقي
                       </span>
                     ) : (
-                      <span className="text-muted">العربون تخلّص</span>
+                      <span className="block text-muted">العربون تخلّص</span>
                     )
                   ) : (
-                    <span className="text-muted">بلا عربون</span>
+                    <span className="block text-muted">بلا عربون</span>
                   )}
                   <span className="block text-muted">{formatDate(row.reservedAt)}</span>
                 </span>
@@ -152,6 +172,7 @@ export default async function ConfirmPage({ searchParams }: PageProps<"/admin/v2
                       referenceNo={row.referenceNo}
                       depositMillimes={row.depositDueMillimes}
                       depositLeftMillimes={row.depositLeftMillimes}
+                      money={row.money}
                       kinds={kindOptions}
                       methods={methodOptions}
                     />

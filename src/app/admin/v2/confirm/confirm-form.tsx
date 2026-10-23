@@ -5,9 +5,11 @@ import { useState, useTransition } from "react";
 
 import { createContract, generateSchedule, signContract } from "@/lib/backoffice/contracts/actions";
 import { recordDeposit } from "@/lib/backoffice/reservations/actions";
+import type { ReservationMoney } from "@/lib/backoffice/reservations/model";
 import { formatCount, formatMillimes } from "@/lib/format";
 
 import { Popup } from "../popup";
+
 
 export type Option = { id: string; label_ar: string };
 
@@ -37,6 +39,7 @@ export function ConfirmForm({
   referenceNo,
   depositMillimes,
   depositLeftMillimes,
+  money,
   kinds,
   methods,
 }: {
@@ -49,6 +52,8 @@ export function ConfirmForm({
   referenceNo: string;
   depositMillimes: number;
   depositLeftMillimes: number;
+  /** What the sale is worth, what has come in, what is left (0151). Null until that migration is applied. */
+  money: ReservationMoney | null;
   kinds: Option[];
   methods: Option[];
 }) {
@@ -162,6 +167,36 @@ export function ConfirmForm({
               value={depositMillimes > 0 ? `${formatMillimes(depositMillimes)}${owes ? " · مازال" : " · تخلّص"}` : "بلاش"}
             />
           </dl>
+
+          {/* «تفاصيل الحساب متاع اللي خذا» (owner, 2026-10-23): the four figures of the sale itself, which
+              this popup could not show before 0151 — the price of one tree, the whole of them, what has
+              been paid against it, and what is left. The last line is what a client asks for on the phone,
+              so it is stated and never left to be worked out from the three above it. */}
+          {money && (money.totalMillimes !== null || money.pricePerTreeMillimes !== null) ? (
+            <dl className="grid grid-cols-2 gap-x-6 gap-y-1.5 rounded-xl bg-paper px-3 py-2.5 sm:grid-cols-4">
+              {money.pricePerTreeMillimes !== null ? (
+                <Fact label="سعر الزيتونة" value={formatMillimes(money.pricePerTreeMillimes)} />
+              ) : null}
+              {money.totalMillimes !== null ? (
+                <Fact
+                  label={money.priceSource === "offer" ? "الثمن الجملي (تقديري)" : "الثمن الجملي"}
+                  value={formatMillimes(money.totalMillimes)}
+                />
+              ) : null}
+              <Fact label="خلّص" value={formatMillimes(money.paidMillimes)} />
+              {money.leftMillimes !== null ? (
+                <Fact label="الباقي" value={formatMillimes(money.leftMillimes)} />
+              ) : null}
+            </dl>
+          ) : null}
+
+          {/* Said plainly rather than hinted at with a word in a label: this is the screen where a contract
+              is signed, and a price nobody froze is not a price anybody agreed to. */}
+          {money?.priceSource === "offer" ? (
+            <p className="text-[0.625rem] leading-5 text-muted">
+              الثمن هذا هو ثمن العرض اليوم، موش ثمن متّفق عليه ومسجّل وقت البيعة — تثبّت منّو مع الحريف قبل ما تمضي.
+            </p>
+          ) : null}
 
           {owes ? (
             <label className="block">

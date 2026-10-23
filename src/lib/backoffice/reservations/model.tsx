@@ -35,6 +35,25 @@ export const RESERVATION_TONES: Record<ReservationStatus, PillTone> = {
   converted: "brand",
 };
 
+/**
+ * What the sale is worth, what has come in, and what is left (0151).
+ *
+ * `priceSource` is the half that matters as much as the figures. «request» is the price the client was
+ * SHOWN and agreed to, frozen on his request the day he sent it. «offer» is the offer's price today, quoted
+ * because a walk-in sale registered on صفحة البيع freezes nothing — so if the offer has moved since, it is
+ * not what was agreed, and a screen that prints the two with the same confidence is lying about one of
+ * them. Null means no price could be found at all, and then every figure here except `paidMillimes` is null.
+ */
+export type ReservationMoney = {
+  trees: number;
+  priceSource: "request" | "offer" | null;
+  pricePerTreeMillimes: number | null;
+  totalMillimes: number | null;
+  /** EVERY payment on this reservation that is not voided — not only the عربون. */
+  paidMillimes: number;
+  leftMillimes: number | null;
+};
+
 export type ReservationPayment = {
   id: string;
   referenceNo: string;
@@ -82,6 +101,8 @@ export type Reservation = {
   depositLeftMillimes: number;
   depositPaidAt: string | null;
   payments: ReservationPayment[];
+  /** Null on a database where 0151 has not been applied; every screen treats that as «no figures». */
+  money: ReservationMoney | null;
 
   /** §24, snapshot at creation. 0 = no deadline was set, and expiresAt is null. */
   validDays: number;
@@ -171,6 +192,21 @@ function obj(value: unknown): Json {
   return value && typeof value === "object" && !Array.isArray(value) ? (value as Json) : {};
 }
 
+/** The money block, or null when the payload has not got one — see ReservationMoney for what it is. */
+function money(value: unknown): ReservationMoney | null {
+  if (!value || typeof value !== "object") return null;
+  const row = value as Record<string, unknown>;
+  const source = row.price_source;
+  return {
+    trees: num(row.trees),
+    priceSource: source === "request" || source === "offer" ? source : null,
+    pricePerTreeMillimes: maybeNum(row.price_per_tree_millimes),
+    totalMillimes: maybeNum(row.total_millimes),
+    paidMillimes: num(row.paid_millimes),
+    leftMillimes: maybeNum(row.left_millimes),
+  };
+}
+
 function str(value: unknown): string | null {
   return typeof value === "string" && value.length > 0 ? value : null;
 }
@@ -253,6 +289,7 @@ export function parseReservation(input: unknown): Reservation | null {
     depositLeftMillimes: num(row.deposit_left_millimes),
     depositPaidAt: str(row.deposit_paid_at),
     payments,
+    money: money(row.money),
 
     validDays: num(row.valid_days),
     reservedAt: str(row.reserved_at) ?? "",
