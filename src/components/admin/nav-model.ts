@@ -35,6 +35,7 @@ export type AdminIconKey =
   | "languages"
   | "translations"
   | "users"
+  | "notifications"
   | "audit";
 
 /**
@@ -149,6 +150,8 @@ export const ADMIN_LABELS = {
   "/admin/settings/languages": "اللغات",
   "/admin/settings/translations": "الترجمات",
   "/admin/users": "المستخدمون",
+  // 0152, 2026-10-24: the notifications the owner writes by hand and sends to the phones that have the app.
+  "/admin/notifications": "إشعارات التطبيق",
   "/admin/audit": "سجل العمليات",
   "/admin/account": "كلمة السر",
 } as const satisfies Record<string, string>;

@@ -33,6 +33,8 @@ type PushRow = {
   template_key: string | null;
 };
 type Delivery = { token: string; title: string; body: string };
+/** A row of public.push_campaigns (0152), as the dispatcher needs it. */
+type CampaignRow = { id: string; title: string; body: string; route: string | null };
 
 function pushClient(extraHeaders: Record<string, string> = {}) {
   return createAdminClient(extraHeaders) as unknown as {
@@ -44,6 +46,9 @@ function pushClient(extraHeaders: Record<string, string> = {}) {
       (fn: "mark_notification_sent", args: { p_id: string; p_provider: string; p_provider_message_id?: string }): PromiseLike<{ error: { message: string } | null }>;
       (fn: "mark_notification_failed", args: { p_id: string; p_error: string; p_provider: string }): PromiseLike<{ error: { message: string } | null }>;
       (fn: "release_stuck_notifications", args?: Record<string, never>): PromiseLike<{ error: { message: string } | null }>;
+      (fn: "claim_push_campaigns", args: { p_limit?: number }): PromiseLike<{ data: CampaignRow[] | null; error: { message: string } | null }>;
+      (fn: "push_campaign_targets", args: { p_id: string }): PromiseLike<{ data: { token: string }[] | null; error: { message: string } | null }>;
+      (fn: "finish_push_campaign", args: { p_id: string; p_sent: number; p_failed: number; p_error?: string | null }): PromiseLike<{ error: { message: string } | null }>;
     };
   };
 }
@@ -191,6 +196,132 @@ export async function dispatchPush(limit?: number): Promise<PushOutcome> {
       });
       failed += 1;
     }
+  }
+
+  return { claimed: batch.length, sent, failed, retired };
+}
+
+export type CampaignOutcome = { claimed: number; sent: number; failed: number; retired: number };
+
+/**
+ * Sends the notifications the owner wrote by hand (0152), which go to DEVICES and not to people.
+ *
+ * WHY THIS IS NOT dispatchPush. That one drains the outbox, where a row says «tell this person» and is matched
+ * to devices through a phone number. A campaign says «tell these devices» — all of them, one system's, or the
+ * one that opened the app a minute ago — and a visitor's device has no number to be matched on. The two share
+ * the Expo call and nothing else, so they stay two functions and a failure in one cannot touch the other.
+ *
+ * WHAT EACH DEVICE GETS is the title, the body, and `data: { route, campaignId }`. The route is where the tap
+ * lands; the app accepts only a short list of them (mobile/src/push.ts), and the database refused anything
+ * outside it when the campaign was written, so a destination here is always one the app knows.
+ *
+ * A CAMPAIGN IS SENT WHEN ANY DEVICE ACCEPTED IT, and failed when none did — with Expo's own reason, because
+ * «فشل» with no cause is a message the owner has to ask a developer about. A run that never got an answer from
+ * Expo at all (the network, or Expo itself) does NOT finish the campaign: it stays `sending`, and 0152's claim
+ * puts it back after ten minutes for another try, up to the same three attempts the outbox gets.
+ *
+ * It never throws, for the reason dispatchPush gives: whatever called it — a button, a cron hit — must not fall
+ * over because Expo had a bad minute.
+ */
+export async function dispatchCampaigns(limit = 5): Promise<CampaignOutcome> {
+  const supabase = pushClient();
+
+  const { data: claimed, error } = await supabase.rpc("claim_push_campaigns", { p_limit: limit });
+  if (error) return { claimed: 0, sent: 0, failed: 0, retired: 0 };
+
+  const batch = claimed ?? [];
+  let sent = 0;
+  let failed = 0;
+  let retired = 0;
+
+  for (const campaign of batch) {
+    const { data: rows } = await supabase.rpc("push_campaign_targets", { p_id: campaign.id });
+    const tokens = (rows ?? []).map((row) => row.token);
+
+    if (tokens.length === 0) {
+      await supabase.rpc("finish_push_campaign", {
+        p_id: campaign.id,
+        p_sent: 0,
+        p_failed: 0,
+        p_error: "ما بقى حتى جهاز نشيط يوصلو الإشعار.",
+      });
+      failed += 1;
+      continue;
+    }
+
+    let accepted = 0;
+    let rejected = 0;
+    let answered = false;
+    let lastError = "";
+
+    for (let i = 0; i < tokens.length; i += CHUNK) {
+      const chunk = tokens.slice(i, i + CHUNK);
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), 15_000);
+      let tickets: Ticket[] = [];
+
+      try {
+        const response = await fetch(EXPO_ENDPOINT, {
+          method: "POST",
+          headers: { "content-type": "application/json", accept: "application/json" },
+          body: JSON.stringify(
+            chunk.map((token) => ({
+              to: token,
+              title: campaign.title,
+              body: campaign.body,
+              sound: "default",
+              priority: "high",
+              // The channel the app creates when it asks permission; a phone that has none falls back to the
+              // system's default one, so naming it costs nothing.
+              channelId: "default",
+              data: { route: campaign.route ?? undefined, campaignId: campaign.id },
+            })),
+          ),
+          signal: controller.signal,
+        });
+
+        if (!response.ok) {
+          lastError = `Expo answered ${response.status}`;
+          continue;
+        }
+        const json = (await response.json()) as { data?: Ticket[] };
+        tickets = json.data ?? [];
+        answered = true;
+      } catch (cause) {
+        lastError = cause instanceof Error ? cause.message : "تعذّر الاتصال بخدمة الإشعارات.";
+        continue;
+      } finally {
+        clearTimeout(timer);
+      }
+
+      for (const [index, ticket] of tickets.entries()) {
+        const token = chunk[index];
+        if (!token) continue;
+        if (ticket.status === "ok") {
+          accepted += 1;
+          continue;
+        }
+        rejected += 1;
+        lastError = ticket.message ?? ticket.details?.error ?? "رفضت خدمة الإشعارات الرسالة.";
+        if (ticket.details?.error === "DeviceNotRegistered") {
+          await supabase.rpc("disable_push_token", { p_token: token, p_reason: "DeviceNotRegistered" });
+          retired += 1;
+        }
+      }
+    }
+
+    // Expo never answered: leave it `sending` so the claim hands it out again, rather than calling a network
+    // fault a failure of the message.
+    if (!answered) continue;
+
+    await supabase.rpc("finish_push_campaign", {
+      p_id: campaign.id,
+      p_sent: accepted,
+      p_failed: rejected,
+      p_error: accepted > 0 ? null : lastError || "لم يقبل أي جهاز الإشعار.",
+    });
+    if (accepted > 0) sent += 1;
+    else failed += 1;
   }
 
   return { claimed: batch.length, sent, failed, retired };

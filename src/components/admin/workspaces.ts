@@ -121,6 +121,7 @@ export const WORKSPACES = [
       "/admin/settings/media",
       "/admin/settings/translations",
       "/admin/settings/languages",
+      "/admin/notifications",
       "/admin/users",
       "/admin/audit",
     ],

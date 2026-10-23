@@ -1,6 +1,6 @@
 import { timingSafeEqual } from "node:crypto";
 
-import { dispatchPush } from "@/lib/push";
+import { dispatchCampaigns, dispatchPush } from "@/lib/push";
 import { dispatchNotifications } from "@/lib/sms";
 
 /**
@@ -58,6 +58,10 @@ export async function POST(request: Request) {
    */
   const push = await dispatchPush(limit);
 
+  // The notifications the owner wrote by hand (0152), which are the ones with a time on them: «send this at
+  // nine» is only ever kept by a run like this one. Last, and never able to fail the others.
+  const campaigns = await dispatchCampaigns();
+
   // A blocked run is a configuration problem the operator must see, not a server fault.
-  return Response.json({ ...outcome, push }, { status: outcome.blocked ? 409 : 200 });
+  return Response.json({ ...outcome, push, campaigns }, { status: outcome.blocked ? 409 : 200 });
 }

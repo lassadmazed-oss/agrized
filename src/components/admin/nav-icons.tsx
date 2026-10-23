@@ -135,6 +135,13 @@ const SHAPES: Record<AdminIconKey, ReactNode> = {
     </>
   ),
   /* A clock turning back: the operations log. */
+  /* A bell: what reaches a phone. */
+  notifications: (
+    <>
+      <path d="M6 17.5V11a6 6 0 0 1 12 0v6.5l1.5 1.5h-15L6 17.5Z" />
+      <path d="M10 21.2a2.2 2.2 0 0 0 4 0" />
+    </>
+  ),
   audit: (
     <>
       <path d="M3.6 12a8.4 8.4 0 1 0 2.5-6" />
