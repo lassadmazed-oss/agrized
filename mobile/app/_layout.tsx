@@ -17,8 +17,8 @@ import { useFonts } from "expo-font";
 import { Stack, useRouter } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import { StatusBar } from "expo-status-bar";
-import { useCallback, useEffect, useState } from "react";
-import { LogBox } from "react-native";
+import { useEffect, useState } from "react";
+import { LogBox, StyleSheet, View } from "react-native";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 
 import { settingText } from "../src/config";
@@ -53,10 +53,10 @@ import { configureNotifications, notificationsModule, routeForNotification } fro
  *      when the key is absent — right for a gap, wrong for a read still in flight. Nobody should see
  *      «site.tab_home» under a tab icon for half a second.
  *
- * SO THE SPLASH IS HELD, AND IT IS HELD UNTIL BOTH SETTLE — not until both SUCCEED. A phone loses signal in
- * a grove and a font asset can fail to decode; an app that never leaves its splash screen is worse than one
- * that opens and says what went wrong. `useFonts` returns an error rather than throwing, the config provider
- * reports a failure rather than rejecting, and either way the splash goes.
+ * SO THE FIRST FRAME IS HELD UNTIL BOTH SETTLE — not until both SUCCEED. A phone loses signal in a grove and a
+ * font asset can fail to decode; an app that never leaves its launch screen is worse than one that opens and
+ * says what went wrong. `useFonts` returns an error rather than throwing, the config provider reports a
+ * failure rather than rejecting, and either way the launch screen goes.
  *
  * NO HEADER, ANYWHERE ON THE TABS. The website takes its own header off every phone screen (globals.css
  * reads `data-phone-screen` below 48rem) because the screen carries its own furniture: the home has the brand
@@ -69,7 +69,7 @@ void SplashScreen.preventAutoHideAsync().catch(() => {
   // Already hidden, or hidden by a fast reload. Not a failure worth a screen.
 });
 
-/** The longest the native splash is held, however the three things it waits for are doing. */
+/** The longest the native splash is held, whatever the launch screen is doing. */
 const SPLASH_CEILING_MS = 8000;
 
 // Expo Go on Android says on every launch that it cannot do remote push. True, expected, and drawn as a yellow
@@ -103,33 +103,22 @@ export default function RootLayout() {
   const fontsSettled = fontsReady || fontError !== null;
 
   /*
-   * THE SPLASH GOES WHEN ALL THREE HAVE SETTLED — the words, the faces and the emblem — and all three are STATE.
+   * THE NATIVE SPLASH IS HIDDEN BY THE LAUNCH SCREEN, not here (src/launch.tsx: the moment its own mark is on
+   * screen), and no longer waits for the configuration to arrive.
    *
-   * The words used to be a ref, and the callback handed to the provider closed over the other two. That is a
-   * bug only a real build can show: the provider was given `onConfigReady` once, while both faces and emblem
-   * were still unsettled, and calls it when its read ends. On a phone the faces and the emblem come out of the
-   * bundle in a few hundred milliseconds while the read crosses the network, so the read ends LAST, calls the
-   * callback it was handed at the start — the one that still believes nothing else has arrived — and the splash
-   * is never hidden. In development Metro serves the faces over the network as well, so the read won that
-   * race, and Expo Go has no splash to hold; the first place the order flips is the place nobody had looked.
-   * The app was running underneath the logo the whole time.
-   *
-   * A state setter is stable, so the provider also stops being re-created on every settle, which re-ran its
-   * read three times on a cold start.
+   * It used to wait for the words, the faces and the emblem to ALL settle, through a callback handed to the
+   * provider once. On a phone the read crosses the network and ends last, so it called the callback it had been
+   * given at the start — one that still believed nothing else had arrived — and the splash never left; and even
+   * when it did, the animation that was meant to be the entrance had played out underneath it while the
+   * network was read. The launch screen continues the splash frame for frame (same cream, same mark, same
+   * size), so handing over as soon as it is drawn is invisible, and the wait for the words happens on a
+   * screen with something to look at.
    */
-  const [configReady, setConfigReady] = useState(false);
-  const onConfigReady = useCallback(() => setConfigReady(true), []);
-
-  useEffect(() => {
-    if (!configReady || !fontsSettled || !markSettled) return;
-    void SplashScreen.hideAsync().catch(() => {});
-  }, [configReady, fontsSettled, markSettled]);
 
   /*
-   * THE WAY OUT WHATEVER HAPPENS. Everything above waits for something to settle, and «settle» is a promise a
-   * font decoder or a flaky radio can fail to keep. Past this the native splash goes regardless, and what is
-   * underneath is the launch screen, which says something is still happening — better than a logo that never
-   * leaves.
+   * THE WAY OUT WHATEVER HAPPENS. The launch screen hides the splash once its mark is drawn, and a mark that
+   * cannot be drawn is a promise a decoder can fail to keep. Past this the native splash goes regardless, and
+   * what is underneath is the launch screen — better than a logo that never leaves.
    */
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -151,7 +140,7 @@ export default function RootLayout() {
         screen clears the inset with `useSafeAreaInsets`.
       */}
       <StatusBar style="dark" />
-      <ConfigProvider onReady={onConfigReady}>
+      <ConfigProvider>
         {/*
           The buyer's session sits INSIDE the configuration and not outside it: restoring a session is a read
           from the Keychain and a refresh against Supabase, and neither is worth starting before the owner's
@@ -266,9 +255,17 @@ function Shell({ fontsReady, markReady }: { fontsReady: boolean; markReady: bool
    * «this weird effect on text when entering the app»: nothing was moving, the letters were being redrawn.
    * Holding here until they have settled means the first words a reader sees are the right ones.
    */
-  if (!ready || !played || !fontsReady || !markReady) return <LaunchScreen fontsReady={fontsReady} />;
+  const holding = !ready || !played || !fontsReady || !markReady;
 
-  if (failed) {
+  /*
+   * THE LAUNCH SCREEN DISSOLVES; IT IS NOT SWAPPED FOR THE APP. Swapping is one frame of a green-and-gold
+   * entrance and the next of a paper-coloured list, which reads as a cut. Instead the app is mounted underneath
+   * the moment it can be drawn and the launch screen, still on top, fades out over it; `onGone` takes it off
+   * the tree once it is transparent so it costs nothing afterwards.
+   */
+  const [launchGone, setLaunchGone] = useState(false);
+
+  if (failed && !holding) {
     /*
      * THE ONE SENTENCE IN THIS APP THAT CARRIES A FALLBACK IN CODE, and the exception proves the rule: it is
      * shown only when the owner's rows could not be read, so reading his row for it is the one thing that
@@ -285,8 +282,9 @@ function Shell({ fontsReady, markReady }: { fontsReady: boolean; markReady: bool
   }
 
   return (
-    <>
-      <PushTaps />
+    <View style={styles.root}>
+      {holding ? null : <PushTaps />}
+      {holding ? null : (
       <Stack
         screenOptions={{
           headerStyle: { backgroundColor: colour.paper },
@@ -318,6 +316,18 @@ function Shell({ fontsReady, markReady }: { fontsReady: boolean; markReady: bool
         {/* «وين وصل مطلبي؟» — no session, no account; it draws its own bar like the others. */}
         <Stack.Screen name="track" options={{ headerShown: false }} />
       </Stack>
-    </>
+      )}
+
+      {launchGone ? null : (
+        // Over everything, and out of the way of touches once the app is underneath it.
+        <View style={StyleSheet.absoluteFill} pointerEvents={holding ? "auto" : "none"}>
+          <LaunchScreen fontsReady={fontsReady} leaving={!holding} onGone={() => setLaunchGone(true)} />
+        </View>
+      )}
+    </View>
   );
 }
+
+const styles = StyleSheet.create({
+  root: { flex: 1, backgroundColor: colour.paper },
+});

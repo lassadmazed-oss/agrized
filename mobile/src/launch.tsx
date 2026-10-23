@@ -1,9 +1,10 @@
 import { Image } from "expo-image";
-import { useEffect, useRef } from "react";
+import * as SplashScreen from "expo-splash-screen";
+import { useCallback, useEffect, useRef } from "react";
 import { Animated, Easing, Platform, StyleSheet, Text, View } from "react-native";
 
 import { useReduceMotion } from "./components";
-import { colour, display, radius, space } from "./theme";
+import { colour, display, space } from "./theme";
 
 /**
  * The first screen, and the only one drawn before the owner's words have arrived.
@@ -11,19 +12,33 @@ import { colour, display, radius, space } from "./theme";
  * WHAT IT REPLACES AND WHY. The app used to drop straight onto the home screen's skeleton while the settings
  * were still being read, so the first thing a reader saw was ten grey blocks and a tab bar labelled
  * «site.tab_home» — `t()` printing a key's own name, which is right for a missing row and wrong for a pending
- * one. The owner photographed exactly that. A splash was supposed to cover it, and on a real build it does;
- * in Expo Go it does not, and «it does on the build you have not made yet» is not an answer.
+ * one. The owner photographed exactly that. So the wait has a screen of its own, on every platform, and it is
+ * the brand rather than an apology. Nothing here can print a key, because nothing here reads a setting — the
+ * only word on it is the brand's own name, which is not the owner's to translate.
  *
- * So the wait has a screen of its own, on every platform, and it is the brand rather than an apology: the
- * emblem settling into place over a soft bloom, the name under it, and one quiet line that says something is
- * still happening. Nothing here can print a key, because nothing here reads a setting — the only word on it
- * is the brand's own name, which is not the owner's to translate.
+ * ── THE SCREEN IS A CONTINUATION OF THE NATIVE SPLASH, NOT A SECOND SCREEN ──────────────────────────────────
+ *
+ * The system draws the splash before any JavaScript exists: the emblem, centred, on #FFFFFA. This screen's first
+ * frame is that same picture — the same cream, the same emblem, the same size, in the same place — so the
+ * hand-over is invisible, and the splash is hidden only once this emblem is really on screen (`onDisplay`).
+ * Hiding it earlier shows a blank cream frame, and a mark that blinks off and on reads as a fault.
+ *
+ * Everything after that first frame is addition, and all of it is cheap: the picture of the grove fades in
+ * behind the mark and settles from a slow zoom; the mark rises a little to make room for the name; the name
+ * arrives; a gold line draws under it and then breathes for as long as the app is still reading. Only opacity
+ * and transforms move, all on the native driver, so none of it can drop a frame on the JS thread that is busy
+ * starting the app.
+ *
+ * THE PICTURE IS 36 KB and is not waited for. It is decoration: if it has not arrived the screen is the cream
+ * and the mark, which is already a complete launch screen, and the photograph simply fades in when it can.
+ * `scripts/launch-bg.mjs` records how it was made and what is baked into it.
  *
  * REDUCED MOTION gets the same screen with everything already arrived. Not a different screen, not a blank
  * one: the same composition, still.
  */
 
 const EMBLEM = require("../assets/agrized-emblem.webp");
+const BACKDROP = require("../assets/launch-bg.webp");
 
 /** Native driver on a phone; the web preview has no native animated module and would simply not move. */
 const NATIVE = Platform.OS !== "web";
@@ -31,139 +46,169 @@ const NATIVE = Platform.OS !== "web";
 /**
  * How long the launch is held even when the configuration arrives sooner.
  *
- * Without it the screen is a FLASH on a fast connection — the emblem appears, and before it has finished
- * settling the home screen replaces it. A thing that appears and vanishes inside half a second reads as a
- * glitch, which is most of what «super ugly» was describing. 1800ms is the choreography below played once:
- * the rings open, the mark settles, the name arrives, and then the app does.
+ * Without it the screen is a FLASH on a fast connection — the mark appears, and before the picture has
+ * finished settling the home screen replaces it. 1400ms is the choreography below played once; a slow read is
+ * never made slower, and the hold is already over by the time a slow read lands.
  */
-export const LAUNCH_MIN_MS = 1800;
+export const LAUNCH_MIN_MS = 1400;
 
-export function LaunchScreen({ fontsReady = true }: { fontsReady?: boolean }) {
+/**
+ * app.json's splash `backgroundColor`. It is not the app's `colour.paper` (#f7f5ee) on purpose: the native
+ * splash is drawn in #FFFFFA, and a launch screen in any other cream would shift tone at the hand-over.
+ */
+const SPLASH_PAPER = "#FFFFFA";
+
+/**
+ * The emblem at the size the native splash draws it: `imageWidth` 180 in app.json, times the 0.7 coverage
+ * `scripts/brand-icons.mjs` leaves inside splash-icon.png. The emblem file is 512 × 500.
+ */
+const EMBLEM_WIDTH = 126;
+const EMBLEM_HEIGHT = Math.round((EMBLEM_WIDTH * 500) / 512);
+
+/** How far the mark rises to make room for the name. */
+const LIFT = 18;
+
+export function LaunchScreen({
+  fontsReady = true,
+  leaving = false,
+  onGone,
+}: {
+  fontsReady?: boolean;
+  /** True once the app is ready: the screen dissolves, then says so through `onGone`. */
+  leaving?: boolean;
+  onGone?: () => void;
+}) {
   const still = useReduceMotion();
 
-  const enter = useRef(new Animated.Value(still ? 1 : 0)).current;
+  const photo = useRef(new Animated.Value(still ? 1 : 0)).current;
+  const drift = useRef(new Animated.Value(still ? 1 : 0)).current;
+  const lift = useRef(new Animated.Value(still ? 1 : 0)).current;
   const word = useRef(new Animated.Value(still ? 1 : 0)).current;
-  // Three rings, started one after another, so the ripple is continuous rather than a single pulse.
-  const ring1 = useRef(new Animated.Value(0)).current;
-  const ring2 = useRef(new Animated.Value(0)).current;
-  const ring3 = useRef(new Animated.Value(0)).current;
+  const rule = useRef(new Animated.Value(still ? 1 : 0)).current;
+  /** The line's breathing while the app is still reading — the only part that means «still working». */
+  const breath = useRef(new Animated.Value(1)).current;
+  const exit = useRef(new Animated.Value(1)).current;
+  const photoStarted = useRef(false);
+
+  /** The grove fades in and settles. Called once, when the picture is decoded or when waiting for it ends. */
+  const revealPhoto = useCallback(() => {
+    if (photoStarted.current || still) return;
+    photoStarted.current = true;
+    Animated.parallel([
+      Animated.timing(photo, { toValue: 1, duration: 900, easing: Easing.out(Easing.quad), useNativeDriver: NATIVE }),
+      Animated.timing(drift, { toValue: 1, duration: 2600, easing: Easing.out(Easing.cubic), useNativeDriver: NATIVE }),
+    ]).start();
+  }, [drift, photo, still]);
+
+  /** The native splash goes the moment the mark is really drawn here. */
+  const hideNativeSplash = useCallback(() => {
+    void SplashScreen.hideAsync().catch(() => {});
+  }, []);
 
   useEffect(() => {
     if (still) {
-      enter.setValue(1);
-      word.setValue(1);
+      for (const value of [photo, drift, lift, word, rule]) value.setValue(1);
       return;
     }
 
     /*
-     * THE CHOREOGRAPHY, and why it is staged rather than simultaneous.
-     *
-     * Everything arriving at once is a single event the eye reads in one blink; arriving in order is a
-     * sequence it watches. The mark settles first because it is the subject, the name follows because it
-     * names what has arrived, and the rings keep going because they are the only part that means «still
-     * working» — the other two have finished saying what they say.
+     * THE CHOREOGRAPHY, and why it is staged rather than simultaneous. Everything arriving at once is a single
+     * event the eye reads in one blink; arriving in order is a sequence it watches. The picture comes first
+     * because it sets the mood, the mark rises because it is the subject, the name follows because it names
+     * what has arrived, and the line is last because it is the only part that keeps going.
      */
-    const mark = Animated.timing(enter, {
-      toValue: 1,
-      duration: 820,
-      // Overshoot, gently: the mark settles rather than stopping dead.
-      easing: Easing.out(Easing.back(1.2)),
-      useNativeDriver: NATIVE,
-    });
-    const name = Animated.sequence([
-      Animated.delay(520),
-      Animated.timing(word, { toValue: 1, duration: 560, easing: Easing.out(Easing.cubic), useNativeDriver: NATIVE }),
-    ]);
+    const ease = Easing.out(Easing.cubic);
+    const steps = [
+      Animated.timing(lift, { toValue: 1, duration: 700, delay: 250, easing: ease, useNativeDriver: NATIVE }),
+      Animated.timing(word, { toValue: 1, duration: 600, delay: 450, easing: ease, useNativeDriver: NATIVE }),
+      Animated.timing(rule, { toValue: 1, duration: 520, delay: 850, easing: ease, useNativeDriver: NATIVE }),
+    ];
+    for (const step of steps) step.start();
 
-    /*
-     * Rings opening outward from behind the mark — growth rings, or water going into soil, which is the
-     * right gesture for this business and the reason this is not the flat disc it replaces. Each one takes
-     * 2.6s to travel and fade, and they are staggered by a third of that, so one is always on its way out
-     * while the next is leaving.
-     */
-    const ripple = (value: Animated.Value) =>
-      Animated.loop(
-        Animated.timing(value, {
-          toValue: 1,
-          duration: 2600,
-          easing: Easing.out(Easing.quad),
-          useNativeDriver: NATIVE,
-        }),
-      );
-    const r1 = ripple(ring1);
-    const r2 = ripple(ring2);
-    const r3 = ripple(ring3);
-
-    mark.start();
-    name.start();
-    r1.start();
-    const t2 = setTimeout(() => r2.start(), 870);
-    const t3 = setTimeout(() => r3.start(), 1740);
+    const breathe = Animated.loop(
+      Animated.sequence([
+        Animated.timing(breath, { toValue: 0.4, duration: 900, easing: Easing.inOut(Easing.sin), useNativeDriver: NATIVE }),
+        Animated.timing(breath, { toValue: 1, duration: 900, easing: Easing.inOut(Easing.sin), useNativeDriver: NATIVE }),
+      ]),
+    );
+    const startBreathing = setTimeout(() => breathe.start(), 1400);
+    // If the picture never reports (a cached decode can skip it), the screen still gets its background.
+    const fallback = setTimeout(revealPhoto, 900);
 
     return () => {
-      mark.stop();
-      name.stop();
-      r1.stop();
-      r2.stop();
-      r3.stop();
-      clearTimeout(t2);
-      clearTimeout(t3);
+      for (const step of steps) step.stop();
+      breathe.stop();
+      clearTimeout(startBreathing);
+      clearTimeout(fallback);
     };
-  }, [enter, ring1, ring2, ring3, still, word]);
+  }, [breath, drift, lift, photo, revealPhoto, rule, still, word]);
 
-  const markScale = enter.interpolate({ inputRange: [0, 1], outputRange: [0.82, 1] });
-  const wordFade = word;
-  const wordRise = word.interpolate({ inputRange: [0, 1], outputRange: [10, 0] });
+  useEffect(() => {
+    if (!leaving) return;
+    const out = Animated.timing(exit, {
+      toValue: 0,
+      duration: still ? 160 : 380,
+      easing: Easing.in(Easing.quad),
+      useNativeDriver: NATIVE,
+    });
+    out.start(({ finished }) => {
+      if (finished) onGone?.();
+    });
+    return () => out.stop();
+  }, [exit, leaving, onGone, still]);
 
-  const ringStyle = (value: Animated.Value) => ({
-    opacity: value.interpolate({ inputRange: [0, 0.15, 1], outputRange: [0, 0.4, 0] }),
-    transform: [{ scale: value.interpolate({ inputRange: [0, 1], outputRange: [0.75, 2.2] }) }],
-  });
+  const backdropScale = drift.interpolate({ inputRange: [0, 1], outputRange: [1.12, 1] });
+  const markRise = lift.interpolate({ inputRange: [0, 1], outputRange: [0, -LIFT] });
+  const wordRise = word.interpolate({ inputRange: [0, 1], outputRange: [12, 0] });
 
   return (
-    <View style={styles.page}>
-      <View style={styles.centre}>
-        <View style={styles.stage} accessible={false} importantForAccessibility="no-hide-descendants">
-          {still ? null : (
-            <>
-              <Animated.View style={[styles.ring, ringStyle(ring1)]} />
-              <Animated.View style={[styles.ring, ringStyle(ring2)]} />
-              <Animated.View style={[styles.ring, ringStyle(ring3)]} />
-            </>
-          )}
-          {/*
-            NO CARD UNDER THE MARK. It used to sit on a white rounded tile, and while the asset was still
-            decoding that tile was a conspicuous empty white box in the middle of the screen — the worst
-            possible failure mode, because it looks like something broke rather than like something loading.
-            On paper, a mark that has not arrived yet is simply not there, and the rings carry the moment.
-            The home lockup already draws this emblem straight onto the same cream.
-          */}
-          <Animated.View style={{ opacity: enter, transform: [{ scale: markScale }] }}>
-            <Image source={EMBLEM} alt="" accessible={false} contentFit="contain" style={styles.emblem} />
-          </Animated.View>
-        </View>
+    <Animated.View style={[styles.page, { opacity: exit }]}>
+      <Animated.View pointerEvents="none" style={[StyleSheet.absoluteFill, { opacity: photo, transform: [{ scale: backdropScale }] }]}>
+        <Image
+          source={BACKDROP}
+          alt=""
+          accessible={false}
+          contentFit="cover"
+          transition={null}
+          cachePolicy="memory"
+          style={StyleSheet.absoluteFill}
+          onLoad={revealPhoto}
+        />
+      </Animated.View>
+
+      <View style={styles.centre} accessible={false} importantForAccessibility="no-hide-descendants">
+        <Animated.View style={{ transform: [{ translateY: markRise }] }}>
+          <Image
+            source={EMBLEM}
+            alt=""
+            accessible={false}
+            contentFit="contain"
+            transition={null}
+            style={styles.emblem}
+            onDisplay={hideNativeSplash}
+          />
+        </Animated.View>
 
         {/*
-          THE WORD IS ABSOLUTE, so it does not push the mark off centre.
-          Laid out in the flow it added its own height to the group, and `justifyContent: center` then centred
-          MARK + WORD together — which puts the mark above the middle of the screen and the word below it, and
-          reads as «not centred» because nothing is. Hanging it under a centred stage leaves the mark exactly
-          in the middle, where the eye expects it.
+          THE NAME AND THE LINE ARE ABSOLUTE, so they do not push the mark off centre. Laid out in the flow they
+          added their own height to the group, and `justifyContent: center` then centred MARK + NAME together —
+          which puts the mark above the middle of the screen, where the native splash did not.
 
-          IT ALSO WAITS FOR ITS FONT. «AgriZed» is set in Markazi, which arrives with the other five faces;
-          before it does, the system face stands in and the word visibly changes shape the moment it lands —
-          the «weird effect on text» he saw. Nothing is drawn until the font can draw it properly.
+          THE NAME WAITS FOR ITS FONT. «AgriZed» is set in Markazi, which arrives with the other five faces;
+          before it does, the system face stands in and the word visibly changes shape the moment it lands.
+          Nothing is drawn until the font can draw it properly.
         */}
         {fontsReady ? (
           <Animated.Text
-            style={[styles.word, { opacity: wordFade, transform: [{ translateY: wordRise }] }]}
+            style={[styles.word, { opacity: word, transform: [{ translateY: wordRise }] }]}
             accessibilityRole="header"
           >
             AgriZed
           </Animated.Text>
         ) : null}
+        <Animated.View style={[styles.rule, { opacity: Animated.multiply(rule, breath), transform: [{ scaleX: rule }] }]} />
       </View>
-    </View>
+    </Animated.View>
   );
 }
 
@@ -176,7 +221,7 @@ export function LaunchScreen({ fontsReady = true }: { fontsReady?: boolean }) {
  */
 export function LaunchFailure({ text, retryLabel, onRetry }: { text: string; retryLabel: string; onRetry: () => void }) {
   return (
-    <View style={styles.page}>
+    <View style={styles.failurePage}>
       <View style={styles.centre}>
         <Image source={EMBLEM} alt="" accessible={false} contentFit="contain" style={styles.emblemQuiet} />
         <Text style={styles.failure}>{text}</Text>
@@ -189,29 +234,30 @@ export function LaunchFailure({ text, retryLabel, onRetry }: { text: string; ret
 }
 
 const styles = StyleSheet.create({
-  page: { flex: 1, backgroundColor: colour.paper, alignItems: "center", justifyContent: "center" },
+  page: { position: "absolute", top: 0, left: 0, right: 0, bottom: 0, backgroundColor: SPLASH_PAPER },
+  failurePage: { flex: 1, backgroundColor: colour.paper, alignItems: "center", justifyContent: "center" },
   centre: { flex: 1, width: "100%", alignItems: "center", justifyContent: "center", paddingHorizontal: space.section },
-  // A fixed stage so the rings have something to be centred in and the layout cannot shift as they grow.
-  stage: { width: 240, height: 240, alignItems: "center", justifyContent: "center" },
-  ring: {
-    position: "absolute",
-    width: 150,
-    height: 150,
-    borderRadius: 75,
-    borderWidth: 1.5,
-    borderColor: colour.leaf,
-  },
-  emblem: { width: 116, height: 116 },
+  emblem: { width: EMBLEM_WIDTH, height: EMBLEM_HEIGHT },
   emblemQuiet: { width: 72, height: 72, opacity: 0.85 },
-  // Hung under the centred stage rather than laid out after it — see the note at the call site.
+  // Hung under the centred mark rather than laid out after it — see the note at the call site. The mark ends
+  // LIFT above where it starts, so the name sits one gap below its final position, not its first.
   word: {
     ...display(700),
     position: "absolute",
     top: "50%",
-    marginTop: 128,
-    fontSize: 32,
+    marginTop: EMBLEM_HEIGHT / 2 - LIFT + 18,
+    fontSize: 34,
     color: colour.forest,
     letterSpacing: 0.4,
+  },
+  rule: {
+    position: "absolute",
+    top: "50%",
+    marginTop: EMBLEM_HEIGHT / 2 - LIFT + 18 + 52,
+    width: 56,
+    height: 2,
+    borderRadius: 1,
+    backgroundColor: colour.gold,
   },
   failure: {
     marginTop: space.roomy,

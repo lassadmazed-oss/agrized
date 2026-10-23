@@ -76,12 +76,22 @@ const EMBLEM = path.join(ROOT, "assets", "agrized-emblem.webp");
 /** The artwork's own background, sampled from its corners: the icons extend it to the edge of the square. */
 const PAPER = { r: 255, g: 255, b: 250, alpha: 1 };
 
+/**
+ * THESE ARE FLAT ART ON ONE CREAM, SO THEY ARE WRITTEN AS 8-BIT PALETTE PNGS WITH NO ALPHA CHANNEL.
+ *
+ * A 1024×1024 true-colour PNG of a drawing on a flat ground was 514 KB, and it ships in every install three
+ * times over (the icon, the adaptive foreground, the splash). The drawing has a few hundred distinct colours at
+ * most, so a 256-colour palette with light dithering carries it with no visible change and a fraction of the
+ * bytes. Dropping the alpha channel is not only about size: the canvas is opaque already, an App Store icon
+ * must not carry an alpha channel at all, and iOS fills transparency with black.
+ */
 async function square(size, coverage) {
   const inner = Math.round(size * coverage);
   const art = await sharp(EMBLEM).resize(inner, inner, { fit: "contain", background: PAPER }).toBuffer();
   return sharp({ create: { width: size, height: size, channels: 4, background: PAPER } })
     .composite([{ input: art, gravity: "center" }])
-    .png({ compressionLevel: 9 })
+    .removeAlpha()
+    .png({ palette: true, colours: 256, quality: 92, dither: 0.8, effort: 10, compressionLevel: 9 })
     .toBuffer();
 }
 
