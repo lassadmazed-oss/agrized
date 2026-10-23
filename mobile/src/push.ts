@@ -213,15 +213,33 @@ export async function pushAlreadyOn(): Promise<boolean> {
 }
 
 /**
+ * The places a notification written in the Back Office may send a tap to.
+ *
+ * AN ALLOW-LIST, NOT A PASSTHROUGH. `data.route` arrives inside a push, and a push is a string somebody typed
+ * into a form; handing it straight to the router would let a typo — or a message nobody should have been able
+ * to send — open a screen the app was never meant to open from outside. So only these destinations exist: the
+ * four tabs, the tracking screen, and one offer by its code. Anything else is ignored, and the tap falls back to
+ * the rule below.
+ */
+const ROUTES: ReadonlySet<string> = new Set(["/", "/offers", "/calculator", "/account", "/track"]);
+const OFFER_ROUTE = /^\/offer\/[A-Za-z0-9_-]{1,64}$/;
+
+/**
  * Where a tapped notification goes.
  *
- * The server sends ids only — `{ outboxId, template }`, never a name or an amount, because a notification
- * sits on a lock screen where anyone can read it. The template key is enough to choose a destination, and
- * every one of them lands somewhere that exists: an unknown key opens the person's file rather than a
- * screen named after a guess.
+ * Two kinds arrive. A message the system queued about somebody's own file carries only ids — `{ outboxId,
+ * template }`, never a name or an amount, because a notification sits on a lock screen where anyone can read it
+ * — and the template key is enough to choose a destination. A message the owner wrote by hand in الإشعارات
+ * carries `route`, the screen he chose, and that wins when it is one of the allowed places.
+ *
+ * Every one of them lands somewhere that exists: an unknown key opens the person's file rather than a screen
+ * named after a guess.
  */
 export function routeForNotification(data: unknown): string {
-  const template = typeof data === "object" && data !== null ? (data as { template?: unknown }).template : null;
+  const row = typeof data === "object" && data !== null ? (data as { route?: unknown; template?: unknown }) : {};
+  if (typeof row.route === "string" && (ROUTES.has(row.route) || OFFER_ROUTE.test(row.route))) return row.route;
+
+  const template = row.template;
   if (typeof template !== "string") return "/account";
 
   // The money and the file: contracts, instalments, receipts and visits all belong to زيتونتي.

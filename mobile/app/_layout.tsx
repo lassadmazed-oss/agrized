@@ -70,7 +70,7 @@ void SplashScreen.preventAutoHideAsync().catch(() => {
 });
 
 /** The longest the native splash is held, whatever the launch screen is doing. */
-const SPLASH_CEILING_MS = 8000;
+const SPLASH_CEILING_MS = 3000;
 
 // Expo Go on Android says on every launch that it cannot do remote push. True, expected, and drawn as a yellow
 // bar over the tab bar that swallows the first tap. A development-only filter: a real build never logs it.
