@@ -69,6 +69,7 @@ import type { ReactNode } from "react";
 
 import { FunnelBoard, TreeStock } from "@/components/admin/funnel";
 import { readFunnel } from "@/components/admin/funnel-read";
+import { HomeTiles } from "@/components/admin/home-tiles";
 import { heldWorkspaces } from "@/components/admin/workspaces";
 import { EmptyState, SectionHeader, StatTile, StatusPill } from "@/components/ui";
 import { ADMIN_ROLES, CRM_READ_ROLES, hasRole, LAND_OFFER_ROLES, requireStaff, type StaffRole } from "@/lib/auth";
@@ -77,6 +78,8 @@ import { formatCount, formatDate, formatMillimes } from "@/lib/format";
 import { moduleAccess } from "@/lib/modules";
 import { projectStatusLabel, projectStatusTone } from "@/lib/projects";
 import { createClient } from "@/lib/supabase/server";
+
+import { workspaceRows } from "./panel-rows";
 
 import { daysAgo, tunisToday, type DemandStats } from "@/lib/backoffice/leads/dates";
 import { offerStocks } from "@/lib/backoffice/offers/stock";
@@ -132,6 +135,9 @@ export default async function DashboardPage({ searchParams }: PageProps<"/admin"
   // closed to everyone including them. A closed module reads nothing at all, which is the only way a dashboard
   // can promise it never prints a figure it did not count.
   const config = await getPublicConfig();
+  // The whole Back Office as squares, drawn under the greeting (2026-10-23). Built from the same rules the
+  // sidebar is, so a tile exists exactly when its row does — and reads the config already in hand.
+  const rowGroups = workspaceRows(session, config);
   const [reservationsAccess, visitsAccess] = await Promise.all([
     moduleAccess(config, "reservations"),
     moduleAccess(config, "visits"),
@@ -366,6 +372,12 @@ export default async function DashboardPage({ searchParams }: PageProps<"/admin"
           ) : null
         }
       />
+
+      {/* THE DOOR, before the queues. Twenty sections used to live in a narrow dark column on the left — or
+          behind an icon on a phone — with a switcher above them deciding which third of them a reader was
+          even shown. They are all on the screen now, in the middle, as squares. What waits on you is still
+          underneath; this only makes getting anywhere one look instead of two. */}
+      <HomeTiles groups={rowGroups} />
 
       {tiles.length > 0 ? (
         <section aria-labelledby="attention" className="space-y-3">
