@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "851402675621",
+    "project_id": "agrized-e33d7",
+    "storage_bucket": "agrized-e33d7.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:851402675621:android:45e42885b087aa46c3844c",
+        "android_client_info": {
+          "package_name": "site.agrized.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyB8nXCY-XSUq_SrEBq2a7RVKTogg90dpFA"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
