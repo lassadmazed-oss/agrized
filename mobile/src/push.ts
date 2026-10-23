@@ -1,10 +1,35 @@
 import Constants from "expo-constants";
 import * as Device from "expo-device";
-import * as Notifications from "expo-notifications";
 import * as SecureStore from "expo-secure-store";
 import { Platform } from "react-native";
 
 import { siteUrl } from "./api";
+
+type NotificationsModule = typeof import("expo-notifications");
+
+let loaded: NotificationsModule | null | undefined;
+
+/**
+ * expo-notifications, or null where its native half is not inside the app.
+ *
+ * WHY NOT A PLAIN IMPORT. Expo Go on Android has shipped without it since SDK 53, and its native module is
+ * looked up while the package's own file is being evaluated: `import * as Notifications` there throws «Cannot
+ * find native module 'ExpoTopicSubscriptionModule'» before a line of this app runs, and since the root layout
+ * imports it too, the router then finds no layout at all and the app never opens. The person holding the
+ * laptop cannot even look at a screen. Nothing about notifications is worth that, so the package is asked for
+ * once, on first use, and its absence is an answer — `unsupported`, the same one a simulator gets — instead of
+ * a crash. In a real build the module is always there and this is a plain require.
+ */
+export function notificationsModule(): NotificationsModule | null {
+  if (loaded === undefined) {
+    try {
+      loaded = require("expo-notifications") as NotificationsModule;
+    } catch {
+      loaded = null;
+    }
+  }
+  return loaded;
+}
 
 /**
  * The phone's half of push. The other half was already built: 0138 holds the devices, 0139 claims the rows,
@@ -53,7 +78,7 @@ export type PushOutcome =
  * on the icon.
  */
 export function configureNotifications(): void {
-  Notifications.setNotificationHandler({
+  notificationsModule()?.setNotificationHandler({
     handleNotification: async () => ({
       shouldShowBanner: true,
       shouldShowList: true,
@@ -69,7 +94,7 @@ export function configureNotifications(): void {
  * at the importance these messages need: a reminder about an instalment or a confirmed visit should arrive
  * when it is sent.
  */
-async function ensureAndroidChannel(): Promise<void> {
+async function ensureAndroidChannel(Notifications: NotificationsModule): Promise<void> {
   if (Platform.OS !== "android") return;
   await Notifications.setNotificationChannelAsync("default", {
     name: "AgriZed",
@@ -97,8 +122,12 @@ export async function enablePush(phone?: string | null): Promise<PushOutcome> {
   // notification, which is worse than not asking.
   if (!Device.isDevice) return { ok: false, reason: "unsupported" };
 
+  // Expo Go on a real phone: no native module to ask, which is the same answer as no device token.
+  const Notifications = notificationsModule();
+  if (!Notifications) return { ok: false, reason: "unsupported" };
+
   try {
-    await ensureAndroidChannel();
+    await ensureAndroidChannel(Notifications);
 
     const existing = await Notifications.getPermissionsAsync();
     let granted = existing.granted;
@@ -175,9 +204,10 @@ async function sendToken(token: string, phone: string | null): Promise<PushOutco
 
 /** Has this installation already registered? Lets a screen show the right state without asking the system. */
 export async function pushAlreadyOn(): Promise<boolean> {
+  const Notifications = notificationsModule();
   const [seen, permission] = await Promise.all([
     SecureStore.getItemAsync(STORE_KEY).catch(() => null),
-    Notifications.getPermissionsAsync().catch(() => null),
+    Notifications ? Notifications.getPermissionsAsync().catch(() => null) : Promise.resolve(null),
   ]);
   return Boolean(seen) && Boolean(permission?.granted);
 }

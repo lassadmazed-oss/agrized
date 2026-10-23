@@ -14,11 +14,11 @@ import { MarkaziText_400Regular } from "@expo-google-fonts/markazi-text/400Regul
 import { MarkaziText_700Bold } from "@expo-google-fonts/markazi-text/700Bold";
 import { useAssets } from "expo-asset";
 import { useFonts } from "expo-font";
-import * as Notifications from "expo-notifications";
 import { Stack, useRouter } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import { StatusBar } from "expo-status-bar";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
+import { LogBox } from "react-native";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 
 import { settingText } from "../src/config";
@@ -26,7 +26,7 @@ import { colour, FONT } from "../src/theme";
 import { AuthProvider } from "../src/auth";
 import { LAUNCH_MIN_MS, LaunchFailure, LaunchScreen } from "../src/launch";
 import { ConfigProvider, useConfig } from "../src/use-config";
-import { configureNotifications, routeForNotification } from "../src/push";
+import { configureNotifications, notificationsModule, routeForNotification } from "../src/push";
 
 /**
  * The root. One stack, so a screen that is not a tab — an offer — slides in over the tabs and can be
@@ -69,6 +69,13 @@ void SplashScreen.preventAutoHideAsync().catch(() => {
   // Already hidden, or hidden by a fast reload. Not a failure worth a screen.
 });
 
+/** The longest the native splash is held, however the three things it waits for are doing. */
+const SPLASH_CEILING_MS = 8000;
+
+// Expo Go on Android says on every launch that it cannot do remote push. True, expected, and drawn as a yellow
+// bar over the tab bar that swallows the first tap. A development-only filter: a real build never logs it.
+if (__DEV__) LogBox.ignoreLogs(["[expo-notifications]"]);
+
 export default function RootLayout() {
   const [fontsReady, fontError] = useFonts({
     [FONT.sans[400]]: IBMPlexSansArabic_400Regular,
@@ -93,27 +100,43 @@ export default function RootLayout() {
   const [markAssets, markError] = useAssets([require("../assets/agrized-emblem.webp")]);
   const markSettled = Boolean(markAssets) || Boolean(markError);
 
-  const configReady = useRef(false);
   const fontsSettled = fontsReady || fontError !== null;
 
-  /**
-   * The splash goes when the LAST of the two settles, whichever that is. It is a ref and not state because
-   * nothing on the screen depends on which one arrived first, and a re-render for that would be a re-render
-   * behind a splash nobody can see.
+  /*
+   * THE SPLASH GOES WHEN ALL THREE HAVE SETTLED — the words, the faces and the emblem — and all three are STATE.
+   *
+   * The words used to be a ref, and the callback handed to the provider closed over the other two. That is a
+   * bug only a real build can show: the provider was given `onConfigReady` once, while both faces and emblem
+   * were still unsettled, and calls it when its read ends. On a phone the faces and the emblem come out of the
+   * bundle in a few hundred milliseconds while the read crosses the network, so the read ends LAST, calls the
+   * callback it was handed at the start — the one that still believes nothing else has arrived — and the splash
+   * is never hidden. In development Metro serves the faces over the network as well, so the read won that
+   * race, and Expo Go has no splash to hold; the first place the order flips is the place nobody had looked.
+   * The app was running underneath the logo the whole time.
+   *
+   * A state setter is stable, so the provider also stops being re-created on every settle, which re-ran its
+   * read three times on a cold start.
    */
-  const hideWhenBothSettled = useCallback(() => {
-    if (!configReady.current || !fontsSettled || !markSettled) return;
-    void SplashScreen.hideAsync().catch(() => {});
-  }, [fontsSettled, markSettled]);
-
-  const onConfigReady = useCallback(() => {
-    configReady.current = true;
-    hideWhenBothSettled();
-  }, [hideWhenBothSettled]);
+  const [configReady, setConfigReady] = useState(false);
+  const onConfigReady = useCallback(() => setConfigReady(true), []);
 
   useEffect(() => {
-    hideWhenBothSettled();
-  }, [hideWhenBothSettled]);
+    if (!configReady || !fontsSettled || !markSettled) return;
+    void SplashScreen.hideAsync().catch(() => {});
+  }, [configReady, fontsSettled, markSettled]);
+
+  /*
+   * THE WAY OUT WHATEVER HAPPENS. Everything above waits for something to settle, and «settle» is a promise a
+   * font decoder or a flaky radio can fail to keep. Past this the native splash goes regardless, and what is
+   * underneath is the launch screen, which says something is still happening — better than a logo that never
+   * leaves.
+   */
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      void SplashScreen.hideAsync().catch(() => {});
+    }, SPLASH_CEILING_MS);
+    return () => clearTimeout(timer);
+  }, []);
 
   return (
     <SafeAreaProvider>
@@ -188,6 +211,10 @@ function PushTaps() {
       // `replace: false` — the tab the person was on stays underneath, so the back gesture behaves.
       router.push(routeForNotification(data) as never);
     };
+
+    // Expo Go has no notifications module: nothing can have been tapped, and nothing to listen for.
+    const Notifications = notificationsModule();
+    if (!Notifications) return;
 
     // The cold start: the tap that opened the app.
     Notifications.getLastNotificationResponseAsync()

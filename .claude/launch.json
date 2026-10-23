@@ -9,6 +9,12 @@
       "autoPort": true
     },
     {
+      "name": "agrized-mobile",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "start", "--prefix", "mobile", "--", "--lan", "--port", "8081"],
+      "port": 8081
+    },
+    {
       "name": "agrized-committed",
       "runtimeExecutable": "npm",
       "runtimeArgs": ["run", "dev", "--prefix", "C:/Users/saif/AppData/Local/Temp/claude/C--Users-saif-Desktop-agrized/169ce0c8-f726-41d9-8e61-85c6330dc3c6/scratchpad/agrized-1f96a66"],
