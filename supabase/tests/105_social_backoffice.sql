@@ -33,6 +33,11 @@ begin
     return;
   end if;
 
+  -- THE DAILY CAP COUNTS EVERY POST MADE TODAY, ACROSS EVERY OFFER — which is right for the business and
+  -- wrong for a test that only clears its own. Two rows left by anything else and this file starts
+  -- asserting about social.max_per_day instead of about the campaign button. It is raised here and rolled
+  -- back with the rest, the way 080 and 081 empty the live promotion ladder for the same reason.
+  update public.settings set value = to_jsonb(1000) where key = 'social.max_per_day';
   delete from public.social_posts where project_id = v_project;
 
   v_out := public.staff_social_campaign(v_project, array['facebook', 'instagram'], 'ar');
@@ -57,6 +62,25 @@ begin
     'pressing «Créer une campagne» twice made a second set of posts';
   assert jsonb_array_length(v_again->'already') >= 1,
     'the second press did not say that the posts already existed';
+
+  -- 4b · AND THE CAP IS REAL. It was raised above so it could not interfere; here it is lowered to nothing
+  --      on an offer with no posts yet, to prove the guard exists at all — a limit that silently never
+  --      applies is a page posting twenty times in a morning.
+  declare
+    v_other uuid;
+    v_capped jsonb;
+  begin
+    select p.id into v_other from public.projects p
+     where p.status = 'published' and p.id <> v_project order by p.created_at limit 1;
+    if v_other is not null then
+      update public.settings set value = to_jsonb(0) where key = 'social.max_per_day';
+      v_capped := public.staff_social_campaign(v_other, array['facebook'], 'ar');
+      assert jsonb_array_length(v_capped->'made') = 0, 'the daily cap let a post through at zero';
+      assert (v_capped->'skipped')::text like '%daily_limit%',
+        'the campaign hit the daily cap and did not say so';
+      update public.settings set value = to_jsonb(1000) where key = 'social.max_per_day';
+    end if;
+  end;
 
   -- 5 · The queue reads back, with the offer's name on it so a human knows what they are approving.
   v_out := public.staff_social_queue('pending_approval', 50);

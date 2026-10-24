@@ -7,7 +7,7 @@ import { formatDateTime } from "@/lib/format";
 import { moduleAccess } from "@/lib/modules";
 import { createClient } from "@/lib/supabase/server";
 
-import { CampaignButton, DecideButtons } from "./marketing-actions";
+import { CampaignButton, DecideButtons, PublishButton, TokenForm } from "./marketing-actions";
 
 export const metadata: Metadata = { title: "النشر على الشبكات" };
 
@@ -116,8 +116,17 @@ export default async function MarketingPage() {
                 </span>
                 <span className="ms-auto">
                   <StatusPill tone={account.has_token && account.is_enabled ? "success" : "warning"}>
-                    {account.has_token ? (account.is_enabled ? "مربوط" : "مربوط ومطفي") : "يستنّى إذن Meta"}
+                    {account.has_token ? (account.is_enabled ? "مربوط" : "مربوط ومطفي") : "يستنّى توكان"}
                   </StatusPill>
+                </span>
+                {/* The token goes in here and never comes back out: the field is a password field, it is
+                    cleared on submit, and the RPC behind it answers that it worked without echoing it. */}
+                <span className="w-full">
+                  <TokenForm
+                    network={account.network === "instagram" ? "instagram" : "facebook"}
+                    externalId={account.external_id}
+                    label={NETWORK[account.network] ?? account.network}
+                  />
                 </span>
               </li>
             ))}
@@ -204,6 +213,9 @@ function Queue({ title, posts, decide = false }: { title: string; posts: Post[];
               ) : null}
 
               {decide ? <DecideButtons postId={post.id} /> : null}
+              {/* The one button that makes something leave the building. Only on a post that has been
+                  approved and has not already gone out. */}
+              {post.status === "scheduled" || post.status === "failed" ? <PublishButton postId={post.id} /> : null}
             </li>
           );
         })}
