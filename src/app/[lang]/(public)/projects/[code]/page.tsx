@@ -170,6 +170,9 @@ export default async function ProjectPage({ params }: PageProps<"/[lang]/project
   const selling = project.status === "published" || project.status === "internal";
   const interestOpen = flagState(config, "interest_form") === "public";
   const formOpen = selling && interestOpen && sellableTrees > 0;
+  // The profitability study (0152–0154). Its own module, so it can be read by the owner on the live site
+  // while «داخلي فقط» and opened to visitors when he has checked the figures.
+  const studyOpen = (await moduleAccess(config, "study")) !== "closed";
   const videoTitle = t(config, "projects.video_title");
   const galleryTitle = t(config, "projects.gallery_title");
   const videoLink = t(config, "ui.offer.video_link");
@@ -699,15 +702,30 @@ export default async function ProjectPage({ params }: PageProps<"/[lang]/project
               <h2 className={CARD_TITLE}>{t(config, "offers.form_title")}</h2>
               <p className="mt-2 leading-7 text-muted">{t(config, "offers.form_intro")}</p>
             </div>
-            <Link
-              href={`/projects/${encodeURIComponent(code)}/interest`}
-              className="btn btn-primary shrink-0 gap-2 sm:min-w-56"
-            >
-              {t(config, "offers.submit_label")}
-              <span aria-hidden="true" className="inline-block ltr:-scale-x-100">
-                ←
-              </span>
-            </Link>
+            <div className="flex shrink-0 flex-col gap-2 sm:flex-row sm:items-center">
+              {/* «احسب مردودية مشروعك» (2026-10-24, §2). It stands BEFORE the request and not after: a
+                  reader who has not decided yet is the one it was built for, and it needs no account. Drawn
+                  only when the `study` module is open to this reader, which is also where the page behind
+                  it stops — both ends of the door, so «داخلي فقط» shows the owner a link that works and
+                  everyone else no link at all. */}
+              {studyOpen ? (
+                <Link
+                  href={`/projects/${encodeURIComponent(code)}/study`}
+                  className="btn btn-secondary shrink-0 gap-2"
+                >
+                  {t(config, "ui.study.cta")}
+                </Link>
+              ) : null}
+              <Link
+                href={`/projects/${encodeURIComponent(code)}/interest`}
+                className="btn btn-primary shrink-0 gap-2 sm:min-w-56"
+              >
+                {t(config, "offers.submit_label")}
+                <span aria-hidden="true" className="inline-block ltr:-scale-x-100">
+                  ←
+                </span>
+              </Link>
+            </div>
           </div>
         </section>
       ) : null}
