@@ -83,6 +83,8 @@ export type OfferSummaryCopy = {
 };
 
 export type OfferInterestFormProps = {
+  /** The study this visitor came from, when he came from one (§8, 0155). Rides with the request. */
+  studyId: string | null;
   /** money.show_words: whether the deciding figure carries the amount in words under it (0150). */
   showMoneyWords: boolean;
   /**
@@ -789,6 +791,7 @@ export function OfferInterestForm(props: OfferInterestFormProps) {
           durationOptionId: installments ? (chosenDuration?.id ?? null) : null,
           wantsVisit: form.wantsVisit,
           consent: true,
+          studyId: props.studyId,
           website: honeypot,
           source: readVisitSource() as Record<string, string>,
         });

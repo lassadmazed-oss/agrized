@@ -1270,3 +1270,32 @@ select {
     animation: none;
   }
 }
+
+/* ---------------------------------------------------------------------------
+   Printing — دراسة المردودية, 0156
+   ---------------------------------------------------------------------------
+   §8 asks for «حمّل دراستك PDF». The PDF is the reader's OWN browser printing the page he is looking at:
+   already in his language, already right to left, already paginated by something that knows his paper size.
+   A server-rendered PDF would mean a headless browser, an Arabic font shipped with it, and a second
+   rendering that drifts from this one the first time either changes.
+
+   So what a print needs is not a dependency, it is these rules: the site's furniture goes, the controls
+   that only work with a finger go, and a card never breaks across two pages — a table of years split down
+   the middle is the one thing that makes a printed study unreadable. */
+@media print {
+  .no-print,
+  body > header,
+  body > footer,
+  body > nav {
+    display: none !important;
+  }
+
+  body {
+    background: #fff !important;
+  }
+
+  .card {
+    break-inside: avoid;
+    box-shadow: none !important;
+  }
+}

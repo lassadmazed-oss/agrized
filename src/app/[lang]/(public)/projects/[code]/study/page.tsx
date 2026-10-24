@@ -101,6 +101,7 @@ export default async function StudyPage({ params }: PageProps<"/[lang]/projects/
         <Texts prefixes={["ui.study."]}>
           <StudyForm
             projectId={project.id}
+            projectCode={project.code}
             initial={initial}
             horizons={horizons.filter((year) => Number.isInteger(year) && year > 0)}
             minTrees={minTrees}

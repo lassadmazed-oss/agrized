@@ -54,7 +54,10 @@ function planChoice(config: PublicConfig, choice: { id: string; label_ar: string
   return { id: choice.id, label: config.options.find((option) => option.id === choice.id)?.label ?? choice.label_ar };
 }
 
-export default async function OfferInterestPage({ params }: PageProps<"/[lang]/projects/[code]/interest">) {
+export default async function OfferInterestPage({
+  params,
+  searchParams,
+}: PageProps<"/[lang]/projects/[code]/interest">) {
   const code = decodeURIComponent((await params).code);
   if (!CODE.test(code)) notFound();
 
@@ -97,6 +100,12 @@ export default async function OfferInterestPage({ params }: PageProps<"/[lang]/p
 
   const backLabel = t(config, "offers.back_to_offer");
 
+  // ?study= is set by «سجّل اهتمامك بالمشروع» at the end of a profitability study (§8, 0155). Only a
+  // string is read here; the id is checked as a uuid by the action and the claim fills a blank only, so a
+  // reader who edits the link attaches nothing to anybody.
+  const asked = (await searchParams).study;
+  const studyId = typeof asked === "string" ? asked : null;
+
   // The buyer's own details if he is signed in, null otherwise — which is most readers, and is fine (0147).
   const prefill = await readIntakePrefill();
 
@@ -120,6 +129,7 @@ export default async function OfferInterestPage({ params }: PageProps<"/[lang]/p
       {/* The form's own sentences (ui.offer.form_*) travel with it; every other word arrives in its props. */}
       <Texts prefixes={["ui.offer.form_", "ui.prefill.", "ui.account_invite."]}>
         <OfferInterestForm
+          studyId={studyId}
           showMoneyWords={settingBool(config, "money.show_words")}
           prefill={prefill}
           projectId={project.id}

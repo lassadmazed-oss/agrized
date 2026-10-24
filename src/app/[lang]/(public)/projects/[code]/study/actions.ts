@@ -1,9 +1,11 @@
 "use server";
 
+import { headers } from "next/headers";
 import { z } from "zod";
 
 import { getPublicConfig } from "@/lib/config";
 import { moduleAccess } from "@/lib/modules";
+import { clientIp, hashIp } from "@/lib/request-context";
 import { createClient } from "@/lib/supabase/server";
 
 /*
@@ -118,6 +120,53 @@ export async function quoteStudy(input: StudyInput): Promise<Study | null> {
     }
     if (!row || typeof row !== "object") return null;
     return row as Study;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * §8's three buttons all press this first: the study is recorded, and the reader is given a reference he
+ * can read down the phone so a commercial opens the same figures.
+ *
+ * IT SENDS THE ANSWERS, NEVER THE RESULTS. public.save_study runs the engine itself and stores what IT
+ * produced — a function that filed what this page handed it would let anyone save a study with AgriZed's
+ * name on a 400% return. Nothing on screen is trusted; only the question is sent.
+ *
+ * A FAILURE HERE IS NOT A FAILURE OF THE PAGE. The figures the reader is looking at are already correct and
+ * already printable, so this answers null and the screen says so quietly rather than taking the buttons
+ * away. The ip hash is the same one every other anonymous write on this site uses — enough to stop a
+ * hundred rows from one tap, not enough to identify anybody.
+ */
+export async function saveStudy(input: StudyInput): Promise<{ id: string; reference: string } | null> {
+  const config = await getPublicConfig();
+  if ((await moduleAccess(config, "study")) === "closed") return null;
+
+  const parsed = schema.safeParse(input);
+  if (!parsed.success) return null;
+  const data = parsed.data;
+
+  try {
+    const supabase = await createClient();
+    const rpc = (supabase as unknown as { rpc: Rpc }).rpc.bind(supabase);
+    const { data: row, error } = await rpc("save_study", {
+      p_project: data.projectId,
+      p_trees: data.trees,
+      p_years: data.years,
+      p_scenario: data.scenario ?? undefined,
+      p_mode: data.mode,
+      p_payment: data.paymentMode ?? undefined,
+      p_down: data.downPercentOptionId ?? undefined,
+      p_duration: data.durationOptionId ?? undefined,
+      p_ip_hash: hashIp(clientIp(await headers())),
+    });
+    if (error || !row || typeof row !== "object") {
+      if (error) console.error("save_study failed", error.message);
+      return null;
+    }
+    const saved = row as { id?: unknown; reference_no?: unknown };
+    if (typeof saved.id !== "string" || typeof saved.reference_no !== "string") return null;
+    return { id: saved.id, reference: saved.reference_no };
   } catch {
     return null;
   }

@@ -2,9 +2,9 @@
 
 import { useEffect, useState, useTransition } from "react";
 
-import { useFormat, useT } from "@/lib/i18n/client";
+import { useFormat, useLocaleHref, useT } from "@/lib/i18n/client";
 
-import { quoteStudy, type Study, type StudyRow } from "./actions";
+import { quoteStudy, saveStudy, type Study, type StudyRow } from "./actions";
 
 /*
  * دراسة المردودية — the screen §4 describes, and nothing more.
@@ -28,6 +28,8 @@ const PLAN_LABEL = { cash: "بالحاضر", installments: "بالتقسيط" } 
 
 export type StudyFormProps = {
   projectId: string;
+  /** For the two buttons that leave this page, which travel by code like every other offer link. */
+  projectCode: string;
   /** The first study the server already quoted, so the page has figures on its first paint. */
   initial: Study | null;
   /** study.horizons — the periods the Back Office offers. */
@@ -49,6 +51,12 @@ export function StudyForm(props: StudyFormProps) {
   const [payment, setPayment] = useState<"cash" | "installments">("cash");
   const [study, setStudy] = useState<Study | null>(props.initial);
   const [pending, startTransition] = useTransition();
+  // §8: the study is recorded the first time one of the three buttons is pressed, and the reference is
+  // what a reader reads down the phone so a commercial opens the same figures.
+  const [saved, setSaved] = useState<{ id: string; reference: string } | null>(null);
+  const [saveFailed, setSaveFailed] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const href = useLocaleHref();
 
   useEffect(() => {
     let cancelled = false;
@@ -75,11 +83,57 @@ export function StudyForm(props: StudyFormProps) {
   const scenarios = study?.status === "ok" ? study.scenarios : [];
   const current = study?.status === "ok" ? study.scenario.code : scenario;
 
+  /**
+   * The answers are sent, never the results: public.save_study runs the engine again and files what IT
+   * produced. Saving twice is harmless — the same question from the same place within the hour gives back
+   * the row already written — but the id is kept so a second button does not ask again.
+   */
+  async function record(): Promise<string | null> {
+    if (saved) return saved.id;
+    const result = await saveStudy({
+      projectId: props.projectId,
+      trees,
+      years,
+      scenario,
+      mode,
+      paymentMode: payment,
+      downPercentOptionId: payment === "installments" ? (props.plan?.downOptionId ?? null) : null,
+      durationOptionId: payment === "installments" ? (props.plan?.durationOptionId ?? null) : null,
+    });
+    if (!result) {
+      setSaveFailed(true);
+      return null;
+    }
+    setSaved(result);
+    setSaveFailed(false);
+    return result.id;
+  }
+
+  // A failed save never takes the buttons away: the figures on screen are right and printable either way,
+  // so printing goes ahead and the page says quietly that it could not file a copy.
+  async function onDownload() {
+    setBusy(true);
+    try {
+      await record();
+    } finally {
+      setBusy(false);
+      window.print();
+    }
+  }
+
+  async function onInterest() {
+    setBusy(true);
+    const id = await record();
+    setBusy(false);
+    const base = `/projects/${encodeURIComponent(props.projectCode)}/interest`;
+    window.location.href = href(id ? `${base}?study=${encodeURIComponent(id)}` : base);
+  }
+
   return (
     <div className="space-y-5">
       <div className={`space-y-4 ${pending ? "opacity-70" : ""} transition-opacity`}>
         {/* ── the answers ───────────────────────────────────────────────────────────────────────────── */}
-        <div className="card space-y-4 p-4 sm:p-5">
+        <div className="no-print card space-y-4 p-4 sm:p-5">
           <label className="block">
             <span className="mb-1 block text-sm font-semibold text-ink">{t("ui.study.trees")}</span>
             <input
@@ -190,6 +244,26 @@ export function StudyForm(props: StudyFormProps) {
 
             {/* §10, where the eye that just read a percentage lands next — not in a footer. */}
             <p className="text-caption leading-6 text-muted">{study.legal_note}</p>
+
+            {/* §8's three. They are «no-print» because a printed study should carry the figures and not the
+                buttons that produced them. */}
+            <div className="no-print flex flex-wrap gap-2">
+              <button type="button" onClick={onDownload} disabled={busy} className="btn btn-secondary">
+                {t("ui.study.download")}
+              </button>
+              <button type="button" onClick={onInterest} disabled={busy} className="btn btn-primary">
+                {t("ui.study.interest")}
+              </button>
+              <a href={href(`/projects/${encodeURIComponent(props.projectCode)}/visit`)} className="btn btn-ghost">
+                {t("ui.study.visit")}
+              </a>
+            </div>
+
+            {saved ? (
+              <p className="text-caption leading-6 text-forest">{t("ui.study.saved", { ref: saved.reference })}</p>
+            ) : saveFailed ? (
+              <p className="no-print text-caption leading-6 text-muted">{t("ui.study.save_failed")}</p>
+            ) : null}
 
             <Projection rows={study.rows} format={formatMillimes} title={t("ui.study.table")} labels={{
               year: t("ui.study.year"),

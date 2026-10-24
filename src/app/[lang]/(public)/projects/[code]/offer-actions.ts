@@ -107,6 +107,9 @@ const offerSchema = z.object({
   // this same form, so the intent was never written down. It rides with the request now.
   wantsVisit: z.boolean(),
   consent: z.literal(true),
+  /** The profitability study this request came out of, when it did (§8, 0155). Attached after the request
+   *  exists, so a study that cannot be claimed never costs the visitor his request. */
+  studyId: z.uuid().nullable().optional(),
   website: z.string().max(200), // honeypot: real visitors never fill it
   source: z.record(z.string(), z.string().max(300)),
 });
@@ -194,6 +197,31 @@ export async function submitOfferInterest(input: OfferInterestInput): Promise<Su
     console.error("submit_offer_request returned no request number", result);
     return { ok: false, message: intakeErrorMessage(config, null) };
   }
+  /*
+   * §8: «إذا سجّل اهتمامه، نحتفظوا في ملفه بـ… العرض المختار، عدد الزيتونات، كل الفرضيات، النتائج».
+   *
+   * AFTER the request and never before it, and wrapped so that nothing here can cost the visitor the thing
+   * he actually came to do. A study that fails to attach is a line missing from a file; a request that
+   * fails because of it is a lost sale. public.claim_study takes the person off the REQUEST rather than
+   * from this caller, and fills a blank only.
+   */
+  if (data.studyId) {
+    try {
+      const admin = createAdminClient();
+      const { data: row } = await admin
+        .from("interest_requests")
+        .select("id")
+        .eq("request_no", requestNo)
+        .maybeSingle();
+      if (row?.id) {
+        await (admin as unknown as { rpc: (fn: string, args: Record<string, unknown>) => PromiseLike<unknown> })
+          .rpc("claim_study", { p_study: data.studyId, p_request: row.id });
+      }
+    } catch (error) {
+      console.error("claim_study failed", error);
+    }
+  }
+
   // The RPC queued the confirmation; send it once the visitor has their success screen.
   dispatchAfterResponse();
   return { ok: true, requestNo };
