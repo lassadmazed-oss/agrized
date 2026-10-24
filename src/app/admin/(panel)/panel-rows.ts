@@ -110,6 +110,9 @@ const ROW_RULES: Record<WorkspaceRow, RowRule> = {
   // 0152: a message to every phone with the app reaches the buyers, so it is Admin's and nobody else's.
   "/admin/notifications": { icon: "notifications", roles: ADMIN_ROLES },
   // Records, not settings: who may sign in, and what everyone did. They keep their own rows.
+  // The page token posts as the company and approval is what lets something out under its name, so the
+  // row is administrator-only and carries the module's own state like every other.
+  "/admin/marketing": { icon: "media", roles: ADMIN_ROLES, flag: "social" },
   "/admin/users": { icon: "users", roles: ADMIN_ROLES },
   "/admin/audit": { icon: "audit", roles: ADMIN_ROLES },
 };

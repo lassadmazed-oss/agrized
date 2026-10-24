@@ -149,6 +149,8 @@ export const ADMIN_LABELS = {
   // 0109: the five languages, and every text of the site in each of them.
   "/admin/settings/languages": "اللغات",
   "/admin/settings/translations": "الترجمات",
+  // 0157–0159: فايسبوك وإنستغرام — the queue, the campaign button and the connected accounts.
+  "/admin/marketing": "النشر على الشبكات",
   "/admin/users": "المستخدمون",
   // 0152, 2026-10-24: the notifications the owner writes by hand and sends to the phones that have the app.
   "/admin/notifications": "إشعارات التطبيق",
