@@ -64,6 +64,7 @@ const AREA_LABELS: Record<string, string> = {
   "ui.errors": "رسائل الخطأ",
   "ui.pages": "صفحات الخطأ",
   "ui.assistant": "المساعد",
+  "ui.app_update": "تحديث التطبيق",
   site: "نصوص الصفحة الرئيسية",
   brand: "الشعار",
   million: "العدّاد",

@@ -17,4 +17,9 @@ export const INTEGER_RANGES: Record<string, [number, number]> = {
   "antispam.max_land_offers_per_ip_per_day": [1, 100],
   "land_offer.max_file_size_mb": [1, 20],
   "land_offer.max_files": [0, 50],
+  // Build numbers of the app in the stores (0 = «not set»). A build is a small whole number that only goes up.
+  "app.android.latest_build": [0, 100_000],
+  "app.android.min_build": [0, 100_000],
+  "app.ios.latest_build": [0, 100_000],
+  "app.ios.min_build": [0, 100_000],
 };

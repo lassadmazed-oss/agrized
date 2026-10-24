@@ -64,6 +64,17 @@ function parseText(key: string, raw: string): Parsed {
   if (key === "site.contact_email" && text && !z.email().safeParse(text).success) {
     return { ok: false, message: "البريد الإلكتروني غير صحيح." };
   }
+  // The app opens this address from «حدّث توّا» and, on Android, takes the package id out of it to open Play's own
+  // app. Any other shape would send the person to a page that is not the AgriZed update.
+  if (key === "app.android.store_url" && !/^https:\/\/play\.google\.com\/store\/apps\/details\?id=[A-Za-z0-9._]+(&.*)?$/.test(text)) {
+    return {
+      ok: false,
+      message: "اكتب رابط صفحة التطبيق في Google Play، مثال: https://play.google.com/store/apps/details?id=site.agrized.app",
+    };
+  }
+  if (key === "app.ios.store_url" && text && !/^https:\/\/apps\.apple\.com\/\S+$/.test(text)) {
+    return { ok: false, message: "اكتب رابط صفحة التطبيق في App Store (يبدأ بـ https://apps.apple.com/)، أو اتركه فارغاً." };
+  }
   return { ok: true, value: text };
 }
 
@@ -136,6 +147,21 @@ export async function updateSetting(key: string, _previous: ActionResult, formDa
         ok: false,
         message: `أطول مدة مفعّلة في قائمة المدد هي ${longest} شهراً. عطّل المدد الأطول من «القوائم» قبل، ولا اختار رقماً أكبر.`,
       };
+    }
+  }
+
+  // The two build numbers of one platform must stay in order: a floor above the newest build could never be met,
+  // and the app would be closed to everyone for good. 0 means «not set» and is always allowed.
+  const build = /^app\.(android|ios)\.(latest_build|min_build)$/.exec(key);
+  if (build && Number(parsed.value) > 0) {
+    const otherKey = `app.${build[1]}.${build[2] === "latest_build" ? "min_build" : "latest_build"}`;
+    const { data: other } = await supabase.from("settings").select("value").eq("key", otherKey).maybeSingle();
+    const otherValue = Number(other?.value ?? 0);
+    if (build[2] === "min_build" && Number(parsed.value) > otherValue) {
+      return { ok: false, message: "أقدم نسخة مسموحة ما تنجّمش تكون أكبر من آخر نسخة منشورة. اكتب آخر نسخة قبل." };
+    }
+    if (build[2] === "latest_build" && otherValue > Number(parsed.value)) {
+      return { ok: false, message: "آخر نسخة منشورة ما تنجّمش تكون أصغر من أقدم نسخة مسموحة. نقّص «أقدم نسخة مسموحة» قبل." };
     }
   }
 

@@ -27,6 +27,7 @@ import { AuthProvider } from "../src/auth";
 import { LAUNCH_MIN_MS, LaunchFailure, LaunchScreen } from "../src/launch";
 import { ConfigProvider, useConfig } from "../src/use-config";
 import { configureNotifications, notificationsModule, routeForNotification } from "../src/push";
+import { UpdatePrompt } from "../src/UpdatePrompt";
 
 /**
  * The root. One stack, so a screen that is not a tab — an offer — slides in over the tabs and can be
@@ -317,6 +318,9 @@ function Shell({ fontsReady, markReady }: { fontsReady: boolean; markReady: bool
         <Stack.Screen name="track" options={{ headerShown: false }} />
       </Stack>
       )}
+
+      {/* After the entrance has gone, never over it: a notice about the store on top of the animation is two things at once. */}
+      {holding || !launchGone ? null : <UpdatePrompt />}
 
       {launchGone ? null : (
         // Over everything, and out of the way of touches once the app is underneath it.

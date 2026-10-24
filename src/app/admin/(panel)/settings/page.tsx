@@ -106,6 +106,12 @@ const SECTIONS: { id: string; title: string; note?: string; prefixes: readonly s
     prefixes: ["sms"],
   },
   {
+    id: "app",
+    title: "تحديث التطبيق",
+    note: "كي تنشر نسخة جديدة في Google Play، اكتب رقم بنائها هنا (رقم النسخة في Play، موش 1.1.0). التطبيقات الأقدم تشوف إشعار «تحديث متوفّر» يفتح Play على صفحتها. اكتب الرقم بعد ما تتنشر النسخة، موش قبل.",
+    prefixes: ["app"],
+  },
+  {
     id: "guard",
     title: "الحماية",
     note: "حدود الإرسال على كل استمارة، وحجم الملفات في مطلب الأرض وبادئة رقمه.",
@@ -128,8 +134,8 @@ const OTHER = { id: "other", title: "إعدادات أخرى", note: "مازال
  */
 const EDITABLE_JSON = new Set(["site.how_it_works", "site.faq", "pricing.default", "simulator.durations_months"]);
 
-const SHORT_TEXT_KEYS = new Set(["request_no.prefix", "land_offer_no.prefix", "site.contact_phone", "site.contact_whatsapp", "site.contact_email", "brand.tagline_fr"]);
-const LTR_KEYS = new Set(["request_no.prefix", "land_offer_no.prefix", "site.contact_phone", "site.contact_whatsapp", "site.contact_email", "brand.tagline_fr"]);
+const SHORT_TEXT_KEYS = new Set(["request_no.prefix", "land_offer_no.prefix", "site.contact_phone", "site.contact_whatsapp", "site.contact_email", "brand.tagline_fr", "app.android.store_url", "app.ios.store_url"]);
+const LTR_KEYS = new Set(["request_no.prefix", "land_offer_no.prefix", "site.contact_phone", "site.contact_whatsapp", "site.contact_email", "brand.tagline_fr", "app.android.store_url", "app.ios.store_url"]);
 
 export default async function SettingsPage() {
   await requireStaff(ADMIN_ROLES);
