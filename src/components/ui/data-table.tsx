@@ -160,13 +160,15 @@ export function DataTable<Row>({ caption, columns, rows, rowKey, rowHref, minWid
               ) : null}
 
               {metaColumns.length > 0 ? (
-                <p className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted tabular-nums">
+                // A div, not a p: a meta cell may hold a form (the cancel button of a notification), and a form
+                // inside a paragraph is invalid HTML that React reports as a hydration error.
+                <div className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted tabular-nums">
                   {metaColumns.map((column) => {
                     const value = column.cell(row);
                     if (isEmptyValue(value)) return null;
                     return <span key={column.key}>{value}</span>;
                   })}
-                </p>
+                </div>
               ) : null}
             </>
           );
