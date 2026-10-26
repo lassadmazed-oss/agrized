@@ -2,6 +2,8 @@
 
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
+
+import { safeNext } from "./safe-next";
 import { z } from "zod";
 
 import { logAuthEvent } from "@/lib/auth-events";
@@ -14,11 +16,6 @@ const credentialsSchema = z.object({
   password: z.string().min(1).max(200),
 });
 
-/** Only same-site Back Office paths are allowed after sign-in (no open redirects). */
-function safeNext(value: FormDataEntryValue | null): string {
-  const next = typeof value === "string" ? value : "";
-  return next.startsWith("/admin") && !next.startsWith("//") && !next.startsWith("/admin/login") ? next : "/admin";
-}
 
 export async function signIn(_previous: SignInState, formData: FormData): Promise<SignInState> {
   const email = String(formData.get("email") ?? "").trim().toLowerCase();

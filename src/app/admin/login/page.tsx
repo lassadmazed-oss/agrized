@@ -2,6 +2,8 @@ import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 
 import { LogoLockup } from "@/components/brand/logo";
+
+import { safeNext } from "./safe-next";
 import { getStaffSession } from "@/lib/auth";
 
 import { LoginForm } from "./login-form";
@@ -29,7 +31,8 @@ export default async function AdminLoginPage({ searchParams }: PageProps<"/admin
           <p className="mt-1 text-sm text-muted">الـBack Office مخصص لموظفي AgriZed فقط.</p>
         </div>
         <div className="card mt-8 p-6">
-          <LoginForm next={typeof next === "string" ? next : "/admin"} />
+          {/* Through the same guard the submit uses, so an address from outside never reaches the HTML. */}
+          <LoginForm next={safeNext(next)} />
         </div>
       </div>
     </div>
