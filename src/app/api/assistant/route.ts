@@ -83,6 +83,14 @@ export async function POST(request: Request) {
   });
 
   if (beginError) {
+    // The day's ceiling, not this visitor's: he has asked once and met a limit somebody else filled, so he
+    // is told that and not that he asked too much (0161).
+    if (beginError.message.includes("assistant_budget")) {
+      return Response.json(
+        { ok: false, message: t(config, "assistant.budget_reached") },
+        { status: 429 },
+      );
+    }
     if (beginError.message.includes("rate_limited")) {
       return Response.json(
         { ok: false, message: t(config, "assistant.rate_limited") },
