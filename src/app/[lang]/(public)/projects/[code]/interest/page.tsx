@@ -8,6 +8,7 @@ import { Texts } from "@/components/site/texts";
 import { flagState, getPublicConfig, optionsFor, settingBool, settingText, t, type PublicConfig } from "@/lib/config";
 import { readIntakePrefill } from "@/lib/intake-prefill";
 import { moduleAccess } from "@/lib/modules";
+import { perDayRule, perDayTexts } from "@/lib/per-day-copy";
 import { findProject, getProjectQuote, getPublicProjects, publicMode } from "@/lib/public-projects";
 
 import { OfferInterestForm, type OfferChoice } from "../offer-interest-form";
@@ -177,6 +178,8 @@ export default async function OfferInterestPage({
             monthly: t(config, "start.row_monthly"),
             lastInstallment: t(config, "start.last_installment"),
             installmentsCount: t(config, "start.installments_count"),
+            perDayRule: perDayRule(config),
+            perDay: perDayTexts(config),
             priceUnavailable: t(config, "start.price_unavailable"),
             durationNotPriced: t(config, "start.duration_not_priced"),
             downCoversTotal: t(config, "start.down_covers_total"),

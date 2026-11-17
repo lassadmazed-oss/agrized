@@ -1,9 +1,10 @@
 // Shared by /start (client) and /register (server): the URL contract between them and the rows of
 // «مشروعك المبدئي». Pure functions only, so both sides show the same figures the same way.
 
-import { siteFormat, type FormatUnits } from "@/lib/format";
+import { siteFormat, type FormatUnits, type SiteFormat } from "@/lib/format";
 import { INTL_NUMBER, type Locale } from "@/lib/i18n/locales";
 import { formatMessage } from "@/lib/i18n/message";
+import { perDayText, type PerDayRule, type PerDayTexts } from "@/lib/per-day";
 import type { PaymentMode, TreeQuote } from "@/lib/tree-pricing";
 
 /**
@@ -132,6 +133,10 @@ export type SummaryCopy = {
   /** Contains `{count}`, a number, so a plural may follow it. */
   installmentsCount: string;
   installmentsCountFr: string;
+  /** 0168 «التقسيط بلغة النهار»: the monthly said per day, and its French twin (null without one). */
+  perDayRule: PerDayRule;
+  perDay: PerDayTexts;
+  perDayFr: PerDayTexts | null;
   fromPrefix: string;
   fromPrefixFr: string;
   priceUnavailable: string;
@@ -175,7 +180,8 @@ export type SummaryInput = {
   paymentMode: PaymentMode | null;
   downPercent: Labelled | null;
   duration: Labelled | null;
-  /** The database quote for these choices; every figure comes from it, never computed here. */
+  /** The database quote for these choices; every figure comes from it, never computed here — the per-day line
+   *  only restates the quote's monthly amount (src/lib/per-day.ts). */
   quote: TreeQuote | null;
 };
 
@@ -184,6 +190,8 @@ export type CalculatorSummary = {
   /** Why a figure is missing: no price yet, an unpriced duration, a down payment above the total. */
   notice: Line | null;
   priced: boolean;
+  /** 0168: the monthly instalment said per day («أقل من 6 د في النهار · قدّ قهوتين»); null without a monthly. */
+  perDay: Line | null;
 };
 
 /** The language of the twin line: it is the owner's French. */
@@ -387,6 +395,23 @@ export function calculatorSummary(input: SummaryInput): CalculatorSummary {
     );
   }
 
+  // 0168: the month said per day. Not for an open-ended tier: its monthly is a minimum, and «أقل من» would lie.
+  const perDayMoney = (target: SiteFormat) => (millimes: number) =>
+    target.formatMillimes(millimes, { withMillimes: millimes % 1000 !== 0 });
+  const perDayAr =
+    okPlan && monthly && !openEnded
+      ? perDayText(okPlan.monthly_millimes, copy.perDayRule, copy.perDay, copy.locale, perDayMoney(fmt))
+      : null;
+  const perDay: Line | null = perDayAr
+    ? {
+        ar: perDayAr,
+        fr:
+          twin && copy.perDayFr
+            ? perDayText(okPlan?.monthly_millimes, copy.perDayRule, copy.perDayFr, TWIN_LOCALE, perDayMoney(twin))
+            : null,
+      }
+    : null;
+
   const notice: Line | null =
     quote?.pricing === "unavailable"
       ? line(copy.priceUnavailable, copy.priceUnavailableFr)
@@ -396,5 +421,5 @@ export function calculatorSummary(input: SummaryInput): CalculatorSummary {
           ? line(copy.downCoversTotal, copy.downCoversTotalFr)
           : null;
 
-  return { rows, notice, priced };
+  return { rows, notice, priced, perDay };
 }

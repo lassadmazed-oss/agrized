@@ -96,7 +96,17 @@ export default async function RegisterPage({ searchParams }: PageProps<"/[lang]/
   const gap = calculatorGap(choices, { downPercents: lists.downPercents.length, durations: lists.durations.length });
   // `ar` is the line in the page's language (calculator-summary.ts, Line).
   const rows: RecapRow[] = summary.rows.flatMap((row) =>
-    row.value ? [{ key: row.key, label: row.label.ar, value: row.value.ar, notes: row.notes.map((note) => note.ar) }] : [],
+    row.value
+      ? [
+          {
+            key: row.key,
+            label: row.label.ar,
+            value: row.value.ar,
+            // 0168: the monthly said per day leads its notes.
+            notes: [...(row.key === "monthly" && summary.perDay ? [summary.perDay.ar] : []), ...row.notes.map((note) => note.ar)],
+          },
+        ]
+      : [],
   );
 
   // The buyer's own details if he is signed in, null otherwise — which is most readers, and is fine

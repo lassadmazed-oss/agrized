@@ -8,6 +8,7 @@ import { toWesternDigits } from "@/lib/digits";
 import { focusFirstError } from "@/lib/focus-first-error";
 import { useFormat, useLocale, useT } from "@/lib/i18n/client";
 import { formatMessage, type MessageVars } from "@/lib/i18n/message";
+import { perDayText, type PerDayRule, type PerDayTexts } from "@/lib/per-day";
 import type { ProjectQuote } from "@/lib/public-projects";
 import type { PaymentMode } from "@/lib/tree-pricing";
 
@@ -77,6 +78,9 @@ export type OfferSummaryCopy = {
   lastInstallment: string;
   /** Contains `{count}`. */
   installmentsCount: string;
+  /** 0168 «التقسيط بلغة النهار»: the monthly said per day. */
+  perDayRule: PerDayRule;
+  perDay: PerDayTexts;
   priceUnavailable: string;
   durationNotPriced: string;
   downCoversTotal: string;
@@ -564,6 +568,8 @@ export function OfferInterestForm(props: OfferInterestFormProps) {
     spelled: string;
     label: string;
     notes: string[];
+    /** 0168: the monthly said per day; null on the other figures. */
+    perDay?: string | null;
   } | null =
     !priced || !quote
       ? null
@@ -573,6 +579,9 @@ export function OfferInterestForm(props: OfferInterestFormProps) {
             value: formatMillimes(plan.monthly_millimes),
             spelled: spell(plan.monthly_millimes),
             label: props.summary.monthly,
+            perDay: perDayText(plan.monthly_millimes, props.summary.perDayRule, props.summary.perDay, locale, (millimes) =>
+              formatMillimes(millimes, { withMillimes: millimes % 1000 !== 0 }),
+            ),
             notes: [
               // Q-11: rounding the monthly up can shorten the plan and leave a smaller last instalment.
               plan.last_installment_millimes !== null &&
@@ -1066,6 +1075,12 @@ export function OfferInterestForm(props: OfferInterestFormProps) {
                       <span className="stat-label">{leadFigure.label}</span>
                       {leadFigure.spelled ? (
                         <span className="text-caption leading-6 text-muted">{leadFigure.spelled}</span>
+                      ) : null}
+                      {/* 0168: the same monthly, said per day. */}
+                      {leadFigure.perDay ? (
+                        <span className="mt-1 w-fit rounded-xl bg-gold-soft px-3 py-1.5 text-sm font-semibold leading-6 text-forest ring-1 ring-gold/30">
+                          {leadFigure.perDay}
+                        </span>
                       ) : null}
                       {leadFigure.notes.map((note) => (
                         <span key={note} className="text-xs leading-5 text-muted">

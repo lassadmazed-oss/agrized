@@ -1,6 +1,7 @@
 import "server-only";
 
 import { formatUnits, settingJson, settingText, t, type PublicConfig } from "@/lib/config";
+import { perDayRule, perDayTexts } from "@/lib/per-day-copy";
 
 import type { Line } from "./calculator-summary";
 import type { StartCopy, Taglines, TimelineMilestone } from "./start-chooser";
@@ -109,6 +110,10 @@ export function startCopy(config: PublicConfig, french?: PublicConfig | null): S
     lastInstallmentFr: twin("start.last_installment_fr"),
     installmentsCount: t(config, "start.installments_count"),
     installmentsCountFr: twin("start.installments_count_fr"),
+    // 0168 «التقسيط بلغة النهار».
+    perDayRule: perDayRule(config),
+    perDay: perDayTexts(config),
+    perDayFr: french ? perDayTexts(config, true) : null,
     fromPrefix: t(config, "start.from_prefix"),
     fromPrefixFr: twin("start.from_prefix_fr"),
     // The stamp the estimate card carries at all times (owner: «موش عرض عقاري نهائي»). The wording itself is

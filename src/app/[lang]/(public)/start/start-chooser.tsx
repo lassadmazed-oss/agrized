@@ -601,6 +601,8 @@ export function StartChooser({
       ? "total_price"
       : null;
   const leadRow = leadKey ? (summary.rows.find((row) => row.key === leadKey) ?? null) : null;
+  // 0168 «التقسيط بلغة النهار»: under the monthly only, the figure it restates.
+  const perDay = leadKey === "monthly" ? summary.perDay : null;
   const listRows = summary.rows.filter((row) => row.key !== leadKey);
 
   const questionTitle: Record<StepKey, Line> = {
@@ -1132,6 +1134,11 @@ export function StartChooser({
                     <span className="stat-label">
                       <Bi ar={leadRow.label.ar} fr={leadRow.label.fr} frClassName="text-end text-[0.95em]" />
                     </span>
+                    {perDay ? (
+                      <span className="mt-1 inline-flex w-fit flex-col rounded-xl bg-gold-soft px-3 py-1.5 text-sm font-semibold leading-6 text-forest ring-1 ring-gold/30">
+                        <Bi ar={perDay.ar} fr={perDay.fr} frClassName="text-end text-[0.85em] font-normal" />
+                      </span>
+                    ) : null}
                     {leadRow.notes.map((note) => (
                       <span key={note.ar} className="text-xs leading-5 text-muted">
                         <Bi ar={note.ar} fr={note.fr} frClassName="text-end text-[0.95em]" />
@@ -1180,7 +1187,10 @@ export function StartChooser({
           forward. The card it stands in for is `max-lg:hidden` during the questions — see the note there. */}
       {showFigures && !isSummary && leadRow?.value ? (
         <div className="mt-3 flex items-baseline justify-between gap-3 rounded-xl border border-dashed border-gold/50 bg-gold-soft/60 px-3 py-2 lg:hidden">
-          <span className="text-[0.6875rem] leading-tight text-forest/80">{leadRow.label.ar}</span>
+          <span className="flex min-w-0 flex-col text-[0.6875rem] leading-tight text-forest/80">
+            {leadRow.label.ar}
+            {perDay ? <span className="mt-0.5 font-semibold text-forest">{perDay.ar}</span> : null}
+          </span>
           <span className="font-display text-base font-bold leading-none tabular-nums text-forest">
             {leadRow.value.ar}
           </span>
