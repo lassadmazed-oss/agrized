@@ -105,7 +105,7 @@ export async function readCallQueue(
   let requestQuery = supabase
     .from("interest_requests")
     .select(
-      "id, person_id, request_no, created_at, request_kind, project_id, project_code, project_name, offer_trees, tree_count_min, tree_count_label_ar, wants_visit, payment_mode, monthly_millimes, budget_label_ar, duration_months, down_payment_label_ar, contact_time_label_ar, goal_label_ar, invest_governorate_ids, invest_anywhere",
+      "id, person_id, request_no, created_at, request_kind, project_id, project_code, project_name, offer_trees, tree_count_min, tree_count_label_ar, wants_visit, payment_mode, monthly_millimes, budget_label_ar, duration_months, down_payment_label_ar, contact_time_label_ar, goal_label_ar, invest_governorate_ids, invest_anywhere, tree_for_label_ar, tree_name",
     )
     .order("created_at", { ascending: false })
     .limit(REQUEST_LIMIT);
@@ -156,6 +156,8 @@ export async function readCallQueue(
       down_payment_label_ar: row.down_payment_label_ar,
       contact_time_label_ar: row.contact_time_label_ar,
       goal_label_ar: row.goal_label_ar,
+      tree_for_label_ar: row.tree_for_label_ar,
+      tree_name: row.tree_name,
       governorates: (row.invest_governorate_ids ?? []).map((id) => governorate.get(id) ?? String(id)),
       anywhere: row.invest_anywhere,
     });

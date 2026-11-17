@@ -87,6 +87,11 @@ export type HomePhoneProps = {
    * nothing at all on most visits — the browser decides — and this file must stay a drawing.
    */
   install?: ReactNode;
+  /**
+   * «لمن الزيتونة؟» (0164, owner 2026-11-17: «نحب الحكاية تتحكى في الانترفاس»): the five stories as doors into
+   * /start, right under the figures — the first thing asked of a visitor is whose tree it would be, not a price.
+   */
+  story?: ReactNode;
 
   /**
    * The journey: the demo in its phone, and the seven steps under it. It sits between the two doors and the
@@ -160,6 +165,7 @@ export function HomePhone({
   faq,
   closing,
   install,
+  story,
   journey,
   abroad,
   offersSection,
@@ -336,6 +342,8 @@ export function HomePhone({
             choice asked twice, and it pushed everything real further down the page. */}
 
         {install}
+
+        {story}
 
         {journey}
 

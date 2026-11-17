@@ -682,6 +682,13 @@ export default async function LeadDetailPage({ params, searchParams }: PageProps
                       <span className="tabular-nums">{amount(request.monthly_millimes)} شهرياً</span>
                     </DataRow>
                   ) : null}
+                  {/* 0164: whose tree it is and the name the visitor gave it on /start — the opening of the call. */}
+                  {request.tree_for_label_ar ? (
+                    <DataRow layout="stacked" numeric={false} label="لمن الزيتونة">{request.tree_for_label_ar}</DataRow>
+                  ) : null}
+                  {request.tree_name ? (
+                    <DataRow layout="stacked" numeric={false} label="اسم الزيتونة">«{request.tree_name}»</DataRow>
+                  ) : null}
                   {/* The offer page asks neither of the three: an empty row would read as an unanswered question. */}
                   {request.goal_label_ar ? (
                     <DataRow layout="stacked" numeric={false} label="الهدف">{request.goal_label_ar}</DataRow>

@@ -8,6 +8,7 @@ import { LanguageSwitcher } from "@/components/site/language-switcher";
 import { ShareButton, ShareMark } from "@/components/site/share-button";
 import { PhotoSlideshow } from "@/components/site/landing/photo-slideshow";
 import { ServicesMap } from "@/components/site/landing/services-map";
+import { StoryDoors } from "@/components/site/landing/story-doors";
 import { InstallApp } from "@/components/site/install-app";
 import { journeyCopy } from "@/components/site/journey/copy";
 import { JourneyDemo } from "@/components/site/journey/journey-demo";
@@ -264,6 +265,9 @@ export default async function HomePage() {
             cta={t(config, "ui.install.cta")}
           />
         }
+        // «لمن الزيتونة؟» (0164): whose tree it would be, asked before any price; each answer opens /start with it.
+        // Only where the calculator answers — a door to a closed form is not a door.
+        story={interestOpen ? <StoryDoors config={config} /> : null}
         // 2 · «كيفاش تخدم AgriZed؟» — the journey played inside a phone, then the whole model in seven words.
         journey={
           <>

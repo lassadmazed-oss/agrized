@@ -121,6 +121,27 @@ export function startCopy(config: PublicConfig, french?: PublicConfig | null): S
     durationNotPricedFr: twin("start.duration_not_priced_fr"),
     downCoversTotal: t(config, "start.down_covers_total"),
     downCoversTotalFr: twin("start.down_covers_total_fr"),
+    // 0164: «لمن الزيتونة؟», asked first, and the certificate preview on the last screen.
+    forTitle: t(config, "start.for_title"),
+    forTitleFr: twin("start.for_title_fr"),
+    forSubtitle: t(config, "start.for_subtitle"),
+    forSubtitleFr: twin("start.for_subtitle_fr"),
+    certTitle: t(config, "start.cert_title"),
+    certTitleFr: twin("start.cert_title_fr"),
+    certBadge: t(config, "start.cert_badge"),
+    certBadgeFr: twin("start.cert_badge_fr"),
+    certNameLabel: t(config, "start.cert_name_label"),
+    certNameLabelFr: twin("start.cert_name_label_fr"),
+    certNamePlaceholder: t(config, "start.cert_name_placeholder"),
+    certNamePlaceholderFr: twin("start.cert_name_placeholder_fr"),
+    certNameHint: t(config, "start.cert_name_hint"),
+    certNameHintFr: twin("start.cert_name_hint_fr"),
+    certDefaultName: t(config, "start.cert_default_name"),
+    certDefaultNameFr: twin("start.cert_default_name_fr"),
+    certFor: t(config, "start.cert_for"),
+    certForFr: twin("start.cert_for_fr"),
+    certPending: t(config, "start.cert_pending"),
+    certPendingFr: twin("start.cert_pending_fr"),
     // The chooser's own furniture: one language, no twin (as before).
     back: t(config, "ui.start.back"),
     next: t(config, "ui.start.next"),
@@ -141,6 +162,20 @@ export function startCopy(config: PublicConfig, french?: PublicConfig | null): S
  */
 export function startTaglines(config: PublicConfig, french?: PublicConfig | null): Taglines {
   const pairs = settingJson<Record<string, unknown>>(config, "start.tier_taglines", {});
+  const result: Taglines = {};
+  for (const [code, pair] of Object.entries(pairs)) {
+    const line = pairLine(config, pair, Boolean(french));
+    if (line) result[code] = line;
+  }
+  return result;
+}
+
+/**
+ * `start.for_lines` (0164): the story line under each answer of «لمن الزيتونة؟», one {ar, fr} pair per tree_for
+ * code, read exactly like the taglines above.
+ */
+export function startForLines(config: PublicConfig, french?: PublicConfig | null): Taglines {
+  const pairs = settingJson<Record<string, unknown>>(config, "start.for_lines", {});
   const result: Taglines = {};
   for (const [code, pair] of Object.entries(pairs)) {
     const line = pairLine(config, pair, Boolean(french));

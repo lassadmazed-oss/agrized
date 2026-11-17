@@ -87,6 +87,9 @@ export type QueueRequest = {
   down_payment_label_ar: string | null;
   contact_time_label_ar: string | null;
   goal_label_ar: string | null;
+  /** 0164: «لمن الزيتونة؟» as it read that day, and the name the visitor gave the tree. */
+  tree_for_label_ar: string | null;
+  tree_name: string | null;
   governorates: string[];
   anywhere: boolean;
 };

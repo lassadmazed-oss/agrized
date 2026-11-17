@@ -3,7 +3,7 @@ import "server-only";
 import { optionsFor, settingInt, spacingClassLabel, type OptionItem, type OwnershipScenario, type PublicConfig } from "@/lib/config";
 import { getSpacingClasses, parsePaymentMode, publicTreeQuote, type SpacingClass, type TreeQuote } from "@/lib/tree-pricing";
 
-import type { CalculatorChoices, SummaryCopy, SummaryInput } from "./calculator-summary";
+import { normalizeTreeName, type CalculatorChoices, type SummaryCopy, type SummaryInput } from "./calculator-summary";
 
 type SearchParams = Record<string, string | string[] | undefined>;
 
@@ -12,6 +12,8 @@ export type CalculatorSpacingClass = SpacingClass & { label: string };
 
 /** Everything the calculator offers, from the Back Office lists (LEAD-01). */
 export type CalculatorLists = {
+  /** 0164 «لمن الزيتونة؟»: the list `tree_for`; its question disappears while the list is empty. */
+  treeFor: OptionItem[];
   treeCounts: OptionItem[];
   scenarios: OwnershipScenario[];
   spacingClasses: CalculatorSpacingClass[];
@@ -34,6 +36,7 @@ export async function getCalculatorLists(config: PublicConfig, french: PublicCon
       ? list.map((option) => ({ ...option, label_fr: french.options.find((row) => row.id === option.id)?.label ?? option.label_fr }))
       : list;
   return {
+    treeFor: twinOptions(optionsFor(config, "tree_for")),
     treeCounts: twinOptions(optionsFor(config, "tree_count")),
     scenarios: french
       ? config.scenarios.map((scenario) => {
@@ -77,6 +80,8 @@ export function readCalculatorChoices(lists: CalculatorLists, params: SearchPara
     paymentMode: parsePaymentMode(params.payment) ?? (downPercentId || durationId ? "installments" : null),
     downPercentId,
     durationId,
+    forId: pick(lists.treeFor, params.for),
+    treeName: typeof params.name === "string" ? normalizeTreeName(params.name) : null,
   };
 }
 

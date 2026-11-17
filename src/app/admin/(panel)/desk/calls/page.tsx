@@ -325,6 +325,12 @@ export default async function CallDeskPage({ searchParams }: PageProps<"/admin/d
                           ? open.request.governorates.join("، ")
                           : "—"}
                     </DataRow>
+                    {open.request.tree_for_label_ar || open.request.tree_name ? (
+                      <DataRow layout="stacked" label="لمن الزيتونة" numeric={false}>
+                        {open.request.tree_for_label_ar ?? "—"}
+                        {open.request.tree_name ? <span className="text-muted"> · «{open.request.tree_name}»</span> : null}
+                      </DataRow>
+                    ) : null}
                     {open.request.goal_label_ar ? (
                       <DataRow layout="stacked" label="الهدف" numeric={false}>
                         {open.request.goal_label_ar}

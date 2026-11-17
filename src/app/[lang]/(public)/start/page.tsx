@@ -7,7 +7,7 @@ import { getPublicConfig, t } from "@/lib/config";
 import { moduleAccess } from "@/lib/modules";
 
 import { getCalculatorLists, readCalculatorChoices } from "./calculator";
-import { startCopy, startTaglines } from "./copy";
+import { startCopy, startForLines, startTaglines } from "./copy";
 import { StartChooser } from "./start-chooser";
 
 // MIL-02: the page's own copy comes from settings too, like /register's.
@@ -46,6 +46,8 @@ export default async function StartPage({ searchParams }: PageProps<"/[lang]/sta
     <>
       {access === "preview" ? <PreviewBanner /> : null}
       <StartChooser
+        treeFor={lists.treeFor}
+        forLines={startForLines(config, french)}
         treeCounts={lists.treeCounts}
         scenarios={lists.scenarios}
         spacingClasses={lists.spacingClasses}

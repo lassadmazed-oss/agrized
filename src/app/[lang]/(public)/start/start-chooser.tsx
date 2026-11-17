@@ -5,6 +5,7 @@ import { useCallback, useEffect, useId, useMemo, useRef, useState, type ReactNod
 import { Bi, useShowsTwin } from "@/components/site/bilingual";
 import { GrowthIcon } from "@/components/site/growth-icon";
 import Link from "@/components/site/link";
+import { StoryIcon } from "@/components/site/story-icon";
 import { OliveMark, TreeCardBody, treeCardClass } from "@/components/site/tree-card";
 import { toWesternDigits } from "@/lib/digits";
 import { siteFormat } from "@/lib/format";
@@ -17,6 +18,8 @@ import {
   calculatorGap,
   calculatorQuery,
   calculatorSummary,
+  normalizeTreeName,
+  TREE_NAME_MAX,
   type CalculatorChoices,
   type Line,
   type SummaryCopy,
@@ -104,6 +107,28 @@ export type StartCopy = SummaryCopy & {
   downPercentHintFr: string;
   estimateNote: string;
   estimateNoteFr: string;
+  /** 0164: «لمن الزيتونة؟» and the certificate preview. Each `…Fr` is the bilingual page's twin. */
+  forTitle: string;
+  forTitleFr: string;
+  forSubtitle: string;
+  forSubtitleFr: string;
+  certTitle: string;
+  certTitleFr: string;
+  certBadge: string;
+  certBadgeFr: string;
+  certNameLabel: string;
+  certNameLabelFr: string;
+  certNamePlaceholder: string;
+  certNamePlaceholderFr: string;
+  certNameHint: string;
+  certNameHintFr: string;
+  certDefaultName: string;
+  certDefaultNameFr: string;
+  /** Contains `{for}`. */
+  certFor: string;
+  certForFr: string;
+  certPending: string;
+  certPendingFr: string;
   /** The way back and forward between the questions. */
   back: string;
   next: string;
@@ -120,6 +145,10 @@ export type StartCopy = SummaryCopy & {
 };
 
 export type StartChooserProps = {
+  /** 0164 «لمن الزيتونة؟»: the list `tree_for`, asked first; an empty list removes the question. */
+  treeFor: TreeOption[];
+  /** `start.for_lines`: the story line under each of those answers, by code. */
+  forLines: Taglines;
   treeCounts: TreeOption[];
   /** Offer types (ownership scenarios): one optional question (Q-6). */
   scenarios: Scenario[];
@@ -157,7 +186,7 @@ const ADVANCE_MS = 220;
 const SUMMARY_FILL_MS = 900;
 
 /** One question per screen, in this order; the ones without data or without installments drop out. */
-type StepKey = "trees" | "spacing" | "type" | "payment" | "down" | "duration" | "summary";
+type StepKey = "for" | "trees" | "spacing" | "type" | "payment" | "down" | "duration" | "summary";
 
 /** Rows read out in the status announcement; the rest stay visual so it remains short. */
 const ANNOUNCED: Partial<Record<SummaryRowKey, "value" | "labelled">> = {
@@ -212,6 +241,8 @@ function ScenarioVisual({ scenario, framed }: { scenario: Scenario; framed: bool
  * the offers that actually exist — sits on its own raised .panel at the end.
  */
 export function StartChooser({
+  treeFor,
+  forLines,
   treeCounts,
   scenarios,
   spacingClasses,
@@ -232,6 +263,8 @@ export function StartChooser({
   const showsTwin = useShowsTwin();
   // The French twin's figures, on the bilingual Arabic page: French digits, the French site's units.
   const twinFmt = useMemo(() => (copy.twinUnits ? siteFormat("fr", copy.twinUnits) : null), [copy.twinUnits]);
+  const [forId, setForId] = useState<string | null>(initial.forId);
+  const [treeName, setTreeName] = useState(initial.treeName ?? "");
   const [treeId, setTreeId] = useState<string | null>(initial.treeId);
   const [custom, setCustom] = useState(initial.treesCustom !== null ? String(initial.treesCustom) : "");
   const [spacingId, setSpacingId] = useState<string | null>(initial.spacingId);
@@ -264,6 +297,7 @@ export function StartChooser({
   const customSelected = treeId === null && customValid;
   const customInvalid = custom !== "" && !customValid;
 
+  const chosenFor = forId ? treeFor.find((option) => option.id === forId) : undefined;
   const chosenTree = treeId ? treeCounts.find((option) => option.id === treeId) : undefined;
   const chosenScenario = scenarioId ? scenarios.find((option) => option.id === scenarioId) : undefined;
   const withPictures = scenarios.some((option) => Boolean(option.image_url));
@@ -275,7 +309,8 @@ export function StartChooser({
 
   // Only the questions this site actually asks: an empty Back Office list removes its screen.
   const steps = useMemo<StepKey[]>(() => {
-    const list: StepKey[] = ["trees"];
+    // 0164: the story comes before any number — whose tree this is.
+    const list: StepKey[] = treeFor.length > 0 ? ["for", "trees"] : ["trees"];
     if (spacingClasses.length > 0) list.push("spacing");
     if (scenarios.length > 0) list.push("type");
     list.push("payment");
@@ -283,7 +318,7 @@ export function StartChooser({
     if (installments && durations.length > 0) list.push("duration");
     list.push("summary");
     return list;
-  }, [spacingClasses.length, scenarios.length, installments, downPercents.length, durations.length]);
+  }, [treeFor.length, spacingClasses.length, scenarios.length, installments, downPercents.length, durations.length]);
 
   // Coming back from /register with every answer in the URL lands on the figures, not on question one.
   const [step, setStep] = useState<StepKey>(() => {
@@ -296,11 +331,16 @@ export function StartChooser({
         paymentMode: initial.paymentMode,
         downPercentId: initial.downPercentId,
         durationId: initial.durationId,
+        forId: initial.forId,
+        treeName: initial.treeName,
       },
       { downPercents: downPercents.length, durations: durations.length },
     );
     if (answered === null) return "summary";
-    if (initial.treeId === null && initial.treesCustom === null) return "trees";
+    // A home card «لمن الزيتونة؟» arrives with its answer and opens on the tree count; anyone else starts with it.
+    if (initial.treeId === null && initial.treesCustom === null) {
+      return treeFor.length > 0 && initial.forId === null ? "for" : "trees";
+    }
     if (initial.paymentMode === null) return spacingClasses.length > 0 && initial.spacingId === null ? "spacing" : "payment";
     return answered === "duration_required" ? "duration" : "down";
   });
@@ -351,6 +391,11 @@ export function StartChooser({
   useEffect(() => () => (advanceTimer.current ? clearTimeout(advanceTimer.current) : undefined), []);
 
   const goBack = () => go(steps[Math.max(index - 1, 0)]);
+
+  const pickFor = (id: string) => {
+    setForId(id);
+    advance();
+  };
 
   const pickTier = (id: string) => {
     setTreeId(id);
@@ -435,6 +480,8 @@ export function StartChooser({
     paymentMode,
     downPercentId: chosenDown?.id ?? null,
     durationId: chosenDuration?.id ?? null,
+    forId: chosenFor?.id ?? null,
+    treeName: normalizeTreeName(treeName),
   };
   // /register cannot ask these again, so the button waits until the database would accept the answers.
   const gap = calculatorGap(choices, { downPercents: downPercents.length, durations: durations.length });
@@ -533,6 +580,7 @@ export function StartChooser({
   const listRows = summary.rows.filter((row) => row.key !== leadKey);
 
   const questionTitle: Record<StepKey, Line> = {
+    for: { ar: copy.forTitle, fr: copy.forTitleFr || null },
     trees: { ar: copy.title, fr: copy.titleFr || null },
     spacing: { ar: copy.spacingTitle, fr: copy.spacingTitleFr || null },
     type: { ar: copy.styleQuestion, fr: copy.styleQuestionFr || null },
@@ -611,6 +659,11 @@ export function StartChooser({
         <Bi ar={questionTitle[activeStep].ar} fr={questionTitle[activeStep].fr} frClassName="mt-0.5 text-end text-[0.62em] font-normal text-muted" />
       </h1>
 
+      {activeStep === "for" && copy.forSubtitle ? (
+        <p className="mt-1.5 max-w-2xl text-[0.8125rem] leading-5 text-muted sm:mt-3 sm:text-lg sm:leading-8 lg:mt-1.5 lg:text-sm lg:leading-6">
+          <Bi ar={copy.forSubtitle} fr={copy.forSubtitleFr} frClassName="hidden text-end text-[0.85em] leading-6 opacity-85 sm:block" />
+        </p>
+      ) : null}
       {activeStep === "trees" && copy.subtitle ? (
         <p className="mt-1.5 max-w-2xl text-[0.8125rem] leading-5 text-muted sm:mt-3 sm:text-lg sm:leading-8 lg:mt-1.5 lg:text-sm lg:leading-6">
           <Bi ar={copy.subtitle} fr={copy.subtitleFr} frClassName="hidden text-end text-[0.85em] leading-6 opacity-85 sm:block" />
@@ -647,6 +700,48 @@ export function StartChooser({
         {/* On the last screen this column holds what happens next instead of a question. The figures are read
             first on a phone and keep their place beside it on a wide screen, so the order flips only there. */}
         <div className={isSummary ? "order-2 lg:order-1" : undefined}>
+        {/* 0 · Whose tree it is (0164): the story before the numbers. Each answer is a list item of the
+            Back Office (tree_for) with its own line (start.for_lines); answering moves on like every card. */}
+        {activeStep === "for" ? (
+          <fieldset>
+            <legend className="sr-only">{copy.forTitle}</legend>
+            <ul data-answers className="grid gap-2 sm:grid-cols-2 sm:gap-3 lg:grid-cols-3">
+              {treeFor.map((option) => {
+                const line = option.code ? forLines[option.code] : undefined;
+                const picked = forId === option.id;
+                return (
+                  <li key={option.id}>
+                    <label className={`choice relative h-full items-start gap-3 pe-8 ${picked ? "shadow-[var(--shadow-card)]" : ""}`}>
+                      <input
+                        type="radio"
+                        name={`${groupId}-for`}
+                        value={option.id}
+                        checked={picked}
+                        onChange={() => pickFor(option.id)}
+                        className="sr-only"
+                      />
+                      {picked ? <PickedMark /> : null}
+                      <span className="grid size-11 flex-none place-items-center rounded-full bg-leaf-soft text-forest">
+                        <StoryIcon code={option.code} />
+                      </span>
+                      <span className="min-w-0">
+                        <span className="block font-display text-lg font-bold leading-tight text-forest">
+                          <Bi ar={option.label} fr={option.label_fr} frClassName="text-[0.75em] font-normal text-muted" />
+                        </span>
+                        {line ? (
+                          <span className="mt-1 block text-sm leading-6 text-muted">
+                            <Bi ar={line.ar} fr={line.fr} frClassName="text-[0.9em] opacity-85" />
+                          </span>
+                        ) : null}
+                      </span>
+                    </label>
+                  </li>
+                );
+              })}
+            </ul>
+          </fieldset>
+        ) : null}
+
         {/* 1 · The tiers, as the Back Office wrote them (LEAD-01), plus a free number. */}
         {activeStep === "trees" ? (
           <fieldset>
@@ -872,6 +967,19 @@ export function StartChooser({
             the dashed estimate beside it — carrying the two things that do exist: registering the request, and
             the offers actually on the ground. */}
         {isSummary ? (
+          <>
+          {/* 0164: the tree is named before it is bought. A preview of the certificate — whose it is, what it
+              is called, how many — so the visitor sees it as theirs; the number and the GPS point come with the
+              reservation and the card says so. The name travels to /register with the other answers. */}
+          <Certificate
+            copy={copy}
+            name={treeName}
+            onName={setTreeName}
+            persona={chosenFor ? { ar: chosenFor.label, fr: chosenFor.label_fr } : null}
+            trees={summary.rows.find((row) => row.key === "trees")?.value ?? null}
+            area={summary.rows.find((row) => row.key === "total_area")?.value ?? null}
+            inputId={`${groupId}-tree-name`}
+          />
           <section className="panel p-5 sm:p-6">
             {gap === null ? (
               <Link href={href} className="btn w-full bg-gold-bright text-lg text-forest-700 hover:bg-gold-soft">
@@ -916,6 +1024,7 @@ export function StartChooser({
                 The settings behind it are untouched — register.offers_title and site.cta_offers_label are
                 still read by the landing page — so nothing the owner wrote has been deleted. */}
           </section>
+          </>
         ) : null}
 
         </div>
@@ -1064,6 +1173,12 @@ export function StartChooser({
         {index > 0 ? (
           <button type="button" onClick={goBack} className="btn btn-secondary lg:btn-sm lg:px-5">
             {copy.back}
+          </button>
+        ) : null}
+        {/* «لمن الزيتونة؟» is a story, not a requirement: the visitor may walk on without an answer. */}
+        {activeStep === "for" ? (
+          <button type="button" onClick={() => advance()} className="btn btn-secondary flex-1 sm:min-w-48 sm:flex-none lg:btn-sm lg:min-w-40 lg:px-6">
+            {copy.next}
           </button>
         ) : null}
         {activeStep === "trees" ? (
@@ -1268,6 +1383,107 @@ function EstimateIcon() {
       <path d="M7.6 10.4c1.1-1.3 2.2-1.3 3.3 0s2.2 1.3 3.3 0" />
       <path d="M7.6 14.4c1.1-1.3 2.2-1.3 3.3 0s2.2 1.3 3.3 0" />
     </svg>
+  );
+}
+
+/**
+ * 0164 · the certificate the tree will carry, previewed on the last screen, and the field that names it. What
+ * it shows is what the visitor chose — whose tree, its name, how many and how much land — and nothing invented:
+ * the tree's number and its GPS point exist only once a reservation picks real trees, and the card says so.
+ */
+function Certificate({
+  copy,
+  name,
+  onName,
+  persona,
+  trees,
+  area,
+  inputId,
+}: {
+  copy: StartCopy;
+  name: string;
+  onName: (value: string) => void;
+  persona: Line | null;
+  trees: Line | null;
+  area: Line | null;
+  inputId: string;
+}) {
+  const locale = useLocale();
+  const showsTwin = useShowsTwin();
+  const typed = normalizeTreeName(name);
+  // A name the visitor typed is the same word in both languages; only the default has a twin.
+  const titleAr = typed ?? copy.certDefaultName;
+  const titleFr = typed ? null : copy.certDefaultNameFr || null;
+  const forAr = persona ? formatMessage(locale, copy.certFor, { for: persona.ar }) : null;
+  const forFr = persona && copy.certForFr ? formatMessage("fr", copy.certForFr, { for: persona.fr ?? persona.ar }) : null;
+  const sizeAr = [trees?.ar, area?.ar].filter(Boolean).join(" · ");
+  const sizeFr = trees?.fr || area?.fr ? [trees?.fr ?? trees?.ar, area?.fr ?? area?.ar].filter(Boolean).join(" · ") : null;
+  const placeholder =
+    showsTwin && copy.certNamePlaceholderFr ? `${copy.certNamePlaceholder} · ${copy.certNamePlaceholderFr}` : copy.certNamePlaceholder;
+
+  return (
+    <section aria-labelledby={`${inputId}-title`} className="card mb-4 overflow-hidden border-gold/50 sm:mb-5">
+      <div className="bg-paper px-5 pb-5 pt-4 text-center">
+        <p id={`${inputId}-title`} className="flex flex-wrap items-center justify-center gap-2 text-xs font-semibold text-gold">
+          <span>
+            <Bi ar={copy.certTitle} fr={copy.certTitleFr} frClassName="text-[0.95em] font-normal" />
+          </span>
+          {copy.certBadge ? (
+            <span className="rounded-full bg-gold-soft px-2 py-0.5 text-[0.6875rem] text-forest ring-1 ring-gold/30">
+              {copy.certBadge}
+            </span>
+          ) : null}
+        </p>
+        <span aria-hidden="true" className="mx-auto mt-3 grid size-12 place-items-center rounded-full bg-leaf-soft text-forest">
+          <StoryIcon code="tree" />
+        </span>
+        <p className="mt-3 break-words font-display text-2xl font-bold leading-tight text-forest sm:text-3xl">
+          <span dir="auto">«{titleAr}»</span>
+          {titleFr && showsTwin ? (
+            <span lang="fr" dir="ltr" className="mt-1 block text-[0.5em] font-normal text-muted">
+              {titleFr}
+            </span>
+          ) : null}
+        </p>
+        {forAr ? (
+          <p className="mt-2 text-sm font-semibold text-ink">
+            <Bi ar={forAr} fr={forFr} frClassName="text-[0.9em] font-normal text-muted" />
+          </p>
+        ) : null}
+        {sizeAr ? (
+          <p className="mt-1 text-sm text-muted tabular-nums">
+            <Bi ar={sizeAr} fr={sizeFr} frClassName="text-[0.9em] opacity-85" />
+          </p>
+        ) : null}
+        {copy.certPending ? (
+          <p className="mx-auto mt-3 max-w-xs border-t border-dashed border-gold/50 pt-3 text-xs leading-5 text-muted">
+            <Bi ar={copy.certPending} fr={copy.certPendingFr} frClassName="text-[0.95em] opacity-85" />
+          </p>
+        ) : null}
+      </div>
+      <div className="border-t border-line px-5 py-4">
+        <label htmlFor={inputId} className="block text-sm font-semibold text-ink">
+          <Bi ar={copy.certNameLabel} fr={copy.certNameLabelFr} frClassName="text-[0.9em] font-normal text-muted" />
+        </label>
+        <input
+          id={inputId}
+          type="text"
+          value={name}
+          maxLength={TREE_NAME_MAX}
+          onChange={(event) => onName(event.target.value)}
+          placeholder={placeholder}
+          autoComplete="off"
+          dir="auto"
+          aria-describedby={copy.certNameHint ? `${inputId}-hint` : undefined}
+          className="field mt-2"
+        />
+        {copy.certNameHint ? (
+          <p id={`${inputId}-hint`} className="hint mt-1.5">
+            <Bi ar={copy.certNameHint} fr={copy.certNameHintFr} frClassName="text-[0.9em] opacity-85" />
+          </p>
+        ) : null}
+      </div>
+    </section>
   );
 }
 

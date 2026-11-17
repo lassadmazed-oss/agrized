@@ -22,11 +22,30 @@ export type CalculatorChoices = {
   paymentMode: PaymentMode | null;
   downPercentId: string | null;
   durationId: string | null;
+  /** 0164 «لمن الزيتونة؟»: an option of the list `tree_for`. Optional, never blocks a request. */
+  forId: string | null;
+  /** 0164: the name the visitor gave the tree on the certificate preview, at most TREE_NAME_MAX characters. */
+  treeName: string | null;
 };
+
+/** The longest name a tree can carry, the same limit as interest_requests.tree_name. */
+export const TREE_NAME_MAX = 40;
+
+/** A typed name as the database will keep it: no control characters, single spaces, trimmed, cut; null when empty. */
+export function normalizeTreeName(value: string | null | undefined): string | null {
+  const clean = (value ?? "")
+    .replace(/[\u0000-\u001f\u007f]/g, "")
+    .replace(/\s+/g, " ")
+    .trim()
+    .slice(0, TREE_NAME_MAX)
+    .trim();
+  return clean === "" ? null : clean;
+}
 
 /** Query string of the /start ⇄ /register contract; only answered choices travel. */
 export function calculatorQuery(choices: CalculatorChoices, wantsVisit: boolean): string {
   const params = new URLSearchParams();
+  if (choices.forId) params.set("for", choices.forId);
   if (choices.treeId) params.set("trees", choices.treeId);
   else if (choices.treesCustom !== null) params.set("trees_custom", String(choices.treesCustom));
   if (choices.scenarioId) params.set("scenario", choices.scenarioId);
@@ -36,6 +55,8 @@ export function calculatorQuery(choices: CalculatorChoices, wantsVisit: boolean)
     if (choices.downPercentId) params.set("down_pct", choices.downPercentId);
     if (choices.durationId) params.set("duration", choices.durationId);
   }
+  const name = normalizeTreeName(choices.treeName);
+  if (name) params.set("name", name);
   if (wantsVisit) params.set("visit", "1");
   return params.toString();
 }

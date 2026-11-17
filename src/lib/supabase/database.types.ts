@@ -1353,6 +1353,9 @@ export type Database = {
           tree_count_max: number | null
           tree_count_min: number | null
           tree_count_option_id: string | null
+          tree_for_label_ar: string | null
+          tree_for_option_id: string | null
+          tree_name: string | null
           wants_bank_financing: boolean | null
           wants_visit: boolean | null
           whatsapp_e164: string | null
@@ -1445,6 +1448,9 @@ export type Database = {
           tree_count_max?: number | null
           tree_count_min?: number | null
           tree_count_option_id?: string | null
+          tree_for_label_ar?: string | null
+          tree_for_option_id?: string | null
+          tree_name?: string | null
           wants_bank_financing?: boolean | null
           wants_visit?: boolean | null
           whatsapp_e164?: string | null
@@ -1537,6 +1543,9 @@ export type Database = {
           tree_count_max?: number | null
           tree_count_min?: number | null
           tree_count_option_id?: string | null
+          tree_for_label_ar?: string | null
+          tree_for_option_id?: string | null
+          tree_name?: string | null
           wants_bank_financing?: boolean | null
           wants_visit?: boolean | null
           whatsapp_e164?: string | null

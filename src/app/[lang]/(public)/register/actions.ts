@@ -13,7 +13,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { dispatchAfterResponse } from "@/lib/sms";
 import { PAYMENT_MODES } from "@/lib/tree-pricing";
 
-import { calculatorGap } from "../start/calculator-summary";
+import { calculatorGap, normalizeTreeName } from "../start/calculator-summary";
 
 const interestSchema = z.object({
   fullName: z.string().trim().min(3).max(120),
@@ -34,6 +34,9 @@ const interestSchema = z.object({
   paymentMode: z.enum(PAYMENT_MODES).nullable(),
   downPercentOptionId: z.uuid().nullable(),
   durationOptionId: z.uuid().nullable(),
+  // 0164: «لمن الزيتونة؟» and the tree's name. Optional; the database keeps only a known answer and 40 characters.
+  treeForOptionId: z.uuid().nullable().default(null),
+  treeName: z.string().max(200).nullable().default(null),
   goalOptionId: z.uuid(),
   // Report v3 §40 and §14 (decision N-9): optional yes/no answers, null when skipped.
   wantsVisit: z.boolean().nullable(),
@@ -113,6 +116,8 @@ export async function submitInterest(input: InterestInput): Promise<SubmitIntere
       paymentMode: data.paymentMode,
       downPercentId: data.downPercentOptionId,
       durationId: data.durationOptionId,
+      forId: data.treeForOptionId,
+      treeName: data.treeName,
     },
     { downPercents: optionsFor(config, "down_payment_percent").length, durations: optionsFor(config, "duration").length },
   );
@@ -167,6 +172,8 @@ export async function submitInterest(input: InterestInput): Promise<SubmitIntere
       contact_channel: data.contactChannel,
       lives_abroad: data.livesAbroad,
       contact_time_option_id: data.contactTimeOptionId,
+      tree_for_option_id: data.treeForOptionId,
+      tree_name: normalizeTreeName(data.treeName),
       // The sentence the visitor ticked, in the language they read it in (the review step shows this same key).
       consent_text: t(config, "legal.consent_text"),
       ip_hash: ipHash,

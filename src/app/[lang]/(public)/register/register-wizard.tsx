@@ -411,6 +411,9 @@ export function RegisterWizard(props: RegisterWizardProps) {
           paymentMode: choices.paymentMode,
           downPercentOptionId: installments ? choices.downPercentId : null,
           durationOptionId: installments ? choices.durationId : null,
+          // 0164: whose tree it is and the name it was given on /start, both optional.
+          treeForOptionId: choices.forId,
+          treeName: choices.treeName,
           goalOptionId: form.goalOptionId ?? "",
           wantsVisit: form.wantsVisit,
           wantsBankFinancing: form.wantsBankFinancing,
