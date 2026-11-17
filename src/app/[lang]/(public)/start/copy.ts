@@ -3,7 +3,7 @@ import "server-only";
 import { formatUnits, settingJson, settingText, t, type PublicConfig } from "@/lib/config";
 
 import type { Line } from "./calculator-summary";
-import type { StartCopy, Taglines } from "./start-chooser";
+import type { StartCopy, Taglines, TimelineMilestone } from "./start-chooser";
 
 /**
  * Every text of the calculator, from `settings` in the page's language (MIL-02, PRN-02); /register reuses the
@@ -142,6 +142,15 @@ export function startCopy(config: PublicConfig, french?: PublicConfig | null): S
     certForFr: twin("start.cert_for_fr"),
     certPending: t(config, "start.cert_pending"),
     certPendingFr: twin("start.cert_pending_fr"),
+    // 0165: «زيتونتك عبر السنين», under the certificate.
+    timelineTitle: t(config, "start.timeline_title"),
+    timelineTitleFr: twin("start.timeline_title_fr"),
+    timelineNote: t(config, "start.timeline_note"),
+    timelineNoteFr: twin("start.timeline_note_fr"),
+    timelineAgeLabel: t(config, "start.timeline_age_label"),
+    timelineAgeLabelFr: twin("start.timeline_age_label_fr"),
+    timelineAgeThen: t(config, "start.timeline_age_then"),
+    timelineAgeThenFr: twin("start.timeline_age_then_fr"),
     // The chooser's own furniture: one language, no twin (as before).
     back: t(config, "ui.start.back"),
     next: t(config, "ui.start.next"),
@@ -182,6 +191,25 @@ export function startForLines(config: PublicConfig, french?: PublicConfig | null
     if (line) result[code] = line;
   }
   return result;
+}
+
+/**
+ * `start.timeline` (0165): the milestones of «زيتونتك عبر السنين», in order — how many years from now, and a title
+ * and a line each as {ar, fr} pairs read like the taglines. A milestone missing its years or its title is skipped.
+ */
+export function startTimeline(config: PublicConfig, french?: PublicConfig | null): TimelineMilestone[] {
+  const rows = settingJson<unknown[]>(config, "start.timeline", []);
+  if (!Array.isArray(rows)) return [];
+  const result: TimelineMilestone[] = [];
+  for (const row of rows) {
+    if (!row || typeof row !== "object") continue;
+    const fields = row as Record<string, unknown>;
+    const years = typeof fields.years === "number" && Number.isInteger(fields.years) && fields.years >= 0 ? fields.years : null;
+    const title = pairLine(config, fields.title, Boolean(french));
+    if (years === null || !title) continue;
+    result.push({ years, title, line: pairLine(config, fields.line, Boolean(french)) });
+  }
+  return result.sort((a, b) => a.years - b.years);
 }
 
 function pairLine(config: PublicConfig, pair: unknown, withTwin: boolean): Line | null {

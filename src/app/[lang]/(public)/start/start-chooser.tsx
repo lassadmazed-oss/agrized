@@ -55,6 +55,8 @@ type SpacingOption = SpacingClass & { label: string };
 
 /** `start.tier_taglines`, one line per tree_count code plus "custom" for the free-number card (startTaglines). */
 export type Taglines = Record<string, Line>;
+/** `start.timeline` (0165): a stage of a young tree's life, `years` after the start (startTimeline). */
+export type TimelineMilestone = { years: number; title: Line; line: Line | null };
 /** `start.values`: the reassurance strip under the chooser. */
 export type ValueIconKey = "people" | "leaf" | "hand" | "chart";
 export type ValueItem = { icon: ValueIconKey; ar: string; fr?: string };
@@ -129,6 +131,15 @@ export type StartCopy = SummaryCopy & {
   certForFr: string;
   certPending: string;
   certPendingFr: string;
+  /** 0165: «زيتونتك عبر السنين». `timelineAgeThen` is ICU with `{age}`. */
+  timelineTitle: string;
+  timelineTitleFr: string;
+  timelineNote: string;
+  timelineNoteFr: string;
+  timelineAgeLabel: string;
+  timelineAgeLabelFr: string;
+  timelineAgeThen: string;
+  timelineAgeThenFr: string;
   /** The way back and forward between the questions. */
   back: string;
   next: string;
@@ -149,6 +160,9 @@ export type StartChooserProps = {
   treeFor: TreeOption[];
   /** `start.for_lines`: the story line under each of those answers, by code. */
   forLines: Taglines;
+  /** 0165 «زيتونتك عبر السنين»: the milestones, and the year they count from (this year, in Tunis). */
+  timeline: TimelineMilestone[];
+  startYear: number;
   treeCounts: TreeOption[];
   /** Offer types (ownership scenarios): one optional question (Q-6). */
   scenarios: Scenario[];
@@ -243,6 +257,8 @@ function ScenarioVisual({ scenario, framed }: { scenario: Scenario; framed: bool
 export function StartChooser({
   treeFor,
   forLines,
+  timeline,
+  startYear,
   treeCounts,
   scenarios,
   spacingClasses,
@@ -980,6 +996,16 @@ export function StartChooser({
             area={summary.rows.find((row) => row.key === "total_area")?.value ?? null}
             inputId={`${groupId}-tree-name`}
           />
+          {/* 0165: the years ahead, and — for a child's tree — the child's age at each of them. */}
+          {timeline.length > 0 ? (
+            <Timeline
+              copy={copy}
+              milestones={timeline}
+              startYear={startYear}
+              askAge={chosenFor?.code === "child"}
+              inputId={`${groupId}-child-age`}
+            />
+          ) : null}
           <section className="panel p-5 sm:p-6">
             {gap === null ? (
               <Link href={href} className="btn w-full bg-gold-bright text-lg text-forest-700 hover:bg-gold-soft">
@@ -1483,6 +1509,94 @@ function Certificate({
           </p>
         ) : null}
       </div>
+    </section>
+  );
+}
+
+/**
+ * 0165 · «زيتونتك عبر السنين»: the years from now, what a young tree is doing then (start.timeline, the owner's
+ * agronomic milestones), and — when the tree is for a child — how old the child will be at each of them. Nothing
+ * here is a figure of yield or money, and the card says it is an estimate. The age stays on this screen; it is
+ * not sent anywhere.
+ */
+function Timeline({
+  copy,
+  milestones,
+  startYear,
+  askAge,
+  inputId,
+}: {
+  copy: StartCopy;
+  milestones: TimelineMilestone[];
+  startYear: number;
+  askAge: boolean;
+  inputId: string;
+}) {
+  const locale = useLocale();
+  const showsTwin = useShowsTwin();
+  const [ageText, setAgeText] = useState("");
+  const ageNumber = ageText === "" ? null : Number(ageText);
+  const age = askAge && ageNumber !== null && Number.isInteger(ageNumber) && ageNumber >= 0 && ageNumber <= 60 ? ageNumber : null;
+
+  return (
+    <section aria-labelledby={`${inputId}-title`} className="card mb-4 p-5 sm:mb-5">
+      <h2 id={`${inputId}-title`} className="font-display text-lg font-bold leading-tight text-forest">
+        <Bi ar={copy.timelineTitle} fr={copy.timelineTitleFr} frClassName="text-[0.75em] font-normal text-muted" />
+      </h2>
+
+      {askAge ? (
+        <div className="mt-3">
+          <label htmlFor={inputId} className="block text-sm font-semibold text-ink">
+            <Bi ar={copy.timelineAgeLabel} fr={copy.timelineAgeLabelFr} frClassName="text-[0.9em] font-normal text-muted" />
+          </label>
+          <input
+            id={inputId}
+            type="text"
+            inputMode="numeric"
+            autoComplete="off"
+            dir="ltr"
+            maxLength={2}
+            value={ageText}
+            onChange={(event) => setAgeText(toWesternDigits(event.target.value).replace(/\D/g, ""))}
+            className="field mt-2 w-24 text-center tabular-nums"
+          />
+        </div>
+      ) : null}
+
+      <ol className="mt-4 space-y-4 border-s-2 border-leaf/40 ps-5">
+        {milestones.map((milestone) => (
+          <li key={milestone.years} className="relative">
+            <span aria-hidden="true" className="absolute -start-[1.72rem] top-1 size-3 rounded-full bg-leaf ring-4 ring-surface" />
+            <p className="text-sm font-bold tabular-nums text-gold">{startYear + milestone.years}</p>
+            <p className="font-semibold leading-snug text-forest">
+              <Bi ar={milestone.title.ar} fr={milestone.title.fr} frClassName="text-[0.85em] font-normal text-muted" />
+            </p>
+            {milestone.line ? (
+              <p className="mt-0.5 text-sm leading-6 text-muted">
+                <Bi ar={milestone.line.ar} fr={milestone.line.fr} frClassName="text-[0.9em] opacity-85" />
+              </p>
+            ) : null}
+            {age !== null ? (
+              <p className="mt-1">
+                <span className="inline-block rounded-full bg-leaf-soft px-2.5 py-0.5 text-xs font-semibold text-forest">
+                  {formatMessage(locale, copy.timelineAgeThen, { age: age + milestone.years })}
+                </span>
+                {showsTwin && copy.timelineAgeThenFr ? (
+                  <span lang="fr" dir="ltr" className="mt-0.5 block text-end text-[0.6875rem] text-muted">
+                    {formatMessage("fr", copy.timelineAgeThenFr, { age: age + milestone.years })}
+                  </span>
+                ) : null}
+              </p>
+            ) : null}
+          </li>
+        ))}
+      </ol>
+
+      {copy.timelineNote ? (
+        <p className="mt-4 border-t border-dashed border-gold/50 pt-3 text-xs leading-5 text-muted">
+          <Bi ar={copy.timelineNote} fr={copy.timelineNoteFr} frClassName="text-[0.95em] opacity-85" />
+        </p>
+      ) : null}
     </section>
   );
 }

@@ -7,7 +7,7 @@ import { getPublicConfig, t } from "@/lib/config";
 import { moduleAccess } from "@/lib/modules";
 
 import { getCalculatorLists, readCalculatorChoices } from "./calculator";
-import { startCopy, startForLines, startTaglines } from "./copy";
+import { startCopy, startForLines, startTaglines, startTimeline } from "./copy";
 import { StartChooser } from "./start-chooser";
 
 // MIL-02: the page's own copy comes from settings too, like /register's.
@@ -48,6 +48,9 @@ export default async function StartPage({ searchParams }: PageProps<"/[lang]/sta
       <StartChooser
         treeFor={lists.treeFor}
         forLines={startForLines(config, french)}
+        timeline={startTimeline(config, french)}
+        // The year the timeline counts from: this one, in Tunis — decided here so server and browser agree.
+        startYear={Number(new Intl.DateTimeFormat("en", { timeZone: "Africa/Tunis", year: "numeric" }).format(new Date()))}
         treeCounts={lists.treeCounts}
         scenarios={lists.scenarios}
         spacingClasses={lists.spacingClasses}
