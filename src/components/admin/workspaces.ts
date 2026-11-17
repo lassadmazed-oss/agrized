@@ -86,7 +86,7 @@ export const WORKSPACES = [
     // of this file found exactly that regression against the old navFor.
     holders: ["agri_manager", "finance", "admin", "super_admin"],
     landing: "/admin/projects",
-    rows: ["/admin/projects", "/admin/agri", "/admin/harvest", "/admin/land-offers"],
+    rows: ["/admin/projects", "/admin/agri", "/admin/harvest", "/admin/news", "/admin/land-offers"],
   },
   {
     key: "finance",

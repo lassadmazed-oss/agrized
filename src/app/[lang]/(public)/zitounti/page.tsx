@@ -35,11 +35,13 @@ import { PhoneLanguage } from "@/components/site/phone-language";
 import Link from "@/components/site/link";
 import { AccountScreen, type AccountHoldings, type AccountIcon, type AccountRow } from "@/components/site/mobile/account-screen";
 import { PreviewBanner } from "@/components/site/module-gate";
+import { RemotePhoto } from "@/components/site/site-photo";
 import { offersTitle } from "@/components/site/offers";
 import { currentClient } from "@/lib/client-auth";
 import { flagState, formatFor, getPublicConfig, t, type PublicConfig } from "@/lib/config";
 import { moduleAccess } from "@/lib/modules";
 import { createClient } from "@/lib/supabase/server";
+import { parseMyTreeNews, treeNewsPhotoUrl } from "@/lib/tree-news";
 import {
   readClientFile,
   ZITOUNTI_FAILURE_KEYS,
@@ -171,8 +173,13 @@ export default async function ZitountiPage({
    * come back in the visitor's language.
    */
   const supabase = await createClient({ display: config.locale });
-  const result = await readClientFile(supabase, config.chain);
+  const [result, newsResult] = await Promise.all([
+    readClientFile(supabase, config.chain),
+    // 0167 «أخبار زيتونتك»: the latest post on the offers this client holds trees in.
+    supabase.rpc("my_tree_news").then(({ data }) => parseMyTreeNews(data)),
+  ]);
   const file = result.ok ? result.file : null;
+  const latestNews = newsResult.ok ? (newsResult.items[0] ?? null) : null;
 
   const later = t(config, "zitounti.section_later");
   // «مازال ما تركّبش» is a DIFFERENT answer from «يُبنى في دفعة قادمة»: the first is a record the database does
@@ -274,6 +281,28 @@ export default async function ZitountiPage({
         <p className="mx-auto max-w-md px-4 pt-2 text-caption leading-7 text-muted">{shareNote}</p>
       ) : null}
 
+      {/* 0167: the latest news of the grove, a photograph and a sentence, opening the whole feed. */}
+      {latestNews ? (
+        <div className="mx-auto max-w-md px-4 pt-4">
+          <Link href="/zitounti/news" className="card flex items-stretch gap-3 overflow-hidden p-0 hover:border-forest/30">
+            {latestNews.photo_path ? (
+              <RemotePhoto
+                url={treeNewsPhotoUrl(latestNews.photo_path)}
+                alt={latestNews.photo_alt}
+                seed={latestNews.id}
+                sizes="7rem"
+                className="w-28 flex-none"
+              />
+            ) : null}
+            <span className="min-w-0 flex-1 p-3">
+              <span className="block text-xs font-semibold text-gold">{t(config, "ui.news.latest")}</span>
+              <span className="mt-0.5 block font-display text-lg font-bold leading-tight text-forest">{latestNews.title}</span>
+              <span className="mt-1 block text-xs text-muted">{t(config, "ui.news.all")}</span>
+            </span>
+          </Link>
+        </div>
+      ) : null}
+
       {/* اخرج. A door that only opens is not a door — and on a shared phone it is a privacy fault, which is
           why this is not «a nice to have later»: the next person to pick up the handset would be looking at
           somebody else's trees, contracts and instalments. A plain form so it works without JavaScript and
@@ -287,6 +316,13 @@ export default async function ZitountiPage({
             {t(config, "ui.referral.entry")}
           </Link>
         ) : null}
+        {/* 0167: the grove's news, and a tree for someone else. */}
+        <Link href="/zitounti/news" className="btn btn-secondary w-full border-line">
+          {t(config, "zitounti.news_title")}
+        </Link>
+        <Link href="/story/gift" className="btn btn-secondary w-full border-line">
+          {t(config, "ui.news.gift")}
+        </Link>
         {/* The keys to the account — password, number, other devices — live on their own page; this is the one
             door to it (2026-09-28 spec: SMS only for reset, phone change and sensitive actions). */}
         <Link href="/zitounti/security" className="btn btn-secondary w-full border-line">

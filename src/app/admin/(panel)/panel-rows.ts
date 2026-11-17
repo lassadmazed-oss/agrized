@@ -93,6 +93,8 @@ const ROW_RULES: Record<WorkspaceRow, RowRule> = {
   // The bars are the season's kilos. nav-icons.tsx has no glyph for a harvest, and that file is not this
   // change's to grow.
   "/admin/harvest": { icon: "analytics", flag: "harvest" },
+  // 0167: the database gates posting on app.can_manage_operations(), the same four roles.
+  "/admin/news": { icon: "services", roles: AGRI_ROLES },
   "/admin/land-offers": { icon: "land", roles: LAND_OFFER_ROLES, flag: "land_offers" },
   "/admin/installments": { icon: "payments", roles: PRICE_ROLES, flag: "installments" },
   "/admin/contracts": { icon: "contracts", roles: CRM_READ_ROLES, flag: "contracts" },

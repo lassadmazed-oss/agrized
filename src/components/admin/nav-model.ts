@@ -113,6 +113,8 @@ export const ADMIN_LABELS = {
   "/admin/projects": "العروض",
   "/admin/agri": "العمليات الفلاحية",
   "/admin/harvest": "الصابة والجني",
+  // 0167: the posts every holder of an offer reads in «زيتونتي».
+  "/admin/news": "أخبار الزيتونات",
   "/admin/land-offers": "أراضٍ معروضة علينا",
   "/admin/pricing": "التسعير",
   // «/admin/projects/parcels» → «القطع» was here until 2026-09-18. The route is deleted with the parcel

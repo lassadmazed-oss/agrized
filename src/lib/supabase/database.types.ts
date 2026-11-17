@@ -5304,6 +5304,7 @@ export type Database = {
       }
       million_progress: { Args: never; Returns: Json }
       my_referral: { Args: never; Returns: Json }
+      my_tree_news: { Args: never; Returns: Json }
       my_zitounti_file: { Args: never; Returns: Json }
       public_coverage: {
         Args: never
@@ -5472,6 +5473,7 @@ export type Database = {
         Args: { p_id: string; p_reason: string }
         Returns: Json
       }
+      staff_archive_tree_news: { Args: { p_id: string; p_reason: string }; Returns: undefined }
       staff_archive_partner: {
         Args: { p_active: boolean; p_partner: string; p_reason: string }
         Returns: Json
@@ -6006,6 +6008,12 @@ export type Database = {
         Args: { p_filter?: string; p_limit?: number; p_project?: string }
         Returns: Json
       }
+      staff_publish_tree_news: {
+        Args: { p_id: string; p_push: boolean; p_reason: string; p_sms: boolean }
+        Returns: Json
+      }
+      staff_save_tree_news: { Args: { p: Json }; Returns: Json }
+      staff_tree_news: { Args: never; Returns: Json }
       staff_tree_quote: {
         Args: {
           p_down_percent?: number
