@@ -213,11 +213,10 @@ function InstallmentsTable({ installments, totalPrice, roundingSource }: { insta
     );
   }
 
+  // 0163 (owner, 2026-11-17): the percentage is a share of the total on instalments, not of the cash price.
   const percent = installments.down_payment_percent;
   const downDetail = hasPercent(percent)
-    ? typeof totalPrice === "number"
-      ? `${formatPercent(percent)} × ${formatMoney(totalPrice)} (السعر الجملي بالحاضر)`
-      : formatPercent(percent)
+    ? `${formatPercent(percent)} × ${formatMoney(installments.total_financed_millimes)} (السعر الجملي بالتقسيط)`
     : undefined;
 
   return (

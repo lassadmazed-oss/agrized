@@ -78,10 +78,11 @@ begin
     v_plan := app.project_quote_payload(v_project, null, v_trees, 'installments', v_down, v_dur, false)
               -> 'installments';
     if (v_plan->>'status') = 'ok' then
-      -- The down payment is a percentage of the total being financed; if the plan had been built on the list
-      -- price it would be bigger than the same percentage of the discounted one.
+      -- The down payment is a share of the total on instalments (0163); if the plan had been built on the list
+      -- price it would be bigger than the same share of the discounted one.
       assert (v_plan->>'down_payment_millimes')::bigint
-             <= app.down_payment_from_percent(v_base, (v_plan->>'down_payment_percent')::numeric, v_project),
+             <= app.down_payment_on_installments(v_base, (v_plan->>'down_payment_percent')::numeric,
+                                                 (v_plan->>'months')::integer, v_project),
         'the instalment plan was financed on the price before the discount';
       assert (v_plan->'promotion'->>'percent_bp')::integer = 1000,
         'the plan does not say which tier it was built on';
