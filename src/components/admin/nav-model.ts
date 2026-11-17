@@ -105,6 +105,8 @@ export const ADMIN_LABELS = {
   // print their names in code.
   "/admin/persons": "فضاء «زيتونتي»",
   "/admin/analytics": "التحليلات وخريطة الطلب",
+  // 0166: one landing page per story, the ad links per network and what they brought.
+  "/admin/stories": "روابط الإعلانات",
   // /admin/v2 prints no heading of its own — it is a door that redirects into the other session's sale-flow
   // screens — so it is named for the whole of what is behind it, which is the one name the rule cannot supply.
   "/admin/v2": "مسار البيع",

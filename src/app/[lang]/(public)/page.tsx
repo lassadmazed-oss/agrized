@@ -9,6 +9,7 @@ import { ShareButton, ShareMark } from "@/components/site/share-button";
 import { PhotoSlideshow } from "@/components/site/landing/photo-slideshow";
 import { ServicesMap } from "@/components/site/landing/services-map";
 import { StoryDoors } from "@/components/site/landing/story-doors";
+import { ResumeStory } from "@/components/site/resume-story";
 import { InstallApp } from "@/components/site/install-app";
 import { journeyCopy } from "@/components/site/journey/copy";
 import { JourneyDemo } from "@/components/site/journey/journey-demo";
@@ -25,6 +26,7 @@ import { coverSlots, flagState, formatFor, getPublicConfig, settingJson, t } fro
 import { getMillionProgress } from "@/lib/million";
 import { projectHref } from "@/lib/public-hrefs";
 import { getPublicProjects, type PublicProject } from "@/lib/public-projects";
+import { storyResumeCopy } from "@/lib/story";
 
 /**
  * One question and its answer. `flag` is optional and names a module: the question is printed only while
@@ -267,7 +269,15 @@ export default async function HomePage() {
         }
         // «لمن الزيتونة؟» (0164): whose tree it would be, asked before any price; each answer opens /start with it.
         // Only where the calculator answers — a door to a closed form is not a door.
-        story={interestOpen ? <StoryDoors config={config} /> : null}
+        story={
+          interestOpen ? (
+            <>
+              {/* 0166: a simulation this browser started and did not send, offered back first. */}
+              <ResumeStory copy={storyResumeCopy(config)} />
+              <StoryDoors config={config} />
+            </>
+          ) : null
+        }
         // 2 · «كيفاش تخدم AgriZed؟» — the journey played inside a phone, then the whole model in seven words.
         journey={
           <>

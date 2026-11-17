@@ -5997,6 +5997,7 @@ export type Database = {
         }
         Returns: Json
       }
+      staff_story_stats: { Args: { p_days?: number }; Returns: Json }
       staff_subscription_preview: {
         Args: { p_person: string; p_project: string }
         Returns: Json

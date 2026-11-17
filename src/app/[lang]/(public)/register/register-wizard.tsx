@@ -7,6 +7,7 @@ import { PrefillNote, SignInHint } from "@/components/site/prefill-note";
 import type { IntakePrefill } from "@/lib/intake-prefill";
 
 import Link from "@/components/site/link";
+import { forgetStory } from "@/components/site/resume-story";
 import { readVisitSource } from "@/components/site/source-capture";
 import { FormField } from "@/components/ui";
 import { toWesternDigits } from "@/lib/digits";
@@ -425,6 +426,8 @@ export function RegisterWizard(props: RegisterWizardProps) {
         });
         if (result.ok) {
           setRequestNo(result.requestNo);
+          // 0166: the simulation is sent; the home page stops offering to resume it.
+          forgetStory();
           try {
             localStorage.removeItem(DRAFT_KEY);
           } catch {

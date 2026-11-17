@@ -5,6 +5,7 @@ import { useCallback, useEffect, useId, useMemo, useRef, useState, type ReactNod
 import { Bi, useShowsTwin } from "@/components/site/bilingual";
 import { GrowthIcon } from "@/components/site/growth-icon";
 import Link from "@/components/site/link";
+import { saveStory } from "@/components/site/resume-story";
 import { StoryIcon } from "@/components/site/story-icon";
 import { OliveMark, TreeCardBody, treeCardClass } from "@/components/site/tree-card";
 import { toWesternDigits } from "@/lib/digits";
@@ -517,6 +518,13 @@ export function StartChooser({
   useEffect(() => {
     window.history.replaceState(window.history.state, "", localeHref(query ? `/start?${query}` : "/start"));
   }, [query, activeStep, localeHref]);
+
+  // 0166 «زيتونتك مازالت تستنّى»: once a tree count is chosen, the simulation is kept in this browser so the home
+  // page and the story pages can bring the visitor back to it. Sending the request forgets it (register-wizard).
+  useEffect(() => {
+    if (!hasTrees || !query) return;
+    saveStory({ query, name: normalizeTreeName(treeName) });
+  }, [query, hasTrees, treeName]);
 
   // Each screen is a new question: bring the visitor to its title.
   const firstRender = useRef(true);

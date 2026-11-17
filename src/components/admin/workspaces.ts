@@ -73,6 +73,7 @@ export const WORKSPACES = [
       "/admin/visits",
       "/admin/reservations",
       "/admin/analytics",
+      "/admin/stories",
       "/admin/v2",
     ],
   },

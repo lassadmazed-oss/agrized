@@ -84,6 +84,8 @@ const ROW_RULES: Record<WorkspaceRow, RowRule> = {
   "/admin/visits": { icon: "visits", roles: CRM_READ_ROLES, flag: "visits" },
   "/admin/reservations": { icon: "reservations", roles: CRM_READ_ROLES, flag: "reservations" },
   "/admin/analytics": { icon: "analytics", roles: CRM_READ_ROLES },
+  // 0166: counts only, and the links the team puts in ads.
+  "/admin/stories": { icon: "analytics", roles: CRM_READ_ROLES },
   // The other session's sale flow: its own layout gates it on requireStaff() alone, so the row does too.
   "/admin/v2": { icon: "offers" },
   "/admin/projects": { icon: "offers", flag: "projects" },
