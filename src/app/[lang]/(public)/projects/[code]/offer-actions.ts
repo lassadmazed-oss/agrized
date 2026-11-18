@@ -14,6 +14,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { dispatchAfterResponse } from "@/lib/sms";
 import { createClient } from "@/lib/supabase/server";
 import { PAYMENT_MODES } from "@/lib/tree-pricing";
+import { linkVisitor } from "@/lib/visitor-link";
 
 /**
  * The plan the visitor answers on the offer's own form: cash, or a down payment percentage over a duration —
@@ -224,5 +225,7 @@ export async function submitOfferInterest(input: OfferInterestInput): Promise<Su
 
   // The RPC queued the confirmation; send it once the visitor has their success screen.
   dispatchAfterResponse();
+  // 0174: this browser is now this person, so their follow-up waits for them on the site.
+  await linkVisitor(requestNo);
   return { ok: true, requestNo };
 }

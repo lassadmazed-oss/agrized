@@ -9,7 +9,7 @@ begin
   assert (select count(*) from public.translations
           where entity = 'setting' and entity_key = 'site.facebook_label' and locale in ('fr', 'de', 'it', 'en')) = 4,
     'the four other sites name it too';
-  assert exists (select 1 from public.social_accounts where network = 'facebook'
-                   and external_id = substring((select value #>> '{}' from public.settings where key = 'site.facebook_url') from 'id=(\d+)')),
-    'the page on the site is the page the Back Office posts to';
+  -- 0173: the Back Office posts to the Page ID Meta Business Suite names, not the number in the public address.
+  assert exists (select 1 from public.social_accounts where network = 'facebook' and external_id = '1275705932287730'),
+    'the Back Office posts to the page by its Page ID';
 end $$;

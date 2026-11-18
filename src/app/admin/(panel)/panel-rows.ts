@@ -113,6 +113,8 @@ const ROW_RULES: Record<WorkspaceRow, RowRule> = {
   "/admin/settings/languages": { icon: "languages", roles: ADMIN_ROLES },
   // 0152: a message to every phone with the app reaches the buyers, so it is Admin's and nobody else's.
   "/admin/notifications": { icon: "notifications", roles: ADMIN_ROLES },
+  // 0174: the database checks app.is_admin() on every write.
+  "/admin/notices": { icon: "notifications", roles: ADMIN_ROLES },
   // Records, not settings: who may sign in, and what everyone did. They keep their own rows.
   // The page token posts as the company and approval is what lets something out under its name, so the
   // row is administrator-only and carries the module's own state like every other.

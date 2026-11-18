@@ -158,6 +158,8 @@ export const ADMIN_LABELS = {
   "/admin/users": "المستخدمون",
   // 0152, 2026-10-24: the notifications the owner writes by hand and sends to the phones that have the app.
   "/admin/notifications": "إشعارات التطبيق",
+  // 0174: what waits for a visitor in the site's bell — nothing is sent to a phone.
+  "/admin/notices": "إشعارات الموقع",
   "/admin/audit": "سجل العمليات",
   "/admin/account": "كلمة السر",
 } as const satisfies Record<string, string>;

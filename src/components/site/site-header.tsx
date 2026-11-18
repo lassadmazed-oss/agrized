@@ -1,6 +1,8 @@
 import { LogoMark } from "@/components/brand/logo";
 import { Wordmark } from "@/components/brand/wordmark";
 import { LanguageSwitcher } from "@/components/site/language-switcher";
+import { NoticeBell } from "@/components/site/notices/notice-bell";
+import { noticeBellCopy } from "@/components/site/notices/copy";
 import { ShareButton, ShareMark } from "@/components/site/share-button";
 import Link from "@/components/site/link";
 import { offersTitle } from "@/components/site/offers";
@@ -221,6 +223,9 @@ export async function SiteHeader({ tagline, showInterestCta, showProjects }: Sit
           {/* «شارك · Partager» (owner, 2026-10-06): the page the visitor is on, to WhatsApp, Facebook, Telegram,
               an e-mail or the clipboard (share-button.tsx). An icon like the account door beside it, at every
               width — on a phone it is the one way to pass a page on without leaving it. */}
+          {/* 0174 «إشعارات الموقع»: what waits for this visitor, at every width, beside the way to pass a page on. */}
+          <NoticeBell copy={noticeBellCopy(config)} placement="header" />
+
           <ShareButton
             ariaLabel={t(config, "ui.common.share")}
             className="inline-flex size-10 shrink-0 items-center justify-center rounded-[1.1rem] border border-line bg-surface text-forest transition-colors hover:border-forest/30 hover:bg-leaf-soft md:size-12 md:rounded-[1.25rem] lg:size-14"

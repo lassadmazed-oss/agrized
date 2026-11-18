@@ -1,5 +1,7 @@
 import { AssistantBubble } from "@/components/site/assistant/assistant-bubble";
 import { TabBar, type Tab } from "@/components/site/mobile/tab-bar";
+import { noticeBellCopy } from "@/components/site/notices/copy";
+import { NoticeBell, NoticeCard } from "@/components/site/notices/notice-bell";
 import { SiteFooter } from "@/components/site/site-footer";
 import { SiteHeader } from "@/components/site/site-header";
 import { SourceCapture } from "@/components/site/source-capture";
@@ -60,6 +62,9 @@ export default async function PublicLayout({ children }: LayoutProps<"/[lang]">)
         credits={mediaCredits(config)}
       />
       <TabBar tabs={tabs} label={t(config, "ui.shell.tabbar_aria")} />
+      {/* 0174 «إشعارات الموقع»: the phone's bell (only while something waits) and, once a visit, the card. */}
+      <NoticeBell copy={noticeBellCopy(config)} placement="floating" />
+      <NoticeCard copy={noticeBellCopy(config)} />
       {/* The assistant rides above every public page; its flag is the only thing that removes it. */}
       {assistantEnabled(config) ? <AssistantBubble copy={assistantCopy(config)} /> : null}
     </div>

@@ -12,6 +12,7 @@ import { auditHeaders, clientIp, hashIp } from "@/lib/request-context";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { dispatchAfterResponse } from "@/lib/sms";
 import { PAYMENT_MODES } from "@/lib/tree-pricing";
+import { linkVisitor } from "@/lib/visitor-link";
 
 import { calculatorGap, normalizeTreeName } from "../start/calculator-summary";
 
@@ -199,5 +200,7 @@ export async function submitInterest(input: InterestInput): Promise<SubmitIntere
   }
   // The RPC queued the confirmation; send it once the visitor has their success screen.
   dispatchAfterResponse();
+  // 0174: this browser is now this person, so their follow-up waits for them on the site.
+  await linkVisitor(requestNo);
   return { ok: true, requestNo };
 }
