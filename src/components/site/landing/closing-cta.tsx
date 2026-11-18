@@ -1,5 +1,6 @@
 import { CallChooser } from "@/components/site/call-chooser";
 import Link from "@/components/site/link";
+import { FacebookGlyph } from "@/components/site/site-footer";
 import { SitePhoto } from "@/components/site/site-photo";
 import { settingText, t, type PublicConfig } from "@/lib/config";
 
@@ -46,6 +47,9 @@ export function ClosingCta({ config, ctaLabel, ctaHref = "/start", offers = null
   // directly; with neither, nothing.
   const whatsapp = settingText(config, "site.contact_whatsapp");
   const phone = settingText(config, "site.contact_phone");
+  // 0169: the Facebook page, for the phone that never sees the footer's contact column.
+  const facebookUrl = settingText(config, "site.facebook_url");
+  const facebookLabel = settingText(config, "site.facebook_label");
   const contactClass =
     "inline-flex min-h-11 items-center justify-center gap-tight text-caption font-semibold text-gold-bright underline underline-offset-4 hover:text-paper";
 
@@ -91,6 +95,13 @@ export function ClosingCta({ config, ctaLabel, ctaHref = "/start", offers = null
             <a href={`https://wa.me/${whatsapp.replace(/\D/g, "")}`} rel="noopener" className={contactClass}>
               <ChatGlyph />
               {contactLabel}
+            </a>
+          ) : null}
+
+          {facebookUrl.startsWith("https://") && facebookLabel ? (
+            <a href={facebookUrl} target="_blank" rel="noopener noreferrer" className={contactClass}>
+              <FacebookGlyph />
+              {facebookLabel}
             </a>
           ) : null}
 

@@ -42,7 +42,8 @@ type LegalLink = { label: string; href: string };
  *    rather than a hole.
  *  · THE REFERENCE'S «سياسة الخصوصية · شروط الاستخدام» and its four social marks are NOT drawn here. No such
  *    routes exist under src/app/(public) and no setting holds a social address, and a footer link that
- *    resolves to nothing is worse than a footer without it. `site.legal_links` is read so the owner can add
+ *    resolves to nothing is worse than a footer without it. (2026-11-18, 0169: the one page that exists,
+ *    Facebook, is a row of the contact column — site.facebook_url and site.facebook_label.) `site.legal_links` is read so the owner can add
  *    them the day the pages exist; it is empty, so the bar prints the copyright and the staff door alone.
  *
  * 2026-09-19: the photo credits stopped being a <details> — see <PhotoCredits> at the foot of this file for
@@ -100,7 +101,12 @@ export async function SiteFooter({ legalNotice, taglineFr, phone, whatsapp, emai
     (link) => link && link.label && link.href,
   );
 
-  const hasContact = Boolean(phone || whatsapp || email || address);
+  // 0169: the Facebook page, opened beside the site. Both words and address are settings; either empty, no row.
+  const facebookUrl = settingText(config, "site.facebook_url");
+  const facebookLabel = settingText(config, "site.facebook_label");
+  const facebook = facebookUrl.startsWith("https://") && facebookLabel ? { url: facebookUrl, label: facebookLabel } : null;
+
+  const hasContact = Boolean(phone || whatsapp || email || address || facebook);
   const whatsappDigits = whatsapp.replace(/\D/g, "");
   // See the note above: the photograph is this slot's only home while the landowner section is not on the page.
   const showPhoto = flagState(config, "land_offers") !== "public";
@@ -235,6 +241,11 @@ export async function SiteFooter({ legalNotice, taglineFr, phone, whatsapp, emai
                     <span dir="ltr">{email}</span>
                   </ContactRow>
                 ) : null}
+                {facebook ? (
+                  <ContactRow href={facebook.url} icon={<FacebookGlyph />} external>
+                    {facebook.label}
+                  </ContactRow>
+                ) : null}
                 {address ? <ContactRow icon={<PinGlyph />}>{address}</ContactRow> : null}
               </ul>
             </div>
@@ -278,7 +289,18 @@ export async function SiteFooter({ legalNotice, taglineFr, phone, whatsapp, emai
 }
 
 /** One contact detail: a gold glyph, then the value. A 44px row on a phone, where it is something to press. */
-function ContactRow({ href, icon, children }: { href?: string; icon: ReactNode; children: ReactNode }) {
+function ContactRow({
+  href,
+  icon,
+  external = false,
+  children,
+}: {
+  href?: string;
+  icon: ReactNode;
+  /** Another site (the Facebook page): a new tab, and nothing of this one sent along. */
+  external?: boolean;
+  children: ReactNode;
+}) {
   const inner = (
     <>
       <span aria-hidden="true" className="flex-none text-gold-bright">
@@ -293,7 +315,8 @@ function ContactRow({ href, icon, children }: { href?: string; icon: ReactNode; 
       {href ? (
         <a
           href={href}
-          rel="noopener"
+          rel={external ? "noopener noreferrer" : "noopener"}
+          target={external ? "_blank" : undefined}
           className="flex min-h-11 items-center gap-snug text-paper/85 underline-offset-4 hover:text-paper hover:underline sm:min-h-9"
         >
           {inner}
@@ -332,6 +355,16 @@ function WhatsAppGlyph() {
     <svg viewBox="0 0 20 20" className="size-4" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
       <path d="M3.6 16.4 4.7 13A7 7 0 1 1 7.3 15.5l-3.7.9Z" />
       <path d="M7.8 8c.2 1.2.7 2.2 1.6 3 .8.9 1.8 1.4 3 1.6l.7-1-1.6-.8-.7.6a5 5 0 0 1-1.8-1.8l.6-.7L8.8 7.3l-1 .7Z" />
+    </svg>
+  );
+}
+
+/** The «f» of Facebook, drawn in the footer's line style rather than as the network's filled logo. */
+export function FacebookGlyph() {
+  return (
+    <svg viewBox="0 0 20 20" aria-hidden="true" className="size-4 flex-none" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+      <rect x="2.5" y="2.5" width="15" height="15" rx="3.5" />
+      <path d="M12.8 6.5h-1.3a2 2 0 0 0-2 2v9M7.5 10.5h5" />
     </svg>
   );
 }
