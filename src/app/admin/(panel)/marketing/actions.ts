@@ -2,7 +2,13 @@
 
 import { revalidatePath } from "next/cache";
 
+import sharp from "sharp";
+
+import type { ActionResult } from "@/components/admin/action-form";
 import { ADMIN_ROLES, requireStaff } from "@/lib/auth";
+import { publicEnv } from "@/lib/env";
+import { publishToMeta, type SocialClaim } from "@/lib/social-meta";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 
 /*
@@ -13,9 +19,9 @@ import { createClient } from "@/lib/supabase/server";
  * the thing» with app.is_admin() inside a security-definer function. The second is the one that holds if
  * this file is ever called from somewhere new.
  *
- * NOTHING HERE TALKS TO META. Composing, approving and cancelling all happen in the database; publishing is
- * a separate job that does not exist yet, because the permissions to do it do not exist yet (0157's header).
- * That is why a post approved on this screen reads «مبرمج» and not «منشور».
+ * Composing, approving and cancelling all happen in the database. Meta is called from src/lib/social-meta.ts:
+ * here by «انشر الآن», and by the cron at /api/social/publish for every approved post whose day has come
+ * (0170, «البرنامج اليومي»). Until a token is connected nothing leaves, and a post approved here reads «مبرمج».
  */
 
 type Rpc = (fn: string, args?: Record<string, unknown>) => PromiseLike<{ data: unknown; error: { message: string } | null }>;
@@ -33,6 +39,11 @@ const MESSAGES: Record<string, string> = {
   no_token: "ما فمّاش توكان مربوط لهالشبكة.",
   not_publishable: "المنشور هذا ماهوش جاهز للنشر (لازم يتوافق عليه، وما يكونش وفّى محاولاتو).",
   instagram_needs_image: "إنستغرام يلزمو صورة، والعرض هذا ما عندوش كوفر.",
+  invalid_caption: "اكتب نص المنشور، من 10 حتى 1800 حرف.",
+  invalid_date: "اختار نهار وساعة صحاح.",
+  date_in_past: "النهار هذا فات. اختار نهار من اليوم ولقدّام.",
+  invalid_image: "الصورة ما تحمّلتش. عاود حمّلها.",
+  invalid_story: "الحكاية هذي ما عادش موجودة. اختار وحدة من القائمة.",
 };
 
 function refuse(message: string): { ok: false; message: string } {
@@ -122,64 +133,6 @@ export async function setToken(input: {
   return { ok: true };
 }
 
-const GRAPH = "https://graph.facebook.com/v21.0";
-
-type Claim = {
-  id: string;
-  network: "facebook" | "instagram";
-  caption: string;
-  image_url: string | null;
-  link_url: string | null;
-  page_id: string;
-  access_token: string;
-  error?: string;
-};
-
-/** What Meta answered, reduced to the two things worth writing down. */
-async function callMeta(claim: Claim): Promise<{ ok: true; id: string; permalink: string } | { ok: false; error: string }> {
-  const body = (fields: Record<string, string>) =>
-    ({ method: "POST", body: new URLSearchParams({ ...fields, access_token: claim.access_token }) }) as RequestInit;
-
-  try {
-    if (claim.network === "facebook") {
-      // A picture when there is one — a photo post is what gets seen — and a plain link post when there is
-      // not. Both are one call; neither invents an image.
-      const response = claim.image_url
-        ? await fetch(`${GRAPH}/${claim.page_id}/photos`, body({ url: claim.image_url, caption: claim.caption }))
-        : await fetch(
-            `${GRAPH}/${claim.page_id}/feed`,
-            body(claim.link_url ? { message: claim.caption, link: claim.link_url } : { message: claim.caption }),
-          );
-      const json = (await response.json()) as { id?: string; post_id?: string; error?: { message?: string } };
-      if (!response.ok || json.error) return { ok: false, error: json.error?.message ?? `HTTP ${response.status}` };
-      const id = json.post_id ?? json.id ?? "";
-      return { ok: true, id, permalink: id ? `https://www.facebook.com/${id}` : "" };
-    }
-
-    // Instagram publishes in two steps: a container, then the publish. There is no picture-less post on
-    // Instagram, so an offer with no cover is refused here rather than sent and rejected by Meta.
-    if (!claim.image_url) return { ok: false, error: "instagram_needs_image" };
-
-    const container = await fetch(
-      `${GRAPH}/${claim.page_id}/media`,
-      body({ image_url: claim.image_url, caption: claim.caption }),
-    );
-    const containerJson = (await container.json()) as { id?: string; error?: { message?: string } };
-    if (!container.ok || containerJson.error || !containerJson.id) {
-      return { ok: false, error: containerJson.error?.message ?? `HTTP ${container.status}` };
-    }
-
-    const published = await fetch(`${GRAPH}/${claim.page_id}/media_publish`, body({ creation_id: containerJson.id }));
-    const publishedJson = (await published.json()) as { id?: string; error?: { message?: string } };
-    if (!published.ok || publishedJson.error || !publishedJson.id) {
-      return { ok: false, error: publishedJson.error?.message ?? `HTTP ${published.status}` };
-    }
-    return { ok: true, id: publishedJson.id, permalink: `https://www.instagram.com/p/${publishedJson.id}` };
-  } catch (error) {
-    return { ok: false, error: error instanceof Error ? error.message : "network" };
-  }
-}
-
 export type PublishResult = { ok: true; permalink: string } | { ok: false; message: string };
 
 /**
@@ -202,13 +155,13 @@ export async function publishNow(postId: string): Promise<PublishResult> {
   const { data, error } = await rpc("staff_social_publish_claim", { p_post: postId });
   if (error) return refuse(error.message);
 
-  const claim = data as Claim;
+  const claim = data as SocialClaim;
   if (!claim || claim.error) {
     revalidatePath("/admin/marketing");
     return refuse(claim?.error ?? "not_publishable");
   }
 
-  const result = await callMeta(claim);
+  const result = await publishToMeta(claim);
   await rpc("staff_social_publish_result", {
     p_post: postId,
     p_ok: result.ok,
@@ -219,4 +172,102 @@ export async function publishNow(postId: string): Promise<PublishResult> {
 
   revalidatePath("/admin/marketing");
   return result.ok ? { ok: true, permalink: result.permalink } : { ok: false, message: result.error };
+}
+
+/* ---------------------------------------------------------------------------
+ * «البرنامج اليومي» (0170): a post on a day, for every enabled network
+ * ------------------------------------------------------------------------- */
+
+const SOCIAL_BUCKET = "social-media";
+const MAX_UPLOAD_BYTES = 15 * 1024 * 1024;
+
+/**
+ * A photograph as Meta takes it: JPEG (Instagram publishes nothing else), turned the way the camera held it,
+ * 1080 wide, and cropped only when Instagram would refuse its shape — taller than 4:5 or wider than 1.91:1.
+ */
+async function socialJpeg(file: File): Promise<Buffer> {
+  const input = Buffer.from(await file.arrayBuffer());
+  const { width = 0, height = 0, orientation = 1 } = await sharp(input).metadata();
+  if (!width || !height) throw new Error("not_an_image");
+  // A phone photo held upright is stored sideways with an EXIF turn (5–8); `rotate()` applies it, so its ratio
+  // is read the way it will be seen.
+  const ratio = orientation >= 5 ? height / width : width / height;
+  const image = sharp(input).rotate();
+  const resized =
+    ratio < 0.8
+      ? image.resize(1080, 1350, { fit: "cover", position: "attention" })
+      : ratio > 1.91
+        ? image.resize(1080, 566, { fit: "cover", position: "attention" })
+        : image.resize({ width: 1080, withoutEnlargement: true });
+  return resized.jpeg({ quality: 88, mozjpeg: true }).toBuffer();
+}
+
+/** «برمج منشور»: the day, the hour, the words, the story it links to and a photograph. */
+export async function planPost(_previous: ActionResult, formData: FormData): Promise<ActionResult> {
+  await requireStaff(ADMIN_ROLES);
+  const field = (name: string) => String(formData.get(name) ?? "").trim();
+
+  let path: string | null = null;
+  const photo = formData.get("photo");
+  if (photo instanceof File && photo.size > 0) {
+    if (photo.size > MAX_UPLOAD_BYTES) return { ok: false, message: "الصورة أكبر من 15 ميغا. صغّرها ومن بعد عاود." };
+    let jpeg: Buffer;
+    try {
+      jpeg = await socialJpeg(photo);
+    } catch {
+      return { ok: false, message: "الملف هذا موش صورة نقراوها. حمّل JPG ولا PNG ولا WEBP." };
+    }
+    path = `calendar/${field("date") || "undated"}-${Date.now()}.jpg`;
+    const { error: uploadError } = await createAdminClient()
+      .storage.from(SOCIAL_BUCKET)
+      .upload(path, jpeg, { contentType: "image/jpeg", upsert: false });
+    if (uploadError) {
+      console.error("social photo upload failed", uploadError);
+      return { ok: false, message: "الصورة ما تحمّلتش. ثبّت في الإنترنت وعاود." };
+    }
+  }
+
+  const supabase = await createClient();
+  const rpc = (supabase as unknown as { rpc: Rpc }).rpc.bind(supabase);
+  const { data, error } = await rpc("staff_social_plan", {
+    p: {
+      date: field("date"),
+      time: field("time"),
+      caption: field("caption"),
+      story_code: field("story_code") || null,
+      image_url: path ? `${publicEnv.supabaseUrl}/storage/v1/object/public/${SOCIAL_BUCKET}/${path}` : null,
+    },
+  });
+  if (error) {
+    if (path) await createAdminClient().storage.from(SOCIAL_BUCKET).remove([path]);
+    return refuse(error.message);
+  }
+
+  const row = (data ?? {}) as { made?: { network: string }[]; skipped?: { network: string; reason: string }[]; status?: string };
+  revalidatePath("/admin/marketing");
+  const made = row.made?.length ?? 0;
+  const noPhoto = row.skipped?.some((skip) => skip.reason === "instagram_needs_image");
+  const parts = [
+    made > 0 ? `تبرمج على ${made === 1 ? "شبكة وحدة" : `${made} شبكات`}` : "ما تبرمج حتى منشور",
+    row.status === "pending_approval" ? "يستنّى موافقتك" : "يخرج وحدو في نهارو",
+  ];
+  if (noPhoto) parts.push("إنستغرام يلزمو صورة");
+  return { ok: made > 0, message: `${parts.join(" · ")}.` };
+}
+
+/** «وافق على الكل»: every post waiting for approval, approved by this administrator, one by one. */
+export async function approveAll(): Promise<ActionResult> {
+  await requireStaff(ADMIN_ROLES);
+  const supabase = await createClient();
+  const rpc = (supabase as unknown as { rpc: Rpc }).rpc.bind(supabase);
+  const { data, error } = await rpc("staff_social_queue", { p_status: "pending_approval", p_limit: 500 });
+  if (error) return refuse(error.message);
+
+  let approved = 0;
+  for (const post of (data ?? []) as { id: string }[]) {
+    const { error: decideError } = await rpc("staff_social_decide", { p_post: post.id, p_action: "approve", p_reason: "approve_all" });
+    if (!decideError) approved += 1;
+  }
+  revalidatePath("/admin/marketing");
+  return { ok: true, message: approved > 0 ? `توافق على ${approved} منشور.` : "ما فمّا حتى منشور يستنّى." };
 }
