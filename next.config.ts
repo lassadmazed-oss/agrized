@@ -27,8 +27,9 @@ const supabaseHost = (() => {
  *   · img/media — Supabase storage, which serves every offer photograph and the site's own pictures.
  *   · connect — Supabase (REST, auth, storage, realtime over wss). Everything else the server calls, it
  *     calls from the server: Meta, OpenAI and WinSMS never appear in a browser request.
- *   · frame — the video embeds (project-video.tsx) and the map on the visit page. Nothing else may be
- *     framed INTO the site, and frame-ancestors 'none' means the site may not be framed BY anything.
+ *   · frame — the video embeds (project-video.tsx), the map on the visit page and, after the visitor presses
+ *     its button, the Facebook post on the home page (facebook-post.tsx, 0171). Nothing else may be framed
+ *     INTO the site, and frame-ancestors 'none' means the site may not be framed BY anything.
  */
 const csp = [
   "default-src 'self'",
@@ -47,7 +48,7 @@ const csp = [
   // the one that is relaxed is relaxed only where React needs it.
   `script-src 'self' 'unsafe-inline'${process.env.NODE_ENV === "production" ? "" : " 'unsafe-eval'"}`,
   `connect-src 'self'${supabaseHost ? ` https://${supabaseHost} wss://${supabaseHost}` : ""}`,
-  "frame-src https://www.youtube-nocookie.com https://www.youtube.com https://player.vimeo.com https://www.google.com",
+  "frame-src https://www.youtube-nocookie.com https://www.youtube.com https://player.vimeo.com https://www.google.com https://www.facebook.com",
   "worker-src 'self' blob:",
   "manifest-src 'self'",
   "upgrade-insecure-requests",

@@ -1,6 +1,6 @@
 import { CallChooser } from "@/components/site/call-chooser";
 import Link from "@/components/site/link";
-import { FacebookGlyph } from "@/components/site/site-footer";
+import { FacebookMark } from "@/components/site/facebook-mark";
 import { SitePhoto } from "@/components/site/site-photo";
 import { settingText, t, type PublicConfig } from "@/lib/config";
 
@@ -100,7 +100,7 @@ export function ClosingCta({ config, ctaLabel, ctaHref = "/start", offers = null
 
           {facebookUrl.startsWith("https://") && facebookLabel ? (
             <a href={facebookUrl} target="_blank" rel="noopener noreferrer" className={contactClass}>
-              <FacebookGlyph />
+              <FacebookMark />
               {facebookLabel}
             </a>
           ) : null}

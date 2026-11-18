@@ -2,6 +2,7 @@ import type { ReactNode } from "react";
 
 import { Wordmark } from "@/components/brand/wordmark";
 import { CallChooser } from "@/components/site/call-chooser";
+import { FacebookMark } from "@/components/site/facebook-mark";
 import { LanguageSwitcher } from "@/components/site/language-switcher";
 import Link from "@/components/site/link";
 import { siteNav } from "@/components/site/site-header";
@@ -242,7 +243,7 @@ export async function SiteFooter({ legalNotice, taglineFr, phone, whatsapp, emai
                   </ContactRow>
                 ) : null}
                 {facebook ? (
-                  <ContactRow href={facebook.url} icon={<FacebookGlyph />} external>
+                  <ContactRow href={facebook.url} icon={<FacebookMark />} external>
                     {facebook.label}
                   </ContactRow>
                 ) : null}
@@ -355,16 +356,6 @@ function WhatsAppGlyph() {
     <svg viewBox="0 0 20 20" className="size-4" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
       <path d="M3.6 16.4 4.7 13A7 7 0 1 1 7.3 15.5l-3.7.9Z" />
       <path d="M7.8 8c.2 1.2.7 2.2 1.6 3 .8.9 1.8 1.4 3 1.6l.7-1-1.6-.8-.7.6a5 5 0 0 1-1.8-1.8l.6-.7L8.8 7.3l-1 .7Z" />
-    </svg>
-  );
-}
-
-/** The «f» of Facebook, drawn in the footer's line style rather than as the network's filled logo. */
-export function FacebookGlyph() {
-  return (
-    <svg viewBox="0 0 20 20" aria-hidden="true" className="size-4 flex-none" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
-      <rect x="2.5" y="2.5" width="15" height="15" rx="3.5" />
-      <path d="M12.8 6.5h-1.3a2 2 0 0 0-2 2v9M7.5 10.5h5" />
     </svg>
   );
 }

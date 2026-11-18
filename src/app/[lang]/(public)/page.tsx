@@ -1,5 +1,6 @@
 
 import { AbroadBand } from "@/components/site/abroad/abroad-band";
+import { FacebookPost } from "@/components/site/facebook-post";
 import { ClosingCta } from "@/components/site/landing/closing-cta";
 import { CounterBand } from "@/components/site/landing/counter-band";
 import { Faq } from "@/components/site/landing/faq";
@@ -22,7 +23,7 @@ import { type AppStat } from "@/components/site/mobile/app-stats";
 import { areaPerTree, offersTitle, offerTreePrice } from "@/components/site/offers";
 import { estimateLabel } from "@/components/site/site-header";
 import { RemotePhoto } from "@/components/site/site-photo";
-import { coverSlots, flagState, formatFor, getPublicConfig, settingJson, t } from "@/lib/config";
+import { coverSlots, flagState, formatFor, getPublicConfig, settingInt, settingJson, settingText, t } from "@/lib/config";
 import { getMillionProgress } from "@/lib/million";
 import { projectHref } from "@/lib/public-hrefs";
 import { getPublicProjects, type PublicProject } from "@/lib/public-projects";
@@ -115,6 +116,18 @@ export default async function HomePage() {
   // The calculator's one word, in the hero button, on the door below it, in the bar and on the last card —
   // the rule site-header.tsx states: every control that opens /start says what /start does.
   const estimateCta = estimateLabel(config);
+  // 0171: a post from the Facebook page, when the owner has named one.
+  const facebookPostUrl = settingText(config, "site.facebook_post_url");
+  const facebookPost = facebookPostUrl.startsWith("https://www.facebook.com/") ? (
+    <FacebookPost
+      url={facebookPostUrl}
+      heightAt500={settingInt(config, "site.facebook_post_height", 313)}
+      title={t(config, "ui.fbpost.title")}
+      notice={t(config, "ui.fbpost.notice")}
+      loadLabel={t(config, "ui.fbpost.load")}
+      openLabel={t(config, "ui.fbpost.open")}
+    />
+  ) : null;
 
   const place = (governorateId: number) => config.governorates.find((g) => g.id === governorateId)?.name ?? "";
   // FLAG-02: a tree price exists for a visitor only while the pricing module is public. The flag alone
@@ -312,7 +325,15 @@ export default async function HomePage() {
         trust={<TrustGrid title={journey.trustTitle} lead={journey.trustLead} items={journey.trust} />}
         example={<ExampleStory copy={journey.exampleCopy} steps={journey.example} interestHref="/register" />}
         faq={faq.length > 0 ? <Faq config={config} items={faq} /> : null}
-        closing={interestOpen ? <ClosingCta config={config} ctaLabel={estimateCta} /> : null}
+        // 0171: the Facebook post sits under the last ask, framed only when the visitor asks for it.
+        closing={
+          interestOpen || facebookPost ? (
+            <div className="space-y-3">
+              {interestOpen ? <ClosingCta config={config} ctaLabel={estimateCta} /> : null}
+              {facebookPost}
+            </div>
+          ) : null
+        }
         copy={{
           badge: t(config, "site.app_greeting_note"),
           line: t(config, "site.app_hero_line"),
