@@ -26,7 +26,7 @@ import { CALL_DESK_ROLES } from "./desk/desks";
 import { LEGAL_DESK_ROLES } from "./desk/legal/roles";
 
 /** One workspace with the rows this reader may actually open. */
-export type RowGroup = { key: string; label: string; items: NavItem[] };
+export type RowGroup = { key: string; label: string; icon: AdminIconKey; items: NavItem[] };
 
 type RowRule = {
   icon: AdminIconKey;
@@ -81,6 +81,8 @@ const ROW_RULES: Record<WorkspaceRow, RowRule> = {
   "/admin/desk/field": { icon: "visits", roles: CRM_READ_ROLES },
   // 0175: the tablet — app.can_edit_person decides every act on it (admin, or the commercial the file is his).
   "/admin/terrain": { icon: "visits", roles: CALL_DESK_ROLES },
+  // 0175: handing people to a commercial is the administrator's (public.admin_field_assign).
+  "/admin/terrain/assign": { icon: "users", roles: ADMIN_ROLES },
   // 0176: reading follows app.can_see_person, writing app.can_edit_person, publishing app.is_admin.
   "/admin/success": { icon: "media", roles: CRM_READ_ROLES },
   "/admin/leads": { icon: "requests", roles: CRM_READ_ROLES },
@@ -152,6 +154,7 @@ export function workspaceRows(session: StaffSession, config: PublicConfig): RowG
     return {
       key: workspace.key,
       label: workspace.label,
+      icon: workspace.icon,
       items: hrefs.map(row).filter((item): item is NavItem => item !== null),
     };
   });

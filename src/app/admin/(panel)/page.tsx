@@ -64,13 +64,11 @@
 
 import type { Metadata } from "next";
 import Link from "next/link";
-import { redirect } from "next/navigation";
 import type { ReactNode } from "react";
 
 import { FunnelBoard, TreeStock } from "@/components/admin/funnel";
 import { readFunnel } from "@/components/admin/funnel-read";
 import { HomeTiles } from "@/components/admin/home-tiles";
-import { heldWorkspaces } from "@/components/admin/workspaces";
 import { EmptyState, SectionHeader, StatTile, StatusPill } from "@/components/ui";
 import { ADMIN_ROLES, CRM_READ_ROLES, hasRole, LAND_OFFER_ROLES, PRICE_ROLES, requireStaff, type StaffRole } from "@/lib/auth";
 import { getPublicConfig } from "@/lib/config";
@@ -108,17 +106,9 @@ export default async function DashboardPage({ searchParams }: PageProps<"/admin"
   const session = await requireStaff();
   const params = await searchParams;
 
-  // THE WORKSPACES, 2026-09-28. This screen is الإدارة's landing. A reader who holds exactly one workspace and
-  // it is not الإدارة — a commercial, an agri_manager, Finance, Legal on their own — is sent to that job's
-  // queue instead, so their first screen is their work and never a dashboard laid out for the admin. Readers
-  // who hold several keep the dashboard: the switcher is theirs to use. Done here and not in src/proxy.ts,
-  // because the proxy knows a user id and not their roles, and it must stay an optimistic redirect only.
-  //
-  // The one exception is ?denied=1, which requireStaff() sends here when a page refused the reader's role:
-  // bouncing them onward would swallow the sentence that says what happened, and a reader who just typed a URL
-  // they may not open needs that sentence more than they need their queue.
-  const held = heldWorkspaces(session.roles);
-  if (held.length === 1 && held[0].key !== "admin" && !params.denied) redirect(held[0].landing);
+  // «اليوم», 2026-11-19 (owner: «أسمح وأحلى وأسهل وأوضح»). Every reader lands here now: what waits on THEM,
+  // as cards that open the exact list, then the doors. The old redirect of single-job readers to their queue is
+  // gone because this page is no longer the admin's dashboard — the cards are built from the reader's own roles.
 
   const canSeeCrm = hasRole(session, CRM_READ_ROLES);
   const canSeeLand = hasRole(session, LAND_OFFER_ROLES);
@@ -375,6 +365,57 @@ export default async function DashboardPage({ searchParams }: PageProps<"/admin"
   // The holds staff_reservations chose for the «awaiting» filter, in the order it put them (overdue first).
   const awaitingDeposit = holds?.rows ?? [];
 
+  // ── «اليوم»: what the newer screens add to the day (0175 · 0176 · 0178) ──────────────────────────────
+  // Each RPC checks the reader itself; one that refuses (not this reader's) simply adds no card.
+  const rpc = (supabase as unknown as { rpc: (fn: string) => PromiseLike<{ data: unknown; error: unknown }> }).rpc.bind(supabase);
+  const quiet = async <T,>(fn: string): Promise<T | null> => {
+    const { data, error } = await rpc(fn);
+    return error ? null : (data as T);
+  };
+  const [fieldCandidates, myField, farm, stories] = await Promise.all([
+    isAdmin ? quiet<{ candidates: unknown[] }>("admin_field_candidates") : null,
+    hasRole(session, ["commercial"]) ? quiet<{ people: { step: string }[] }>("field_board") : null,
+    hasRole(session, ["agri_manager", "finance", "admin", "super_admin"]) ? quiet<{ tasks: { status: string }[] }>("farm_board") : null,
+    canSeeCrm ? quiet<{ stories: { videos: number; status: string }[] }>("staff_success_stories") : null,
+  ]);
+  const steps = myField?.people ?? [];
+  const todayCards: TodayCard[] = [
+    ...(myField
+      ? [
+          { label: "زيارات اليوم في الميدان", value: steps.filter((item) => item.step === "today").length, href: "/admin/terrain" },
+          { label: "زيارات فاتت: سجّل النتيجة", value: steps.filter((item) => item.step === "report").length, href: "/admin/terrain" },
+          { label: "ناسك في الميدان: كلّمهم وحدّد موعد", value: steps.filter((item) => item.step === "call").length, href: "/admin/terrain" },
+        ]
+      : []),
+    ...(fieldCandidates
+      ? [{ label: "يحبّو يزورو الأرض ومازالو في حتى ليستا", value: fieldCandidates.candidates.length, href: "/admin/terrain/assign", note: "وزّعهم على الكوميرسيال." }]
+      : []),
+    ...(canFollowUp ? [{ label: "مكالمات حان وقتها", value: dueByPerson.size, href: "/admin/desk/calls" }] : []),
+    ...(canSeeVisits ? [{ label: "زيارات تستنّى التأكيد", value: toConfirm, href: "/admin/visits" }] : []),
+    ...(holds ? [{ label: "حجوزات تستنّى العربون", value: holds.counts.awaiting, href: "/admin/reservations?filter=awaiting" }] : []),
+    ...tiles.map((tile) => ({ label: tile.label, value: tile.value, href: tile.href, note: tile.note })),
+    ...(canSeeCrm ? [{ label: "مطالب على عروض بلا حجز", value: openDemands.length, href: "/admin/leads" }] : []),
+    ...(lateInstallments ? [{ label: "أقساط فاتت", value: lateInstallments.counts.overdue, href: "/admin/installments" }] : []),
+    ...(farm
+      ? [
+          { label: "خدمة في الضيعة تستنّى المراقبة", value: farm.tasks.filter((task) => task.status === "reported").length, href: "/admin/terrain/tasks" },
+          { label: "خدمة لازم تتعاود", value: farm.tasks.filter((task) => task.status === "redo").length, href: "/admin/terrain/tasks" },
+        ]
+      : []),
+    ...(stories
+      ? [
+          {
+            label: "قصص فيها فيديو تستنّى المونتاج",
+            value: stories.stories.filter((item) => item.videos > 0 && (item.status === "collecting" || item.status === "editing")).length,
+            href: "/admin/success?filter=video",
+          },
+        ]
+      : []),
+  ];
+  const todayActive = todayCards.filter((card) => card.value > 0);
+  const hour = Number(new Intl.DateTimeFormat("en-GB", { hour: "numeric", hourCycle: "h23", timeZone: "Africa/Tunis" }).format(new Date()));
+  const greeting = hour < 12 ? "صباح الخير" : "مساء الخير";
+
   return (
     <div className="space-y-8">
       {params.denied ? (
@@ -383,49 +424,26 @@ export default async function DashboardPage({ searchParams }: PageProps<"/admin"
         </p>
       ) : null}
 
-      <SectionHeader
-        level={1}
-        title="لوحة القيادة"
-        description={`مرحباً ${session.fullName || ""}. هذي الحاجات اللي تستنّى فيك اليوم.${
-          ownFilesOnly ? " الأرقام تخص الملفات المسندة إليك." : ""
-        }`}
-        actions={
-          canSeeCrm ? (
-            <Link href="/admin/analytics" className="btn btn-secondary btn-sm">
-              التحليلات وخريطة الطلب
-            </Link>
-          ) : null
-        }
-      />
+      <header className="space-y-1">
+        <h1 className="font-display text-3xl font-bold text-forest">
+          {greeting}، {firstName(session.fullName)}
+        </h1>
+        <p className="text-muted">
+          {todayActive.length > 0 ? "هاذي الحاجات اللي تستنّى فيك اليوم." : "ما فمّا حتى حاجة تستنّى فيك توّا. نهارك زين."}
+          {ownFilesOnly ? " الأرقام تخص الملفات المسندة إليك." : ""}
+        </p>
+      </header>
 
-      {/* THE DOOR, before the queues. Twenty sections used to live in a narrow dark column on the left — or
-          behind an icon on a phone — with a switcher above them deciding which third of them a reader was
-          even shown. They are all on the screen now, in the middle, as squares. What waits on you is still
-          underneath; this only makes getting anywhere one look instead of two. */}
+      {todayActive.length > 0 ? <TodayCards cards={todayActive} /> : null}
+
+      {/* The doors, the same ones as the sidebar, as cards with their pages inside. */}
       <HomeTiles groups={rowGroups} waiting={waiting} />
 
-      {tiles.length > 0 ? (
-        <section aria-labelledby="attention" className="space-y-3">
-          <h2 id="attention" className="text-lg font-semibold">
-            يحتاج تدخّل
-          </h2>
-          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-            {tiles.map((tile) => (
-              <StatTile
-                key={tile.label}
-                size="sm"
-                label={tile.label}
-                value={tile.value}
-                note={tile.note}
-                href={tile.href}
-                emphasis={tile.value > 0}
-                quiet={tile.value === 0}
-              />
-            ))}
-          </div>
-        </section>
-      ) : null}
-
+      {/* Everything the old dashboard listed is still here, folded: the lists and figures are for when you
+          want the detail, and «اليوم» above already says what in them is waiting on you. */}
+      <details className="rounded-2xl border border-line bg-surface">
+        <summary className="cursor-pointer px-5 py-4 font-semibold text-forest">كل القوائم والأرقام</summary>
+        <div className="space-y-8 border-t border-line px-5 py-6">
       {/* §28 and §24. Drawn only when the database answered: a failed read, an unapplied draft or a reader
           who is not an admin all produce null, and null draws nothing at all. That is the same rule the
           tiles above follow and it exists because «0 زيتونة محجوزة» reads as a statement about the business
@@ -609,8 +627,40 @@ export default async function DashboardPage({ searchParams }: PageProps<"/admin"
       ) : null}
 
       {canSeeCrm ? <Numbers stats={(overall?.data ?? null) as DemandStats | null} offerDemands={offerDemands?.count ?? 0} /> : null}
+        </div>
+      </details>
     </div>
   );
+}
+
+type TodayCard = { label: string; value: number; href: string; note?: string };
+
+/** «اليوم»: one card per thing waiting on this reader, the first one lit. Each opens the exact list. */
+function TodayCards({ cards }: { cards: TodayCard[] }) {
+  return (
+    <ul className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+      {cards.map((card, index) => (
+        <li key={card.label}>
+          <Link
+            href={card.href}
+            className={`flex h-full items-center gap-4 rounded-2xl border p-4 transition-colors hover:border-forest ${
+              index === 0 ? "border-gold/60 bg-gold-soft" : "border-line bg-surface"
+            }`}
+          >
+            <span className="min-w-12 text-center font-display text-4xl font-bold tabular-nums text-forest">{formatCount(card.value)}</span>
+            <span className="min-w-0">
+              <span className="block font-semibold leading-6 text-ink">{card.label}</span>
+              {card.note ? <span className="block text-xs leading-5 text-muted">{card.note}</span> : null}
+            </span>
+          </Link>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+function firstName(name: string): string {
+  return name.trim().split(/\s+/)[0] || name;
 }
 
 /** One queue: what it is, how many are in it, and the first few rows of it. */

@@ -7,7 +7,7 @@ import { AdminBreadcrumbs } from "@/components/admin/admin-breadcrumbs";
 import { MenuIcon } from "@/components/admin/nav-icons";
 import { ADMIN_LABELS } from "@/components/admin/nav-model";
 import { WorkspaceNav, type WorkspacePanel } from "@/components/admin/workspace-switcher";
-import { WORKSPACE_COOKIE } from "@/components/admin/workspaces";
+import { WORKSPACE_COOKIE, WORKSPACES } from "@/components/admin/workspaces";
 import { Wordmark } from "@/components/brand/wordmark";
 import { requireStaff, ROLE_LABELS, type StaffSession } from "@/lib/auth";
 import { getPublicConfig, type PublicConfig } from "@/lib/config";
@@ -16,7 +16,6 @@ import { signOut } from "../login/actions";
 
 import { AdminNav } from "./admin-nav";
 import { workspaceRows } from "./panel-rows";
-import { chooseWorkspace } from "./workspace-actions";
 
 export const metadata: Metadata = {
   title: { default: "Back Office", template: "%s · Back Office AgriZed" },
@@ -31,9 +30,12 @@ function panelsFor(session: StaffSession, config: PublicConfig): WorkspacePanel[
   return workspaceRows(session, config).map((group) => ({
     key: group.key as WorkspacePanel["key"],
     label: group.label,
+    icon: group.icon,
+    // The door's own landing when this reader may open it, else the first of its rows they may.
+    href: group.items.find((item) => item.href === WORKSPACES.find((door) => door.key === group.key)?.landing)?.href ?? group.items[0]?.href ?? "/admin",
     hrefs: group.items.map((item) => item.href),
     nav: <AdminNav groups={[{ items: group.items }]} />,
-  }));
+  })).filter((panel) => panel.hrefs.length > 0);
 }
 
 export default async function PanelLayout({ children }: LayoutProps<"/admin">) {
@@ -42,8 +44,8 @@ export default async function PanelLayout({ children }: LayoutProps<"/admin">) {
   if (session.roles.every((role) => role === "worker" || role === "supervisor")) redirect("/admin/terrain/tasks");
   const config = await getPublicConfig();
   const panels = panelsFor(session, config);
-  // Read here, written only by chooseWorkspace: a rendering component cannot set a cookie, and this one must
-  // not want to — the layout draws the choice, it does not make it.
+  // The old workspace switcher's cookie: since 2026-11-19 the page you stand on decides the open door, and the
+  // cookie only breaks a tie for a path no door claims. Nothing writes it any more; it fades with the browser.
   const workspaceCookie = (await cookies()).get(WORKSPACE_COOKIE)?.value ?? null;
   const roles = session.roles.map((role) => ROLE_LABELS[role]).join("، ");
 
@@ -57,19 +59,16 @@ export default async function PanelLayout({ children }: LayoutProps<"/admin">) {
        in a language the reader has to work at, so translation is refused here. It is NOT refused on the
        public site: a visitor who wants the marketing pages in another language is making a fair choice, and
        this attribute is scoped to the panel so that choice survives. */
-    <div translate="no" className="min-h-dvh bg-paper lg:grid lg:grid-cols-[15rem_minmax(0,1fr)]">
-      {/* The sidebar, on the brand's own dark green rather than on a scale of transparent paper. */}
-      <aside className="sticky top-0 hidden h-dvh flex-col gap-5 overflow-y-auto bg-forest-700 px-3 py-5 lg:flex">
+    <div translate="no" className="min-h-dvh bg-paper lg:grid lg:grid-cols-[16rem_minmax(0,1fr)]">
+      {/* The sidebar, white since 2026-11-19 (owner: «فتح شوية الألوان»): the doors, the open one unfolded. */}
+      <aside className="sticky top-0 hidden h-dvh flex-col gap-5 overflow-y-auto border-e border-line bg-surface px-3 py-5 lg:flex">
         <div className="flex items-center gap-2.5 px-2">
-          <span className="rounded-lg bg-paper px-2 py-0.5">
-            <Wordmark className="text-xl" />
-          </span>
-          <span className="text-[0.6875rem] font-semibold tracking-wide text-gold-bright" dir="ltr">
+          <Wordmark className="text-xl" />
+          <span className="text-[0.6875rem] font-semibold tracking-wide text-muted" dir="ltr">
             Back Office
           </span>
         </div>
-        {/* The switcher sits under the wordmark, then the active workspace's rows. One job on screen at a time. */}
-        <WorkspaceNav panels={panels} cookie={workspaceCookie} action={chooseWorkspace} className="flex-1" />
+        <WorkspaceNav panels={panels} cookie={workspaceCookie} className="flex-1" />
       </aside>
 
       <div className="flex min-w-0 flex-col">
@@ -87,9 +86,9 @@ export default async function PanelLayout({ children }: LayoutProps<"/admin">) {
               >
                 <MenuIcon />
               </summary>
-              <div className="absolute inset-x-0 top-full z-40 max-h-[70dvh] overflow-y-auto bg-forest-700 px-3 py-4 shadow-[var(--shadow-float)]">
-                {/* The same switcher, at the top of the phone menu. */}
-                <WorkspaceNav panels={panels} cookie={workspaceCookie} action={chooseWorkspace} />
+              <div className="absolute inset-x-0 top-full z-40 max-h-[70dvh] overflow-y-auto border-b border-line bg-surface px-3 py-4 shadow-[var(--shadow-float)]">
+                {/* The same doors, in the phone menu. */}
+                <WorkspaceNav panels={panels} cookie={workspaceCookie} />
               </div>
             </details>
 

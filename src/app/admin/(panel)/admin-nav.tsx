@@ -11,16 +11,16 @@ import type { NavGroup, NavItem } from "@/components/admin/nav-model";
  * branch that leads to it — because that is all a pathname can tell you. Who may see a row and whether
  * its module is switched on were settled on the server, in layout.tsx.
  *
- * Colour comes from the brand tokens (forest-700 ground, forest-600 raised, leaf-soft text, gold-bright
- * accent), not from an opacity scale invented on top of paper: `text-paper/60` was a colour nothing else
- * in the app could name.
+ * Colour comes from the brand tokens. Since 2026-11-19 the ground is white (the owner: «فتح شوية الألوان،
+ * حتى الأبيض مزيان»): rows in ink, the hovered one on paper, the current one solid forest with white text.
  */
 
-const ROW = "flex items-center gap-2.5 rounded-lg border-s-[3px] py-2 pe-2 ps-2 text-sm transition-colors";
+const ROW = "flex items-center gap-2.5 rounded-lg py-1.5 pe-2 ps-2 text-sm transition-colors";
 const CHILD_ROW = "flex items-center gap-2 rounded-md py-1.5 pe-2 ps-2 text-[0.8125rem] transition-colors";
-const BADGE = "pill ms-auto flex-none bg-forest text-gold-bright";
-/* Not on the current row: it already sits on forest-600, and hovering it would push it back down. */
-const HOVER = "hover:bg-forest hover:text-paper";
+// 2026-11-19: the sidebar is light now («فتح شوية الألوان»); the rows sit on white, the current one on leaf.
+const BADGE = "pill ms-auto flex-none bg-paper text-muted";
+/* Not on the current row: it is already solid forest, and hovering it would wash it out. */
+const HOVER = "hover:bg-paper hover:text-forest";
 
 export function AdminNav({ groups, className = "" }: { groups: NavGroup[]; className?: string }) {
   const pathname = usePathname() ?? "/admin";
@@ -45,7 +45,7 @@ export function AdminNav({ groups, className = "" }: { groups: NavGroup[]; class
     <nav aria-label="أقسام الـBack Office" className={`space-y-5 ${className}`.trim()}>
       {groups.map((group, index) => (
         <div key={group.title ?? index}>
-          {group.title ? <p className="mb-1.5 px-2 text-[0.6875rem] font-semibold tracking-wide text-gold-bright">{group.title}</p> : null}
+          {group.title ? <p className="mb-1.5 px-2 text-[0.6875rem] font-semibold tracking-wide text-muted">{group.title}</p> : null}
           <ul className="space-y-0.5">
             {group.items.map((item) => {
               const childCurrent = (item.children ?? []).some((child) => matches(child.href));
@@ -57,7 +57,7 @@ export function AdminNav({ groups, className = "" }: { groups: NavGroup[]; class
                   <Row item={item} current={current} onBranch={onBranch} />
 
                   {item.children?.length ? (
-                    <ul className="mt-0.5 ms-4 space-y-0.5 border-s border-forest-600 ps-2">
+                    <ul className="mt-0.5 ms-4 space-y-0.5 border-s border-line ps-2">
                       {item.children.map((child) => (
                         <li key={child.href}>
                           <ChildRow item={child} current={matches(child.href)} />
@@ -82,14 +82,14 @@ export function AdminNav({ groups, className = "" }: { groups: NavGroup[]; class
  */
 function Row({ item, current, onBranch }: { item: NavItem; current: boolean; onBranch: boolean }) {
   const tone = current
-    ? "border-gold-bright bg-forest-600 font-semibold text-paper"
+    ? "bg-forest font-semibold text-white"
     : onBranch
-      ? "border-transparent font-semibold text-paper"
-      : "border-transparent text-leaf-soft";
+      ? "font-semibold text-forest"
+      : "text-ink/75";
 
   return (
     <Link href={item.href} aria-current={current ? "page" : undefined} className={`${ROW} ${tone} ${current ? "" : HOVER}`.trim()}>
-      <NavIcon name={item.icon} className={item.off ? "size-5 text-leaf" : "size-5"} />
+      <NavIcon name={item.icon} className={item.off ? "size-4 opacity-50" : "size-4"} />
       <span className="min-w-0 truncate">{item.label}</span>
       {item.badge ? <span className={BADGE}>{item.badge}</span> : null}
     </Link>
@@ -97,11 +97,11 @@ function Row({ item, current, onBranch }: { item: NavItem; current: boolean; onB
 }
 
 function ChildRow({ item, current }: { item: NavItem; current: boolean }) {
-  const tone = current ? "bg-forest-600 font-semibold text-paper" : "text-leaf-soft";
+  const tone = current ? "bg-forest font-semibold text-white" : "text-ink/75";
 
   return (
     <Link href={item.href} aria-current={current ? "page" : undefined} className={`${CHILD_ROW} ${tone} ${current ? "" : HOVER}`.trim()}>
-      <NavIcon name={item.icon} className={item.off ? "size-4 text-leaf" : "size-4"} />
+      <NavIcon name={item.icon} className={item.off ? "size-4 opacity-50" : "size-4"} />
       <span className="min-w-0 truncate">{item.label}</span>
       {item.badge ? <span className={BADGE}>{item.badge}</span> : null}
     </Link>

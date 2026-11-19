@@ -29,105 +29,107 @@
 
 import type { StaffRole } from "@/lib/auth";
 
-import type { AdminHref } from "./nav-model";
+import type { AdminHref, AdminIconKey } from "./nav-model";
 
 /** The cookie the switcher writes. Read by the layout; set only by the Server Action, never by a page. */
 export const WORKSPACE_COOKIE = "agrized.workspace";
 
-export type WorkspaceKey = "sales" | "grove" | "finance" | "legal" | "admin";
+export type WorkspaceKey = "today" | "clients" | "field" | "grove" | "money" | "contracts" | "marketing" | "settings";
 
 type WorkspaceShape = {
   key: WorkspaceKey;
-  /** The job's own name, in Arabic. Staff copy, the precedent ./desk/desks.ts set. */
+  /** The door's own name, in Arabic. Staff copy, the precedent ./desk/desks.ts set. */
   label: string;
-  /** The roles whose job this is. Admin and super_admin hold every workspace. */
+  /** The door's glyph in the sidebar and on the home page. */
+  icon: AdminIconKey;
+  /** The roles whose job this is. Admin and super_admin hold every door. */
   holders: readonly StaffRole[];
-  /** The first screen of the job — its queue, not a dashboard. */
+  /** The first screen behind the door. A reader who may not open it lands on the door's first row they may. */
   landing: AdminHref;
-  /** Every row, in reading order. Each is gated by ITS OWN rule in layout.tsx and may not be drawn. */
+  /** Every row, in reading order. Each is gated by ITS OWN rule in panel-rows.ts and may not be drawn. */
   rows: readonly AdminHref[];
 };
 
-/**
- * The five workspaces, in the order the switcher draws them and the order `primaryWorkspace` prefers them.
- *
- * Some rows sit in two workspaces on purpose. الحجوزات والعربون is the commercial's hold AND the dinar Finance
- * is waiting for; العقود ووعد البيع is what Legal signs AND what Finance collects against. A row belongs to
- * every job that works it, and a reader who holds both sees it in both — the alternative is sending Finance
- * into المبيعات to find their own money.
- *
- * /admin/v2 is the other session's sale-flow UI («مسار البيع»). It is linked, not touched: the row is a door
- * to it and nothing under src/app/admin/v2 is this file's to describe.
+/*
+ * THE DOORS, 2026-11-19. The owner: «نحب التجربة متاع اليتيليزاسيون في الباك اوفيس أسمح وأحلى وأسهل وأوضح»,
+ * and «ابدا هكايا» on the proposal: eight doors named for what is behind them, in place of five workspaces one
+ * of which held eleven rows. «اليوم» is everybody's first screen — what waits on you, then the doors. The
+ * three screens about the same people (the calls desk, the demands, the owners' space) stand behind one door,
+ * «الحرفاء»; the tablet, the hand-out, the calendar and «زياراتي» behind «الميدان». No route moved and no gate
+ * changed: a row is still drawn only for a reader its own rule admits.
  */
 export const WORKSPACES = [
   {
-    key: "sales",
-    label: "المبيعات",
+    key: "today",
+    label: "اليوم",
+    icon: "dashboard",
+    holders: ["commercial", "agri_manager", "finance", "legal", "admin", "super_admin"],
+    landing: "/admin",
+    rows: ["/admin"],
+  },
+  {
+    key: "clients",
+    label: "الحرفاء",
+    icon: "users",
     holders: ["commercial", "admin", "super_admin"],
-    landing: "/admin/desk/calls",
-    rows: [
-      "/admin/desk/calls",
-      "/admin/terrain",
-      "/admin/desk/field",
-      "/admin/leads",
-      "/admin/persons",
-      "/admin/visits",
-      "/admin/reservations",
-      "/admin/analytics",
-      "/admin/success",
-      "/admin/stories",
-      "/admin/v2",
-    ],
+    landing: "/admin/leads",
+    rows: ["/admin/leads", "/admin/desk/calls", "/admin/reservations", "/admin/success", "/admin/persons", "/admin/v2"],
+  },
+  {
+    key: "field",
+    label: "الميدان",
+    icon: "visits",
+    holders: ["commercial", "admin", "super_admin"],
+    landing: "/admin/terrain",
+    rows: ["/admin/terrain", "/admin/terrain/assign", "/admin/visits", "/admin/desk/field"],
   },
   {
     key: "grove",
     label: "الضيعة",
-    // Finance holds الضيعة too, and not as a courtesy: Finance is the offers' WRITER (projects/page.tsx
-    // WRITE_ROLES), sits in AGRI_ROLES and in LAND_OFFER_ROLES, and prices the trees. A finance session
-    // with no sidebar path to /admin/projects would have lost the screen it builds offers on — the review
-    // of this file found exactly that regression against the old navFor.
+    icon: "offers",
+    // Finance is the offers' WRITER (projects/page.tsx WRITE_ROLES) and prices the trees: the door is theirs too.
     holders: ["agri_manager", "finance", "admin", "super_admin"],
     landing: "/admin/projects",
     rows: ["/admin/projects", "/admin/terrain/tasks", "/admin/agri", "/admin/harvest", "/admin/news", "/admin/land-offers"],
   },
   {
-    key: "finance",
-    label: "المالية",
+    key: "money",
+    label: "الفلوس",
+    icon: "payments",
     holders: ["finance", "admin", "super_admin"],
     landing: "/admin/installments",
-    rows: [
-      "/admin/installments",
-      "/admin/contracts",
-      "/admin/reservations",
-      "/admin/pricing",
-      "/admin/subscriptions",
-      "/admin/referrals",
-    ],
+    rows: ["/admin/installments", "/admin/reservations", "/admin/pricing", "/admin/subscriptions", "/admin/referrals"],
   },
   {
-    key: "legal",
-    label: "القانوني",
-    holders: ["legal", "admin", "super_admin"],
-    landing: "/admin/desk/legal",
-    rows: ["/admin/desk/legal", "/admin/contracts", "/admin/desk/legal/partners", "/admin/desk/legal/checklist"],
+    key: "contracts",
+    label: "العقود",
+    icon: "contracts",
+    holders: ["legal", "finance", "admin", "super_admin"],
+    landing: "/admin/contracts",
+    rows: ["/admin/contracts", "/admin/desk/legal", "/admin/desk/legal/partners", "/admin/desk/legal/checklist"],
   },
   {
-    key: "admin",
-    label: "الإدارة",
+    key: "marketing",
+    label: "التسويق",
+    icon: "notifications",
+    holders: ["commercial", "admin", "super_admin"],
+    landing: "/admin/marketing",
+    rows: ["/admin/marketing", "/admin/notices", "/admin/notifications", "/admin/stories", "/admin/analytics"],
+  },
+  {
+    key: "settings",
+    label: "الإعدادات",
+    icon: "settings",
     holders: ["admin", "super_admin"],
-    landing: "/admin",
+    landing: "/admin/settings",
     rows: [
-      "/admin",
       "/admin/settings",
+      "/admin/users",
       "/admin/settings/modules",
       "/admin/settings/lists",
       "/admin/settings/media",
       "/admin/settings/translations",
       "/admin/settings/languages",
-      "/admin/notifications",
-      "/admin/notices",
-      "/admin/marketing",
-      "/admin/users",
       "/admin/audit",
     ],
   },
@@ -157,7 +159,7 @@ export type HeldWorkspace = { key: WorkspaceKey; rows: readonly string[] };
  * not the phones.
  */
 export function primaryWorkspace(held: readonly HeldWorkspace[]): WorkspaceKey | null {
-  if (held.some((workspace) => workspace.key === "admin")) return "admin";
+  if (held.some((workspace) => workspace.key === "today")) return "today";
   return held[0]?.key ?? null;
 }
 
@@ -197,6 +199,10 @@ export function resolveWorkspace(
   held: readonly HeldWorkspace[],
   { cookie, pathname }: { cookie: string | null; pathname: string },
 ): WorkspaceKey | null {
+  // 2026-11-19: a door is opened by its link, so the page you stand on decides first; the old switcher's
+  // cookie only breaks a tie for a path no door claims.
+  const byPath = workspaceForPath(held, pathname);
+  if (byPath) return byPath;
   if (cookie && isWorkspaceKey(cookie) && held.some((workspace) => workspace.key === cookie)) return cookie;
-  return workspaceForPath(held, pathname) ?? primaryWorkspace(held);
+  return primaryWorkspace(held);
 }
