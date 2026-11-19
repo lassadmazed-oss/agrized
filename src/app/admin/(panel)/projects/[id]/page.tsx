@@ -32,6 +32,7 @@ import { createClient } from "@/lib/supabase/server";
 import { offerStock } from "@/lib/backoffice/offers/stock";
 import { CardTab } from "./card-tab";
 import { PricingTab } from "./pricing-tab";
+import { SaleTerms } from "./sale-terms";
 import { CostsTab, type ProjectCost } from "./costs-tab";
 import { OfferIdentity, type AreaPerTree, type TreePrice } from "./identity";
 import { offerQuote, type OfferQuote } from "./offer-quote";
@@ -389,6 +390,8 @@ export default async function OfferPage({ params, searchParams }: PageProps<"/ad
             canWrite={canWrite}
             treePricingReady={newPricing}
           />
+          {/* 0180: the عربون, how long it holds, and the down payment a contract asks. */}
+          <SaleTerms projectId={id} />
           <PricingTab projectId={id} />
         </div>
       ) : null}

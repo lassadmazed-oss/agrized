@@ -3582,6 +3582,7 @@ export type Database = {
           created_at: string
           delegation_id: number | null
           description_ar: string | null
+          down_payment_percent: number | null
           document_option_ids: string[]
           governorate_id: number
           harvest_outcome_default_id: string | null
@@ -3629,6 +3630,7 @@ export type Database = {
           created_at?: string
           delegation_id?: number | null
           description_ar?: string | null
+          down_payment_percent?: number | null
           document_option_ids?: string[]
           governorate_id: number
           harvest_outcome_default_id?: string | null
@@ -3676,6 +3678,7 @@ export type Database = {
           created_at?: string
           delegation_id?: number | null
           description_ar?: string | null
+          down_payment_percent?: number | null
           document_option_ids?: string[]
           governorate_id?: number
           harvest_outcome_default_id?: string | null
@@ -5656,6 +5659,7 @@ export type Database = {
           project_id: string
         }[]
       }
+      staff_offer_sale_terms: { Args: { p_project: string }; Returns: Json }
       staff_offer_services: { Args: { p_project: string }; Returns: Json }
       staff_offer_stock: { Args: { p_project: string }; Returns: Json }
       staff_offer_tree_plan: { Args: { p?: Json }; Returns: Json }
@@ -5827,6 +5831,10 @@ export type Database = {
           p_project: string
           p_reason: string
         }
+        Returns: Json
+      }
+      staff_save_offer_sale_terms: {
+        Args: { p: Json; p_project: string }
         Returns: Json
       }
       staff_save_offer_service: {

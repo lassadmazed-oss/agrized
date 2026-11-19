@@ -127,6 +127,9 @@ begin
   -- The stage-3 rules the spec refuses to fix. Set HERE, never read from a literal in the code under test.
   update public.settings set value = to_jsonb(true)   where key = 'contracts.require_deposit_paid';
   update public.settings set value = to_jsonb(false)  where key = 'contracts.deposit_counts_toward_down_payment';
+  -- 0180 makes the client the owner by himself once the down payment is paid; this file measures the
+  -- hand-pressed act of v2 §38, so the rule is off here (124_owner_on_down_payment.sql measures it on).
+  update public.settings set value = to_jsonb(false)  where key = 'contracts.owner_on_down_payment';
   update public.settings set value = to_jsonb('manual'::text) where key = 'installments.first_due_rule';
   update public.settings set value = to_jsonb(0)      where key = 'installments.first_due_offset_days';
   update public.settings set value = to_jsonb(0)      where key = 'installments.grace_days_after';

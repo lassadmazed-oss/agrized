@@ -118,6 +118,8 @@ begin
   update public.settings set value = to_jsonb(6)  where key = 'visits.max_people';
   update public.settings set value = to_jsonb(false) where key = 'contracts.deposit_counts_toward_down_payment';
   update public.settings set value = to_jsonb(true)  where key = 'contracts.require_deposit_paid';
+  -- 0180's automatic ownership is off: this file walks the journey with the hand-pressed act (see test 124).
+  update public.settings set value = to_jsonb(false) where key = 'contracts.owner_on_down_payment';
   -- bb_70's own two numbers, measured and not assumed.
   update public.settings set value = to_jsonb(300) where key = 'journey.timeline_max';
   update public.settings set value = to_jsonb(0)   where key = 'journey.callback_horizon_days';

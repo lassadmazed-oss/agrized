@@ -246,8 +246,8 @@ function OwnedForm({ contract, reasonMin, onDone }: { contract: Contract; reason
     <form onSubmit={submit} className="panel p-cozy space-y-3">
       <p className="section-title">سجّل أنّ الحريف ولّى مالك</p>
       <p className="text-sm leading-6 text-muted">
-        هذا موش الإمضاء وموش آخر قسط: هذا نهار كمّلت الشروط القانونية. كي يتسجّل، يتفتح للحريف فضاء «زيتونتي»
-        على {formatCount(contract.treesCount)} زيتونة.
+        عادةً الحريف يولّي مالك وحدو كي التسبقة تتخلّص كاملة وجدول الأقساط يتعمل. هذا الزرّ للحالات اللي ما تمشيش
+        بالقاعدة. كي يتسجّل، يتفتح للحريف فضاء «زيتونتي» على {formatCount(contract.treesCount)} زيتونة.
       </p>
 
       <label className="block">
