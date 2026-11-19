@@ -19,6 +19,8 @@ begin
   foreach v_locale in array array['fr', 'de', 'it', 'en'] loop
     assert (select count(*) from public.translations t, jsonb_array_elements(t.value) e
              where t.entity = 'setting' and t.entity_key = 'legal.privacy_sections' and t.locale = v_locale
-               and e->>'body' like '%Facebook%') = 1, 'the ' || v_locale || ' privacy page says it';
+               and e->>'body' like '%Facebook%'
+               -- 0176's section on success stories names Facebook too; this one is «other sites».
+               and e->>'title' ~* '(autres sites|anderer Websites|altri siti|other sites)') = 1, 'the ' || v_locale || ' privacy page says it';
   end loop;
 end $$;

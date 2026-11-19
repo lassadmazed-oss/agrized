@@ -96,6 +96,8 @@ export const ADMIN_LABELS = {
   // 0175: the field commercial's tablet — his list, the appointment, the visit, the result and the receipt.
   "/admin/terrain": "الميدان",
   "/admin/terrain/assign": "وزّع الزيارات",
+  // 0176: every client's story with us, his photos and videos, his permission, the montage.
+  "/admin/success": "قصص النجاح",
   "/admin/desk/legal": "القانوني وإتمام البيع",
   "/admin/desk/legal/partners": "دليل الشركاء",
   "/admin/desk/legal/checklist": "بنود القائمة القانونية",
@@ -114,6 +116,8 @@ export const ADMIN_LABELS = {
   // screens — so it is named for the whole of what is behind it, which is the one name the rule cannot supply.
   "/admin/v2": "مسار البيع",
   "/admin/projects": "العروض",
+  // 0178: tasks, workers' photo reports, the supervisor's approval.
+  "/admin/terrain/tasks": "الخدمة في الضيعة",
   "/admin/agri": "العمليات الفلاحية",
   "/admin/harvest": "الصابة والجني",
   // 0167: the posts every holder of an offer reads in «زيتونتي».

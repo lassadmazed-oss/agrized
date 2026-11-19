@@ -81,6 +81,8 @@ const ROW_RULES: Record<WorkspaceRow, RowRule> = {
   "/admin/desk/field": { icon: "visits", roles: CRM_READ_ROLES },
   // 0175: the tablet — app.can_edit_person decides every act on it (admin, or the commercial the file is his).
   "/admin/terrain": { icon: "visits", roles: CALL_DESK_ROLES },
+  // 0176: reading follows app.can_see_person, writing app.can_edit_person, publishing app.is_admin.
+  "/admin/success": { icon: "media", roles: CRM_READ_ROLES },
   "/admin/leads": { icon: "requests", roles: CRM_READ_ROLES },
   "/admin/persons": { icon: "users", roles: CRM_READ_ROLES, flag: "zitounti" },
   "/admin/visits": { icon: "visits", roles: CRM_READ_ROLES, flag: "visits" },
@@ -91,6 +93,8 @@ const ROW_RULES: Record<WorkspaceRow, RowRule> = {
   // The other session's sale flow: its own layout gates it on requireStaff() alone, so the row does too.
   "/admin/v2": { icon: "offers" },
   "/admin/projects": { icon: "offers", flag: "projects" },
+  // 0178: the grove's tasks — planned here, worked and checked on the phone (app.can_manage_operations).
+  "/admin/terrain/tasks": { icon: "services", roles: AGRI_ROLES },
   "/admin/agri": { icon: "services", roles: AGRI_ROLES, flag: "agri_backoffice" },
   // The bars are the season's kilos. nav-icons.tsx has no glyph for a harvest, and that file is not this
   // change's to grow.

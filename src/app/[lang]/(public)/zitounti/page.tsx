@@ -316,6 +316,10 @@ export default async function ZitountiPage({
             {t(config, "ui.referral.entry")}
           </Link>
         ) : null}
+        {/* 0176: his story with us — the road so far, and his photos and videos for a success story. */}
+        <Link href="/zitounti/story" className="btn btn-secondary w-full border-line">
+          {t(config, "ui.story.entry")}
+        </Link>
         {/* 0167: the grove's news, and a tree for someone else. */}
         <Link href="/zitounti/news" className="btn btn-secondary w-full border-line">
           {t(config, "zitounti.news_title")}

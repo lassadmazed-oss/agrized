@@ -10,7 +10,7 @@ import { ADMIN_ROLES, hasRole, requireStaff, type StaffRole } from "@/lib/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 
-const STAFF_ROLES: StaffRole[] = ["commercial", "agri_manager", "finance", "legal", "admin", "super_admin"];
+const STAFF_ROLES: StaffRole[] = ["commercial", "agri_manager", "worker", "supervisor", "finance", "legal", "admin", "super_admin"];
 
 function isStaffRole(value: string): value is StaffRole {
   return (STAFF_ROLES as string[]).includes(value);

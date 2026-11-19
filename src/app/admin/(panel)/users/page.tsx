@@ -10,7 +10,7 @@ import { createStaffUser, resetUserPassword, setUserActive, updateUserRoles } fr
 
 export const metadata: Metadata = { title: "المستخدمون" };
 
-const STAFF_ROLES: StaffRole[] = ["commercial", "agri_manager", "finance", "legal", "admin", "super_admin"];
+const STAFF_ROLES: StaffRole[] = ["commercial", "agri_manager", "worker", "supervisor", "finance", "legal", "admin", "super_admin"];
 
 export default async function UsersPage() {
   const session = await requireStaff(ADMIN_ROLES);

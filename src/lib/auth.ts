@@ -17,6 +17,9 @@ export const ROLE_LABELS: Record<AppRole, string> = {
   legal: "Legal",
   admin: "Admin",
   super_admin: "Super Admin",
+  // 0177: the grove's people — they see their tasks and nothing of the CRM.
+  worker: "عامل فلاحي",
+  supervisor: "مراقب",
 };
 
 export const ADMIN_ROLES = ["admin", "super_admin"] as const satisfies readonly StaffRole[];

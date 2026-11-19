@@ -3,6 +3,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import type { ReactNode } from "react";
 
+import { StoryUploader } from "@/components/admin/story-uploader";
 import { requireStaff } from "@/lib/auth";
 import { formatCount, formatDate, formatDateTime, formatMillimes } from "@/lib/format";
 
@@ -134,6 +135,20 @@ export default async function TerrainPersonPage({ params }: PageProps<"/admin/te
           <p className="text-sm text-muted">بعد الزيارة، تختار هوني: {Object.values(file.labels).join(" · ")}.</p>
         )}
       </Step>
+
+      {/* 0176: the visit is the best moment for a success story — the land, the family, his own words. */}
+      {file.can_edit ? (
+        <section className="card space-y-3 p-5">
+          <h2 className="text-lg font-bold text-forest">📸 صوّر للقصة</h2>
+          <p className="text-sm leading-6 text-muted">
+            تصاور ولا فيديو قصير من الزيارة: الأرض، الحريف وعايلتو، ولا هو يحكي بكلامو. ما يتنشرو كان كي يقبل هو.
+          </p>
+          <StoryUploader personId={file.person.id} role="raw" label="📷 صوّر ولا اختار" />
+          <Link href={`/admin/success/${file.person.id}`} className="inline-block text-sm font-semibold text-forest underline underline-offset-4">
+            قصّتو كاملة
+          </Link>
+        </section>
+      ) : null}
 
       {file.reservation ? (
         <Step n={5} title="الحجز والوصل" state="done">

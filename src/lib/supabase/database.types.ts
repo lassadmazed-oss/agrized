@@ -6073,6 +6073,8 @@ export type Database = {
         | "legal"
         | "admin"
         | "super_admin"
+        | "worker"
+        | "supervisor"
       commission_status:
         | "pending"
         | "validated"
@@ -6285,6 +6287,8 @@ export const Constants = {
         "legal",
         "admin",
         "super_admin",
+        "worker",
+        "supervisor",
       ],
       commission_status: [
         "pending",

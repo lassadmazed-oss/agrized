@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { cookies } from "next/headers";
 import Link from "next/link";
+import { redirect } from "next/navigation";
 
 import { AdminBreadcrumbs } from "@/components/admin/admin-breadcrumbs";
 import { MenuIcon } from "@/components/admin/nav-icons";
@@ -37,6 +38,8 @@ function panelsFor(session: StaffSession, config: PublicConfig): WorkspacePanel[
 
 export default async function PanelLayout({ children }: LayoutProps<"/admin">) {
   const session = await requireStaff();
+  // 0177: a worker or a supervisor has his own phone screen and nothing in the Back Office.
+  if (session.roles.every((role) => role === "worker" || role === "supervisor")) redirect("/admin/terrain/tasks");
   const config = await getPublicConfig();
   const panels = panelsFor(session, config);
   // Read here, written only by chooseWorkspace: a rendering component cannot set a cookie, and this one must
