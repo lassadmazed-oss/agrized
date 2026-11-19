@@ -79,6 +79,8 @@ const ROW_RULES: Record<WorkspaceRow, RowRule> = {
   "/admin": { icon: "dashboard" },
   "/admin/desk/calls": { icon: "requests", roles: CALL_DESK_ROLES },
   "/admin/desk/field": { icon: "visits", roles: CRM_READ_ROLES },
+  // 0175: the tablet — app.can_edit_person decides every act on it (admin, or the commercial the file is his).
+  "/admin/terrain": { icon: "visits", roles: CALL_DESK_ROLES },
   "/admin/leads": { icon: "requests", roles: CRM_READ_ROLES },
   "/admin/persons": { icon: "users", roles: CRM_READ_ROLES, flag: "zitounti" },
   "/admin/visits": { icon: "visits", roles: CRM_READ_ROLES, flag: "visits" },

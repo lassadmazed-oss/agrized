@@ -16,10 +16,12 @@ begin
   assert has_function_privilege('service_role', 'public.site_notices_for(uuid, text)', 'execute'), 'the server can';
   assert not has_function_privilege('anon', 'public.staff_save_site_notice(jsonb)', 'execute'), 'a visitor writes nothing';
 
-  -- ── the drafts the migration left: four follow-up steps, nothing published ─────────────────────────────────
-  assert (select count(*) from public.site_notices where kind = 'journey' and status = 'draft') >= 4, 'the follow-up is drafted';
-  assert not exists (select 1 from public.site_notices where kind = 'journey' and status = 'published'
-                       and created_by is null and published_by is null), 'nothing was published for the owner';
+  -- ── the drafts the migration left: four follow-up steps, nothing published by the migration itself ───────
+  -- (the owner published them on 2026-11-18, so they are counted whatever their status now)
+  assert (select count(*) from public.site_notices where kind = 'journey' and status in ('draft', 'published')) >= 4,
+    'the follow-up is drafted';
+  assert not exists (select 1 from public.site_notices where status = 'published' and published_at is null),
+    'whatever is published says when';
   assert not exists (select 1 from public.site_notices
                       where kind = 'journey' and (body ~ '(ربح|مضمون|مردود)' or title ~ '(ربح|مضمون|مردود)')), 'no promise of gain';
 

@@ -62,6 +62,14 @@ export const DESKS: readonly Desk[] = [
     roles: CALL_DESK_ROLES,
   },
   {
+    // 0175, owner 2026-11-18: the tablet the field commercial carries — the people the administrator sent
+    // him, call → appointment → visit → result, and the receipt for a deposit taken on the land.
+    href: "/admin/terrain",
+    label: "الميدان (التابلات)",
+    description: "الناس اللي تورّيهم الأرض: كلّمهم، حدّد الموعد، ورجّع النتيجة والعربون بوصل.",
+    roles: CALL_DESK_ROLES,
+  },
+  {
     // §7 — INTERFACE 2, «زياراتي». Not this run's screen: it is registered here, with the gate ITS OWN page
     // applies (CRM_READ_ROLES), so the door leads to every desk that exists rather than to the one that
     // happened to be written first. Its own route stays the authority on who may open it — this row only

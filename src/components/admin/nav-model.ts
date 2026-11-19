@@ -93,6 +93,9 @@ export const ADMIN_LABELS = {
   "/admin/desk": "مكتبي",
   "/admin/desk/calls": "طلبات الحرفاء",
   "/admin/desk/field": "زياراتي",
+  // 0175: the field commercial's tablet — his list, the appointment, the visit, the result and the receipt.
+  "/admin/terrain": "الميدان",
+  "/admin/terrain/assign": "وزّع الزيارات",
   "/admin/desk/legal": "القانوني وإتمام البيع",
   "/admin/desk/legal/partners": "دليل الشركاء",
   "/admin/desk/legal/checklist": "بنود القائمة القانونية",

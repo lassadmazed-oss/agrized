@@ -67,6 +67,7 @@ export const WORKSPACES = [
     landing: "/admin/desk/calls",
     rows: [
       "/admin/desk/calls",
+      "/admin/terrain",
       "/admin/desk/field",
       "/admin/leads",
       "/admin/persons",
