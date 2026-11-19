@@ -43,6 +43,7 @@ export default async function ReceiptPage({ params }: PageProps<"/admin/terrain/
 
   const text = [
     `AgriZed · ${receipt.title}`,
+    receipt.company,
     `رقم الوصل: ${receipt.reference_no}`,
     `${receipt.person?.full_name ?? ""}، استلمنا منك ${amount} عربون.`,
     reservation ? `مقابل حجز ${trees} في ${receipt.offer?.name ?? reservation.offer_name}${codes ? ` (${codes})` : ""}.` : "",
@@ -77,7 +78,9 @@ export default async function ReceiptPage({ params }: PageProps<"/admin/terrain/
         <header className="flex items-start justify-between gap-4 border-b border-line pb-4">
           <div>
             <p className="font-display text-2xl font-bold text-forest">🫒 AgriZed</p>
-            <h1 className="text-lg font-bold text-ink">{receipt.title}</h1>
+            {receipt.company ? <p className="text-xs leading-5 text-ink/80">{receipt.company}</p> : null}
+            {receipt.address ? <p className="text-xs leading-5 text-muted">{receipt.address}</p> : null}
+            <h1 className="mt-2 text-lg font-bold text-ink">{receipt.title}</h1>
           </div>
           <div className="text-end text-sm leading-6 text-muted">
             <p dir="ltr" className="font-semibold text-ink">

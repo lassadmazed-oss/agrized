@@ -151,6 +151,9 @@ export type FieldReceipt = {
   title: string;
   note: string;
   contact_phone: string;
+  /** 0179: the company as the national register names it, and its seat. */
+  company: string;
+  address: string;
 };
 
 export type Candidate = {
