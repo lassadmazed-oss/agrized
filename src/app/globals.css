@@ -1299,3 +1299,70 @@ select {
     box-shadow: none !important;
   }
 }
+
+/*
+ * «Console» — the Back Office in Mazed's monochrome (owner, 2026-11-19: «الانترفاس … عجبني برشا الواحد نتاع
+ * مازيت … الادمين نتاع مازيت تشوفه تطبع عليه»). Set on the panel's root, it re-points the brand tokens inside the
+ * Back Office only: ink on white, hairline zinc borders, one filled control per screen, and a single warm tone left
+ * for what is waiting. The public site keeps its green, gold and cream.
+ */
+.console {
+  --color-paper: #fafafa;
+  --color-surface: #ffffff;
+  --color-ink: #18181b;
+  --color-muted: #71717a;
+  --color-line: #e4e4e7;
+  --color-line-strong: #d4d4d8;
+  --color-forest: #27272a;
+  --color-forest-700: #09090b;
+  --color-forest-600: #18181b;
+  --color-leaf: #52525b;
+  --color-leaf-soft: #f4f4f5;
+  --color-gold: #b45309;
+  --color-gold-bright: #d97706;
+  --color-gold-soft: #fef3c7;
+  background: #ffffff;
+}
+/* Titles in the sans, heavy and tight, as the console sets them — not the site's display serif. */
+.console .section-title {
+  font-size: 1.75rem;
+  line-height: 1.15;
+}
+.console .font-display,
+.console .section-title,
+.console .stat-figure {
+  font-family: var(--font-plex-arabic), "Segoe UI", Tahoma, sans-serif;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+}
+/* Compact controls: the console is read at a desk. Fields keep 16px text so a phone does not zoom. */
+.console .btn {
+  min-height: 2.25rem;
+  padding-inline: 0.875rem;
+  font-size: 0.875rem;
+  border-radius: 0.375rem;
+}
+.console .btn-sm {
+  min-height: 2rem;
+  padding-inline: 0.75rem;
+  font-size: 0.8125rem;
+}
+.console .btn-secondary {
+  border-width: 1px;
+  border-color: var(--color-line);
+}
+.console .btn-secondary:hover {
+  border-color: var(--color-line-strong);
+}
+.console .card {
+  border-radius: 0.75rem;
+  box-shadow: none;
+}
+.console .field {
+  border-width: 1px;
+  border-radius: 0.375rem;
+  min-height: 2.5rem;
+}
+.console .chip {
+  border-radius: 0.375rem;
+}

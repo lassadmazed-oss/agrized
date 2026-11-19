@@ -3,10 +3,9 @@ import { cookies } from "next/headers";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 
-import { AdminBreadcrumbs } from "@/components/admin/admin-breadcrumbs";
 import { MenuIcon } from "@/components/admin/nav-icons";
 import { ADMIN_LABELS } from "@/components/admin/nav-model";
-import { WorkspaceNav, type WorkspacePanel } from "@/components/admin/workspace-switcher";
+import { DoorTabs, WorkspaceNav, type WorkspacePanel } from "@/components/admin/workspace-switcher";
 import { WORKSPACE_COOKIE, WORKSPACES } from "@/components/admin/workspaces";
 import { Wordmark } from "@/components/brand/wordmark";
 import { requireStaff, ROLE_LABELS, type StaffSession } from "@/lib/auth";
@@ -14,7 +13,6 @@ import { getPublicConfig, type PublicConfig } from "@/lib/config";
 
 import { signOut } from "../login/actions";
 
-import { AdminNav } from "./admin-nav";
 import { workspaceRows } from "./panel-rows";
 
 export const metadata: Metadata = {
@@ -34,7 +32,7 @@ function panelsFor(session: StaffSession, config: PublicConfig): WorkspacePanel[
     // The door's own landing when this reader may open it, else the first of its rows they may.
     href: group.items.find((item) => item.href === WORKSPACES.find((door) => door.key === group.key)?.landing)?.href ?? group.items[0]?.href ?? "/admin",
     hrefs: group.items.map((item) => item.href),
-    nav: <AdminNav groups={[{ items: group.items }]} />,
+    items: group.items,
   })).filter((panel) => panel.hrefs.length > 0);
 }
 
@@ -59,71 +57,67 @@ export default async function PanelLayout({ children }: LayoutProps<"/admin">) {
        in a language the reader has to work at, so translation is refused here. It is NOT refused on the
        public site: a visitor who wants the marketing pages in another language is making a fair choice, and
        this attribute is scoped to the panel so that choice survives. */
-    <div translate="no" className="min-h-dvh bg-paper lg:grid lg:grid-cols-[16rem_minmax(0,1fr)]">
-      {/* The sidebar, white since 2026-11-19 (owner: «فتح شوية الألوان»): the doors, the open one unfolded. */}
-      <aside className="sticky top-0 hidden h-dvh flex-col gap-5 overflow-y-auto border-e border-line bg-surface px-3 py-5 lg:flex">
-        <div className="flex items-center gap-2.5 px-2">
-          <Wordmark className="text-xl" />
-          <span className="text-[0.6875rem] font-semibold tracking-wide text-muted" dir="ltr">
-            Back Office
-          </span>
-        </div>
-        <WorkspaceNav panels={panels} cookie={workspaceCookie} className="flex-1" />
+    <div translate="no" className="console min-h-dvh bg-surface lg:grid lg:grid-cols-[13rem_minmax(0,1fr)]">
+      {/* The rail, as on Mazed's console (owner 2026-11-19): the mark, the doors, and who you are at the foot. */}
+      <aside className="sticky top-0 hidden h-dvh flex-col border-e border-line bg-surface lg:flex">
+        <header className="flex h-16 shrink-0 items-center border-b border-line px-4">
+          <Link href="/admin" className="flex min-w-0 items-center gap-2.5">
+            <Wordmark className="text-xl" />
+            <span className="truncate text-[11px] font-bold tracking-wide text-ink">الإدارة</span>
+          </Link>
+        </header>
+        <WorkspaceNav panels={panels} cookie={workspaceCookie} className="min-h-0 flex-1 overflow-y-auto py-3" />
+        <RailFoot name={session.fullName || session.email || ""} roles={roles} />
       </aside>
 
       <div className="flex min-w-0 flex-col">
-        {/* The page header: where you are, and who you are signed in as. */}
-        <header className="sticky top-0 z-30 border-b border-line bg-surface">
-          <div className="relative flex items-center gap-3 px-4 py-2.5 sm:px-6 lg:px-8">
-            {/* A <details>, but not a disclosure: it is the mobile nav. The summary is an icon button, and
-                what opens is an absolutely-positioned panel over the page — a menu. `.disclosure` would give
-                it a 3rem row of words and a marker it must not have, and its padding would fight this
-                positioning, so the pattern deliberately stops at the door of this one. */}
-            <details className="flex-none lg:hidden">
-              <summary
-                aria-label="أقسام الـBack Office"
-                className="flex size-11 cursor-pointer list-none items-center justify-center rounded-lg border border-line-strong text-forest [&::-webkit-details-marker]:hidden"
-              >
-                <MenuIcon />
-              </summary>
-              <div className="absolute inset-x-0 top-full z-40 max-h-[70dvh] overflow-y-auto border-b border-line bg-surface px-3 py-4 shadow-[var(--shadow-float)]">
-                {/* The same doors, in the phone menu. */}
-                <WorkspaceNav panels={panels} cookie={workspaceCookie} />
-              </div>
-            </details>
-
-            <span className="hidden sm:block lg:hidden">
-              <Wordmark className="text-xl" />
-            </span>
-
-            <AdminBreadcrumbs className="hidden lg:block" />
-
-            {/* «كلمة السر» used to be a group of its own in the sidebar; it is who you are, so it lives on
-                the name. Visible at every width — it is the only way to reach it. */}
-            <div className="ms-auto flex min-w-0 items-center gap-2">
-              <Link
-                href="/admin/account"
-                className="min-w-0 rounded-lg px-2 py-1 text-end transition-colors hover:bg-paper"
-                title={ADMIN_LABELS["/admin/account"]}
-              >
-                <span className="block truncate text-sm font-semibold text-ink">{session.fullName || session.email}</span>
-                <span className="hidden truncate text-xs text-muted sm:block">{roles}</span>
-              </Link>
-              <form action={signOut} className="flex-none">
-                <button type="submit" className="btn btn-secondary btn-sm">
-                  خروج
-                </button>
-              </form>
+        {/* Below lg: a bar with the mark and a menu that opens the same rail over the page. */}
+        <header className="sticky top-0 z-30 flex h-14 items-center gap-3 border-b border-line bg-surface px-4 lg:hidden">
+          <details className="relative flex-none">
+            <summary
+              aria-label="أبواب الإدارة"
+              className="flex size-10 cursor-pointer list-none items-center justify-center rounded-md border border-line text-ink [&::-webkit-details-marker]:hidden"
+            >
+              <MenuIcon />
+            </summary>
+            <div className="fixed inset-x-0 top-14 z-40 max-h-[80dvh] overflow-y-auto border-b border-line bg-surface py-2 shadow-[var(--shadow-float)]">
+              <WorkspaceNav panels={panels} cookie={workspaceCookie} />
+              <RailFoot name={session.fullName || session.email || ""} roles={roles} />
             </div>
-          </div>
-
-          <div className="border-t border-line px-4 py-2 sm:px-6 lg:hidden">
-            <AdminBreadcrumbs />
-          </div>
+          </details>
+          <Link href="/admin" className="flex items-center gap-2">
+            <Wordmark className="text-lg" />
+            <span className="text-[11px] font-bold tracking-wide text-ink">الإدارة</span>
+          </Link>
         </header>
 
-        <main className="min-w-0 flex-1 px-4 py-6 sm:px-6 lg:px-8 lg:py-8">{children}</main>
+        {/* The open door's name and its pages as tabs, across the top of every page behind it. */}
+        <DoorTabs panels={panels} cookie={workspaceCookie} />
+
+        <main className="min-w-0 flex-1 px-5 py-6 lg:px-8 lg:py-7">{children}</main>
       </div>
     </div>
+  );
+}
+
+/** The foot of the rail: who is signed in (their password page), the public site, and leaving. */
+function RailFoot({ name, roles }: { name: string; roles: string }) {
+  return (
+    <footer className="shrink-0 border-t border-line py-2">
+      <Link href="/admin/account" title={ADMIN_LABELS["/admin/account"]} className="block px-4 py-[7px] transition-colors hover:bg-paper">
+        <span className="block truncate text-[13px] font-semibold text-ink">{name}</span>
+        <span className="block truncate text-[11px] text-muted">{roles}</span>
+      </Link>
+      <Link href="/" className="flex items-center gap-2 px-4 py-[7px] text-[12.5px] font-medium text-muted transition-colors hover:text-ink">
+        <span aria-hidden="true">↗</span>
+        الموقع
+      </Link>
+      <form action={signOut}>
+        <button type="submit" className="flex w-full items-center gap-2 px-4 py-[7px] text-start text-[12.5px] font-medium text-muted transition-colors hover:text-ink">
+          <span aria-hidden="true">⎋</span>
+          خروج
+        </button>
+      </form>
+    </footer>
   );
 }
