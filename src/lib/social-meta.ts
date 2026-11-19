@@ -22,13 +22,34 @@ export type SocialClaim = {
 
 export type MetaAnswer = { ok: true; id: string; permalink: string } | { ok: false; error: string };
 
+const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
+/**
+ * The token a Page posts with. A Page can only be posted to as itself, with ITS token; the person's own token
+ * posts as the person, and Meta refuses that with «(#200) publish_actions … deprecated» (owner, 2026-11-19:
+ * the token pasted in /admin/marketing was the person's). Asked once per post: when the token is the person's
+ * and they manage the Page, Meta hands back the Page's token; when it already is the Page's, the question
+ * fails or echoes it, and the token is used as it came.
+ */
+async function pageToken(pageId: string, token: string): Promise<string> {
+  try {
+    const response = await fetch(`${GRAPH}/${pageId}?${new URLSearchParams({ fields: "access_token", access_token: token })}`);
+    const json = (await response.json()) as { access_token?: string };
+    return response.ok && json.access_token ? json.access_token : token;
+  } catch {
+    return token;
+  }
+}
+
 /** What Meta answered, reduced to the two things worth writing down. */
 export async function publishToMeta(claim: SocialClaim): Promise<MetaAnswer> {
+  let token = claim.access_token;
   const body = (fields: Record<string, string>) =>
-    ({ method: "POST", body: new URLSearchParams({ ...fields, access_token: claim.access_token }) }) as RequestInit;
+    ({ method: "POST", body: new URLSearchParams({ ...fields, access_token: token }) }) as RequestInit;
 
   try {
     if (claim.network === "facebook") {
+      token = await pageToken(claim.page_id, claim.access_token);
       // A picture when there is one — a photo post is what gets seen — and a plain link post when there is
       // not. Both are one call; neither invents an image.
       const response = claim.image_url
@@ -53,6 +74,17 @@ export async function publishToMeta(claim: SocialClaim): Promise<MetaAnswer> {
       return { ok: false, error: containerJson.error?.message ?? `HTTP ${container.status}` };
     }
 
+    // Instagram fetches and prepares the picture after answering; publishing before it is ready is refused with
+    // «Media ID is not available» (seen 2026-11-19). Wait for FINISHED — a photo usually takes a second or two.
+    for (let attempt = 0; attempt < 8; attempt += 1) {
+      const state = await fetch(`${GRAPH}/${containerJson.id}?${new URLSearchParams({ fields: "status_code", access_token: token })}`)
+        .then((response) => response.json() as Promise<{ status_code?: string }>)
+        .catch(() => ({}) as { status_code?: string });
+      if (state.status_code === "FINISHED") break;
+      if (state.status_code === "ERROR" || state.status_code === "EXPIRED") return { ok: false, error: `instagram_media_${state.status_code.toLowerCase()}` };
+      await sleep(1500);
+    }
+
     const published = await fetch(`${GRAPH}/${claim.page_id}/media_publish`, body({ creation_id: containerJson.id }));
     const publishedJson = (await published.json()) as { id?: string; error?: { message?: string } };
     if (!published.ok || publishedJson.error || !publishedJson.id) {
@@ -61,7 +93,7 @@ export async function publishToMeta(claim: SocialClaim): Promise<MetaAnswer> {
 
     // The media id is not the address of the post; Instagram says what is.
     const media = await fetch(
-      `${GRAPH}/${publishedJson.id}?${new URLSearchParams({ fields: "permalink", access_token: claim.access_token })}`,
+      `${GRAPH}/${publishedJson.id}?${new URLSearchParams({ fields: "permalink", access_token: token })}`,
     )
       .then((response) => response.json() as Promise<{ permalink?: string }>)
       .catch(() => ({}) as { permalink?: string });
