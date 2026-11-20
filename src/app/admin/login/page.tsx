@@ -1,7 +1,10 @@
 import type { Metadata } from "next";
+import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 
+import { AdminLanguageSwitch } from "@/components/admin/admin-language-switch";
 import { LogoLockup } from "@/components/brand/logo";
+import { ADMIN_LANG_COOKIE, parseAdminLang } from "@/lib/admin-lang";
 
 import { safeNext } from "./safe-next";
 import { getStaffSession } from "@/lib/auth";
@@ -19,6 +22,7 @@ export default async function AdminLoginPage({ searchParams }: PageProps<"/admin
   }
 
   const { next } = await searchParams;
+  const lang = parseAdminLang((await cookies()).get(ADMIN_LANG_COOKIE)?.value);
 
   return (
     /* translate="no" for the same reason as the panel layout: this is Back Office, Arabic only, and a
@@ -33,6 +37,9 @@ export default async function AdminLoginPage({ searchParams }: PageProps<"/admin
         <div className="card mt-8 p-6">
           {/* Through the same guard the submit uses, so an address from outside never reaches the HTML. */}
           <LoginForm next={safeNext(next)} />
+        </div>
+        <div className="mt-4 text-center">
+          <AdminLanguageSwitch current={lang} className="text-sm font-medium text-muted underline-offset-4 hover:text-ink hover:underline" />
         </div>
       </div>
     </div>

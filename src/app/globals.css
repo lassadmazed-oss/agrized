@@ -1366,3 +1366,15 @@ select {
 .console .chip {
   border-radius: 0.375rem;
 }
+
+/* The French Back Office (src/components/admin/admin-translator.tsx): the page is hidden until its first reading
+   in French is done, so the Arabic never flashes. If the reader never arrives, the page shows itself anyway. */
+html[data-translating] body {
+  visibility: hidden;
+  animation: agz-translate-reveal 0s linear 3s forwards;
+}
+@keyframes agz-translate-reveal {
+  to {
+    visibility: visible;
+  }
+}

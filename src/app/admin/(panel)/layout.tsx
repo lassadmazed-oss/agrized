@@ -3,11 +3,13 @@ import { cookies } from "next/headers";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 
+import { AdminLanguageSwitch } from "@/components/admin/admin-language-switch";
 import { MenuIcon } from "@/components/admin/nav-icons";
 import { ADMIN_LABELS } from "@/components/admin/nav-model";
 import { DoorTabs, WorkspaceNav, type WorkspacePanel } from "@/components/admin/workspace-switcher";
 import { WORKSPACE_COOKIE, WORKSPACES } from "@/components/admin/workspaces";
 import { Wordmark } from "@/components/brand/wordmark";
+import { ADMIN_LANG_COOKIE, parseAdminLang, type AdminLang } from "@/lib/admin-lang";
 import { requireStaff, ROLE_LABELS, type StaffSession } from "@/lib/auth";
 import { getPublicConfig, type PublicConfig } from "@/lib/config";
 
@@ -44,7 +46,9 @@ export default async function PanelLayout({ children }: LayoutProps<"/admin">) {
   const panels = panelsFor(session, config);
   // The old workspace switcher's cookie: since 2026-11-19 the page you stand on decides the open door, and the
   // cookie only breaks a tie for a path no door claims. Nothing writes it any more; it fades with the browser.
-  const workspaceCookie = (await cookies()).get(WORKSPACE_COOKIE)?.value ?? null;
+  const cookieStore = await cookies();
+  const workspaceCookie = cookieStore.get(WORKSPACE_COOKIE)?.value ?? null;
+  const lang = parseAdminLang(cookieStore.get(ADMIN_LANG_COOKIE)?.value);
   const roles = session.roles.map((role) => ROLE_LABELS[role]).join("، ");
 
   return (
@@ -67,7 +71,7 @@ export default async function PanelLayout({ children }: LayoutProps<"/admin">) {
           </Link>
         </header>
         <WorkspaceNav panels={panels} cookie={workspaceCookie} className="min-h-0 flex-1 overflow-y-auto py-3" />
-        <RailFoot name={session.fullName || session.email || ""} roles={roles} />
+        <RailFoot name={session.fullName || session.email || ""} roles={roles} lang={lang} />
       </aside>
 
       <div className="flex min-w-0 flex-col">
@@ -82,7 +86,7 @@ export default async function PanelLayout({ children }: LayoutProps<"/admin">) {
             </summary>
             <div className="fixed inset-x-0 top-14 z-40 max-h-[80dvh] overflow-y-auto border-b border-line bg-surface py-2 shadow-[var(--shadow-float)]">
               <WorkspaceNav panels={panels} cookie={workspaceCookie} />
-              <RailFoot name={session.fullName || session.email || ""} roles={roles} />
+              <RailFoot name={session.fullName || session.email || ""} roles={roles} lang={lang} />
             </div>
           </details>
           <Link href="/admin" className="flex items-center gap-2">
@@ -100,17 +104,21 @@ export default async function PanelLayout({ children }: LayoutProps<"/admin">) {
   );
 }
 
-/** The foot of the rail: who is signed in (their password page), the public site, and leaving. */
-function RailFoot({ name, roles }: { name: string; roles: string }) {
+/** The foot of the rail: who is signed in (their password page), the language, the public site, and leaving. */
+function RailFoot({ name, roles, lang }: { name: string; roles: string; lang: AdminLang }) {
   return (
     <footer className="shrink-0 border-t border-line py-2">
       <Link href="/admin/account" title={ADMIN_LABELS["/admin/account"]} className="block px-4 py-[7px] transition-colors hover:bg-paper">
         <span className="block truncate text-[13px] font-semibold text-ink">{name}</span>
         <span className="block truncate text-[11px] text-muted">{roles}</span>
       </Link>
+      <AdminLanguageSwitch
+        current={lang}
+        className="flex w-full items-center gap-2 px-4 py-[7px] text-start text-[12.5px] font-medium text-muted transition-colors hover:text-ink"
+      />
       <Link href="/" className="flex items-center gap-2 px-4 py-[7px] text-[12.5px] font-medium text-muted transition-colors hover:text-ink">
         <span aria-hidden="true">↗</span>
-        الموقع
+        <span data-fr="Site">الموقع</span>
       </Link>
       <form action={signOut}>
         <button type="submit" className="flex w-full items-center gap-2 px-4 py-[7px] text-start text-[12.5px] font-medium text-muted transition-colors hover:text-ink">

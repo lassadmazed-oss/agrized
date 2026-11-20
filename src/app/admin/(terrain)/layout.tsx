@@ -1,6 +1,9 @@
 import type { Metadata } from "next";
+import { cookies } from "next/headers";
 import Link from "next/link";
 
+import { AdminLanguageSwitch } from "@/components/admin/admin-language-switch";
+import { ADMIN_LANG_COOKIE, parseAdminLang } from "@/lib/admin-lang";
 import { ADMIN_ROLES, hasRole, requireStaff, type StaffRole } from "@/lib/auth";
 
 import { signOut } from "../login/actions";
@@ -23,6 +26,7 @@ export default async function TerrainLayout({ children }: LayoutProps<"/admin">)
   const field = hasRole(session, FIELD_ROLES);
   const farm = hasRole(session, FARM_ROLES);
   const office = !session.roles.every((role) => role === "worker" || role === "supervisor");
+  const lang = parseAdminLang((await cookies()).get(ADMIN_LANG_COOKIE)?.value);
 
   return (
     <div className="min-h-dvh bg-paper">
@@ -54,6 +58,7 @@ export default async function TerrainLayout({ children }: LayoutProps<"/admin">)
                 الإدارة
               </Link>
             ) : null}
+            <AdminLanguageSwitch current={lang} className="btn btn-ghost btn-sm" />
             <form action={signOut}>
               <button type="submit" className="btn btn-ghost btn-sm">
                 خروج
